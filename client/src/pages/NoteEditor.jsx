@@ -14,6 +14,7 @@ import PricingModal from '../components/ui/PricingModal';
 import { createArrayStreamParser } from '../utils/streamingJsonParser';
 import ShareToFriendModal from '../components/ShareToFriendModal';
 import WaveformBars from '../components/audio/WaveformBars.jsx';
+import SectionedPreview from '../components/audio/SectionedPreview';
 import { formatRecordingDuration } from '../utils/audioRecording.js';
 import { UIContext } from '../context/UIContext';
 import {
@@ -104,6 +105,8 @@ export default function NoteEditor() {
     const [audioPath, setAudioPath] = useState(null);
     const [activeEnhancementJob, setActiveEnhancementJob] = useState(null);
     const [enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
+    const [enhancementSections, setEnhancementSections] = useState([]);
+    const [enhancementSectionsTotal, setEnhancementSectionsTotal] = useState(0);
 
     const toastRef = useRef(toast);
     const navigateRef = useRef(navigate);
@@ -199,6 +202,11 @@ export default function NoteEditor() {
         setActiveEnhancementJob(job || null);
         const previewDoc = getJobPreviewDoc(job);
         setEnhancementPreviewDoc(previewDoc);
+        const payload = job?.result_payload || {};
+        if (Array.isArray(payload.preview_sections) && typeof payload.sections_total === 'number') {
+            setEnhancementSections(payload.preview_sections.filter(Boolean));
+            setEnhancementSectionsTotal(payload.sections_total);
+        }
 
         if (!job) {
             setEnhancing(false);
@@ -249,6 +257,8 @@ export default function NoteEditor() {
             setEnhanceError(null);
             setShowEnhanceBanner(false);
             setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
             setActiveEnhancementJob(null);
             setAudioPath(null);
             recorder.setAudioPath(null);
@@ -266,6 +276,8 @@ export default function NoteEditor() {
             }
             setEnhancing(false);
             setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
             setActiveEnhancementJob(null);
             recorder.setProcessingState('error');
             stopEnhancementTracking();
@@ -693,6 +705,8 @@ export default function NoteEditor() {
             result_payload: {},
         });
         setEnhancementPreviewDoc(null);
+        setEnhancementSections([]);
+        setEnhancementSectionsTotal(0);
 
         try {
             const uploadResult = await api.uploadNoteAudio(noteId, blob);
@@ -726,6 +740,8 @@ export default function NoteEditor() {
             stopEnhancementTracking();
             setActiveEnhancementJob(null);
             setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
             setEnhancing(false);
             recorder.setProcessingState('error');
             if (err.status === 429) {
@@ -1219,32 +1235,42 @@ export default function NoteEditor() {
                     </AnimatePresence>
 
                     <AnimatePresence>
-                        {enhancementPreviewDoc && enhancementLocked && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                className="mb-5 rounded-2xl border border-claude-accent/20 bg-claude-surface/60 overflow-hidden"
-                            >
-                                <div className="px-4 py-3 border-b border-claude-border/20 flex items-center justify-between gap-3">
-                                    <div>
-                                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent">AI Enhancement Preview</p>
-                                        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-claude-secondary mt-1">
-                                            Sections appear as they are completed
-                                        </p>
-                                    </div>
-                                    <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary shrink-0">
-                                        {enhancementStatusText}
-                                    </span>
-                                </div>
-                                <div className="px-4 py-4">
-                                    <TiptapEditor
-                                        content={enhancementPreviewDoc}
-                                        editable={false}
-                                        placeholder=""
+                        {enhancementLocked && (enhancementSections.length > 1 || enhancementPreviewDoc) && (
+                            <>
+                                {enhancementSections.length > 1 ? (
+                                    <SectionedPreview
+                                        sections={enhancementSections}
+                                        sectionsTotal={enhancementSectionsTotal}
+                                        statusText={enhancementStatusText}
                                     />
-                                </div>
-                            </motion.div>
+                                ) : enhancementPreviewDoc ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        className="mb-5 rounded-2xl border border-claude-accent/20 bg-claude-surface/60 overflow-hidden"
+                                    >
+                                        <div className="px-4 py-3 border-b border-claude-border/20 flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent">AI Enhancement Preview</p>
+                                                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-claude-secondary mt-1">
+                                                    Sections appear as they are completed
+                                                </p>
+                                            </div>
+                                            <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary shrink-0">
+                                                {enhancementStatusText}
+                                            </span>
+                                        </div>
+                                        <div className="px-4 py-4">
+                                            <TiptapEditor
+                                                content={enhancementPreviewDoc}
+                                                editable={false}
+                                                placeholder=""
+                                            />
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+                            </>
                         )}
                     </AnimatePresence>
 
