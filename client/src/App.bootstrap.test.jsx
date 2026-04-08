@@ -26,7 +26,7 @@ const {
     restoreSessionUserMock: vi.fn(),
     getThemesMock: vi.fn(),
     useGSAPMock: vi.fn(),
-    updateServiceWorkerMock: vi.fn().mockResolvedValue(undefined),
+    updateServiceWorkerMock: vi.fn().mockResolvedValue(true),
     pwaState: {
         needRefresh: false,
     },
@@ -106,7 +106,7 @@ describe('App bootstrap smoke tests', () => {
         restoreSessionUserMock.mockResolvedValue(null);
         getThemesMock.mockResolvedValue([activeTheme]);
         useGSAPMock.mockImplementation(() => ({ container: { current: null } }));
-        updateServiceWorkerMock.mockResolvedValue(undefined);
+        updateServiceWorkerMock.mockResolvedValue(true);
         pwaState.needRefresh = false;
         window.scrollTo = vi.fn();
         delete window.__RIVEN_LAST_APP_ERROR;
@@ -162,6 +162,19 @@ describe('App bootstrap smoke tests', () => {
 
         await waitFor(() => {
             expect(updateServiceWorkerMock).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('hides the update banner after Later is clicked while the same build is still waiting', async () => {
+        pwaState.needRefresh = true;
+        renderAppAt('/');
+
+        await screen.findByText('Cultivated by Riven');
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Later' }));
+
+        await waitFor(() => {
+            expect(screen.queryByRole('button', { name: 'Refresh now' })).not.toBeInTheDocument();
         });
     });
 });

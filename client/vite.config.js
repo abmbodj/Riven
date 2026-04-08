@@ -13,7 +13,7 @@ export default defineConfig({
     react(),
     VitePWA({
       injectRegister: false,
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['logo.png', 'mask-icon.svg'],
       manifest: {
         name: 'Riven - Flashcard Study App',

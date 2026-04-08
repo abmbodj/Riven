@@ -12,11 +12,12 @@ function scheduleReloadForActivatedWorker() {
     return null;
   }
 
+  const serviceWorkerContainer = navigator.serviceWorker;
   let didReload = false;
   let fallbackTimerId = null;
 
   const cleanup = () => {
-    navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    serviceWorkerContainer.removeEventListener('controllerchange', handleControllerChange);
     if (fallbackTimerId !== null) {
       window.clearTimeout(fallbackTimerId);
       fallbackTimerId = null;
@@ -32,7 +33,7 @@ function scheduleReloadForActivatedWorker() {
 
   const handleControllerChange = () => reload();
 
-  navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+  serviceWorkerContainer.addEventListener('controllerchange', handleControllerChange);
   fallbackTimerId = window.setTimeout(reload, RELOAD_FALLBACK_DELAY_MS);
 
   return {
@@ -86,6 +87,12 @@ export default function WebAppUpdateManager({ children }) {
       console.warn('[WebAppUpdateManager] Service worker registration failed', error);
     },
   });
+
+  useEffect(() => {
+    if (!needRefresh) {
+      setIsRefreshingUpdate(false);
+    }
+  }, [needRefresh]);
 
   useEffect(() => {
     if (!isWebRuntime) return undefined;
@@ -155,7 +162,12 @@ export default function WebAppUpdateManager({ children }) {
     const reloadGuard = scheduleReloadForActivatedWorker();
 
     try {
-      await updateServiceWorker?.(true);
+      const activatedWaitingWorker = await updateServiceWorker?.();
+
+      if (!activatedWaitingWorker) {
+        throw new Error('No waiting service worker was available to activate.');
+      }
+
       if (!reloadGuard) {
         setIsRefreshingUpdate(false);
       }

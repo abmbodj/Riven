@@ -2,17 +2,27 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SW_URL = '/sw.js';
 const SW_SCOPE = '/';
+const SKIP_WAITING_MESSAGE = { type: 'SKIP_WAITING' };
 
-function trackInstallingWorker(worker, hadController, setNeedRefresh, setOfflineReady) {
+function trackInstallingWorker({
+  worker,
+  hadController,
+  registration,
+  isDisposedRef,
+  markNeedRefresh,
+  markOfflineReady,
+}) {
   if (!worker) return () => {};
 
   const handleStateChange = () => {
-    if (worker.state === 'installed') {
-      if (hadController) {
-        setNeedRefresh(true);
-      } else {
-        setOfflineReady(true);
-      }
+    if (isDisposedRef.current || worker.state !== 'installed') {
+      return;
+    }
+
+    if (hadController) {
+      markNeedRefresh(registration.waiting ?? worker);
+    } else {
+      markOfflineReady();
     }
   };
 
@@ -23,6 +33,8 @@ function trackInstallingWorker(worker, hadController, setNeedRefresh, setOffline
 export function useRegisterSW(options = {}) {
   const {
     onNeedRefresh,
+    onOfflineReady,
+    onRegistered,
     onRegisteredSW,
     onRegisterError,
   } = options;
@@ -30,18 +42,38 @@ export function useRegisterSW(options = {}) {
   const [offlineReady, setOfflineReady] = useState(false);
   const registrationRef = useRef(null);
   const trackedInstallingWorkerCleanupRef = useRef(() => {});
-  const markUpdateReady = useCallback(() => {
+  const waitingWorkerRef = useRef(null);
+  const notifiedWaitingWorkerRef = useRef(null);
+  const isDisposedRef = useRef(false);
+
+  const markNeedRefresh = useCallback((worker) => {
+    if (!worker) return;
+
+    waitingWorkerRef.current = worker;
+
+    if (notifiedWaitingWorkerRef.current === worker) {
+      return;
+    }
+
+    notifiedWaitingWorkerRef.current = worker;
     setNeedRefresh(true);
     onNeedRefresh?.();
   }, [onNeedRefresh]);
+
+  const markOfflineReady = useCallback(() => {
+    setOfflineReady(true);
+    onOfflineReady?.();
+  }, [onOfflineReady]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
       return undefined;
     }
 
-    let isDisposed = false;
-    const hadController = Boolean(navigator.serviceWorker.controller);
+    const serviceWorkerContainer = navigator.serviceWorker;
+    const hadController = Boolean(serviceWorkerContainer.controller);
+    isDisposedRef.current = false;
+
     let removeUpdateFoundListener = () => {};
     let removeControllerChangeListener = () => {};
 
@@ -50,51 +82,66 @@ export function useRegisterSW(options = {}) {
       trackedInstallingWorkerCleanupRef.current = () => {};
     };
 
+    const clearWaitingWorkerState = () => {
+      waitingWorkerRef.current = null;
+      notifiedWaitingWorkerRef.current = null;
+    };
+
     const syncRegistrationState = (registration) => {
-      if (!registration || isDisposed) return;
+      if (!registration || isDisposedRef.current) return;
+
       if (registration.waiting && hadController) {
-        markUpdateReady();
+        markNeedRefresh(registration.waiting);
       } else if (!hadController && registration.active) {
-        setOfflineReady(true);
+        markOfflineReady();
       }
     };
 
     const registerServiceWorker = async () => {
       try {
-        const registration = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
-        if (isDisposed) return;
+        const registration = await serviceWorkerContainer.register(SW_URL, { scope: SW_SCOPE });
+        if (isDisposedRef.current) return;
 
         registrationRef.current = registration;
-        onRegisteredSW?.(SW_URL, registration);
+        if (onRegisteredSW) {
+          onRegisteredSW(SW_URL, registration);
+        } else {
+          onRegistered?.(registration);
+        }
         syncRegistrationState(registration);
 
         const handleUpdateFound = () => {
           cleanupTrackedWorker();
           trackedInstallingWorkerCleanupRef.current = trackInstallingWorker(
-            registration.installing,
-            hadController,
-            markUpdateReady,
-            setOfflineReady
+            {
+              worker: registration.installing,
+              hadController,
+              registration,
+              isDisposedRef,
+              markNeedRefresh,
+              markOfflineReady,
+            }
           );
         };
 
         const handleControllerChange = () => {
-          if (hadController) {
-            markUpdateReady();
-          }
+          if (isDisposedRef.current) return;
+
+          clearWaitingWorkerState();
+          setNeedRefresh(false);
         };
 
         registration.addEventListener('updatefound', handleUpdateFound);
-        navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+        serviceWorkerContainer.addEventListener('controllerchange', handleControllerChange);
 
         removeUpdateFoundListener = () => registration.removeEventListener('updatefound', handleUpdateFound);
-        removeControllerChangeListener = () => navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+        removeControllerChangeListener = () => serviceWorkerContainer.removeEventListener('controllerchange', handleControllerChange);
 
         if (registration.installing) {
           handleUpdateFound();
         }
       } catch (error) {
-        if (!isDisposed) {
+        if (!isDisposedRef.current) {
           onRegisterError?.(error);
         }
       }
@@ -103,17 +150,23 @@ export function useRegisterSW(options = {}) {
     void registerServiceWorker();
 
     return () => {
-      isDisposed = true;
+      isDisposedRef.current = true;
+      registrationRef.current = null;
       cleanupTrackedWorker();
       removeUpdateFoundListener();
       removeControllerChangeListener();
     };
-  }, [markUpdateReady, onRegisterError, onRegisteredSW]);
+  }, [markNeedRefresh, markOfflineReady, onRegisterError, onRegistered, onRegisteredSW]);
 
   const updateServiceWorker = useCallback(async () => {
-    if (registrationRef.current && typeof registrationRef.current.update === 'function') {
-      await registrationRef.current.update();
+    const waitingWorker = registrationRef.current?.waiting ?? waitingWorkerRef.current;
+
+    if (!waitingWorker || typeof waitingWorker.postMessage !== 'function') {
+      return false;
     }
+
+    waitingWorker.postMessage(SKIP_WAITING_MESSAGE);
+    return true;
   }, []);
 
   return {
