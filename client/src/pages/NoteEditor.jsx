@@ -14,6 +14,7 @@ import PricingModal from '../components/ui/PricingModal';
 import { createArrayStreamParser } from '../utils/streamingJsonParser';
 import ShareToFriendModal from '../components/ShareToFriendModal';
 import WaveformBars from '../components/audio/WaveformBars.jsx';
+import SectionedPreview from '../components/audio/SectionedPreview';
 import { formatRecordingDuration } from '../utils/audioRecording.js';
 import { UIContext } from '../context/UIContext';
 import {
@@ -108,6 +109,9 @@ export default function NoteEditor() {
     const [streamedEnhancementDoc, setStreamedEnhancementDoc] = useState(null);
     const [streamedEnhancementPulseKey, setStreamedEnhancementPulseKey] = useState(0);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+    const [enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
+    const [enhancementSections, setEnhancementSections] = useState([]);
+    const [enhancementSectionsTotal, setEnhancementSectionsTotal] = useState(0);
 
     const toastRef = useRef(toast);
     const navigateRef = useRef(navigate);
@@ -469,6 +473,12 @@ export default function NoteEditor() {
 
         setActiveEnhancementJob(job || null);
         const previewDoc = getJobPreviewDoc(job);
+        setEnhancementPreviewDoc(previewDoc);
+        const payload = job?.result_payload || {};
+        if (Array.isArray(payload.preview_sections) && typeof payload.sections_total === 'number') {
+            setEnhancementSections(payload.preview_sections.filter(Boolean));
+            setEnhancementSectionsTotal(payload.sections_total);
+        }
 
         if (!job) {
             setEnhancing(false);
@@ -534,6 +544,9 @@ export default function NoteEditor() {
             setEnhanceError(null);
             setShowEnhanceBanner(false);
             resetStreamedEnhancementDoc();
+            setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
             setActiveEnhancementJob(null);
             setAudioPath(null);
             recorder.setAudioPath(null);
@@ -558,6 +571,9 @@ export default function NoteEditor() {
             setSaved(originalSavedRef.current);
             setEnhancing(false);
             resetStreamedEnhancementDoc();
+            setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
             setActiveEnhancementJob(null);
             recorder.setProcessingState('error');
             stopEnhancementTracking();
@@ -958,6 +974,12 @@ export default function NoteEditor() {
         const blob = recorder.getBlob();
         if (!blob || !noteId) return;
 
+        const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // 24MB — 1MB below Groq's 25MB limit
+        if (blob.size > MAX_AUDIO_BYTES) {
+            setEnhanceError('Recording is too large to process (max ~90 min at standard quality). Please try a shorter recording.');
+            return;
+        }
+
         locallyResolvedEnhancementJobsRef.current.clear();
         resolvedEnhancementRefreshAttemptedRef.current.clear();
         savingGraceStateRef.current.clear();
@@ -986,6 +1008,9 @@ export default function NoteEditor() {
             progress_message: ENHANCEMENT_PHASE_LABELS.uploading_audio,
             result_payload: {},
         });
+        setEnhancementPreviewDoc(null);
+        setEnhancementSections([]);
+        setEnhancementSectionsTotal(0);
 
         try {
             const uploadResult = await api.uploadNoteAudio(noteId, blob);
@@ -1019,6 +1044,9 @@ export default function NoteEditor() {
             stopEnhancementTracking();
             setActiveEnhancementJob(null);
             resetStreamedEnhancementDoc();
+            setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
             setEnhancing(false);
             recorder.setProcessingState('error');
             if (err.status === 429) {
@@ -1536,6 +1564,16 @@ export default function NoteEditor() {
                                     </button>
                                 </div>
                             </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                        {enhancementLocked && enhancementSections.length > 1 && (
+                            <SectionedPreview
+                                sections={enhancementSections}
+                                sectionsTotal={enhancementSectionsTotal}
+                                statusText={enhancementStatusText}
+                            />
                         )}
                     </AnimatePresence>
 

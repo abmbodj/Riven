@@ -788,6 +788,26 @@ describe('NoteEditor', () => {
     expect(toast.success).toHaveBeenCalledTimes(1);
   });
 
+  it('shows an error and does not upload when the recording blob exceeds 24 MB', async () => {
+    const oversizedBlob = { size: 25 * 1024 * 1024, type: 'audio/webm' };
+    recorderMock.state = 'stopped';
+    recorderMock.duration = 15;
+    recorderMock.getBlob.mockReturnValue(oversizedBlob);
+
+    api.getNote.mockResolvedValue(note);
+    api.listAiJobs.mockResolvedValue([]);
+    api.getClasses.mockResolvedValue([]);
+
+    renderNoteEditor();
+    await flushAsync();
+
+    fireEvent.click(screen.getByRole('button', { name: /enhance/i }));
+    await flushAsync();
+
+    expect(api.uploadNoteAudio).not.toHaveBeenCalled();
+    expect(screen.getByText(/too large to process/i)).toBeInTheDocument();
+  });
+
   it('stops enhancement polling when the editor unmounts', async () => {
     vi.useFakeTimers();
 

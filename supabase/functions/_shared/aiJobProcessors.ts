@@ -73,6 +73,91 @@ ${userNotes || 'No student notes were provided.'}
 Current draft JSON:
 ${JSON.stringify(draftDoc)}`;
 
+const buildSectionNotePrompt = (
+  sectionIndex: number,
+  totalSections: number,
+  userNotes: string | null,
+  className?: string | null,
+) => `You are a lecture notes assistant. Given a transcript excerpt from a lecture, produce structured notes as a Tiptap JSON document for this section only.
+
+${buildSubjectContext(className ?? undefined)}
+
+This is section ${sectionIndex + 1} of ${totalSections} from a longer lecture.
+- Use H2 for the section's main topic, H3 for subtopics.
+- Bullet lists for concepts, ordered lists for sequential steps.
+- Bold key terms on first use.
+- Blockquotes for direct definitions.
+- Do NOT include "Key Concepts" or "Potential Exam Questions" — those go in the final merge.
+- Be concise. Do not pad with filler.
+
+${TIPTAP_FORMAT}
+
+Student notes (for context, if any):
+${userNotes || 'No student notes were provided.'}`;
+
+const generateNotesForSection = async ({
+  ai,
+  section,
+  totalSections,
+  userNotesSnapshot,
+  className,
+  modelMap,
+}: {
+  ai: AiClient;
+  section: AudioSection;
+  totalSections: number;
+  userNotesSnapshot: string | null;
+  className: string | null;
+  modelMap: ReturnType<typeof getAiModelMap>;
+}): Promise<unknown> => {
+  const placeholder = {
+    type: 'doc',
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: '[This section could not be processed]' }],
+    }],
+  };
+
+  try {
+    const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className);
+    const rawText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.draft,
+      fallbackModel: modelMap.final,
+      messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
+      jsonMode: true,
+      maxTokens: 3072,
+    });
+    return parseAiJsonResponse(rawText, 'Invalid section notes format');
+  } catch (err) {
+    console.warn(`[audio-sections] Section ${section.index} failed:`, err instanceof Error ? err.message : err);
+    return placeholder;
+  }
+};
+
+const buildMergePrompt = (
+  userNotes: string | null,
+  className: string | null | undefined,
+  sectionDocs: unknown[],
+) => `You are a lecture notes assistant. You have notes for each section of a lecture. Merge them into one complete, polished Tiptap JSON document.
+
+${buildSubjectContext(className ?? undefined)}
+
+Requirements:
+- Preserve the structure and wording of each section's notes.
+- Remove any duplication introduced at section boundaries.
+- Add a final "Key Concepts" section summarizing the whole lecture.
+- Add a "Potential Exam Questions" section with 3–5 questions covering the full lecture.
+- Keep H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions.
+
+${TIPTAP_FORMAT}
+
+Student notes (for context, if any):
+${userNotes || 'No student notes were provided.'}
+
+Section notes JSON array:
+${JSON.stringify(sectionDocs)}`;
+
 const buildYoutubeSourcePrompt = (className?: string | null) => `You are an expert academic note taker watching an educational YouTube video.
 Produce clean, complete notes as a Tiptap JSON document that can be reused to generate other study materials.
 
@@ -155,29 +240,58 @@ const getAudioMimeType = (audioPath: string) => {
   return mimeMap[ext] || 'audio/webm';
 };
 
-const transcribeAudio = async ({
-  ai,
-  audioPath,
-  admin,
-  reporter,
-}: {
-  ai: AiClient;
-  audioPath: string;
-  admin: any;
-  reporter: ReturnType<typeof createJobReporter>;
-}): Promise<string> => {
-  await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
-  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
-  if (storageError || !audioData) {
-    throw createHttpError('Failed to retrieve audio file.', 500);
+type AudioSegment = { id: number; start: number; end: number; text: string };
+type AudioSection = { index: number; text: string; startTime: number; endTime: number };
+
+const groupSegmentsIntoSections = (
+  segments: AudioSegment[],
+  targetDurationSecs = 300,
+): AudioSection[] => {
+  if (segments.length === 0) return [];
+
+  const sections: AudioSection[] = [];
+  let currentSegments: AudioSegment[] = [];
+  let sectionStart = segments[0].start;
+
+  for (const seg of segments) {
+    currentSegments.push(seg);
+    const elapsed = seg.end - sectionStart;
+    if (elapsed >= targetDurationSecs) {
+      sections.push({
+        index: sections.length,
+        text: currentSegments.map((s) => s.text).join(' '),
+        startTime: sectionStart,
+        endTime: seg.end,
+      });
+      currentSegments = [];
+      sectionStart = seg.end;
+    }
   }
 
-  await reporter.update('processing_media', 24, 'Transcribing audio');
-  const audioMimeType = getAudioMimeType(audioPath);
-  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
-  const filename = audioPath.split('/').pop() || 'audio.webm';
+  // Flush remaining segments
+  if (currentSegments.length > 0) {
+    sections.push({
+      index: sections.length,
+      text: currentSegments.map((s) => s.text).join(' '),
+      startTime: sectionStart,
+      endTime: currentSegments[currentSegments.length - 1].end,
+    });
+  }
 
-  return ai.transcribeAudio(audioBlob, filename);
+  return sections;
+};
+
+const processConcurrently = async <T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<void>,
+): Promise<void> => {
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    await Promise.allSettled(
+      batch.map((item, batchIndex) => fn(item, i + batchIndex)),
+    );
+  }
 };
 
 const streamDocPreview = async ({
@@ -475,71 +589,155 @@ const processNoteEnhancementJob = async ({
 
   await reporter.markRunning('accepted', 5, 'Accepted note enhancement job');
 
-  const transcription = await transcribeAudio({ ai, audioPath, admin, reporter });
-
-  const draftMessages: AiMessage[] = [{
-    role: 'user',
-    content: `${buildNoteDraftPrompt(userNotesSnapshot, className)}\n\nLecture Audio Transcription:\n${transcription}`,
-  }];
-
-  const draftResult = await streamDocPreview({
-    ai,
-    model: modelMap.draft,
-    fallbackModel: modelMap.final,
-    messages: draftMessages,
-    reporter,
-    phase: 'drafting',
-    startPercent: 36,
-    endPercent: 68,
-    message: 'Drafting enhanced notes',
-  });
-
-  const draftDoc = draftResult.doc;
-  if (draftResult.firstPreviewAt != null) {
-    firstPreviewAt = draftResult.firstPreviewAt;
+  await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
+  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
+  if (storageError || !audioData) {
+    throw createHttpError('Failed to retrieve audio file.', 500);
   }
 
-  await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
-    preview_doc: draftDoc,
-    preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
-      ? (draftDoc as Record<string, unknown>).content
-      : [],
-    preview_text: extractTextFromTiptapDoc(draftDoc),
-  });
+  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: getAudioMimeType(audioPath) });
+  const filename = audioPath.split('/').pop() || 'audio.webm';
 
-  const enrichText = await generateWithFallback({
-    ai,
-    primaryModel: modelMap.final,
-    fallbackModel: modelMap.final,
-    messages: [{
-      role: 'user',
-      content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
-    }],
-    responseFormat: 'json_object',
-  });
+  if (audioBlob.size > 25 * 1024 * 1024) {
+    throw createHttpError('Audio file exceeds the 25MB processing limit. Try a shorter recording.', 413);
+  }
+
+  await reporter.update('processing_media', 24, 'Transcribing audio');
+  const { text: transcription, segments } = await ai.transcribeAudioWithSegments(audioBlob, filename);
+
+  const sections = groupSegmentsIntoSections(segments);
 
   let finalDoc: unknown;
-  try {
-    finalDoc = parseAiJsonResponse(
-      enrichText,
-      'AI generated invalid enhanced notes format. Please try again.',
-    );
-  } catch {
-    finalDoc = draftDoc;
-  }
 
-  await reporter.markSaving('Saving enhanced notes', {
-    final_doc: finalDoc,
-    note_id: noteId,
-    metrics: {
-      server_total_ms: Date.now() - jobStartedAt,
-      first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
-      ai_model_stage: {
-        draft: modelMap.draft,
-        final: modelMap.final,
+  // ── SHORT RECORDING: single-section streaming path (unchanged) ──────────
+  if (sections.length <= 1) {
+    const draftMessages: AiMessage[] = [{
+      role: 'user',
+      content: `${buildNoteDraftPrompt(userNotesSnapshot, className)}\n\nLecture Audio Transcription:\n${transcription}`,
+    }];
+
+    const draftResult = await streamDocPreview({
+      ai,
+      model: modelMap.draft,
+      fallbackModel: modelMap.final,
+      messages: draftMessages,
+      reporter,
+      phase: 'drafting',
+      startPercent: 36,
+      endPercent: 68,
+      message: 'Drafting enhanced notes',
+    });
+
+    const draftDoc = draftResult.doc;
+    if (draftResult.firstPreviewAt != null) {
+      firstPreviewAt = draftResult.firstPreviewAt;
+    }
+
+    await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
+      preview_doc: draftDoc,
+      preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
+        ? (draftDoc as Record<string, unknown>).content
+        : [],
+      preview_text: extractTextFromTiptapDoc(draftDoc),
+    });
+
+    const enrichText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.final,
+      fallbackModel: modelMap.final,
+      messages: [{
+        role: 'user',
+        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
+      }],
+      jsonMode: true,
+    });
+
+    try {
+      finalDoc = parseAiJsonResponse(enrichText, 'AI generated invalid enhanced notes format. Please try again.');
+    } catch {
+      finalDoc = draftDoc;
+    }
+
+    await reporter.markSaving('Saving enhanced notes', {
+      final_doc: finalDoc,
+      note_id: noteId,
+      metrics: {
+        server_total_ms: Date.now() - jobStartedAt,
+        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
       },
-    },
-  });
+    });
+
+  // ── LONG RECORDING: parallel section path ────────────────────────────────
+  } else {
+    const completedSections: unknown[] = new Array(sections.length).fill(null);
+    const CONCURRENCY = 4;
+
+    await reporter.update('drafting', 30, `Generating notes for ${sections.length} sections`);
+
+    await processConcurrently(sections, CONCURRENCY, async (section) => {
+      const sectionDoc = await generateNotesForSection({
+        ai,
+        section,
+        totalSections: sections.length,
+        userNotesSnapshot,
+        className,
+        modelMap,
+      });
+
+      completedSections[section.index] = sectionDoc;
+
+      const ready = completedSections.filter(Boolean);
+      if (firstPreviewAt == null) firstPreviewAt = Date.now();
+      const progressPercent = Math.round(30 + (ready.length / sections.length) * 42);
+
+      await reporter.markStreaming(
+        'drafting',
+        progressPercent,
+        `Section ${ready.length} of ${sections.length} complete`,
+        {
+          preview_sections: ready,
+          sections_complete: ready.length,
+          sections_total: sections.length,
+        },
+      );
+    });
+
+    await reporter.update('enriching', 75, 'Merging sections and adding study aids');
+
+    const mergeText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.final,
+      fallbackModel: modelMap.final,
+      messages: [{
+        role: 'user',
+        content: buildMergePrompt(userNotesSnapshot, className, completedSections),
+      }],
+      jsonMode: true,
+      maxTokens: 8192,
+    });
+
+    try {
+      finalDoc = parseAiJsonResponse(mergeText, 'AI generated invalid merged notes format. Please try again.');
+    } catch {
+      const allContent = completedSections.flatMap((doc: any) => {
+        if (!Array.isArray(doc?.content)) return [];
+        return (doc.content as any[]).filter((node: any) => node?.type !== 'doc');
+      });
+      finalDoc = { type: 'doc', content: allContent };
+    }
+
+    await reporter.markSaving('Saving enhanced notes', {
+      final_doc: finalDoc,
+      note_id: noteId,
+      metrics: {
+        server_total_ms: Date.now() - jobStartedAt,
+        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
+        sections_count: sections.length,
+      },
+    });
+  }
 
   const { error: updateError } = await admin
     .from('notes')
