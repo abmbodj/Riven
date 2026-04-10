@@ -107,10 +107,13 @@ const getFeedbackCaption = (currentCard, result) => {
         return currentCard?.river?.success || result.feedback;
     }
     if (result.outcome === 'partial') {
-        return result.feedback;
+        return 'You\'re close! Let me help you get the rest.';
     }
     if (result.outcome === 'revealed') {
         return 'River has revealed the clean answer. Take it in, then decide whether to retry or move on.';
+    }
+    if (result.followUpQuestion) {
+        return 'Don\'t worry, let\'s try again.';
     }
     return currentCard?.river?.struggle || result.feedback;
 };
@@ -170,6 +173,7 @@ export default function GuideView() {
     const [riverState, setRiverState] = useState('idle');
     const [riverCaption, setRiverCaption] = useState('River is ready to teach.');
     const [activeAssistOption, setActiveAssistOption] = useState(null);
+    const [refinedAnswer, setRefinedAnswer] = useState('');
 
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
@@ -197,6 +201,7 @@ export default function GuideView() {
             setResult(null);
             setCompletionPayload(null);
             setActiveAssistOption(null);
+            setRefinedAnswer('');
             setRiverState(normalizedStudyState.completed_at ? 'celebrate' : 'idle');
             setRiverCaption(normalizedGuideData ? getIntroCaption(normalizedGuideData) : 'River is ready to teach.');
             sessionStartStateRef.current = normalizedStudyState;
@@ -523,9 +528,102 @@ export default function GuideView() {
     const handleTryAgain = () => {
         setResult(null);
         setActiveAssistOption(null);
+        setRefinedAnswer('');
         setSessionStage('check');
         setRiverState('thinking');
         setRiverCaption(getCheckCaption(currentCard));
+    };
+
+    const handleRefinedSubmit = async () => {
+        if (!guideData || !currentCard || submitting || !refinedAnswer.trim()) return;
+
+        setSubmitting(true);
+        try {
+            const evaluation = evaluateTutorCardResponse(guideData, currentCard, refinedAnswer);
+            const nowIso = new Date().toISOString();
+            const cardState = buildDefaultCardState(currentCardState);
+            const conceptState = studyState.concept_mastery?.[currentCard.concept_id] || {
+                score: 0,
+                status: 'unseen',
+                attempts: 0,
+                correct_attempts: 0,
+                last_outcome: null,
+            };
+
+            const nextScore = clamp(
+                conceptState.score + getScoreDelta(evaluation.outcome, currentCard.mastery_weight || 1),
+                0,
+                100,
+            );
+            const nextConceptState = {
+                ...conceptState,
+                score: nextScore,
+                status: getConceptStatus(nextScore),
+                attempts: (conceptState.attempts || 0) + 1,
+                correct_attempts: (conceptState.correct_attempts || 0) + (evaluation.shouldAdvance ? 1 : 0),
+                last_outcome: evaluation.outcome,
+            };
+            const nextCardState = {
+                ...cardState,
+                attempts: (cardState.attempts || 0) + 1,
+                status: evaluation.outcome === 'correct'
+                    ? 'mastered'
+                    : evaluation.shouldAdvance
+                        ? 'needs_review'
+                        : evaluation.outcome === 'misconception'
+                            ? 'retry'
+                            : 'needs_review',
+                last_outcome: evaluation.outcome,
+                completed: Boolean(evaluation.shouldAdvance),
+                skipped: false,
+            };
+
+            const provisionalCardStates = {
+                ...studyState.card_states,
+                [currentCard.id]: nextCardState,
+            };
+            const transitionCardId = evaluation.shouldAdvance
+                ? getNextCardId(
+                    guideData,
+                    currentCard.id,
+                    currentCard.transitions?.on_correct || null,
+                    provisionalCardStates,
+                )
+                : null;
+            const sessionComplete = evaluation.shouldAdvance && !transitionCardId;
+
+            const nextState = normalizeGuideStudyState(guideData, {
+                ...studyState,
+                card_states: provisionalCardStates,
+                concept_mastery: {
+                    ...studyState.concept_mastery,
+                    [currentCard.concept_id]: nextConceptState,
+                },
+                last_interaction_at: nowIso,
+                last_reviewed_at: nowIso,
+                completed_at: sessionComplete ? nowIso : studyState.completed_at,
+            });
+
+            const persistedState = await persistStudyState(nextState);
+            const nextResult = {
+                ...evaluation,
+                feedback: evaluation.feedback,
+                persistedState,
+                sessionComplete,
+                nextCardId: transitionCardId,
+                modelAnswer: currentCard.target_answer,
+            };
+            setResult(nextResult);
+            setAnswer(refinedAnswer);
+            setRefinedAnswer('');
+            setSessionStage('feedback');
+            setRiverState(getFeedbackState(evaluation.outcome));
+            setRiverCaption(getFeedbackCaption(currentCard, nextResult));
+        } catch {
+            toastRef.current.error('Failed to update tutor session');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleAdvance = async () => {
@@ -974,6 +1072,44 @@ export default function GuideView() {
                                             ))}
                                         </div>
                                     </div>
+                                ) : null}
+
+                                {result.followUpQuestion && !result.shouldAdvance ? (
+                                    <motion.div
+                                        className="rounded-[1.6rem] border border-claude-accent/25 bg-claude-accent/6 p-5"
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.35, delay: 0.12, ease: PANEL_EASE }}
+                                    >
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">River's follow-up</p>
+                                        <p className="mt-3 text-base leading-7 text-claude-text italic">
+                                            {result.followUpQuestion}
+                                        </p>
+                                        <label
+                                            htmlFor="river-refined-answer"
+                                            className="mt-4 block text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary"
+                                        >
+                                            Refine your answer
+                                        </label>
+                                        <textarea
+                                            id="river-refined-answer"
+                                            aria-label="Refine your answer"
+                                            value={refinedAnswer}
+                                            onChange={(event) => setRefinedAnswer(event.target.value)}
+                                            disabled={submitting}
+                                            className="mt-2 min-h-[120px] w-full rounded-[1.2rem] border bg-claude-bg/70 px-4 py-3 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                            style={{ borderColor: `${poseAccent}30` }}
+                                            placeholder="Try again with River's hint in mind…"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleRefinedSubmit}
+                                            disabled={submitting || !refinedAnswer.trim()}
+                                            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                                        >
+                                            {submitting ? 'Checking…' : 'Submit refined answer'}
+                                        </button>
+                                    </motion.div>
                                 ) : null}
 
                                 <div className="flex flex-wrap gap-3">

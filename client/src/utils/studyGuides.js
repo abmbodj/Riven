@@ -738,6 +738,27 @@ const getTagCandidates = (guideData, tag) => {
 
 const pickFeedbackText = (messages, fallback = '') => messages?.find(Boolean) || fallback;
 
+/**
+ * Builds a follow-up question from the card's hints and missing tags so River
+ * can nudge the user toward the correct answer instead of just marking them wrong.
+ */
+const buildFollowUpQuestion = (card, missingTags, hintsUsed = 0) => {
+    // Use the next unused hint as the follow-up nudge if available
+    const nextHint = (card?.hints || [])[hintsUsed];
+    if (nextHint?.text) return nextHint.text;
+
+    // Otherwise, build a guiding question from the missing concept tags
+    if (missingTags.length > 0) {
+        const readable = missingTags
+            .slice(0, 2)
+            .map((tag) => tag.replace(/-/g, ' '))
+            .join(' and ');
+        return `You're close! Think about ${readable} — can you add that to your answer?`;
+    }
+
+    return 'You\'re almost there. Can you think about what\'s missing and try again?';
+};
+
 export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
     const normalizedGuideData = normalizeGuideData(guideData);
     if (!normalizedGuideData) {
@@ -748,6 +769,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
             matchedTags: [],
             missingTags: [],
             misconceptionId: null,
+            followUpQuestion: null,
             feedback: '',
             cue: { ...RIVER_CUE_FALLBACKS.recover },
         };
@@ -766,6 +788,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
             matchedTags: [],
             missingTags: card?.required_idea_tags || [],
             misconceptionId: null,
+            followUpQuestion: null,
             feedback: pickFeedbackText(card?.feedback?.empty, 'Start with one precise idea.'),
             cue: normalizedGuideData.river.cue_map.recover,
         };
@@ -791,6 +814,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
             matchedTags: [],
             missingTags: card?.required_idea_tags || [],
             misconceptionId: misconceptionRule.id,
+            followUpQuestion: buildFollowUpQuestion(card, card?.required_idea_tags || []),
             feedback: pickFeedbackText(
                 misconceptionFeedback?.responses,
                 misconceptionRule.correction || 'That answer is mixing concepts.',
@@ -816,6 +840,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
             matchedTags: card?.required_idea_tags || [],
             missingTags: [],
             misconceptionId: null,
+            followUpQuestion: null,
             feedback: pickFeedbackText(card?.feedback?.correct, 'That is correct.'),
             cue: normalizedGuideData.river.cue_map.mastery,
         };
@@ -866,6 +891,9 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
         matchedTags: [...matchedRequiredTags, ...matchedOptionalTags],
         missingTags,
         misconceptionId: null,
+        followUpQuestion: outcome !== 'correct'
+            ? buildFollowUpQuestion(card, missingTags)
+            : null,
         feedback: outcome === 'correct'
             ? pickFeedbackText(card?.feedback?.correct, 'That is correct.')
             : outcome === 'partial'

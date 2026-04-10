@@ -454,6 +454,32 @@ describe('evaluateTutorCardResponse', () => {
         expect(result.score).toBe(1);
         expect(result.shouldAdvance).toBe(true);
     });
+
+    it('includes a follow-up question for partial answers using the next hint', () => {
+        const result = evaluateTutorCardResponse(guideData, card, 'It makes two daughter cells.');
+        expect(result.outcome).toBe('partial');
+        expect(result.followUpQuestion).toBeTruthy();
+        // The first hint should be used as the follow-up nudge
+        expect(result.followUpQuestion).toBe(card.hints[0].text);
+    });
+
+    it('includes a follow-up question for incorrect answers', () => {
+        const noTagCard = {
+            ...card,
+            id: 'card-custom-no-hints',
+            required_idea_tags: ['obscure-concept-xyz'],
+            hints: [],
+        };
+        const result = evaluateTutorCardResponse(guideData, noTagCard, 'Something completely wrong.');
+        expect(result.outcome).toBe('incorrect');
+        expect(result.followUpQuestion).toContain('obscure concept xyz');
+    });
+
+    it('does not include a follow-up question for correct answers', () => {
+        const result = evaluateTutorCardResponse(guideData, card, 'Mitosis makes two cells with the same DNA.');
+        expect(result.outcome).toBe('correct');
+        expect(result.followUpQuestion).toBeNull();
+    });
 });
 
 describe('mastery helpers', () => {
