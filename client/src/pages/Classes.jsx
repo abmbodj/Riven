@@ -750,7 +750,7 @@ export default function Classes() {
                                                         <select
                                                             value={formData.subject}
                                                             onChange={e => {
-                                                                setSubjectManuallySet(true);
+                                                                setSubjectManuallySet(e.target.value !== '');
                                                                 setFormData({ ...formData, subject: e.target.value });
                                                             }}
                                                             className="w-full glass-panel rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-claude-text focus:border-claude-accent outline-none transition-colors appearance-none"

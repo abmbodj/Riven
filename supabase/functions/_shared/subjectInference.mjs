@@ -36,11 +36,13 @@ const PREFIX_MAP = [
   [/^(engr|ece|me|ce|ee|mae|bme)\b/i, 'Engineering'],
 ];
 
+// First-match-wins: entries are ordered by specificity. Keywords shared across subjects
+// (e.g. "thermodynamics") belong only to the most specific match — Physics owns it.
 const KEYWORD_MAP = [
   [/calculus|algebra|trigonometry|geometry|precalculus|pre-calc|differential|integral|linear algebra|statistics|probability/i, 'Mathematics'],
   [/computer science|programming|data structures|algorithms|software|machine learning|artificial intelligence|operating systems|databases|web dev/i, 'Computer Science'],
   [/biology|anatomy|physiology|genetics|microbiology|ecology|zoology|botany|molecular|cellular/i, 'Biology'],
-  [/chemistry|organic chem|inorganic|biochem|analytical chem|thermodynamics/i, 'Chemistry'],
+  [/chemistry|organic chem|inorganic|biochem|analytical chem/i, 'Chemistry'],
   [/physics|mechanics|electromagnetism|quantum|optics|thermodynamics|relativity/i, 'Physics'],
   [/history|civilization|ancient|medieval|modern history|world war|american history|european/i, 'History'],
   [/literature|english comp|creative writing|poetry|fiction|shakespeare|rhetoric|composition/i, 'Literature'],
@@ -49,7 +51,7 @@ const KEYWORD_MAP = [
   [/psychology|cognitive|behavioral|neuroscience|social psych|developmental/i, 'Psychology'],
   [/music theory|composition|orchestra|band|choir|musicology|ear training/i, 'Music'],
   [/art history|studio art|painting|sculpture|drawing|design|photography|ceramics/i, 'Art'],
-  [/engineering|circuits|thermodynamics|statics|dynamics|materials science|fluid mechanics/i, 'Engineering'],
+  [/engineering|circuits|statics|dynamics|materials science|fluid mechanics/i, 'Engineering'],
 ];
 
 /**
@@ -69,7 +71,7 @@ export const inferSubject = (className) => {
 
   // 2. Try keyword match in full name (e.g. "Intro to Data Structures")
   for (const [pattern, subject] of KEYWORD_MAP) {
-    if (pattern.test(className)) return subject;
+    if (pattern.test(normalized)) return subject;
   }
 
   return null;

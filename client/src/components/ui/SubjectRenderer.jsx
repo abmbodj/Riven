@@ -44,11 +44,11 @@ const tokenize = (content) => {
     } else if (fullMatch.startsWith('```')) {
       tokens.push({ type: 'code_block', lang: match[3] || '', value: match[4] || '' });
     } else if (fullMatch.startsWith('`')) {
-      tokens.push({ type: 'inline_code', value: match[5] });
+      tokens.push({ type: 'inline_code', value: match[5] || '' });
     } else if (fullMatch.startsWith('**')) {
-      tokens.push({ type: 'bold', value: match[6] });
+      tokens.push({ type: 'bold', value: match[6] || '' });
     } else if (fullMatch.startsWith('$')) {
-      tokens.push({ type: 'inline_math', value: match[2] });
+      tokens.push({ type: 'inline_math', value: match[2] || '' });
     }
 
     lastIndex = index + fullMatch.length;
@@ -66,9 +66,8 @@ const SubjectRenderer = ({ content, className = '', inline = false }) => {
 
   // Fast path: if there's only plain text, render directly
   if (tokens.length === 1 && tokens[0].type === 'text') {
-    return inline
-      ? <span className={className}>{tokens[0].value}</span>
-      : <>{tokens[0].value}</>;
+    if (inline) return <span className={className}>{tokens[0].value}</span>;
+    return <div className={`subject-renderer ${className}`.trim()}>{tokens[0].value}</div>;
   }
 
   const rendered = tokens.map((token, i) => {

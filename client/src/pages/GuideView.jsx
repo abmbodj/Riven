@@ -653,7 +653,7 @@ export default function GuideView() {
                                     <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
                                         {guideData.session_meta.river_role}
                                     </p>
-                                    <div className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></div>
+                                    <h2 className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></h2>
                                     <div className="mt-4 text-sm leading-7 text-claude-secondary">
                                         <SubjectRenderer content={currentCard.teaching.explain} />
                                     </div>
@@ -737,7 +737,7 @@ export default function GuideView() {
 
                             <div>
                                 <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">Check understanding</p>
-                                <div className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentCard.prompt} /></div>
+                                <h2 className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentCard.prompt} /></h2>
                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
                                     River wants your own wording first. Precision matters, but you do not need a perfect script.
                                 </p>
