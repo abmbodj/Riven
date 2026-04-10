@@ -6,11 +6,6 @@ export const deckTitleSchema = z
     .min(1, 'Title is required')
     .max(200, 'Title must be 200 characters or less');
 
-export const cardContentSchema = z
-    .string()
-    .min(1, 'Content is required')
-    .max(5000, 'Content must be 5000 characters or less');
-
 export const classNameSchema = z
     .string()
     .min(1, 'Class name is required')

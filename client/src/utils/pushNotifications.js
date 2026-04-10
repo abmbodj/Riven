@@ -92,7 +92,7 @@ export async function registerPushNotifications() {
     }
 }
 
-export const extractPushRouteFromData = (data) => {
+const extractPushRouteFromData = (data) => {
     const directRoute = normalizePushRoute(data?.route);
     if (directRoute) return directRoute;
 

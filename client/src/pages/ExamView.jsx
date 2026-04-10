@@ -114,7 +114,7 @@ export default function ExamView() {
         return breakdown;
     };
 
-    const advanceQuestion = useCallback((updatedAnswers) => {
+    const advanceQuestion = useCallback((_updatedAnswers) => {
         const nextIndex = currentIndex + 1;
         if (nextIndex >= (exam?.questions?.length || 0)) {
             setShowResults(true);

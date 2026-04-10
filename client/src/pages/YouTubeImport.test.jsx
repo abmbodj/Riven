@@ -63,7 +63,7 @@ describe('YouTubeImport', () => {
       return vi.fn();
     });
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ title: 'Demo video' }),
     });

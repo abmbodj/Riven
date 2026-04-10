@@ -224,5 +224,3 @@ export function useStreak() {
         getStreakStatus
     }), [streakData, loaded, incrementStreak, breakStreak, resetStreak, getStreakStatus]);
 }
-
-export { calculateStatus, getHoursRemaining };

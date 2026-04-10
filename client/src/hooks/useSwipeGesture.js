@@ -1,7 +1,7 @@
 // Custom hook for swipe gestures
 import { useRef, useCallback } from 'react';
 
-export function useSwipeGesture(options = {}) {
+function useSwipeGesture(options = {}) {
     const {
         onSwipeLeft,
         onSwipeRight,

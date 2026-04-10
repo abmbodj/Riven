@@ -238,5 +238,5 @@ export const FOUNDATION_THEME_NAMES = DEFAULT_THEME_CATALOG
     .map((theme) => theme.name);
 
 export function getDefaultThemes() {
-    return DEFAULT_THEME_CATALOG.map(({ collection, ...theme }) => ({ ...theme }));
+    return DEFAULT_THEME_CATALOG.map(({ collection: _collection, ...theme }) => ({ ...theme }));
 }

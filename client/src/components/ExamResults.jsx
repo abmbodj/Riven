@@ -49,7 +49,6 @@ export default function ExamResults({
     flaggedIndices,
     onRetake,
     onSave,
-    savingAttempt,
     attemptSaved,
 }) {
     const navigate = useNavigate();

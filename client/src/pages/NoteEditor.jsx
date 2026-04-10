@@ -109,7 +109,7 @@ export default function NoteEditor() {
     const [streamedEnhancementDoc, setStreamedEnhancementDoc] = useState(null);
     const [streamedEnhancementPulseKey, setStreamedEnhancementPulseKey] = useState(0);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-    const [enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
+    const [_enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
     const [enhancementSections, setEnhancementSections] = useState([]);
     const [enhancementSectionsTotal, setEnhancementSectionsTotal] = useState(0);
 

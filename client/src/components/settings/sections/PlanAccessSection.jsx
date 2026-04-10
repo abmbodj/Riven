@@ -9,7 +9,7 @@ import SectionHeader from '../SectionHeader';
 import SectionCard from '../SectionCard';
 import StatusNotice from '../StatusNotice';
 
-export default function PlanAccessSection({ user, openModal, haptics, onRestorePurchases }) {
+export default function PlanAccessSection({ user, openModal, onRestorePurchases }) {
     const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
 
     return (

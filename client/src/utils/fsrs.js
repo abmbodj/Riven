@@ -18,14 +18,14 @@ export const UserRating = {
 };
 
 // Card state labels for UI
-export const CardState = {
+const CardState = {
     New: State.New,           // 0
     Learning: State.Learning, // 1
     Review: State.Review,     // 2
     Relearning: State.Relearning, // 3
 };
 
-export const STATE_LABEL = {
+const STATE_LABEL = {
     [State.New]: 'new',
     [State.Learning]: 'learning',
     [State.Review]: 'review',
@@ -45,7 +45,7 @@ const scheduler = fsrs(params);
 /**
  * Convert our DB card fields into a ts-fsrs Card object.
  */
-export function dbCardToFsrs(card) {
+function dbCardToFsrs(card) {
     if (!card.last_reviewed || card.card_state === 'new') {
         return createEmptyCard(card.created_at ? new Date(card.created_at) : new Date());
     }
@@ -97,17 +97,6 @@ export function scheduleCard(card, rating, now = new Date()) {
     };
 }
 
-/**
- * Calculate current retrievability (probability of recall) for a card.
- * @returns {number} 0-1 probability
- */
-export function getRetrievability(card, now = new Date()) {
-    if (!card.last_reviewed || !card.stability || card.stability === 0) {
-        return card.card_state === 'new' ? 1 : 0;
-    }
-    const elapsed = (now - new Date(card.last_reviewed)) / (1000 * 60 * 60 * 24);
-    return Math.pow(1 + elapsed / (9 * card.stability), -1);
-}
 
 /**
  * Check if a card is due for review.
@@ -144,20 +133,6 @@ export function sortForStudy(cards, now = new Date()) {
     });
 }
 
-/**
- * Classify cards into stat categories.
- */
-export function classifyCards(cards) {
-    const stats = { new: 0, learning: 0, young: 0, mature: 0 };
-    for (const card of cards) {
-        const state = card.card_state || 'new';
-        if (state === 'new') stats.new++;
-        else if (state === 'learning' || state === 'relearning') stats.learning++;
-        else if (state === 'review' && (card.stability || 0) >= 21) stats.mature++;
-        else stats.young++;
-    }
-    return stats;
-}
 
 function stateFromString(str) {
     switch (str) {

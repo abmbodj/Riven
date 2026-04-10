@@ -18,7 +18,6 @@ const compression = require('compression');
 const slowDown = require('express-slow-down');
 const xss = require('xss');
 const db = require('./db');
-const queryCache = require('./utils/queryCache');
 const registerAuthRoutes = require('./routes/auth');
 const registerSocialRoutes = require('./routes/social');
 const registerHealthRoutes = require('./routes/health');

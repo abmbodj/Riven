@@ -290,7 +290,7 @@ export function RecordingSessionProvider({ children }) {
         }));
     }, [setSessionSnapshot, stopDurationTimer]);
 
-    const startWeb = useCallback(async (noteId) => {
+    const startWeb = useCallback(async (_noteId) => {
         if (!navigator.mediaDevices?.getUserMedia) {
             const error = new Error('NotSupportedError');
             error.code = 'NOT_SUPPORTED';

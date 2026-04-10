@@ -27,14 +27,14 @@ const {
 
 function stripMotionProps(props) {
   const {
-    animate,
-    exit,
-    initial,
-    layoutId,
-    transition,
-    variants,
-    whileHover,
-    whileTap,
+    animate: _animate,
+    exit: _exit,
+    initial: _initial,
+    layoutId: _layoutId,
+    transition: _transition,
+    variants: _variants,
+    whileHover: _whileHover,
+    whileTap: _whileTap,
     ...domProps
   } = props;
 

@@ -11,7 +11,7 @@ import './SubjectRenderer.css';
  * 4. Inline code: `...`
  * 5. Bold text: **...**
  */
-const TOKEN_RE = /(\$\$[\s\S]+?\$\$|(?<!\$)\$(?!\$)([^\$\n]+?)\$(?!\$)|```(\w*)\n?([\s\S]*?)```|`([^`\n]+)`|\*\*([^*]+)\*\*)/g;
+const TOKEN_RE = /(\$\$[\s\S]+?\$\$|(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)|```(\w*)\n?([\s\S]*?)```|`([^`\n]+)`|\*\*([^*]+)\*\*)/g;
 
 const renderKatex = (tex, displayMode) => {
   try {

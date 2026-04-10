@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, Brain, SkipForward } from 'lucide-react';
 import { api } from '../api';
-import { UserRating, isDue, sortForStudy } from '../utils/fsrs';
+import { UserRating, sortForStudy } from '../utils/fsrs';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import useSwipeGesture from '../hooks/useSwipeGesture';

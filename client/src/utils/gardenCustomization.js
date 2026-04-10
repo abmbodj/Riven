@@ -53,9 +53,3 @@ export const getStageIndex = (streak) => {
     }
     return index;
 };
-
-export default {
-    gardenStages,
-    getGardenStage,
-    getStageIndex
-};

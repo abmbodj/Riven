@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 let lockCount = 0;
 let originalOverflow = '';
 
-export function useBodyScrollLock(isLocked) {
+function useBodyScrollLock(isLocked) {
     useEffect(() => {
         if (!isLocked) return;
 
@@ -38,24 +38,6 @@ export function useBodyScrollLock(isLocked) {
             }
         };
     }, [isLocked]);
-}
-
-// Standalone function for use outside React
-export function lockBodyScroll() {
-    if (lockCount === 0) {
-        originalOverflow = document.body.style.overflow;
-    }
-    lockCount++;
-    document.body.classList.add('modal-open');
-    document.body.style.overflow = 'hidden';
-}
-
-export function unlockBodyScroll() {
-    lockCount--;
-    if (lockCount === 0) {
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = originalOverflow;
-    }
 }
 
 export default useBodyScrollLock;

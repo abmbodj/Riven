@@ -192,7 +192,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         if (syncResult && syncResult.subscription_tier !== 'free') {
                             await refreshUser();
                         }
-                    } catch (e) {}
+                    } catch { /* ignore */ }
 
                     // Poll up to 6 times (12 seconds) for the RevenueCat webhook to sync to Supabase
                     let attempts = 0;

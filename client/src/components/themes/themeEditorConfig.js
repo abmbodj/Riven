@@ -2,7 +2,7 @@ import { FOUNDATION_THEME_NAMES } from '../../themeCatalog.js';
 
 export { FOUNDATION_THEME_NAMES };
 
-export const DEFAULT_THEME_DARK = {
+const DEFAULT_THEME_DARK = {
     name: 'Riven',
     bg_color: '#162a31',
     surface_color: '#1e3840',
@@ -16,7 +16,7 @@ export const DEFAULT_THEME_DARK = {
     effect_intensity: 'soft'
 };
 
-export const DEFAULT_THEME_LIGHT = {
+const DEFAULT_THEME_LIGHT = {
     name: 'Riven Light',
     bg_color: '#f5f0e8',
     surface_color: '#ffffff',

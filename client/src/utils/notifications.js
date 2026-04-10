@@ -138,7 +138,7 @@ export async function checkNotificationPermissions() {
     try {
         const result = await LocalNotifications.checkPermissions();
         return result.display === 'granted';
-    } catch (error) {
+    } catch {
         return false;
     }
 }

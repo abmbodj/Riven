@@ -99,12 +99,6 @@ export function getThemeEffectLabel(theme) {
     return `${effect.name} ${intensity ? `· ${intensity.name}` : ''}`.trim();
 }
 
-export function themeHasVisibleEffect(theme) {
-    const preset = resolveEffectPreset(theme);
-    if (preset === 'none') return false;
-    if (preset === 'auto') return hasDefaultOverlay(theme?.name);
-    return true;
-}
 
 function StaticEffectWash({ theme, className = '' }) {
     return (

@@ -60,11 +60,6 @@ export default function ExamAnalytics() {
     const bestScore = scores.length > 0 ? Math.max(...scores) : null;
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : null;
 
-    const getMasteryColor = (score) => {
-        if (score >= 0.8) return 'bg-green-500';
-        if (score >= 0.5) return 'bg-yellow-500';
-        return 'bg-red-500';
-    };
 
     const getMasteryTextColor = (score) => {
         if (score >= 0.8) return 'text-green-400';

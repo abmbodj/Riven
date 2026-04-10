@@ -37,11 +37,3 @@ export function useGSAP(callback, deps = []) {
 
     return { container };
 }
-
-/**
- * Simplified hook that runs a GSAP animation on mount.
- * Returns a ref to attach to the container element.
- */
-export function useGSAPOnMount(callback) {
-    return useGSAP(callback, []);
-}

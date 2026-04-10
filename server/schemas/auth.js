@@ -91,7 +91,6 @@ module.exports = {
     loginSchema,
     forgotPasswordSchema,
     resetPasswordSchema,
-    verifyEmailSchema,
     changePasswordSchema,
     twoFactorVerifySchema,
 };

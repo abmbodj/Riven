@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "client/src/main.jsx",
+    "server/index.js"
+  ],
+  "project": [
+    "client/src/**/*.{js,jsx}",
+    "server/**/*.js",
+    "!**/node_modules/**",
+    "!**/dist/**",
+    "!**/ios/**",
+    "!**/*.test.{js,jsx}",
+    "!**/test/**"
+  ],
+  "ignore": [
+    "client/src/test/**",
+    "client/scripts/**",
+    "riven-appstore-screenshots-studio/**",
+    "scripts/**"
+  ],
+  "ignoreDependencies": []
+}

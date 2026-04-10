@@ -2,7 +2,7 @@ import { useCallback, useContext, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingSessionContext } from '../context/RecordingSessionContext.jsx';
 
-export function useRecordingSession(options = {}) {
+function useRecordingSession(options = {}) {
     const context = useContext(RecordingSessionContext);
     const navigate = useNavigate();
 

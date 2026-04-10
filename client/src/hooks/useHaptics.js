@@ -1,7 +1,7 @@
 // Native-like haptic feedback for PWA
 // Uses Vibration API where available
 
-export function useHaptics() {
+function useHaptics() {
     const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
 
     const light = () => {

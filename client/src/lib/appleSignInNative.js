@@ -37,7 +37,7 @@ const buildLegacyAppleUser = (givenName, familyName) => {
     };
 };
 
-export function normalizeNativeAppleUser(result) {
+function normalizeNativeAppleUser(result) {
     const givenName = normalizeNamePart(result?.givenName);
     const familyName = normalizeNamePart(result?.familyName);
     const fullName = [givenName, familyName].filter(Boolean).join(' ') || null;

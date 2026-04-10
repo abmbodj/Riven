@@ -13,7 +13,7 @@ const normalizeText = (value) => {
     return trimmed || null;
 };
 
-export const isSharedResourceKind = (kind) => SHARED_RESOURCE_KINDS.has(kind);
+const isSharedResourceKind = (kind) => SHARED_RESOURCE_KINDS.has(kind);
 
 export const isSharedMessageType = (messageType) => isSharedResourceKind(messageType);
 
@@ -152,12 +152,6 @@ export const getSharedResourceLabel = (kind) => {
     return kind;
 };
 
-export const getSharedResourcePluralLabel = (kind) => {
-    if (kind === 'study guide' || kind === 'guide') return 'tutor sessions';
-    if (kind === 'note') return 'notes';
-    if (kind === 'deck') return 'decks';
-    return 'items';
-};
 
 export const getSharedResourceRoute = (kind, resourceId) => {
     if (resourceId === null || resourceId === undefined) return null;
@@ -165,13 +159,6 @@ export const getSharedResourceRoute = (kind, resourceId) => {
     if (kind === 'note') return `/note/${resourceId}`;
     if (kind === 'guide') return `/guide/${resourceId}`;
     return null;
-};
-
-export const getSharedResourceVerb = (kind) => {
-    if (kind === 'deck') return 'deck';
-    if (kind === 'note') return 'note';
-    if (kind === 'guide') return 'tutor session';
-    return 'item';
 };
 
 export const getSharedResourceCta = (kind) => {

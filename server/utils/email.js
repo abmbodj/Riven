@@ -211,10 +211,6 @@ async function sendEmailVerification(email, verifyToken, baseUrl) {
 }
 
 module.exports = {
-    WELCOME_EMAIL_SUBJECT,
-    buildWelcomeEmailHtml,
-    sendEmail,
     sendPasswordResetEmail,
-    sendEmailVerification,
     sendWelcomeEmail,
 };

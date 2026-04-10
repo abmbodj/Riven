@@ -432,7 +432,7 @@ export default function Settings() {
                                 finalUser = updatedUser;
                                 break;
                             }
-                        } catch (e) { }
+                        } catch { /* ignore */ }
                         await new Promise(r => setTimeout(r, 2000));
                         attempts++;
                     }

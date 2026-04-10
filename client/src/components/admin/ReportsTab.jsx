@@ -8,7 +8,7 @@ const STATUS_COLORS = {
     closed: 'bg-claude-secondary/15 text-claude-secondary border-claude-border'
 };
 
-export default function ReportsTab({ reports, onResolve, onClose, onBan, toast, haptics }) {
+export default function ReportsTab({ reports, onResolve, onClose, onBan, haptics }) {
     const [filter, setFilter] = useState('pending');
 
     const filteredReports = useMemo(() => {

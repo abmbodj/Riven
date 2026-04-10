@@ -344,7 +344,7 @@ const normalizeAssistOptions = (value, teaching) => {
         })
         .filter(Boolean);
 
-    const merged = new Map(buildDefaultAssistOptions(teaching).map((item, index) => [
+    const merged = new Map(buildDefaultAssistOptions(teaching).map((item, _index) => [
         item.id,
         {
             ...item,

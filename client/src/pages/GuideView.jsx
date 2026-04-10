@@ -163,7 +163,7 @@ export default function GuideView() {
             setRiverCaption(normalizedGuideData ? getIntroCaption(normalizedGuideData) : 'River is ready to teach.');
             sessionStartStateRef.current = normalizedStudyState;
             finalizingRef.current = false;
-        } catch (error) {
+        } catch {
             toastRef.current.error('Failed to load tutor session');
             navigate('/guides');
         } finally {
@@ -237,7 +237,7 @@ export default function GuideView() {
                 exitReason,
             }));
             setSessionStage('complete');
-        } catch (error) {
+        } catch {
             toastRef.current.error('Failed to complete tutor session');
             finalizingRef.current = false;
         }
@@ -384,7 +384,7 @@ export default function GuideView() {
             setSessionStage('feedback');
             setRiverState(getFeedbackState(evaluation.outcome));
             setRiverCaption(getFeedbackCaption(currentCard, nextResult));
-        } catch (error) {
+        } catch {
             toastRef.current.error('Failed to update tutor session');
         } finally {
             setSubmitting(false);
@@ -427,7 +427,7 @@ export default function GuideView() {
             setSessionStage('feedback');
             setRiverState('point');
             setRiverCaption(getFeedbackCaption(currentCard, nextResult));
-        } catch (error) {
+        } catch {
             toastRef.current.error('Failed to reveal the answer');
         }
     };
@@ -477,7 +477,7 @@ export default function GuideView() {
             setRiverState('encourage');
             setRiverCaption('River has marked this for later so you can keep your momentum.');
             setSessionStage('teach');
-        } catch (error) {
+        } catch {
             toastRef.current.error('Failed to skip this card');
         }
     };
@@ -565,7 +565,6 @@ export default function GuideView() {
     const title = guide?.title || 'Tutor Session';
     const completionIsPartial = completionPayload?.sessionOutcome === 'stopped_early';
     const assistOptions = currentCard?.assist_options || [];
-    const stepCount = currentCard?.teaching?.steps?.length || 0;
 
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-6 sm:px-6 sm:py-10">
