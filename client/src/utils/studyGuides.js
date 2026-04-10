@@ -452,8 +452,8 @@ const normalizeEvaluationRules = (value) => {
 
     return {
         score_bands: {
-            correct: clampNumber(scoreBands.correct, { min: 0, max: 1, fallback: 0.85 }),
-            partial: clampNumber(scoreBands.partial, { min: 0, max: 1, fallback: 0.4 }),
+            correct: clampNumber(scoreBands.correct, { min: 0, max: 1, fallback: 0.7 }),
+            partial: clampNumber(scoreBands.partial, { min: 0, max: 1, fallback: 0.25 }),
         },
         pass_threshold: clampNumber(
             raw.pass_threshold ?? raw.passThreshold,
@@ -730,6 +730,39 @@ export const normalizeGuideStudyState = (guideData, studyState) => {
 
 const normalizeForMatch = (value) => normalizeText(value).toLowerCase().replace(/\s+/g, ' ');
 
+/** Strip trivial filler words so "the same DNA" ≈ "same dna". */
+const STOP_WORDS = new Set([
+    'a', 'an', 'the', 'is', 'are', 'was', 'were', 'it', 'its', 'of', 'to',
+    'in', 'on', 'for', 'and', 'or', 'that', 'this', 'with', 'by', 'as',
+    'be', 'been', 'being', 'has', 'have', 'had', 'do', 'does', 'did',
+]);
+
+const toContentWords = (text) => (
+    normalizeForMatch(text)
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w && !STOP_WORDS.has(w))
+);
+
+/**
+ * Returns a 0–1 word-overlap ratio: how many content words in `candidate`
+ * appear somewhere in `answer`. Tolerant of word order and filler words.
+ */
+const wordOverlapRatio = (candidate, answer) => {
+    const candidateWords = toContentWords(candidate);
+    if (candidateWords.length === 0) return 0;
+    const answerWords = new Set(toContentWords(answer));
+    const hits = candidateWords.filter((w) => answerWords.has(w)).length;
+    return hits / candidateWords.length;
+};
+
+/** Check if `answer` matches `candidate` via substring OR fuzzy word overlap. */
+const fuzzyIncludes = (answer, candidate) => {
+    if (answer.includes(candidate)) return true;
+    // Accept if ≥75% of the candidate's content words appear in the answer
+    return wordOverlapRatio(candidate, answer) >= 0.75;
+};
+
 const getTagCandidates = (guideData, tag) => {
     const tagSynonyms = guideData?.evaluation_rules?.tag_synonyms?.[tag] || [];
     const prettyTag = tag.replace(/-/g, ' ');
@@ -826,11 +859,14 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
     // --- Direct target-answer match fallback ---
     // If the user's answer closely matches the model answer, short-circuit to
     // "correct" so poorly-tagged cards can never reject the exact right answer.
+    // Uses both exact substring and word-overlap similarity so paraphrasing
+    // the model answer still gets full credit.
     const targetNormalized = normalizeForMatch(card?.target_answer || '');
     const isDirectMatch = targetNormalized
         && (answerNormalized === targetNormalized
             || answerNormalized.includes(targetNormalized)
-            || targetNormalized.includes(answerNormalized));
+            || targetNormalized.includes(answerNormalized)
+            || wordOverlapRatio(targetNormalized, answerNormalized) >= 0.7);
 
     if (isDirectMatch) {
         return {
@@ -849,10 +885,10 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
     const requiredTags = card?.required_idea_tags || [];
     const optionalTags = card?.optional_idea_tags || [];
     const matchedRequiredTags = requiredTags.filter((tag) => (
-        getTagCandidates(normalizedGuideData, tag).some((candidate) => answerNormalized.includes(candidate))
+        getTagCandidates(normalizedGuideData, tag).some((candidate) => fuzzyIncludes(answerNormalized, candidate))
     ));
     const matchedOptionalTags = optionalTags.filter((tag) => (
-        getTagCandidates(normalizedGuideData, tag).some((candidate) => answerNormalized.includes(candidate))
+        getTagCandidates(normalizedGuideData, tag).some((candidate) => fuzzyIncludes(answerNormalized, candidate))
     ));
     const requiredRatio = requiredTags.length > 0 ? matchedRequiredTags.length / requiredTags.length : 1;
     const optionalRatio = optionalTags.length > 0 ? matchedOptionalTags.length / optionalTags.length : 0;
@@ -865,7 +901,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
     const missingTags = requiredTags.filter((tag) => !matchedRequiredTags.includes(tag));
 
     let outcome = 'incorrect';
-    if (requiredRatio >= 1 && score >= correctThreshold) {
+    if (score >= correctThreshold) {
         outcome = 'correct';
     } else if (matchedRequiredTags.length > 0 || score >= partialThreshold) {
         outcome = 'partial';

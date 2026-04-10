@@ -173,8 +173,8 @@ const makeGuideData = () => ({
     ],
     evaluation_rules: {
         score_bands: {
-            correct: 0.85,
-            partial: 0.4,
+            correct: 0.7,
+            partial: 0.25,
         },
         empty_patterns: ['idk', 'i do not know', 'blank'],
         tag_synonyms: {
@@ -479,6 +479,26 @@ describe('evaluateTutorCardResponse', () => {
         const result = evaluateTutorCardResponse(guideData, card, 'Mitosis makes two cells with the same DNA.');
         expect(result.outcome).toBe('correct');
         expect(result.followUpQuestion).toBeNull();
+    });
+
+    it('accepts paraphrased answers via fuzzy word overlap', () => {
+        // Student says the same idea with different wording / word order
+        const result = evaluateTutorCardResponse(
+            guideData, card,
+            'Mitosis produces identical genetic cells, resulting in two daughter cells.',
+        );
+        expect(['correct', 'partial']).toContain(result.outcome);
+        expect(result.shouldAdvance).toBe(true);
+    });
+
+    it('grades a reworded target answer as correct via word overlap', () => {
+        // Close paraphrase of the target: "Two genetically identical daughter cells."
+        const result = evaluateTutorCardResponse(
+            guideData, card,
+            'Two daughter cells that are genetically identical.',
+        );
+        expect(result.outcome).toBe('correct');
+        expect(result.score).toBe(1);
     });
 });
 
