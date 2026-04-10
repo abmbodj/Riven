@@ -440,6 +440,20 @@ describe('evaluateTutorCardResponse', () => {
         const result = evaluateTutorCardResponse(guideData, card, 'idk');
         expect(result.outcome).toBe('empty');
     });
+
+    it('grades the exact target answer as correct even when tags do not match', () => {
+        // Simulate a card whose tags would not be found as substrings in the
+        // target_answer text (the bug that caused the user's exact model answer
+        // to be marked incorrect).
+        const badTagCard = {
+            ...card,
+            required_idea_tags: ['nonexistent-tag-alpha', 'nonexistent-tag-beta'],
+        };
+        const result = evaluateTutorCardResponse(guideData, badTagCard, card.target_answer);
+        expect(result.outcome).toBe('correct');
+        expect(result.score).toBe(1);
+        expect(result.shouldAdvance).toBe(true);
+    });
 });
 
 describe('mastery helpers', () => {

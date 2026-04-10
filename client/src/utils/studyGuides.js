@@ -799,6 +799,28 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
         };
     }
 
+    // --- Direct target-answer match fallback ---
+    // If the user's answer closely matches the model answer, short-circuit to
+    // "correct" so poorly-tagged cards can never reject the exact right answer.
+    const targetNormalized = normalizeForMatch(card?.target_answer || '');
+    const isDirectMatch = targetNormalized
+        && (answerNormalized === targetNormalized
+            || answerNormalized.includes(targetNormalized)
+            || targetNormalized.includes(answerNormalized));
+
+    if (isDirectMatch) {
+        return {
+            outcome: 'correct',
+            score: 1,
+            shouldAdvance: true,
+            matchedTags: card?.required_idea_tags || [],
+            missingTags: [],
+            misconceptionId: null,
+            feedback: pickFeedbackText(card?.feedback?.correct, 'That is correct.'),
+            cue: normalizedGuideData.river.cue_map.mastery,
+        };
+    }
+
     const requiredTags = card?.required_idea_tags || [];
     const optionalTags = card?.optional_idea_tags || [];
     const matchedRequiredTags = requiredTags.filter((tag) => (
