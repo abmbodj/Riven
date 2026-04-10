@@ -14,6 +14,18 @@ import {
 } from '../utils/studyGuides.js';
 
 const PANEL_EASE = [0.22, 1, 0.36, 1];
+
+// Mirrors POSES.accent values from RiverMascot — drives surface tinting on feedback
+const RIVER_POSE_ACCENT = {
+    idle: '#8fb27c',
+    teach: '#79ad75',
+    point: '#c5b56d',
+    encourage: '#dcb679',
+    thinking: '#8ea9a0',
+    'gentle-correct': '#d59678',
+    celebrate: '#e7c86f',
+};
+
 const EMPTY_STATE = {
     current_card_id: null,
     session_phase: null,
@@ -112,6 +124,32 @@ const getCompleteCaption = (guideData, completionPayload) => {
         || guideData?.completion?.confidence_close
         || 'That was a clean pass. Come back tomorrow and retrieve it again.';
 };
+
+/**
+ * Animates a number from 0 to `target` over `duration` ms with ease-out cubic.
+ * Immediately returns `target` when prefers-reduced-motion is active.
+ */
+function useCountUp(target, duration = 600) {
+    const [value, setValue] = useState(0);
+    const prefersReduced = useRef(
+        typeof window !== 'undefined'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    );
+    useEffect(() => {
+        if (!target) { setValue(0); return; }
+        if (prefersReduced.current) { setValue(target); return; }
+        const start = performance.now();
+        let raf;
+        const tick = (now) => {
+            const t = Math.min((now - start) / duration, 1);
+            setValue(Math.round((1 - Math.pow(1 - t, 3)) * target));
+            if (t < 1) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [target, duration]);
+    return value;
+}
 
 export default function GuideView() {
     const { id } = useParams();
@@ -566,6 +604,22 @@ export default function GuideView() {
     const completionIsPartial = completionPayload?.sessionOutcome === 'stopped_early';
     const assistOptions = currentCard?.assist_options || [];
 
+    // Current River pose accent color — drives surface tinting on feedback stage
+    const poseAccent = RIVER_POSE_ACCENT[riverState] ?? '#8fb27c';
+
+    // Card position for pip track
+    const totalCards = guideData?.cards?.length ?? 0;
+    const currentCardIndex = useMemo(
+        () => (guideData && currentCard
+            ? guideData.cards.findIndex((c) => c.id === currentCard.id) + 1
+            : 0),
+        [guideData, currentCard],
+    );
+
+    // Count-up values for completion stats
+    const animatedXP = useCountUp(completionPayload?.xpEarned ?? 0, 700);
+    const animatedMastery = useCountUp(completionPayload?.masteryDelta ?? 0, 600);
+
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-6 sm:px-6 sm:py-10">
             <div className="mx-auto max-w-6xl">
@@ -577,6 +631,43 @@ export default function GuideView() {
                     <ChevronLeft className="w-4 h-4" />
                     Back to Tutor Sessions
                 </button>
+
+                {['teach', 'check', 'feedback'].includes(sessionStage) && totalCards > 1 ? (
+                    <motion.div
+                        key={`pip-${currentCard?.id}-${sessionStage}`}
+                        className="mt-5 flex items-center gap-1.5"
+                        aria-label={`Concept ${currentCardIndex} of ${totalCards}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, ease: PANEL_EASE }}
+                    >
+                        {guideData.cards.map((card) => {
+                            const done = studyState.card_states?.[card.id]?.completed;
+                            const active = card.id === currentCard?.id;
+                            return (
+                                <div
+                                    key={card.id}
+                                    className={`h-[5px] rounded-full transition-all duration-500 ${
+                                        done
+                                            ? 'w-5 bg-claude-accent'
+                                            : active
+                                                ? 'w-5 bg-claude-accent/55'
+                                                : 'w-[5px] bg-claude-border'
+                                    }`}
+                                />
+                            );
+                        })}
+                        <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary">
+                            {sessionStage === 'teach' && <span>Teach</span>}
+                            {sessionStage === 'check' && (
+                                <><span className="opacity-40">Teach →</span>{' '}<span className="text-claude-accent">Check</span></>
+                            )}
+                            {sessionStage === 'feedback' && (
+                                <><span className="opacity-40">Check →</span>{' '}<span className="text-claude-accent">Feedback</span></>
+                            )}
+                        </span>
+                    </motion.div>
+                ) : null}
 
                 {sessionStage === 'intro' ? (
                     <motion.section
@@ -644,45 +735,62 @@ export default function GuideView() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.32, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)] xl:items-start">
+                        <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
                             <RiverMascot state={riverState} caption={riverCaption} />
 
                             <div className="space-y-4">
-                                <div className="rounded-[1.8rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-5">
-                                    <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                        {guideData.session_meta.river_role}
-                                    </p>
-                                    <h2 className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></h2>
-                                    <div className="mt-4 text-sm leading-7 text-claude-secondary">
-                                        <SubjectRenderer content={currentCard.teaching.explain} />
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                                    <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Breakdown</p>
-                                        <div className="mt-3 space-y-2.5">
-                                            {currentCard.teaching.steps.map((step, index) => (
-                                                <div key={`${step}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
-                                                    <span className="mr-2 text-claude-accent">{index + 1}.</span>
-                                                    <SubjectRenderer content={step} inline />
-                                                </div>
-                                            ))}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0, ease: PANEL_EASE }}
+                                >
+                                    <div className="rounded-[1.8rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-5">
+                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
+                                            {guideData.session_meta.river_role}
+                                        </p>
+                                        <h2 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold leading-tight"><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></h2>
+                                        <div className="mt-4 text-base leading-7 text-claude-text">
+                                            <SubjectRenderer content={currentCard.teaching.explain} />
                                         </div>
                                     </div>
+                                </motion.div>
 
-                                    <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Why it matters</p>
-                                        <div className="mt-3 text-sm leading-6 text-claude-secondary"><SubjectRenderer content={currentCard.teaching.why_it_matters} /></div>
-                                        <div className="mt-4 rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3">
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Anchor example</p>
-                                            <div className="mt-2 text-sm leading-6 text-claude-text"><SubjectRenderer content={currentCard.teaching.example} /></div>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.08, ease: PANEL_EASE }}
+                                >
+                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                                        <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Breakdown</p>
+                                            <div className="mt-3 space-y-2.5">
+                                                {currentCard.teaching.steps.map((step, index) => (
+                                                    <div key={`${step}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
+                                                        <span className="mr-2 text-claude-accent">{index + 1}.</span>
+                                                        <SubjectRenderer content={step} inline />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Why it matters</p>
+                                            <div className="mt-3 text-sm leading-6 text-claude-secondary"><SubjectRenderer content={currentCard.teaching.why_it_matters} /></div>
+                                            <div className="mt-4 rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3">
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Anchor example</p>
+                                                <div className="mt-2 text-sm leading-6 text-claude-text"><SubjectRenderer content={currentCard.teaching.example} /></div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
 
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.16, ease: PANEL_EASE }}
+                                >
                                 <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River can reshape the explanation</p>
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Ask River</p>
                                     <div className="mt-3 flex flex-wrap gap-2.5">
                                         {assistOptions.map((option) => (
                                             <button
@@ -701,6 +809,7 @@ export default function GuideView() {
                                         </div>
                                     ) : null}
                                 </div>
+                                </motion.div>
 
                                 <div className="flex flex-wrap gap-3">
                                     <button
@@ -726,68 +835,72 @@ export default function GuideView() {
                 {sessionStage === 'check' && currentCard ? (
                     <motion.section
                         data-testid="river-session-check"
-                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-10"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.28, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-                            <RiverMascot state={riverState} caption={riverCaption} />
-
-                            <div>
-                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">Check understanding</p>
-                                <h2 className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentCard.prompt} /></h2>
-                                <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
-                                    River wants your own wording first. Precision matters, but you do not need a perfect script.
+                        <div className="mx-auto max-w-2xl">
+                            <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
+                                Check understanding
+                            </p>
+                            <h2 className="mt-4 text-4xl sm:text-5xl font-serif italic font-bold leading-tight">
+                                <SubjectRenderer content={currentCard.prompt} />
+                            </h2>
+                            {riverCaption ? (
+                                <p className="mt-3 max-w-prose text-sm italic leading-6 text-claude-secondary">
+                                    {riverCaption}
                                 </p>
+                            ) : null}
 
-                                <label htmlFor="river-answer" className="mt-6 block text-[11px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
-                                    Your answer
-                                </label>
-                                <textarea
-                                    id="river-answer"
-                                    aria-label="Your answer"
-                                    value={answer}
-                                    onChange={(event) => setAnswer(event.target.value)}
+                            <label htmlFor="river-answer" className="mt-8 block text-[11px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                Your answer
+                            </label>
+                            <textarea
+                                id="river-answer"
+                                aria-label="Your answer"
+                                value={answer}
+                                onChange={(event) => setAnswer(event.target.value)}
+                                disabled={submitting}
+                                className="mt-3 min-h-[260px] w-full rounded-[1.6rem] border bg-claude-bg/70 px-5 py-4 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                style={{ borderColor: answer.length > 0 ? undefined : `${poseAccent}35` }}
+                                placeholder="Answer from memory first."
+                            />
+
+                            <div className="mt-5 flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
                                     disabled={submitting}
-                                    className="mt-3 min-h-[170px] w-full rounded-[1.6rem] border border-claude-border bg-claude-bg/70 px-4 py-4 text-sm leading-6 outline-none transition-colors focus:border-claude-accent"
-                                    placeholder="Answer from memory first."
-                                />
-
-                                <div className="mt-5 flex flex-wrap gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={handleSubmit}
-                                        disabled={submitting}
-                                        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
-                                    >
-                                        {submitting ? 'Checking...' : 'Submit Answer'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleShowAnswer}
-                                        disabled={submitting}
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35 hover:bg-claude-bg/60 disabled:opacity-60"
-                                    >
-                                        Show Answer
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleSkipForNow}
-                                        disabled={submitting}
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35 hover:bg-claude-bg/60 disabled:opacity-60"
-                                    >
-                                        Skip for now
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleSaveAndLeave}
-                                        disabled={submitting}
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-secondary transition-colors hover:text-claude-text disabled:opacity-60"
-                                    >
-                                        Save and leave
-                                    </button>
-                                </div>
+                                    className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                                >
+                                    {submitting ? 'Checking…' : 'Submit Answer'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleShowAnswer}
+                                    disabled={submitting}
+                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35 hover:bg-claude-bg/60 disabled:opacity-60"
+                                >
+                                    Show Answer
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSkipForNow}
+                                    disabled={submitting}
+                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium text-claude-secondary transition-colors hover:text-claude-text disabled:opacity-60"
+                                >
+                                    Skip for now
+                                </button>
+                                <span className="flex-1" aria-hidden="true" />
+                                <button
+                                    type="button"
+                                    onClick={handleSaveAndLeave}
+                                    disabled={submitting}
+                                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2 text-xs text-claude-secondary transition-colors hover:text-claude-text disabled:opacity-60"
+                                >
+                                    Save and leave
+                                </button>
                             </div>
                         </div>
                     </motion.section>
@@ -801,12 +914,32 @@ export default function GuideView() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.28, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+                        <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
                             <RiverMascot state={riverState} caption={riverCaption} />
 
                             <div className="space-y-4">
-                                <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-5">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River's feedback</p>
+                                <div
+                                    className="rounded-[1.6rem] border p-5 transition-colors duration-500"
+                                    style={{
+                                        borderColor: `${poseAccent}38`,
+                                        backgroundColor: `${poseAccent}0e`,
+                                    }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River's feedback</p>
+                                        {result.outcome && result.outcome !== 'revealed' ? (
+                                            <span
+                                                className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
+                                                style={{
+                                                    color: poseAccent,
+                                                    backgroundColor: `${poseAccent}1a`,
+                                                    border: `1px solid ${poseAccent}33`,
+                                                }}
+                                            >
+                                                {result.outcome}
+                                            </span>
+                                        ) : null}
+                                    </div>
                                     <p className="mt-3 text-base leading-7 text-claude-text">{result.feedback}</p>
                                 </div>
 
@@ -816,11 +949,26 @@ export default function GuideView() {
                                 </div>
 
                                 {result.missingTags?.length ? (
-                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/15 p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Still missing</p>
+                                    <div
+                                        className="rounded-[1.4rem] border p-4"
+                                        style={{
+                                            borderColor: `${poseAccent}25`,
+                                            backgroundColor: `${poseAccent}08`,
+                                        }}
+                                    >
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                                            Concepts to revisit
+                                        </p>
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             {result.missingTags.map((tag) => (
-                                                <span key={tag} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-claude-secondary">
+                                                <span
+                                                    key={tag}
+                                                    className="rounded-full px-3 py-1.5 text-xs text-claude-text"
+                                                    style={{
+                                                        border: `1px solid ${poseAccent}2e`,
+                                                        backgroundColor: `${poseAccent}12`,
+                                                    }}
+                                                >
                                                     {tag.replace(/-/g, ' ')}
                                                 </span>
                                             ))}
@@ -886,22 +1034,24 @@ export default function GuideView() {
                                     {getCompleteCaption(guideData, completionPayload)}
                                 </p>
                                 {completionPayload ? (
-                                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                                        <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">XP</p>
-                                            <p className="mt-2 text-lg font-semibold">{completionPayload.xpEarned || 0}</p>
-                                        </div>
-                                        <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Mastery</p>
-                                            <p className="mt-2 text-lg font-semibold">{completionPayload.masteryDelta || 0}%</p>
-                                        </div>
-                                        <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Next review</p>
-                                            <p className="mt-2 text-sm font-medium">
-                                                {completionPayload.nextReviewAt
-                                                    ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
-                                                    : 'When you are ready'}
-                                            </p>
+                                    <div className="mt-8">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">XP earned</p>
+                                        <p className="mt-1 font-serif italic text-7xl font-bold tabular-nums leading-none text-claude-text">
+                                            {animatedXP}
+                                        </p>
+                                        <div className="mt-6 flex flex-wrap gap-8">
+                                            <div>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Mastery</p>
+                                                <p className="mt-1 text-2xl font-semibold tabular-nums">{animatedMastery}%</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Next review</p>
+                                                <p className="mt-1 text-base font-medium">
+                                                    {completionPayload.nextReviewAt
+                                                        ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
+                                                        : 'When you are ready'}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : null}

@@ -16,7 +16,6 @@
   "ignore": [
     "client/src/test/**",
     "client/scripts/**",
-    "riven-appstore-screenshots-studio/**",
     "scripts/**"
   ],
   "ignoreDependencies": []
