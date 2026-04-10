@@ -563,6 +563,16 @@ export default function GuideView() {
         setRiverCaption(getTeachCaption(currentCard));
     };
 
+    // Hooks must be called before any conditional returns (Rules of Hooks)
+    const currentCardIndex = useMemo(
+        () => (guideData && currentCard
+            ? guideData.cards.findIndex((c) => c.id === currentCard.id) + 1
+            : 0),
+        [guideData, currentCard],
+    );
+    const animatedXP = useCountUp(completionPayload?.xpEarned ?? 0, 700);
+    const animatedMastery = useCountUp(completionPayload?.masteryDelta ?? 0, 600);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-claude-bg text-claude-text flex items-center justify-center">
@@ -609,16 +619,6 @@ export default function GuideView() {
 
     // Card position for pip track
     const totalCards = guideData?.cards?.length ?? 0;
-    const currentCardIndex = useMemo(
-        () => (guideData && currentCard
-            ? guideData.cards.findIndex((c) => c.id === currentCard.id) + 1
-            : 0),
-        [guideData, currentCard],
-    );
-
-    // Count-up values for completion stats
-    const animatedXP = useCountUp(completionPayload?.xpEarned ?? 0, 700);
-    const animatedMastery = useCountUp(completionPayload?.masteryDelta ?? 0, 600);
 
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-6 sm:px-6 sm:py-10">
