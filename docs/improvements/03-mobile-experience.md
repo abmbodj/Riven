@@ -4,7 +4,7 @@
 
 ## Summary
 
-Study features need better mobile optimization: jump-to functionality with search for faster topic navigation instead of endless scrolling. The `GlobalCommandPalette` (Cmd+K) exists but search is buried behind 2 taps on mobile (FAB -> Search). Long pages like Dashboard and ClassView need section anchors and collapsible content to reduce scroll depth.
+Study features need better mobile optimization: jump-to functionality with search for faster topic navigation instead of endless scrolling. The `GlobalCommandPalette` (Cmd+K) exists but search is buried behind 2 taps on mobile (FAB -> Search). Long pages like Dashboard and ClassView and way more need section anchors and collapsible content to reduce scroll depth.
 
 ## Current State Audit
 
