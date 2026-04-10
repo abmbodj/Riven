@@ -322,6 +322,10 @@ export default function GuidesLibrary() {
             ...(genTone ? { preferredTone: genTone } : {}),
         };
 
+        const classData = classId ? classes.find(c => c.id === classId) : null;
+        const className = classData?.name || null;
+        const subject = classData?.subject || null;
+
         setGenerating(true);
         try {
             const result = await api.generateAiGuide(
@@ -330,9 +334,10 @@ export default function GuidesLibrary() {
                 title,
                 noteId,
                 classId,
-                null,
+                className,
                 null,
                 coachConfig,
+                subject,
             );
             toast.success('Tutor session generated!');
             setShowGenerateModal(false);

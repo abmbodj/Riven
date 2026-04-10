@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
+import SubjectRenderer from '../components/ui/SubjectRenderer';
 import RiverMascot from '../components/study/RiverMascot.jsx';
 import {
     ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
@@ -652,10 +653,10 @@ export default function GuideView() {
                                     <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
                                         {guideData.session_meta.river_role}
                                     </p>
-                                    <h1 className="mt-3 text-3xl font-serif italic font-bold">{currentConcept?.title || currentCard.prompt}</h1>
-                                    <p className="mt-4 text-sm leading-7 text-claude-secondary">
-                                        {currentCard.teaching.explain}
-                                    </p>
+                                    <div className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></div>
+                                    <div className="mt-4 text-sm leading-7 text-claude-secondary">
+                                        <SubjectRenderer content={currentCard.teaching.explain} />
+                                    </div>
                                 </div>
 
                                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
@@ -665,7 +666,7 @@ export default function GuideView() {
                                             {currentCard.teaching.steps.map((step, index) => (
                                                 <div key={`${step}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
                                                     <span className="mr-2 text-claude-accent">{index + 1}.</span>
-                                                    {step}
+                                                    <SubjectRenderer content={step} inline />
                                                 </div>
                                             ))}
                                         </div>
@@ -673,10 +674,10 @@ export default function GuideView() {
 
                                     <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
                                         <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Why it matters</p>
-                                        <p className="mt-3 text-sm leading-6 text-claude-secondary">{currentCard.teaching.why_it_matters}</p>
+                                        <div className="mt-3 text-sm leading-6 text-claude-secondary"><SubjectRenderer content={currentCard.teaching.why_it_matters} /></div>
                                         <div className="mt-4 rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3">
                                             <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Anchor example</p>
-                                            <p className="mt-2 text-sm leading-6 text-claude-text">{currentCard.teaching.example}</p>
+                                            <div className="mt-2 text-sm leading-6 text-claude-text"><SubjectRenderer content={currentCard.teaching.example} /></div>
                                         </div>
                                     </div>
                                 </div>
@@ -697,7 +698,7 @@ export default function GuideView() {
                                     </div>
                                     {activeAssistOption ? (
                                         <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6 text-claude-text">
-                                            {activeAssistOption.text}
+                                            <SubjectRenderer content={activeAssistOption.text} />
                                         </div>
                                     ) : null}
                                 </div>
@@ -736,7 +737,7 @@ export default function GuideView() {
 
                             <div>
                                 <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">Check understanding</p>
-                                <h1 className="mt-3 text-3xl font-serif italic font-bold">{currentCard.prompt}</h1>
+                                <div className="mt-3 text-3xl font-serif italic font-bold"><SubjectRenderer content={currentCard.prompt} /></div>
                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
                                     River wants your own wording first. Precision matters, but you do not need a perfect script.
                                 </p>

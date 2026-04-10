@@ -16,6 +16,7 @@ import useHaptics from '../hooks/useHaptics';
 import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { buildDefaultClassTimeRow, isValidTimeRange } from '../utils/classTime';
+import { inferSubject, SUBJECT_VALUES } from '../utils/subjectInference';
 
 
 const CLASS_COLORS = [
@@ -106,8 +107,10 @@ export default function Classes() {
 
     // Form
     const [formData, setFormData] = useState({
-        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: []
+        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', subject: '', times: [buildDefaultClassTimeRow()], assignments: []
     });
+
+    const [subjectManuallySet, setSubjectManuallySet] = useState(false);
 
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [aiFile, setAiFile] = useState(null);
@@ -166,11 +169,11 @@ export default function Classes() {
         try {
             let savedClassId;
             if (editingClass) {
-                await api.updateClass(editingClass.id, validatedName, formData.color, formData.professor, formData.room, formData.zoom_link);
+                await api.updateClass(editingClass.id, validatedName, formData.color, formData.professor, formData.room, formData.zoom_link, formData.subject || null);
                 savedClassId = editingClass.id;
                 toast.success('Class updated');
             } else {
-                const newClass = await api.createClass(validatedName, formData.color, formData.professor, formData.room, formData.zoom_link);
+                const newClass = await api.createClass(validatedName, formData.color, formData.professor, formData.room, formData.zoom_link, formData.subject || null);
                 savedClassId = newClass?.id;
                 toast.success('Class created');
             }
@@ -205,7 +208,7 @@ export default function Classes() {
 
             setShowModal(false);
             setEditingClass(null);
-            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: [] });
+            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', subject: '', times: [buildDefaultClassTimeRow()], assignments: [] });
             setAiFile(null);
             setAiFilePreview('');
             loadData();
@@ -336,7 +339,8 @@ export default function Classes() {
     const handleCloseModal = () => {
         setShowModal(false);
         setEditingClass(null);
-        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: [] });
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', subject: '', times: [buildDefaultClassTimeRow()], assignments: [] });
+        setSubjectManuallySet(false);
         setAiFile(null);
         setAiFilePreview('');
         setCreationMethod('manual');
@@ -358,7 +362,8 @@ export default function Classes() {
 
     const openCreateModal = () => {
         setEditingClass(null);
-        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: [] });
+        setSubjectManuallySet(false);
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', subject: '', times: [buildDefaultClassTimeRow()], assignments: [] });
         setAiFile(null);
         setAiFilePreview('');
         setCreationMethod('manual');
@@ -706,7 +711,14 @@ export default function Classes() {
                                                 <input
                                                     type="text"
                                                     value={formData.name}
-                                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                    onChange={e => {
+                                                        const name = e.target.value;
+                                                        const updates = { ...formData, name };
+                                                        if (!subjectManuallySet) {
+                                                            updates.subject = inferSubject(name) || '';
+                                                        }
+                                                        setFormData(updates);
+                                                    }}
                                                     className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none transition-colors"
                                                     placeholder="e.g. CS 101"
                                                     autoFocus
@@ -727,6 +739,27 @@ export default function Classes() {
                                                             className="w-full glass-panel rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-claude-text focus:border-claude-accent outline-none transition-colors"
                                                             placeholder="Dr. Smith"
                                                         />
+                                                    </div>
+                                                </div>
+
+                                                {/* Subject Dropdown */}
+                                                <div className="col-span-2">
+                                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Subject</label>
+                                                    <div className="relative">
+                                                        <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
+                                                        <select
+                                                            value={formData.subject}
+                                                            onChange={e => {
+                                                                setSubjectManuallySet(true);
+                                                                setFormData({ ...formData, subject: e.target.value });
+                                                            }}
+                                                            className="w-full glass-panel rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-claude-text focus:border-claude-accent outline-none transition-colors appearance-none"
+                                                        >
+                                                            <option value="">Auto-detect</option>
+                                                            {SUBJECT_VALUES.map(s => (
+                                                                <option key={s} value={s}>{s}</option>
+                                                            ))}
+                                                        </select>
                                                     </div>
                                                 </div>
 

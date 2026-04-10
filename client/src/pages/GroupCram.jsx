@@ -7,6 +7,7 @@ import * as authApi from '../api/authApi';
 import useHaptics from '../hooks/useHaptics';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
+import SubjectRenderer from '../components/ui/SubjectRenderer';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 import ConfirmModal from '../components/ConfirmModal';
@@ -272,12 +273,12 @@ export default function GroupCram() {
                                     >
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500/50 to-orange-500/50 opacity-50" />
                                         <div className="flex justify-between items-start gap-4 mb-3">
-                                            <p className="text-sm font-serif font-bold text-claude-text flex-1 leading-snug">{card.front}</p>
+                                            <div className="text-sm font-serif font-bold text-claude-text flex-1 leading-snug"><SubjectRenderer content={card.front} inline /></div>
                                             <span className="shrink-0 text-[9px] font-mono font-bold bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm">
                                                 {card.incorrect_count}/{card.total_responses} Missed
                                             </span>
                                         </div>
-                                        <p className="text-[11px] text-claude-secondary font-mono border-t border-claude-border/30 pt-3 mt-1 leading-relaxed">{card.back}</p>
+                                        <div className="text-[11px] text-claude-secondary font-mono border-t border-claude-border/30 pt-3 mt-1 leading-relaxed"><SubjectRenderer content={card.back} /></div>
                                     </motion.div>
                                 ))}
                             </div>
@@ -510,7 +511,7 @@ export default function GroupCram() {
                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                 />
                             )}
-                            <p className={`font-display font-semibold text-center leading-snug ${currentCard?.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard?.front}</p>
+                            <div className={`font-display font-semibold text-center leading-snug ${currentCard?.front_image ? 'text-lg' : 'text-xl'}`}><SubjectRenderer content={currentCard?.front} /></div>
                             {currentCard?.difficulty > 0 && (
                                 <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
                                     currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
@@ -562,7 +563,7 @@ export default function GroupCram() {
                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                 />
                             )}
-                            <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard?.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard?.back}</p>
+                            <div className={`font-display font-semibold text-white text-center leading-snug ${currentCard?.back_image ? 'text-lg' : 'text-xl'}`}><SubjectRenderer content={currentCard?.back} /></div>
                             <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap to flip back</span>
                         </div>
                     </motion.div>

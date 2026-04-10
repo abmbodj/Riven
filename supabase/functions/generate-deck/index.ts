@@ -136,7 +136,7 @@ serve(async (request) => {
       });
       await reporter.markStreaming('drafting', 30, 'Generating flashcards');
 
-      const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
+      const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className, subject: body.subject });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
@@ -302,6 +302,7 @@ serve(async (request) => {
         deckName: body.deckName,
         classId: body.classId,
         className: body.className,
+        subject: body.subject,
         aiLimitsContext,
         apiKey,
         parseDocx: async (buffer: Buffer) => {

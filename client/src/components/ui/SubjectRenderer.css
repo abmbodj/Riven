@@ -1,0 +1,73 @@
+/* SubjectRenderer — math, code, and rich content rendering */
+
+.subject-renderer {
+  word-break: break-word;
+}
+
+/* Block math: centered, breathing room */
+.subject-math-block {
+  margin: 0.75rem 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.subject-math-block .katex-display {
+  margin: 0;
+}
+
+/* Inline math: flows naturally in text */
+.subject-math-inline {
+  display: inline;
+}
+
+/* Code blocks: monospace, subtle surface */
+.subject-code-block {
+  margin: 0.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  font-family: 'Berkeley Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-color, #e2e0dc);
+  tab-size: 2;
+}
+
+.subject-code-block code {
+  font-family: inherit;
+  background: none;
+  padding: 0;
+  border: none;
+}
+
+/* Inline code */
+.subject-code-inline {
+  font-family: 'Berkeley Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.875em;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--accent-color, #7a9e72);
+}
+
+/* KaTeX overrides to match the app's dark theme */
+.subject-renderer .katex {
+  font-size: 1.05em;
+  color: var(--text-color, #e2e0dc);
+}
+
+.subject-renderer .katex .mord,
+.subject-renderer .katex .mop,
+.subject-renderer .katex .mbin,
+.subject-renderer .katex .mrel,
+.subject-renderer .katex .mpunct,
+.subject-renderer .katex .mopen,
+.subject-renderer .katex .mclose {
+  color: var(--text-color, #e2e0dc);
+}

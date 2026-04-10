@@ -200,8 +200,10 @@ export default function ExamsLibrary() {
 
         setGenerating(true);
         try {
-            const className = classId ? classes.find(c => c.id === classId)?.name || null : null;
-            const result = await api.generateAiExam(noteText || null, file, genTitle || 'AI Mock Exam', sourceType, sourceId, classId, className);
+            const classData = classId ? classes.find(c => c.id === classId) : null;
+            const className = classData?.name || null;
+            const subject = classData?.subject || null;
+            const result = await api.generateAiExam(noteText || null, file, genTitle || 'AI Mock Exam', sourceType, sourceId, classId, className, { subject });
             toast.success(`Generated ${result.question_count} questions!`);
             setShowGenerateModal(false);
             navigate(`/exam/${result.exam_id}`);

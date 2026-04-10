@@ -1019,7 +1019,8 @@ export default function NoteEditor() {
             recorder.setAudioPath(storagePath);
 
             const userNotesSnapshot = extractText(contentRef.current).trim() || null;
-            const selectedClassName = classes.find((c) => c.id === classId)?.name || null;
+            const selectedClassData = classes.find((c) => c.id === classId);
+            const selectedClassName = selectedClassData?.name || null;
 
             const jobResponse = await api.createAiJob('note_enhancement', {
                 noteId,
@@ -1027,6 +1028,7 @@ export default function NoteEditor() {
                 userNotesSnapshot,
                 titleSnapshot: titleRef.current || 'Untitled',
                 className: selectedClassName,
+                subject: selectedClassData?.subject || null,
             });
 
             enhancementMetricsRef.current.ackMs = Math.round(

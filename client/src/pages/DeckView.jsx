@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 import ConfirmModal from '../components/ConfirmModal';
 import AlertModal from '../components/AlertModal';
+import SubjectRenderer from '../components/ui/SubjectRenderer';
 import CardImageUpload from '../components/CardImageUpload';
 import ShareToFriendModal from '../components/ShareToFriendModal';
 import ModalSurface from '../components/ui/ModalSurface';
@@ -846,8 +847,8 @@ export default function DeckView() {
                                             </div>
                                             <span className="font-serif italic text-claude-accent font-bold text-lg leading-none w-6 text-center">{idx + 1}</span>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-serif text-lg text-claude-text leading-snug break-words mb-1 line-clamp-1">{card.front}</p>
-                                                <p className="font-serif text-md text-claude-text/60 leading-snug break-words line-clamp-1">{card.back}</p>
+                                                <div className="font-serif text-lg text-claude-text leading-snug break-words mb-1 line-clamp-1"><SubjectRenderer content={card.front} inline /></div>
+                                                <div className="font-serif text-md text-claude-text/60 leading-snug break-words line-clamp-1"><SubjectRenderer content={card.back} inline /></div>
                                             </div>
                                             <GripVertical className="w-6 h-6 text-claude-text/30 shrink-0 cursor-grab" />
                                         </div>
@@ -859,18 +860,18 @@ export default function DeckView() {
                                             <div className="flex-1 min-w-0 flex flex-col gap-3">
                                                 <div>
                                                     <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary mb-1.5">Front</h4>
-                                                    <p className="font-serif text-lg text-claude-text leading-snug break-words">
-                                                        {card.front}
+                                                    <div className="font-serif text-lg text-claude-text leading-snug break-words">
+                                                        <SubjectRenderer content={card.front} />
                                                         {card.front_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
-                                                    </p>
+                                                    </div>
                                                 </div>
                                                 <div className="w-8 h-px bg-claude-border/60" />
                                                 <div>
                                                     <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary mb-1.5">Back</h4>
-                                                    <p className="font-serif text-lg text-claude-text/80 leading-snug break-words">
-                                                        {card.back}
+                                                    <div className="font-serif text-lg text-claude-text/80 leading-snug break-words">
+                                                        <SubjectRenderer content={card.back} />
                                                         {card.back_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
-                                                    </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <button className="shrink-0 p-2 -mr-2 text-claude-secondary/50 hover:text-claude-accent transition-colors h-fit rounded-full hover:bg-claude-bg/20">

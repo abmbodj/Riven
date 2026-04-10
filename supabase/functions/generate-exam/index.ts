@@ -157,6 +157,7 @@ serve(async (request) => {
         keepFile,
         file: body.file,
         className: body.className,
+        subject: body.subject,
         masteryData,
         weakTopics: body.weakTopics,
         examMode,
@@ -342,6 +343,7 @@ serve(async (request) => {
         sourceId: body.sourceId,
         classId: body.classId,
         className: body.className,
+        subject: body.subject,
         aiLimitsContext,
         apiKey,
         parseDocx: async (buffer: Buffer) => {

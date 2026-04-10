@@ -10,6 +10,7 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { EASE, DURATION } from '../utils/animations';
 import ExamResults from '../components/ExamResults';
+import SubjectRenderer from '../components/ui/SubjectRenderer';
 
 const DIFFICULTY_COLORS = {
     easy: 'text-green-400 bg-green-500/10 border-green-500/20',
@@ -352,9 +353,9 @@ export default function ExamView() {
                         </div>
                     )}
 
-                    <h2 className="text-xl sm:text-2xl font-serif italic font-bold text-claude-text leading-snug mb-8">
-                        {question.question}
-                    </h2>
+                    <div className="text-xl sm:text-2xl font-serif italic font-bold text-claude-text leading-snug mb-8">
+                        <SubjectRenderer content={question.question} />
+                    </div>
 
                     {/* MCQ Options */}
                     {!isShortAnswer && question.options && (
@@ -388,7 +389,7 @@ export default function ExamView() {
                                                 <XCircle className="w-4 h-4" />
                                             ) : letter}
                                         </span>
-                                        <span className="font-body text-sm sm:text-base leading-relaxed pt-0.5">{option}</span>
+                                        <span className="font-body text-sm sm:text-base leading-relaxed pt-0.5"><SubjectRenderer content={option} inline /></span>
                                     </button>
                                 );
                             })}
@@ -442,7 +443,7 @@ export default function ExamView() {
                                             {gradeResult.score}/100
                                         </span>
                                     </div>
-                                    <p className="font-body text-sm text-claude-text leading-relaxed">{gradeResult.feedback}</p>
+                                    <div className="font-body text-sm text-claude-text leading-relaxed"><SubjectRenderer content={gradeResult.feedback} /></div>
                                 </div>
 
                                 <div className="p-4 glass-panel rounded-2xl border border-claude-border">
@@ -483,7 +484,7 @@ export default function ExamView() {
 
                                 <div className="p-4 glass-panel rounded-2xl border border-claude-border">
                                     <p className="text-[10px] font-mono uppercase tracking-widest text-claude-accent mb-2 font-bold">Model Answer</p>
-                                    <p className="font-body text-sm text-claude-text leading-relaxed">{question.correct_answer}</p>
+                                    <div className="font-body text-sm text-claude-text leading-relaxed"><SubjectRenderer content={question.correct_answer} /></div>
                                 </div>
                             </motion.div>
                         </AnimatePresence>

@@ -12,6 +12,7 @@ import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { DEFAULT_CLASS_END_TIME, DEFAULT_CLASS_START_TIME, isValidTimeRange } from '../utils/classTime';
+import { SUBJECT_VALUES } from '../utils/subjectInference';
 
 
 const STATUSES = ['Todo', 'Doing', 'Done', 'Archived'];
@@ -36,7 +37,7 @@ export default function ClassView() {
 
     // Modal state for editing Class
     const [showEditClassModal, setShowEditClassModal] = useState(false);
-    const [classFormData, setClassFormData] = useState({ name: '', color: '', professor: '', room: '', zoom_link: '' });
+    const [classFormData, setClassFormData] = useState({ name: '', color: '', professor: '', room: '', zoom_link: '', subject: '' });
     const [deleteClassConfirm, setDeleteClassConfirm] = useState(false);
 
     // Modal state for Assignments
@@ -70,7 +71,8 @@ export default function ClassView() {
                 color: currentClass.color || 'var(--accent-color)',
                 professor: currentClass.professor || '',
                 room: currentClass.room || '',
-                zoom_link: currentClass.zoom_link || ''
+                zoom_link: currentClass.zoom_link || '',
+                subject: currentClass.subject || ''
             });
 
             const assignData = await api.getAssignments(id);
@@ -105,7 +107,7 @@ export default function ClassView() {
     const handleSaveClass = async (e) => {
         e.preventDefault();
         try {
-            await api.updateClass(id, classFormData.name, classFormData.color, classFormData.professor, classFormData.room, classFormData.zoom_link);
+            await api.updateClass(id, classFormData.name, classFormData.color, classFormData.professor, classFormData.room, classFormData.zoom_link, classFormData.subject || null);
             toast.success('Class updated');
             setShowEditClassModal(false);
             loadData();
@@ -612,6 +614,19 @@ export default function ClassView() {
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Professor</label>
                                     <input type="text" value={classFormData.professor} onChange={e => setClassFormData({ ...classFormData, professor: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none" placeholder="e.g. Dr. Smith" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Subject</label>
+                                    <select
+                                        value={classFormData.subject}
+                                        onChange={e => setClassFormData({ ...classFormData, subject: e.target.value })}
+                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none appearance-none"
+                                    >
+                                        <option value="">Auto-detect</option>
+                                        {SUBJECT_VALUES.map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Location</label>

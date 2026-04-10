@@ -154,6 +154,7 @@ serve(async (request) => {
         keepFile,
         file: body.file,
         className: body.className,
+        subject: body.subject,
         coachConfig: body.coachConfig,
       });
       const messages = contentsToMessages(contents);
@@ -313,6 +314,7 @@ serve(async (request) => {
         noteId: body.noteId,
         classId: body.classId,
         className: body.className,
+        subject: body.subject,
         coachConfig: body.coachConfig,
         aiLimitsContext,
         apiKey,

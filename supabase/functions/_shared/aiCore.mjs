@@ -5,6 +5,8 @@ import {
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
 } from './studyGuideCore.mjs';
+import { getSubjectStrategy } from './subjectStrategies.mjs';
+import { inferSubject } from './subjectInference.mjs';
 
 const FREE_LIMIT = 10;
 const PREMIUM_LIMIT = 50;
@@ -41,14 +43,21 @@ const appendText = (currentText, nextText) => {
   return `${currentText}\n\n${nextText}`;
 };
 
-const buildSubjectContext = (className) => {
-  const classHint = className
-    ? `Material from "${className}". Use the class name to determine the subject area.`
-    : 'Infer the subject area from the content.';
+const resolveSubject = (className, subject) =>
+  subject || inferSubject(className) || 'General';
 
-  return `${classHint}
-Adapt format: STEM→formulas bold+blockquote, ordered lists for steps; Science→systems+cause-effect, bold terms; History→chronological, bold dates+events; CS→code marks for terms; Literature→blockquotes for passages; Languages→bold vocab.
-Rules: H1/H2/H3 hierarchy. Bold key terms first use. Blockquotes for definitions/theorems. Zero filler. End sections with 1-sentence takeaway.`;
+const buildSubjectContext = (className, subject) => {
+  const resolved = resolveSubject(className, subject);
+  const strategy = getSubjectStrategy(resolved);
+
+  const classHint = className
+    ? `Material from "${className}". Subject area: ${resolved}.`
+    : `Subject area: ${resolved}. Infer additional context from the content.`;
+
+  const parts = [classHint];
+  if (strategy.notation) parts.push(`Notation: ${strategy.notation}`);
+  if (strategy.formatting) parts.push(strategy.formatting);
+  return parts.join('\n');
 };
 
 export { buildSubjectContext };
@@ -67,14 +76,19 @@ const cleanAiResponseText = (rawResponse) => {
   return cleaned.trim();
 };
 
-const buildDeckPrompt = (className) => `You are an expert tutor creating spaced-repetition flashcards.
+const buildDeckPrompt = (className, subject) => {
+  const resolved = resolveSubject(className, subject);
+  const strategy = getSubjectStrategy(resolved);
+  const cardHint = strategy.cardStyle ? `\n${strategy.cardStyle}` : '';
+  return `You are an expert tutor creating spaced-repetition flashcards.
 Extract the most important facts, concepts, and definitions from the provided material.
 
-${buildSubjectContext(className)}
+${buildSubjectContext(className, subject)}
 
 Output ONLY a valid JSON array. No markdown, backticks, or text outside the array.
 Each card: { "front": "question/term", "back": "answer/definition" }.
-5-15 cards. Atomic (one concept per card). Accurate. Vary types: define, compare, explain why, apply, calculate.`;
+5-15 cards. Atomic (one concept per card). Accurate. Vary types: define, compare, explain why, apply, calculate.${cardHint}`;
+};
 
 const buildClassPrompt = () => `
 You are an expert academic assistant designed to extract class information from a syllabus.
@@ -107,8 +121,8 @@ Rules:
 5. Due dates must be valid ISO 8601 timestamps if a date parsing is possible. Try to determine the year based on context, otherwise use the current year.
 `;
 
-export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
-  const contents = [{ text: buildDeckPrompt(className) }];
+export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }) => {
+  const contents = [{ text: buildDeckPrompt(className, subject) }];
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nLecture Notes/Text Content:\n${processedNotes}` });
@@ -260,6 +274,7 @@ export const generateDeckFromAi = async ({
   deckName,
   classId,
   className,
+  subject,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -292,7 +307,7 @@ export const generateDeckFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'llama-3.3-70b-versatile',
-    contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
+    contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }),
   });
 
   const flashcards = parseAiJsonResponse(
@@ -343,10 +358,14 @@ export const generateDeckFromAi = async ({
 // Study Guide generation
 // ─────────────────────────────────────────────────────
 
-const buildGuidePrompt = (className) => `You are an expert tutor creating a River-led AI tutor session${className ? ` for ${className}` : ''}.
+const buildGuidePrompt = (className, subject) => {
+  const resolved = resolveSubject(className, subject);
+  const strategy = getSubjectStrategy(resolved);
+  const guideHint = strategy.guideStyle ? `\n${strategy.guideStyle}` : '';
+  return `You are an expert tutor creating a River-led AI tutor session${className ? ` for ${className}` : ''}.
 ${className ? `Tailor concept selection, terminology, examples, and misconceptions specifically to ${className}.` : ''}
 
-${buildSubjectContext(className)}
+${buildSubjectContext(className, subject)}${guideHint}
 
 Output ONLY a valid JSON object. No markdown, backticks, or text outside the object.
 Required structure:
@@ -536,6 +555,7 @@ River must stay central, warm, slightly playful, and distinct. Use the green kni
 Assist options must feel instant and pre-authored, never like open-ended tutor chat.
 Partial answers should usually count as good enough progress when the learner shows real understanding; reserve hard stops for clear misconceptions.
 Keep prompts concise. Keep target answers concise. Keep River premium, calm, clear, and emotionally supportive.`;
+};
 
 export const normalizeCoachConfig = (value, { hasSourceMaterial = false } = {}) => {
   const raw = value && typeof value === 'object' ? value : {};
@@ -617,12 +637,12 @@ export const mergeGuidePayloadMeta = (guidePayload, coachMeta) => {
   };
 };
 
-export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, coachConfig }) => {
+export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, coachConfig }) => {
   const hasSourceMaterial = hasProcessedNotes || keepFile;
   const coachMeta = normalizeCoachConfig(coachConfig, { hasSourceMaterial });
   const setupText = buildCoachSetupText(coachMeta);
   const contents = [{
-    text: `${buildGuidePrompt(className)}
+    text: `${buildGuidePrompt(className, subject)}
 
 If Student Setup is provided, preserve it in "session_meta" and let it shape prioritization, weak-point selection, tone, and pacing.
 If no source material is provided, create a first-pass River tutor session from Student Setup alone.`,
@@ -656,6 +676,7 @@ export const generateStudyGuideFromAi = async ({
   noteId,
   classId,
   className,
+  subject,
   coachConfig,
   aiLimitsContext,
   apiKey,
@@ -696,6 +717,7 @@ export const generateStudyGuideFromAi = async ({
       keepFile,
       file,
       className,
+      subject,
       coachConfig,
     }),
   });
@@ -752,10 +774,14 @@ export const generateStudyGuideFromAi = async ({
 // Mock Exam generation
 // ─────────────────────────────────────────────────────
 
-const buildExamPrompt = (className) => `You are an expert tutor creating a practice exam that mirrors real university exams.
+const buildExamPrompt = (className, subject) => {
+  const resolved = resolveSubject(className, subject);
+  const strategy = getSubjectStrategy(resolved);
+  const examHint = strategy.examTypes ? `\n${strategy.examTypes}` : '';
+  return `You are an expert tutor creating a practice exam that mirrors real university exams.
 Produce a mix of MCQ and short-answer questions from the provided material.
 
-${buildSubjectContext(className)}
+${buildSubjectContext(className, subject)}
 
 Output ONLY a valid JSON array. No markdown, backticks, or text outside the array.
 Generate 12-18 MCQ + 2-4 short_answer questions. Mix: 30% easy, 50% medium, 20% hard.
@@ -763,10 +789,11 @@ Generate 12-18 MCQ + 2-4 short_answer questions. Mix: 30% easy, 50% medium, 20% 
 Every question MUST have: "type" ("mcq"/"short_answer"), "question", "topic" (specific concept), "difficulty" ("easy"/"medium"/"hard"), "correct_answer", "explanation".
 MCQ also needs: "options" (exactly 4 strings, one matching correct_answer). Distractors plausible but clearly wrong.
 short_answer also needs: "grading_rubric" (key points list), "correct_answer" (2-4 sentence model answer).
-Vary types: recall, compare, apply, analyze. Cover wide range of topics.`;
+Vary types: recall, compare, apply, analyze. Cover wide range of topics.${examHint}`;
+};
 
-const buildAdaptiveExamPrompt = (className, masteryData) => {
-  const basePrompt = buildExamPrompt(className);
+const buildAdaptiveExamPrompt = (className, masteryData, subject) => {
+  const basePrompt = buildExamPrompt(className, subject);
 
   if (!masteryData || !Array.isArray(masteryData) || masteryData.length === 0) {
     return basePrompt;
@@ -798,8 +825,8 @@ const buildAdaptiveExamPrompt = (className, masteryData) => {
   return basePrompt + adaptiveInstructions;
 };
 
-const buildFocusedExamPrompt = (className, weakTopics) => {
-  const basePrompt = buildExamPrompt(className);
+const buildFocusedExamPrompt = (className, weakTopics, subject) => {
+  const basePrompt = buildExamPrompt(className, subject);
 
   if (!weakTopics || !Array.isArray(weakTopics) || weakTopics.length === 0) {
     return basePrompt;
@@ -820,14 +847,14 @@ This is a targeted practice exam focusing ONLY on the student's weak areas.
 
 export { buildAdaptiveExamPrompt, buildFocusedExamPrompt };
 
-export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, masteryData, weakTopics, examMode }) => {
+export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, masteryData, weakTopics, examMode }) => {
   let prompt;
   if (examMode === 'focused' && weakTopics) {
-    prompt = buildFocusedExamPrompt(className, weakTopics);
+    prompt = buildFocusedExamPrompt(className, weakTopics, subject);
   } else if (examMode === 'adaptive' && masteryData) {
-    prompt = buildAdaptiveExamPrompt(className, masteryData);
+    prompt = buildAdaptiveExamPrompt(className, masteryData, subject);
   } else {
-    prompt = buildExamPrompt(className);
+    prompt = buildExamPrompt(className, subject);
   }
 
   const contents = [{ text: prompt }];
@@ -857,6 +884,7 @@ export const generateExamFromAi = async ({
   sourceId,
   classId,
   className,
+  subject,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -888,7 +916,7 @@ export const generateExamFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'llama-3.3-70b-versatile',
-    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
+    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }),
   });
 
   const questions = parseAiJsonResponse(
@@ -980,31 +1008,31 @@ const buildYoutubeVideoSource = (transcript) => ({
   text: `Video Source Material:\n${transcript}`,
 });
 
-export const buildYoutubeDeckContents = (youtubeUrl, className) => [
-  { text: buildDeckPrompt(className) },
+export const buildYoutubeDeckContents = (youtubeUrl, className, subject) => [
+  { text: buildDeckPrompt(className, subject) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-export const buildYoutubeGuideContents = (youtubeUrl, className) => [
-  { text: buildGuidePrompt(className) },
+export const buildYoutubeGuideContents = (youtubeUrl, className, subject) => [
+  { text: buildGuidePrompt(className, subject) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-export const buildYoutubeExamContents = (youtubeUrl, className) => [
-  { text: buildExamPrompt(className) },
+export const buildYoutubeExamContents = (youtubeUrl, className, subject) => [
+  { text: buildExamPrompt(className, subject) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-const buildNotesFromVideoPrompt = (className) => `You are an expert note-taker watching an educational YouTube video.
+const buildNotesFromVideoPrompt = (className, subject) => `You are an expert note-taker watching an educational YouTube video.
 Produce concise, complete notes as a Tiptap JSON document.
 
-${buildSubjectContext(className)}
+${buildSubjectContext(className, subject)}
 
 ${TIPTAP_FORMAT}
 Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway. Include "Key Concepts" summary section.`;
 
-export const buildYoutubeNotesContents = (youtubeUrl, className) => [
-  { text: buildNotesFromVideoPrompt(className) },
+export const buildYoutubeNotesContents = (youtubeUrl, className, subject) => [
+  { text: buildNotesFromVideoPrompt(className, subject) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 

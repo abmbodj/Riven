@@ -11,6 +11,7 @@ import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
+import SubjectRenderer from '../components/ui/SubjectRenderer';
 
 const SESSION_STORAGE_PREFIX = 'riven-study-session';
 
@@ -689,7 +690,7 @@ export default function StudyMode() {
                                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                                 />
                                             )}
-                                            <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
+                                            <div className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}><SubjectRenderer content={currentCard.front} /></div>
                                             {currentCard.card_state && currentCard.card_state !== 'new' && (
                                                 <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.card_state === 'relearning' ? 'bg-red-500/15 text-red-400' :
                                                     currentCard.card_state === 'learning' ? 'bg-yellow-500/15 text-yellow-400' :
@@ -739,7 +740,7 @@ export default function StudyMode() {
                                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                                 />
                                             )}
-                                            <p className={`font-display font-semibold text-claude-text text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
+                                            <div className={`font-display font-semibold text-claude-text text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}><SubjectRenderer content={currentCard.back} /></div>
                                             <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to flip back</span>
                                         </div>
                                     </motion.div>

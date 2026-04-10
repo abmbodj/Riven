@@ -6,6 +6,7 @@ import {
     Bookmark, ChevronDown, ChevronUp, Tag, BookOpen
 } from 'lucide-react';
 import StudyPath from './StudyPath';
+import SubjectRenderer from './ui/SubjectRenderer';
 
 const DIFFICULTY_COLORS = {
     easy: 'text-green-400 bg-green-500/10 border-green-500/20',
@@ -328,9 +329,9 @@ export default function ExamResults({
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-body text-claude-text leading-relaxed line-clamp-2">
-                                                        {item.question}
-                                                    </p>
+                                                    <div className="text-sm font-body text-claude-text leading-relaxed line-clamp-2">
+                                                        <SubjectRenderer content={item.question} inline />
+                                                    </div>
                                                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                         {item.topic && (
                                                             <span className="flex items-center gap-0.5 text-[9px] font-mono uppercase tracking-wider text-claude-secondary">
@@ -380,12 +381,12 @@ export default function ExamResults({
                                                         <div className="space-y-2">
                                                             <div className={`p-3 rounded-xl border text-sm font-body ${isCorrect ? 'border-green-500/30 text-green-400' : 'border-red-500/30 text-red-400'}`}>
                                                                 <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1">Your Answer</span>
-                                                                {ans?.selected}
+                                                                <SubjectRenderer content={ans?.selected} />
                                                             </div>
                                                             {!isCorrect && (
                                                                 <div className="p-3 rounded-xl border border-green-500/30 text-sm font-body text-green-400">
                                                                     <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1">Correct Answer</span>
-                                                                    {item.correct_answer}
+                                                                    <SubjectRenderer content={item.correct_answer} />
                                                                 </div>
                                                             )}
                                                         </div>
@@ -393,16 +394,16 @@ export default function ExamResults({
                                                         <div className="space-y-2">
                                                             <div className="p-3 rounded-xl border border-claude-border text-sm font-body text-claude-text">
                                                                 <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1 text-claude-secondary">Your Answer</span>
-                                                                {ans?.selected}
+                                                                <SubjectRenderer content={ans?.selected} />
                                                             </div>
                                                             <div className="p-3 rounded-xl border border-claude-accent/30 text-sm font-body text-claude-text">
                                                                 <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1 text-claude-accent">Model Answer</span>
-                                                                {item.correct_answer}
+                                                                <SubjectRenderer content={item.correct_answer} />
                                                             </div>
                                                             {ans?.feedback && (
                                                                 <div className="p-3 rounded-xl border border-claude-border text-sm font-body text-claude-text">
                                                                     <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1 text-claude-secondary">AI Feedback</span>
-                                                                    {ans.feedback}
+                                                                    <SubjectRenderer content={ans.feedback} />
                                                                 </div>
                                                             )}
                                                         </div>
@@ -411,7 +412,7 @@ export default function ExamResults({
                                                     {(item.explanation || ans?.explanation) && (
                                                         <div className="p-3 rounded-xl glass-panel border border-claude-border">
                                                             <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-claude-secondary block mb-1">Explanation</span>
-                                                            <p className="text-sm font-body text-claude-text leading-relaxed">{item.explanation || ans?.explanation}</p>
+                                                            <div className="text-sm font-body text-claude-text leading-relaxed"><SubjectRenderer content={item.explanation || ans?.explanation} /></div>
                                                         </div>
                                                     )}
                                                 </motion.div>

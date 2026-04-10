@@ -384,6 +384,7 @@ export default function YouTubeImport() {
                 youtubeUrl,
                 titleSnapshot: sourceTitle,
                 className: selectedClassData?.name || null,
+                subject: selectedClassData?.subject || null,
             });
 
             const sourceSnapshot = await api.getAiJob(sourceResponse.jobId).catch(() => ({

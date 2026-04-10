@@ -1549,7 +1549,7 @@ export const getClasses = async () => {
     return data || [];
 };
 
-export const createClass = async (name, color, professor, room, zoom_link) => {
+export const createClass = async (name, color, professor, room, zoom_link, subject) => {
     const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('classes')
@@ -1559,7 +1559,8 @@ export const createClass = async (name, color, professor, room, zoom_link) => {
             color: color || null,
             professor: professor || null,
             room: room || null,
-            zoom_link: zoom_link || null
+            zoom_link: zoom_link || null,
+            subject: subject || null
         })
         .select()
         .single();
@@ -1567,13 +1568,14 @@ export const createClass = async (name, color, professor, room, zoom_link) => {
     return data;
 };
 
-export const updateClass = async (id, name, color, professor, room, zoom_link) => {
+export const updateClass = async (id, name, color, professor, room, zoom_link, subject) => {
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (color !== undefined) updates.color = color;
     if (professor !== undefined) updates.professor = professor;
     if (room !== undefined) updates.room = room;
     if (zoom_link !== undefined) updates.zoom_link = zoom_link;
+    if (subject !== undefined) updates.subject = subject;
     const { data, error } = await supabase
         .from('classes')
         .update(updates)
@@ -1751,23 +1753,23 @@ export const syncCanvas = (adGranted = false) => callCanvasLmsEndpoint({
 // --- AI Generation ---
 export const getAILimits = () => edgeFunctionFetch('ai-limits', { method: 'GET' });
 
-export const generateAiDeck = (notes, file, deckName, classId, className) =>
-    edgeFunctionFetch('generate-deck', { body: { notes, file, deckName, classId, className } });
+export const generateAiDeck = (notes, file, deckName, classId, className, subject) =>
+    edgeFunctionFetch('generate-deck', { body: { notes, file, deckName, classId, className, subject } });
 
 export const generateAiClass = (notes, file) =>
     edgeFunctionFetch('generate-class', { body: { notes, file } });
 
-export const generateAiGuide = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null) =>
-    edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig } });
+export const generateAiGuide = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null, subject = null) =>
+    edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig, subject } });
 
-export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics } = {}) =>
-    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics } });
+export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics, subject } = {}) =>
+    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics, subject } });
 
 export const gradeShortAnswer = (question, studentAnswer, correctAnswer, gradingRubric) =>
     edgeFunctionFetch('grade-answer', { body: { question, studentAnswer, correctAnswer, gradingRubric } });
 
-export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName, className } = {}) =>
-    edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className } });
+export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName, className, subject } = {}) =>
+    edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className, subject } });
 
 // --- AI Generation (Streaming) ---
 
@@ -1869,17 +1871,17 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
     };
 };
 
-export const generateAiDeckStream = (notes, file, deckName, classId, className) =>
-    edgeFunctionStreamFetch('generate-deck', { body: { notes, file, deckName, classId, className } });
+export const generateAiDeckStream = (notes, file, deckName, classId, className, subject) =>
+    edgeFunctionStreamFetch('generate-deck', { body: { notes, file, deckName, classId, className, subject } });
 
-export const generateAiGuideStream = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null) =>
-    edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig } });
+export const generateAiGuideStream = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null, subject = null) =>
+    edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig, subject } });
 
-export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics } = {}) =>
-    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics } });
+export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics, subject } = {}) =>
+    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics, subject } });
 
-export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, deckName, className } = {}) =>
-    edgeFunctionStreamFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className } });
+export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, deckName, className, subject } = {}) =>
+    edgeFunctionStreamFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className, subject } });
 
 export const enhanceNoteWithAudioStream = (noteId, audioPath, userNotes, title, className) =>
     edgeFunctionStreamFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className } });

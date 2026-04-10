@@ -207,7 +207,8 @@ export default function CreateDeck() {
                 aiFile,
                 titleResult.data,
                 selectedClass,
-                selectedClassData?.name || null
+                selectedClassData?.name || null,
+                selectedClassData?.subject || null
             );
             streamAbortRef.current = stream.abort;
 

@@ -50,7 +50,7 @@ serve(async (request) => {
     const body = await request.json().catch(() => ({}));
     const reqUrl = new URL(request.url);
     const useStreaming = reqUrl.searchParams.get('stream') === '1' || body.stream === true;
-    const { youtubeUrl, type, title, classId, deckName, className } = body;
+    const { youtubeUrl, type, title, classId, deckName, className, subject } = body;
 
     if (!VALID_TYPES.includes(type as GenerationType)) {
       throw createHttpError(
@@ -128,7 +128,7 @@ serve(async (request) => {
         notes: buildYoutubeNotesContents,
       };
 
-      const contents = contentBuilders[type](preparedSource.sourceText, className);
+      const contents = contentBuilders[type](preparedSource.sourceText, className, subject);
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
@@ -315,7 +315,7 @@ serve(async (request) => {
 
     // ── DECK ──────────────────────────────────────────
     if (type === 'deck') {
-      const rawResponse = await generateContent(buildYoutubeDeckContents(preparedSource.sourceText, className));
+      const rawResponse = await generateContent(buildYoutubeDeckContents(preparedSource.sourceText, className, subject));
       const flashcards = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid flashcard format. Please try again.',
@@ -360,7 +360,7 @@ serve(async (request) => {
     // ── GUIDE ─────────────────────────────────────────
     else if (type === 'guide') {
       const rawResponse = await generateContent(
-        buildYoutubeGuideContents(preparedSource.sourceText, className),
+        buildYoutubeGuideContents(preparedSource.sourceText, className, subject),
         'json_object',
       );
       const guidePayload = parseAiJsonResponse(
@@ -401,7 +401,7 @@ serve(async (request) => {
 
     // ── EXAM ──────────────────────────────────────────
     else if (type === 'exam') {
-      const rawResponse = await generateContent(buildYoutubeExamContents(preparedSource.sourceText, className));
+      const rawResponse = await generateContent(buildYoutubeExamContents(preparedSource.sourceText, className, subject));
       const questions = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid exam format. Please try again.',
@@ -442,7 +442,7 @@ serve(async (request) => {
     // ── NOTES ─────────────────────────────────────────
     else {
       const rawResponse = await generateContent(
-        buildYoutubeNotesContents(preparedSource.sourceText, className),
+        buildYoutubeNotesContents(preparedSource.sourceText, className, subject),
         'json_object',
       );
       const noteContent = parseAiJsonResponse(

@@ -36,9 +36,9 @@ const TIPTAP_FORMAT = `Output ONLY valid JSON: { "type": "doc", "content": [...]
 Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
 Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
 
-const buildNoteDraftPrompt = (userNotes: string | null, className?: string | null) => `You are a lecture notes assistant producing a fast first draft as a Tiptap JSON document.
+const buildNoteDraftPrompt = (userNotes: string | null, className?: string | null, subject?: string | null) => `You are a lecture notes assistant producing a fast first draft as a Tiptap JSON document.
 
-${buildSubjectContext(className ?? undefined)}
+${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 Goal: produce a usable, structured draft quickly.
 - Preserve the student's notes verbatim where they exist.
@@ -53,9 +53,9 @@ ${TIPTAP_FORMAT}
 Student notes:
 ${userNotes || 'No student notes were provided.'}`;
 
-const buildNoteEnrichPrompt = (userNotes: string | null, className: string | null | undefined, draftDoc: unknown) => `You are a lecture notes assistant refining an existing draft into a complete study-ready set of notes as Tiptap JSON.
+const buildNoteEnrichPrompt = (userNotes: string | null, className: string | null | undefined, draftDoc: unknown, subject?: string | null) => `You are a lecture notes assistant refining an existing draft into a complete study-ready set of notes as Tiptap JSON.
 
-${buildSubjectContext(className ?? undefined)}
+${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 Requirements:
 - Preserve the structure and wording of the draft unless accuracy requires improvement.
@@ -78,9 +78,10 @@ const buildSectionNotePrompt = (
   totalSections: number,
   userNotes: string | null,
   className?: string | null,
+  subject?: string | null,
 ) => `You are a lecture notes assistant. Given a transcript excerpt from a lecture, produce structured notes as a Tiptap JSON document for this section only.
 
-${buildSubjectContext(className ?? undefined)}
+${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 This is section ${sectionIndex + 1} of ${totalSections} from a longer lecture.
 - Use H2 for the section's main topic, H3 for subtopics.
@@ -101,6 +102,7 @@ const generateNotesForSection = async ({
   totalSections,
   userNotesSnapshot,
   className,
+  subject,
   modelMap,
 }: {
   ai: AiClient;
@@ -108,6 +110,7 @@ const generateNotesForSection = async ({
   totalSections: number;
   userNotesSnapshot: string | null;
   className: string | null;
+  subject: string | null;
   modelMap: ReturnType<typeof getAiModelMap>;
 }): Promise<unknown> => {
   const placeholder = {
@@ -119,7 +122,7 @@ const generateNotesForSection = async ({
   };
 
   try {
-    const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className);
+    const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className, subject);
     const rawText = await generateWithFallback({
       ai,
       primaryModel: modelMap.draft,
@@ -139,9 +142,10 @@ const buildMergePrompt = (
   userNotes: string | null,
   className: string | null | undefined,
   sectionDocs: unknown[],
+  subject?: string | null,
 ) => `You are a lecture notes assistant. You have notes for each section of a lecture. Merge them into one complete, polished Tiptap JSON document.
 
-${buildSubjectContext(className ?? undefined)}
+${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 Requirements:
 - Preserve the structure and wording of each section's notes.
@@ -158,10 +162,10 @@ ${userNotes || 'No student notes were provided.'}
 Section notes JSON array:
 ${JSON.stringify(sectionDocs)}`;
 
-const buildYoutubeSourcePrompt = (className?: string | null) => `You are an expert academic note taker watching an educational YouTube video.
+const buildYoutubeSourcePrompt = (className?: string | null, subject?: string | null) => `You are an expert academic note taker watching an educational YouTube video.
 Produce clean, complete notes as a Tiptap JSON document that can be reused to generate other study materials.
 
-${buildSubjectContext(className ?? undefined)}
+${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 Requirements:
 - Organize content into H1/H2/H3 sections.
@@ -577,6 +581,7 @@ const processNoteEnhancementJob = async ({
   const userNotesSnapshot = typeof input.userNotesSnapshot === 'string' ? input.userNotesSnapshot : null;
   const titleSnapshot = typeof input.titleSnapshot === 'string' ? input.titleSnapshot : 'Enhanced Notes';
   const className = typeof input.className === 'string' ? input.className : null;
+  const subject = typeof input.subject === 'string' ? input.subject : null;
 
   if (!noteId || !audioPath) {
     throw createHttpError('Note enhancement job is missing required audio context.', 400);
@@ -613,7 +618,7 @@ const processNoteEnhancementJob = async ({
   if (sections.length <= 1) {
     const draftMessages: AiMessage[] = [{
       role: 'user',
-      content: `${buildNoteDraftPrompt(userNotesSnapshot, className)}\n\nLecture Audio Transcription:\n${transcription}`,
+      content: `${buildNoteDraftPrompt(userNotesSnapshot, className, subject)}\n\nLecture Audio Transcription:\n${transcription}`,
     }];
 
     const draftResult = await streamDocPreview({
@@ -647,7 +652,7 @@ const processNoteEnhancementJob = async ({
       fallbackModel: modelMap.final,
       messages: [{
         role: 'user',
-        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
+        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc, subject)}\n\nLecture Audio Transcription:\n${transcription}`,
       }],
       jsonMode: true,
     });
@@ -682,6 +687,7 @@ const processNoteEnhancementJob = async ({
         totalSections: sections.length,
         userNotesSnapshot,
         className,
+        subject,
         modelMap,
       });
 
@@ -711,7 +717,7 @@ const processNoteEnhancementJob = async ({
       fallbackModel: modelMap.final,
       messages: [{
         role: 'user',
-        content: buildMergePrompt(userNotesSnapshot, className, completedSections),
+        content: buildMergePrompt(userNotesSnapshot, className, completedSections, subject),
       }],
       jsonMode: true,
       maxTokens: 8192,
@@ -792,6 +798,7 @@ const processYoutubeSourceJob = async ({
   const input = (job.input_payload || {}) as Record<string, unknown>;
   const youtubeUrl = String(input.youtubeUrl || '');
   const className = typeof input.className === 'string' ? input.className : null;
+  const subject = typeof input.subject === 'string' ? input.subject : null;
   const titleSnapshot = typeof input.titleSnapshot === 'string' ? input.titleSnapshot : 'YouTube Source';
   const sourceKey = typeof job.source_key === 'string' ? job.source_key : String(input.sourceKey || '');
 
@@ -839,7 +846,7 @@ const processYoutubeSourceJob = async ({
 
   const messages: AiMessage[] = [{
     role: 'user',
-    content: `${buildYoutubeSourcePrompt(className)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
+    content: `${buildYoutubeSourcePrompt(className, subject)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
   }];
 
   const streamResult = await streamDocPreview({

@@ -5,6 +5,7 @@ import { api } from '../api';
 import { UserRating } from '../utils/fsrs';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
+import SubjectRenderer from '../components/ui/SubjectRenderer';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 
@@ -471,7 +472,7 @@ export default function TestMode() {
                                         className="max-h-40 max-w-full object-contain rounded-xl mb-4 mx-auto"
                                     />
                                 )}
-                                <h3 className={`font-display font-bold ${currentQ.card.front_image ? 'text-xl' : 'text-2xl'}`}>{currentQ.card.front}</h3>
+                                <div className={`font-display font-bold ${currentQ.card.front_image ? 'text-xl' : 'text-2xl'}`}><SubjectRenderer content={currentQ.card.front} /></div>
                             </div>
 
                             <form onSubmit={handleTypedSubmit} className="space-y-4">
@@ -522,7 +523,7 @@ export default function TestMode() {
                                         {isWrong && (
                                             <div className="text-sm">
                                                 <span className="text-claude-secondary">Correct answer: </span>
-                                                <span className="font-medium text-green-500">{currentQ.correctAnswer}</span>
+                                                <span className="font-medium text-green-500"><SubjectRenderer content={currentQ.correctAnswer} inline /></span>
                                             </div>
                                         )}
                                     </div>
@@ -627,7 +628,7 @@ export default function TestMode() {
                                     className="max-h-40 max-w-full object-contain rounded-xl mb-4 mx-auto"
                                 />
                             )}
-                            <h3 className={`font-display font-bold ${currentQ.card.front_image ? 'text-xl' : 'text-2xl'}`}>{currentQ.card.front}</h3>
+                            <div className={`font-display font-bold ${currentQ.card.front_image ? 'text-xl' : 'text-2xl'}`}><SubjectRenderer content={currentQ.card.front} /></div>
                         </div>
 
                         <div className="space-y-3 overflow-y-auto">
@@ -659,7 +660,7 @@ export default function TestMode() {
                                                         String.fromCharCode(65 + idx)}
                                             </div>
                                             <span className={`font-medium flex-1 ${showCorrect ? 'text-green-500' : showWrong ? 'text-red-500' : ''
-                                                }`}>{option}</span>
+                                                }`}><SubjectRenderer content={option} inline /></span>
                                             {showCorrect && <span className="text-xs text-green-500 font-semibold">Correct!</span>}
                                             {showWrong && <span className="text-xs text-red-500 font-semibold">Wrong</span>}
                                         </div>
