@@ -40,7 +40,11 @@ async function run() {
         await client.query('COMMIT');
         console.log('Study session schema backfill complete.');
     } catch (error) {
-        await client.query('ROLLBACK');
+        try {
+            await client.query('ROLLBACK');
+        } catch (rbErr) {
+            console.error('ROLLBACK failed:', rbErr);
+        }
         console.error('Failed to backfill study_sessions schema:', error);
         process.exitCode = 1;
     } finally {
@@ -48,4 +52,4 @@ async function run() {
     }
 }
 
-run().then(() => db.pool.end());
+run().finally(() => db.pool.end());
