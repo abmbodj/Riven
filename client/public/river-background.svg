@@ -111,6 +111,27 @@
   <stop offset="100%" stop-color="#050c12" stop-opacity="0.62"/>
 </radialGradient>
 
+<!-- Moon corona: warm ivory glow fading to transparent -->
+<radialGradient id="moon-glow" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#f5eed8" stop-opacity="0.22"/>
+  <stop offset="40%"  stop-color="#e8d090" stop-opacity="0.10"/>
+  <stop offset="100%" stop-color="#deb96a" stop-opacity="0"/>
+</radialGradient>
+
+<!-- Moon disc: warm ivory at highlight center, amber at limb -->
+<radialGradient id="moon-disc" cx="0.45" cy="0.42" r="0.5" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#f8f3e4"/>
+  <stop offset="65%"  stop-color="#ede0b8"/>
+  <stop offset="100%" stop-color="#d4c080"/>
+</radialGradient>
+
+<!-- Moon water reflection: warm gold strip fading downward -->
+<linearGradient id="moon-refl" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#f0e8c0" stop-opacity="0.26"/>
+  <stop offset="35%"  stop-color="#deb96a" stop-opacity="0.14"/>
+  <stop offset="100%" stop-color="#deb96a" stop-opacity="0"/>
+</linearGradient>
+
 <!-- ───────────────────────────────────────
      GRADIENTS — LILY PADS
 ─────────────────────────────────────── -->
@@ -144,6 +165,13 @@
 <circle cx="488" cy="58"  r="0.5" fill="#deb96a" opacity="0.38"/>
 <circle cx="34"  cy="68"  r="0.6" fill="#c8d8e0" opacity="0.35"/>
 <circle cx="518" cy="72"  r="0.7" fill="#c8d8e0" opacity="0.38"/>
+
+<!-- Full moon — centered at top, warm ivory disc with corona -->
+<ellipse cx="270" cy="76" rx="82" ry="82" fill="url(#moon-glow)"/>
+<circle  cx="270" cy="76" r="27"          fill="url(#moon-disc)"/>
+<!-- Subtle surface texture — two barely-visible crater shadows -->
+<ellipse cx="263" cy="72" rx="7"  ry="5"  fill="#c8ae6a" opacity="0.18" transform="rotate(-12 263 72)"/>
+<ellipse cx="278" cy="82" rx="5"  ry="4"  fill="#c8ae6a" opacity="0.14" transform="rotate(8 278 82)"/>
 
 <!-- Canopy moonlight — warm gold filtering from above -->
 <ellipse class="canopy-gl" cx="270" cy="0" rx="300" ry="230" fill="url(#canopy-glow)"/>
@@ -255,6 +283,9 @@
 
 <!-- Warm water underglow — radial gradient is soft enough without filter -->
 <ellipse cx="270" cy="700" rx="300" ry="340" fill="url(#water-glow)"/>
+
+<!-- Moon path on water: narrow vertical shimmer strip centered at x=270 -->
+<rect x="249" y="378" width="42" height="400" fill="url(#moon-refl)"/>
 
 <!-- Water surface shimmer highlights (animated) -->
 <ellipse class="water-sh"   cx="270" cy="490" rx="130" ry="6"  fill="#deb96a" opacity="0.07"/>

@@ -255,6 +255,7 @@ export default function RiverMascot({
         head: `${assetPrefix}-river-head`,
         limb: `${assetPrefix}-river-limb`,
         stage: `${assetPrefix}-river-stage`,
+        rim: `${assetPrefix}-river-rim`,
     };
 
     const bodyAnimation = reduceMotion
@@ -352,6 +353,10 @@ export default function RiverMascot({
                                 <stop offset="0%" stopColor="rgba(178,202,127,0.18)" />
                                 <stop offset="100%" stopColor="rgba(13,15,14,0)" />
                             </radialGradient>
+                            <radialGradient id={ids.rim} cx="0.5" cy="0.04" r="0.55" gradientUnits="objectBoundingBox">
+                                <stop offset="0%"   stopColor="#c8e8a8" stopOpacity="0.46"/>
+                                <stop offset="100%" stopColor="#c8e8a8" stopOpacity="0"/>
+                            </radialGradient>
                             </defs>
 
                             <ellipse cx="160" cy="262" rx="116" ry="54" fill={`url(#${ids.stage})`} />
@@ -382,6 +387,10 @@ export default function RiverMascot({
                                 <path d="M86 262 L75 270" stroke="#273629" strokeWidth="3.4" strokeLinecap="round" />
                                 <path d="M98 257 L92 275" stroke="#273629" strokeWidth="3.4" strokeLinecap="round" />
                                 <path d="M111 252 L110 274" stroke="#273629" strokeWidth="3.4" strokeLinecap="round" />
+                                {/* Left foot toe pads */}
+                                <circle cx="75"  cy="270" r="5.8" fill={`url(#${ids.limb})`} stroke="#273629" strokeWidth="2.8"/>
+                                <circle cx="92"  cy="275" r="5.8" fill={`url(#${ids.limb})`} stroke="#273629" strokeWidth="2.8"/>
+                                <circle cx="110" cy="274" r="5.8" fill={`url(#${ids.limb})`} stroke="#273629" strokeWidth="2.8"/>
                             </motion.g>
                             <motion.g
                                 animate={hindlegRightAnimation}
@@ -404,6 +413,10 @@ export default function RiverMascot({
                                 <path d="M234 262 L245 270" stroke="#273629" strokeWidth="3.4" strokeLinecap="round" />
                                 <path d="M222 257 L228 275" stroke="#273629" strokeWidth="3.4" strokeLinecap="round" />
                                 <path d="M209 252 L210 274" stroke="#273629" strokeWidth="3.4" strokeLinecap="round" />
+                                {/* Right foot toe pads */}
+                                <circle cx="245" cy="270" r="5.8" fill={`url(#${ids.limb})`} stroke="#273629" strokeWidth="2.8"/>
+                                <circle cx="228" cy="275" r="5.8" fill={`url(#${ids.limb})`} stroke="#273629" strokeWidth="2.8"/>
+                                <circle cx="210" cy="274" r="5.8" fill={`url(#${ids.limb})`} stroke="#273629" strokeWidth="2.8"/>
                             </motion.g>
 
                             <path
@@ -472,6 +485,15 @@ export default function RiverMascot({
                                     stroke="#273629"
                                     strokeWidth="4"
                                 />
+                                {/* Moonlit rim light — pale green gradient from crown downward */}
+                                <path
+                                    d="M84 172 C76 160 75 144 83 130 C90 118 99 109 112 101 C119 78 134 66 148 66 C154 66 158 69 160 73 C162 69 166 66 172 66 C186 66 201 78 208 101 C221 109 230 118 237 130 C245 144 244 160 236 172 C228 183 216 192 201 200 C188 206 174 210 160 211 C146 210 132 206 119 200 C104 192 92 183 84 172 Z"
+                                    fill={`url(#${ids.rim})`}
+                                />
+                                {/* Subtle dorsal skin markings */}
+                                <ellipse cx="138" cy="130" rx="7"   ry="5"   fill="#2e4826" opacity="0.21" transform="rotate(-15 138 130)"/>
+                                <ellipse cx="183" cy="126" rx="6"   ry="4"   fill="#2e4826" opacity="0.17" transform="rotate(10 183 126)"/>
+                                <ellipse cx="160" cy="110" rx="5"   ry="3.5" fill="#2e4826" opacity="0.19"/>
                                 <path d="M108 150 C125 156 142 160 160 160 C178 160 195 156 212 150" stroke="#5c7648" strokeWidth="3" strokeLinecap="round" opacity="0.28" />
 
                                 <FrogEye
@@ -493,6 +515,8 @@ export default function RiverMascot({
                                     pupilFeature="pupil-right"
                                 />
 
+                                {/* Wet-skin specular highlight at crown */}
+                                <ellipse cx="150" cy="86" rx="22" ry="9" fill="#ffffff" opacity="0.11" transform="rotate(-14 150 86)"/>
                                 <ellipse cx="150" cy="151" rx="2.4" ry="1.8" fill="#3d4e33" opacity="0.84" transform="rotate(-24 150 151)" />
                                 <ellipse cx="170" cy="151" rx="2.4" ry="1.8" fill="#3d4e33" opacity="0.84" transform="rotate(24 170 151)" />
                                 <path
