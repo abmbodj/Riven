@@ -587,14 +587,30 @@ const deriveSections = (concepts, cards) => (
 );
 
 const normalizeStatus = (value) => {
-  const allowed = new Set(['unseen', 'active', 'retry', 'needs_review', 'mastered', 'completed']);
+  const allowed = new Set(['unseen', 'active', 'retry', 'needs_review', 'mastered', 'completed', 'skipped']);
   return allowed.has(value) ? value : 'unseen';
 };
 
 const normalizeOutcome = (value) => {
-  const allowed = new Set(['correct', 'partial', 'incorrect', 'misconception', 'empty', null]);
+  const allowed = new Set(['correct', 'partial', 'incorrect', 'misconception', 'empty', 'revealed', 'skipped', null]);
   return allowed.has(value) ? value : null;
 };
+
+const getPerformanceBand = (score) => {
+  if (score < 45) return 'struggling';
+  if (score < 80) return 'steady';
+  return 'mastery';
+};
+
+const getConceptStatus = (score) => {
+  if (score >= 80) return 'mastered';
+  if (score >= 65) return 'secure';
+  if (score >= 45) return 'developing';
+  if (score > 0) return 'struggling';
+  return 'unseen';
+};
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export const normalizeStudyGuideData = (value) => {
   const raw = value && typeof value === 'object' ? value : {};
@@ -639,6 +655,10 @@ const buildDefaultCardState = () => ({
   status: 'unseen',
   last_outcome: null,
   completed: false,
+  assist_count: 0,
+  last_assist_at: null,
+  revealed_answer: false,
+  skipped: false,
 });
 
 const buildDefaultConceptMastery = () => ({
@@ -697,13 +717,18 @@ export const normalizeStudyGuideState = (guideData, value) => {
   const cardStates = Object.fromEntries(
     normalizedGuideData.cards.map((card) => {
       const incoming = raw.card_states?.[card.id] ?? raw.section_states?.[card.id] ?? {};
+      const skipped = Boolean(incoming.skipped);
       return [card.id, {
         ...buildDefaultCardState(),
         attempts: clampNumber(incoming.attempts, { min: 0, max: 99, fallback: 0 }),
         hints_used: clampNumber(incoming.hints_used ?? incoming.hintsUsed, { min: 0, max: 99, fallback: 0 }),
-        status: normalizeStatus(incoming.status),
+        status: skipped ? 'skipped' : normalizeStatus(incoming.status),
         last_outcome: normalizeOutcome(incoming.last_outcome ?? incoming.lastOutcome),
         completed: Boolean(incoming.completed),
+        assist_count: clampNumber(incoming.assist_count ?? incoming.assistCount, { min: 0, max: 99, fallback: 0 }),
+        last_assist_at: normalizeOptionalText(incoming.last_assist_at ?? incoming.lastAssistAt),
+        revealed_answer: Boolean(incoming.revealed_answer ?? incoming.revealedAnswer),
+        skipped,
       }];
     }),
   );
@@ -714,7 +739,10 @@ export const normalizeStudyGuideState = (guideData, value) => {
       return [concept.id, {
         ...buildDefaultConceptMastery(),
         score: clampNumber(incoming.score, { min: 0, max: 100, fallback: 0 }),
-        status: normalizeText(incoming.status, 'unseen'),
+        status: normalizeText(
+          incoming.status,
+          getConceptStatus(clampNumber(incoming.score, { min: 0, max: 100, fallback: 0 })),
+        ),
         attempts: clampNumber(incoming.attempts, { min: 0, max: 99, fallback: 0 }),
         correct_attempts: clampNumber(
           incoming.correct_attempts ?? incoming.correctAttempts,
@@ -741,6 +769,133 @@ export const normalizeStudyGuideState = (guideData, value) => {
     last_reviewed_at: normalizeOptionalText(raw.last_reviewed_at ?? raw.lastReviewedAt),
   };
 };
+
+const estimateNextReviewAt = (sectionState, options = {}) => {
+  const nowValue = options.now ? new Date(options.now).getTime() : Date.now();
+  const score = clampNumber(
+    sectionState?.score ?? sectionState?.mastery_score,
+    { min: 0, max: 100, fallback: 0 },
+  );
+
+  let offsetDays = 1;
+  if (score >= 80) offsetDays = 3;
+  else if (score >= 45) offsetDays = 2;
+
+  return new Date(nowValue + (offsetDays * DAY_IN_MS)).toISOString();
+};
+
+const getSectionStatus = (sectionState, sectionLastReviewedAt) => {
+  const score = clampNumber(
+    sectionState?.score ?? sectionState?.mastery_score,
+    { min: 0, max: 100, fallback: 0 },
+  );
+
+  if (score < 45) return 'review_now';
+  if (score < 80) return 'coming_up';
+
+  if (!sectionLastReviewedAt) return 'review_soon';
+  const daysSince = (Date.now() - new Date(sectionLastReviewedAt).getTime()) / DAY_IN_MS;
+  return daysSince > 3 ? 'review_soon' : 'good';
+};
+
+export const getGuideMasterySnapshot = (guideData, studyState, options = {}) => {
+  const normalizedGuideData = normalizeStudyGuideData(guideData);
+  const normalizedStudyState = normalizeStudyGuideState(guideData, studyState);
+  if (!normalizedGuideData) {
+    return {
+      averageMastery: 0,
+      weakCount: 0,
+      masteryBands: {
+        struggling: [],
+        steady: [],
+        mastery: [],
+        support: [],
+        standard: [],
+        challenge: [],
+      },
+      recommendedSections: [],
+      nextReviewAt: null,
+    };
+  }
+
+  const nowValue = options.now ? new Date(options.now).getTime() : Date.now();
+  const entries = normalizedGuideData.sections.map((section) => {
+    const conceptState = normalizedStudyState.concept_mastery?.[section.id] || buildDefaultConceptMastery();
+    const masteryScore = clampNumber(conceptState.score, { min: 0, max: 100, fallback: 0 });
+    const performanceBand = getPerformanceBand(masteryScore);
+    const masteryBand = masteryScore < 45 ? 'support' : masteryScore < 80 ? 'standard' : 'challenge';
+    const status = getSectionStatus(conceptState, normalizedStudyState.last_reviewed_at);
+    const daysSince = normalizedStudyState.last_reviewed_at
+      ? Math.max(0, (nowValue - new Date(normalizedStudyState.last_reviewed_at).getTime()) / DAY_IN_MS)
+      : 0;
+    const priorityScore = (100 - masteryScore)
+      + (performanceBand === 'struggling' ? 30 : performanceBand === 'steady' ? 12 : 0)
+      + Math.min(16, Math.round(daysSince * 2))
+      + (conceptState.last_outcome === 'incorrect' || conceptState.last_outcome === 'misconception' ? 12 : 0);
+
+    return {
+      ...section,
+      masteryScore,
+      masteryBand,
+      performanceBand,
+      status,
+      nextReviewAt: estimateNextReviewAt(conceptState, { now: nowValue }),
+      priorityScore,
+      priorityReason: performanceBand === 'struggling'
+        ? 'This concept needs a recovery pass before adding difficulty.'
+        : performanceBand === 'steady'
+          ? 'One more clean retrieval should stabilize this concept.'
+          : 'This concept is stable and ready for later reinforcement.',
+    };
+  }).sort((left, right) => right.priorityScore - left.priorityScore);
+
+  const struggling = entries.filter((entry) => entry.performanceBand === 'struggling');
+  const steady = entries.filter((entry) => entry.performanceBand === 'steady');
+  const mastery = entries.filter((entry) => entry.performanceBand === 'mastery');
+
+  return {
+    averageMastery: entries.length
+      ? Math.round(entries.reduce((total, entry) => total + entry.masteryScore, 0) / entries.length)
+      : 0,
+    weakCount: struggling.length,
+    masteryBands: {
+      struggling,
+      steady,
+      mastery,
+      support: struggling,
+      standard: steady,
+      challenge: mastery,
+    },
+    recommendedSections: entries,
+    nextReviewAt: entries.map((entry) => entry.nextReviewAt).filter(Boolean).sort()[0] || null,
+  };
+};
+
+export const getSessionDelta = (guideData, stateBefore, stateAfter) => {
+  const beforeSnapshot = getGuideMasterySnapshot(guideData, stateBefore);
+  const afterSnapshot = getGuideMasterySnapshot(guideData, stateAfter);
+  const beforeState = normalizeStudyGuideState(guideData, stateBefore);
+  const afterState = normalizeStudyGuideState(guideData, stateAfter);
+  const sectionIds = Object.keys(afterState.concept_mastery || {});
+
+  const reviewedSections = sectionIds.filter((sectionId) => {
+    const beforeConcept = beforeState.concept_mastery?.[sectionId] || buildDefaultConceptMastery();
+    const afterConcept = afterState.concept_mastery?.[sectionId] || buildDefaultConceptMastery();
+    return afterConcept.score > beforeConcept.score
+      || afterConcept.correct_attempts > beforeConcept.correct_attempts
+      || (beforeConcept.last_outcome !== 'correct' && afterConcept.last_outcome === 'correct');
+  }).length;
+
+  return {
+    masteryDeltaPercent: (afterSnapshot.averageMastery || 0) - (beforeSnapshot.averageMastery || 0),
+    weakCountBefore: beforeSnapshot.weakCount || 0,
+    weakCountAfter: afterSnapshot.weakCount || 0,
+    reviewedSections,
+  };
+};
+
+export const normalizeGuideData = normalizeStudyGuideData;
+export const normalizeGuideStudyState = normalizeStudyGuideState;
 
 const textNode = (text, marks = undefined) => (
   marks ? { type: 'text', text, marks } : { type: 'text', text }

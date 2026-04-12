@@ -2132,9 +2132,9 @@ export const deleteStudyGuide = async (id) => {
 
 export const getStudyCoach = async () => authFetch('/study/coach');
 
-export const completeStudyCoachSession = async (payload) => authFetch('/study/session-complete', {
+export const completeStudyCoachSession = async (payload) => edgeFunctionFetch('study-session-complete', {
     method: 'POST',
-    body: JSON.stringify(payload || {}),
+    body: payload || {},
 });
 
 export const assistStudyCoach = async (payload) => authFetch('/study/assist', {
@@ -4404,5 +4404,3 @@ export const createStripeCheckoutSession = ({ priceId, isSubscription }) =>
 
 export const createStripePortalSession = () =>
     edgeFunctionFetch('create-portal', { method: 'POST' });
-
-
