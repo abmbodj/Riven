@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "vitest"
+    "test": "vitest",
+    "backfill:study-sessions-schema": "node scripts/backfill-study-sessions-schema.js"
   },
   "keywords": [],
   "author": "",

@@ -280,8 +280,9 @@ export default function GuideView() {
                 exitReason,
             }));
             setSessionStage('complete');
-        } catch {
-            toastRef.current.error('Failed to complete tutor session');
+        } catch (error) {
+            const message = error?.body?.error || error?.message || 'Failed to complete tutor session';
+            toastRef.current.error(message);
             finalizingRef.current = false;
         }
     }, [guide?.class_id, guideData, id, studyState]);
