@@ -3,6 +3,9 @@
     "allow": [
       "Read(//Users/ab/Library/Caches/deno/npm/registry.npmjs.org/@danielxceron/youtube-transcript/1.2.6/**)",
       "WebFetch(domain:docs.supadata.ai)"
+    ],
+    "additionalDirectories": [
+      "/Users/ab/Desktop/fauiin/src/components"
     ]
   },
   "enabledPlugins": {
