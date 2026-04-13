@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
+import { Plus, Folder, FileText, Upload, CalendarPlus2, X, ChevronLeft, Users, Settings, Trash2, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
 import { UIContext } from '../context/UIContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { Capacitor } from '@capacitor/core';
 import { useToast } from '../hooks/useToast';
 import { api } from '../api';
 import { groupNameSchema, folderNameSchema, fileNameSchema } from '../schemas/forms';
@@ -15,6 +16,14 @@ import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
 import { supabase } from '../lib/supabaseClient';
+import GroupScheduleHub from '../components/groups/GroupScheduleHub.jsx';
+import { scheduleMeetupNotifications } from '../utils/notifications.js';
+
+const toDateIdentity = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+};
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -27,6 +36,11 @@ export default function GroupDetails() {
     const [members, setMembers] = useState([]);
     const [sharedDecks, setSharedDecks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('schedule');
+    const [groupSchedule, setGroupSchedule] = useState(null);
+    const [scheduleLoading, setScheduleLoading] = useState(true);
+    const [scheduleComposerRequestKey, setScheduleComposerRequestKey] = useState(0);
+    const scheduleRangeRef = useRef(null);
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
@@ -49,22 +63,6 @@ export default function GroupDetails() {
     // Decks user currently owns and can share
     const [myDecks, setMyDecks] = useState([]);
 
-    // Active Cram Sessions
-    const [sessions, setSessions] = useState([]);
-    const sessionRefreshTimer = useRef(null);
-
-    const refreshSessions = useCallback(() => {
-        if (sessionRefreshTimer.current) clearTimeout(sessionRefreshTimer.current);
-        sessionRefreshTimer.current = setTimeout(async () => {
-            try {
-                const sessionsRes = await api.getGroupSessions(id);
-                setSessions(sessionsRes || []);
-            } catch (err) {
-                console.error('Failed to refresh sessions:', err);
-            }
-        }, 500);
-    }, [id]);
-
     const [editData, setEditData] = useState({ name: '', class_id: '' });
     const [classes, setClasses] = useState([]);
     const [copied, setCopied] = useState(false);
@@ -83,21 +81,16 @@ export default function GroupDetails() {
 
     const loadGroup = useCallback(async () => {
         try {
-            const [groupRes, membersRes, decksRes, sessionsRes] = await Promise.all([
+            const [groupRes, membersRes, decksRes, fetchedFolders] = await Promise.all([
                 api.getGroupInfo(id),
                 api.getGroupMembers(id),
                 api.getGroupDecks(id),
-                api.getGroupSessions(id)
+                api.getGroupFolders(id),
             ]);
             setGroup(groupRes);
             setMembers(membersRes || []);
             setSharedDecks(decksRes || []);
-            setSessions(sessionsRes || []);
-
-            // Load folders (files are fetched separately by folder)
-            const fetchedFolders = await api.getGroupFolders(id);
             setFolders(fetchedFolders || []);
-
         } catch (err) {
             console.error(err);
             toast.error('Failed to load group details');
@@ -108,28 +101,73 @@ export default function GroupDetails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, navigate]);
 
-    useEffect(() => {
-        loadGroup();
+    const loadGroupSchedule = useCallback(async (rangeStart, rangeEnd, { showLoader = false } = {}) => {
+        const previousRange = scheduleRangeRef.current;
+        const nextRange = {
+            start: rangeStart instanceof Date ? rangeStart : new Date(rangeStart),
+            end: rangeEnd instanceof Date ? rangeEnd : new Date(rangeEnd),
+        };
 
-        return authApi.subscribeToGroupSessionEvents(id, {
-            onStarted: (data) => {
-                if (data && data.id) {
-                    refreshSessions();
-                    toast.show('A live cram session just started!');
+        scheduleRangeRef.current = nextRange;
+        if (showLoader || !previousRange?.loadedOnce) {
+            setScheduleLoading(true);
+        }
+
+        try {
+            const payload = await api.getGroupScheduleCalendar(id, nextRange.start, nextRange.end);
+            setGroupSchedule(payload || { members: [], schedule_slots: [], meetups: [] });
+            scheduleRangeRef.current = { ...nextRange, loadedOnce: true };
+        } catch (err) {
+            console.error('Failed to load group schedule', err);
+            toast.error(err.message || 'Failed to load the group calendar');
+            setGroupSchedule((current) => current || { members: [], schedule_slots: [], meetups: [] });
+        } finally {
+            setScheduleLoading(false);
+        }
+    }, [id, toast]);
+
+    const syncNativeMeetupNotifications = useCallback(async () => {
+        if (!Capacitor.isNativePlatform()) return;
+
+        const notificationsEnabled = (() => {
+            const saved = localStorage.getItem('notifications_enabled');
+            return saved === null ? true : saved === 'true';
+        })();
+
+        const joinedMeetups = await api.listJoinedGroupMeetups(
+            new Date(),
+            new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)),
+        );
+
+        await scheduleMeetupNotifications(joinedMeetups, notificationsEnabled);
+    }, []);
+
+    const refreshScheduleRange = useCallback(async () => {
+        const currentRange = scheduleRangeRef.current;
+        if (!currentRange?.start || !currentRange?.end) return;
+        await loadGroupSchedule(currentRange.start, currentRange.end);
+    }, [loadGroupSchedule]);
+
+    useEffect(() => {
+        const initialStart = new Date();
+        initialStart.setHours(0, 0, 0, 0);
+        const initialEnd = new Date(initialStart);
+        initialEnd.setDate(initialEnd.getDate() + 6);
+
+        void loadGroup();
+        void loadGroupSchedule(initialStart, initialEnd, { showLoader: true });
+
+        return authApi.subscribeToGroupMeetupEvents(id, {
+            onMeetupCreated: (meetup) => {
+                if (meetup?.created_by && meetup.created_by !== currentUserId) {
+                    toast.show('A new study session was proposed.');
                 }
             },
-            onEnded: () => refreshSessions(),
+            onChanged: () => {
+                void refreshScheduleRange();
+            },
         });
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, loadGroup, refreshSessions, toast]);
-
-    // Cleanup debounce timer
-    useEffect(() => {
-        return () => {
-            if (sessionRefreshTimer.current) clearTimeout(sessionRefreshTimer.current);
-        };
-    }, []);
+    }, [currentUserId, id, loadGroup, loadGroupSchedule, refreshScheduleRange, toast]);
 
     // Fetch files separately when folder changes (avoids full group re-fetch)
     useEffect(() => {
@@ -202,7 +240,7 @@ export default function GroupDetails() {
         });
 
         return () => { cleanups.forEach(fn => fn()); };
-    }, [loading, group, sharedDecks, sessions, folders, files]);
+    }, [loading, group, sharedDecks, folders, files]);
 
     const handleCopyCode = async () => {
         if (!group?.join_code) return;
@@ -353,14 +391,6 @@ export default function GroupDetails() {
         });
     };
 
-    const handleEndSession = (sessionId) => {
-        confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
-            await api.endGroupSession(sessionId);
-            toast.success('Session ended');
-            refreshSessions();
-        });
-    };
-
     const handleCreateFolder = async (e) => {
         e.preventDefault();
         const result = folderNameSchema.safeParse(newFolderName.trim());
@@ -493,20 +523,109 @@ export default function GroupDetails() {
         setIsFileViewerOpen(true);
     };
 
-    const handleStartSession = async (deckId) => {
+    const handleSetShareMode = async (visibilityMode) => {
         try {
-            haptics.medium();
-            const session = await api.startGroupSession(id, deckId);
-            toast.success('Cram session started!');
-            navigate(`/groups/${id}/cram/${session.id}`);
+            await api.setGroupScheduleShare(id, visibilityMode);
+            await refreshScheduleRange();
+
+            if (visibilityMode === 'hidden') {
+                toast.success('Your schedule is hidden for this group.');
+            } else {
+                toast.success('Availability updated.');
+            }
         } catch (err) {
-            toast.error(err.message || 'Failed to start session');
+            toast.error(err.message || 'Failed to update schedule sharing');
         }
     };
+
+    const handleCreateMeetup = async (meetupPayload) => {
+        try {
+            await api.createGroupMeetup(id, meetupPayload);
+            toast.success('Study session proposed.');
+            await refreshScheduleRange();
+            await syncNativeMeetupNotifications().catch((error) => {
+                console.error('Failed to sync meetup notifications', error);
+            });
+        } catch (err) {
+            toast.error(err.message || 'Failed to create study session');
+            throw err;
+        }
+    };
+
+    const handleJoinMeetup = async (meetup) => {
+        try {
+            haptics.light?.();
+            await api.joinGroupMeetup(meetup.id);
+            toast.success('You’re going.');
+            await refreshScheduleRange();
+            await syncNativeMeetupNotifications().catch((error) => {
+                console.error('Failed to sync meetup notifications', error);
+            });
+        } catch (err) {
+            toast.error(err.message || 'Failed to join the session');
+        }
+    };
+
+    const handleLeaveMeetup = async (meetup) => {
+        try {
+            haptics.light?.();
+            await api.leaveGroupMeetup(meetup.id);
+            toast.success('You left the session.');
+            await refreshScheduleRange();
+            await syncNativeMeetupNotifications().catch((error) => {
+                console.error('Failed to sync meetup notifications', error);
+            });
+        } catch (err) {
+            toast.error(err.message || 'Failed to leave the session');
+        }
+    };
+
+    const handleCancelMeetup = (meetup) => {
+        confirmAction(
+            'Cancel Session',
+            'This will cancel the scheduled study session for everyone in the group.',
+            async () => {
+                await api.cancelGroupMeetup(meetup.id);
+                toast.success('Session cancelled');
+                await refreshScheduleRange();
+                await syncNativeMeetupNotifications().catch((error) => {
+                    console.error('Failed to sync meetup notifications', error);
+                });
+            },
+        );
+    };
+
+    const handleScheduleRangeChange = useCallback((rangeStart, rangeEnd) => {
+        const currentRange = scheduleRangeRef.current;
+        if (
+            currentRange
+            && toDateIdentity(currentRange.start) === toDateIdentity(rangeStart)
+            && toDateIdentity(currentRange.end) === toDateIdentity(rangeEnd)
+        ) {
+            return;
+        }
+
+        void loadGroupSchedule(rangeStart, rangeEnd);
+    }, [loadGroupSchedule]);
 
     // Push group actions into bottom nav context toolbar (mobile)
     useEffect(() => {
         if (!setContextToolbar) return;
+        if (activeTab === 'schedule') {
+            setContextToolbar([
+                {
+                    id: 'propose-session',
+                    label: 'Propose Session',
+                    icon: CalendarPlus2,
+                    onClick: () => setScheduleComposerRequestKey((current) => current + 1),
+                    disabled: false,
+                    active: true,
+                    loading: false,
+                },
+            ]);
+            return;
+        }
+
         setContextToolbar([
             {
                 id: 'upload',
@@ -518,16 +637,16 @@ export default function GroupDetails() {
                 loading: false,
             },
             {
-                id: 'cram',
-                label: 'Start Cram',
-                icon: Zap,
+                id: 'share-deck',
+                label: 'Share Deck',
+                icon: Layers,
                 onClick: () => setShowShareDeckModal(true),
                 disabled: false,
                 active: false,
                 loading: false,
             },
         ]);
-    }, [setContextToolbar]);
+    }, [activeTab, setContextToolbar]);
 
     useEffect(() => {
         return () => clearContextToolbar?.();
@@ -589,214 +708,206 @@ export default function GroupDetails() {
                     </div>
                 </header>
 
-                <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
-                    {/* LEFT COLUMN */}
-                    <div className="col-span-4 flex flex-col gap-5 overflow-y-auto pr-2 no-scrollbar">
-                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-                            <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">Invite Code</h2>
-                            <div
-                                onClick={handleCopyCode}
-                                className="gsap-hover-card flex items-center justify-between p-4 rounded-2xl border border-claude-border/80 bg-claude-bg cursor-pointer hover:border-claude-accent/40 transition-colors"
-                            >
-                                <span className="font-mono text-2xl tracking-[0.25em] font-bold text-claude-text">{group.join_code}</span>
-                                {copied ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-claude-secondary" />}
-                            </div>
-                        </div>
-
+                <div className="mb-6 flex items-center gap-2 px-1">
+                    {[
+                        { key: 'schedule', label: 'Schedule' },
+                        { key: 'resources', label: 'Resources' },
+                    ].map((tab) => (
                         <button
-                            onClick={() => setShowShareDeckModal(true)}
-                            className="gsap-left-item gsap-hover-card w-full py-4 rounded-2xl bg-claude-accent text-claude-text font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm uppercase tracking-widest text-sm"
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                                activeTab === tab.key
+                                    ? 'bg-claude-accent text-[#182a31] shadow-[0_16px_30px_rgba(41,28,7,0.18)]'
+                                    : 'border border-claude-border/60 bg-claude-surface/40 text-claude-secondary hover:text-claude-text'
+                            }`}
                         >
-                            <Zap className="w-4 h-4 fill-current" /> Start Cram Session
+                            {tab.label}
                         </button>
+                    ))}
+                </div>
 
-                        {sessions.length > 0 && (
-                            <div className="gsap-left-item p-5 rounded-3xl bg-red-500/5 border border-red-500/10">
-                                <h2 className="text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2 mb-4">
-                                    <span className="relative flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                    </span>
-                                    Live Sessions
-                                </h2>
-                                <div className="space-y-3">
-                                    {sessions.map(session => (
-                                        <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="gsap-hover-card p-4 rounded-2xl bg-claude-bg border border-red-500/20 hover:border-red-500/40 transition-colors cursor-pointer flex items-center justify-between shadow-sm">
-                                            <div className="min-w-0 pr-3">
-                                                <div className="font-bold text-sm text-claude-text truncate">{session.deck_title}</div>
-                                                <div className="text-xs text-red-400 mt-1 font-medium">{session.active_members || 1} members active</div>
+                {activeTab === 'schedule' ? (
+                    <GroupScheduleHub
+                        group={group}
+                        calendarData={groupSchedule}
+                        loading={scheduleLoading}
+                        isAdmin={isAdmin}
+                        composerRequestKey={scheduleComposerRequestKey}
+                        onRangeChange={handleScheduleRangeChange}
+                        onSetShareMode={handleSetShareMode}
+                        onCreateMeetup={handleCreateMeetup}
+                        onJoinMeetup={handleJoinMeetup}
+                        onLeaveMeetup={handleLeaveMeetup}
+                        onCancelMeetup={handleCancelMeetup}
+                    />
+                ) : (
+                    <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
+                        <div className="col-span-4 flex flex-col gap-5 overflow-y-auto pr-2 no-scrollbar">
+                            <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+                                <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">Invite Code</h2>
+                                <div
+                                    onClick={handleCopyCode}
+                                    className="gsap-hover-card flex items-center justify-between p-4 rounded-2xl border border-claude-border/80 bg-claude-bg cursor-pointer hover:border-claude-accent/40 transition-colors"
+                                >
+                                    <span className="font-mono text-2xl tracking-[0.25em] font-bold text-claude-text">{group.join_code}</span>
+                                    {copied ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-claude-secondary" />}
+                                </div>
+                            </div>
+
+                            <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm">
+                                <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-4">Members ({members.length})</h2>
+                                <div className="space-y-2">
+                                    {members.map(member => (
+                                        <div key={member.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-claude-border/30 group transition-colors">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" loading="lazy" className="w-8 h-8 rounded-full bg-white border border-claude-border" />
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-bold text-claude-text truncate">{member.display_name || member.username}</div>
+                                                    <div className="text-xs text-claude-secondary truncate">@{member.username} {member.role === 'admin' && '· Admin'}</div>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 text-xs font-bold">Join</span>
-                                                {isAdmin && (
-                                                    <button onClick={(e) => { e.stopPropagation(); handleEndSession(session.id); }} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded-md transition-colors">
-                                                        <X className="w-4 h-4" />
+                                            {member.id !== currentUserId && (
+                                                <div className="relative">
+                                                    <button onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)} className="p-1 hover:bg-claude-border rounded-lg text-claude-secondary transition-colors">
+                                                        <MoreVertical className="w-4 h-4" />
                                                     </button>
-                                                )}
-                                            </div>
+                                                    {activeMemberMenuId === member.id && (
+                                                        <div className="absolute right-0 mt-1 w-32 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20">
+                                                            {isAdmin && member.role !== 'admin' && (
+                                                                <button onClick={() => { handleRemoveMember(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10">Remove</button>
+                                                            )}
+                                                            <button onClick={() => { handleBlockUser(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10">Block</button>
+                                                            <button onClick={() => { setReportingUserId(member.id); setIsReportModalOpen(true); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-claude-text hover:bg-claude-border/50">Report</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm">
-                            <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-4">Members ({members.length})</h2>
-                            <div className="space-y-2">
-                                {members.map(member => (
-                                    <div key={member.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-claude-border/30 group transition-colors">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" loading="lazy" className="w-8 h-8 rounded-full bg-white border border-claude-border" />
-                                            <div className="min-w-0">
-                                                <div className="text-sm font-bold text-claude-text truncate">{member.display_name || member.username}</div>
-                                                <div className="text-xs text-claude-secondary truncate">@{member.username} {member.role === 'admin' && '· Admin'}</div>
-                                            </div>
+                        <div className="col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 no-scrollbar">
+                            <div className="gsap-right-item flex flex-col h-[45%] min-h-[300px]">
+                                <div className="flex items-center justify-between mb-4 shrink-0 px-2">
+                                    <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Layers className="w-5 h-5 text-claude-accent" /> Shared Decks</h2>
+                                    <button onClick={() => setShowShareDeckModal(true)} className="px-4 py-2 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/40 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm text-claude-text">
+                                        <Plus className="w-4 h-4" /> Share Deck
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 p-4 shadow-sm">
+                                    {sharedDecks.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
+                                            <Layers className="w-8 h-8 mb-3 opacity-30" />
+                                            <p className="text-sm font-medium">No decks shared yet</p>
                                         </div>
-                                        {member.id !== currentUserId && (
-                                            <div className="relative">
-                                                <button onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)} className="p-1 hover:bg-claude-border rounded-lg text-claude-secondary transition-colors">
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </button>
-                                                {activeMemberMenuId === member.id && (
-                                                    <div className="absolute right-0 mt-1 w-32 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20">
-                                                        {isAdmin && member.role !== 'admin' && (
-                                                            <button onClick={() => { handleRemoveMember(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10">Remove</button>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {sharedDecks.map(deck => (
+                                                <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card group flex flex-col justify-between p-5 rounded-2xl border border-claude-border hover:border-claude-accent/40 bg-claude-bg cursor-pointer transition-colors relative shadow-sm hover:shadow-claude-accent/5">
+                                                    <div className="pr-8">
+                                                        <h3 className="font-bold text-claude-text truncate" title={deck.title}>{deck.title}</h3>
+                                                        <p className="text-xs text-claude-secondary mt-1 font-medium">Shared by @{deck.shared_by_name}</p>
+                                                    </div>
+                                                    <div className="mt-6 flex items-center gap-2">
+                                                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-claude-surface border border-claude-border text-claude-secondary">{deck.card_count || 0} cards</span>
+                                                    </div>
+                                                    {isAdmin && (
+                                                        <button onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }} className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Remove">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="gsap-right-item flex flex-col flex-1 min-h-[300px]">
+                                <div className="flex items-center justify-between mb-4 shrink-0 px-2">
+                                    <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => setShowCreateFolderModal(true)} className="px-4 py-2 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/40 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm text-claude-text">
+                                            <Plus className="w-4 h-4 text-claude-secondary" /> Folder
+                                        </button>
+                                        <button onClick={() => setShowUploadModal(true)} className="px-4 py-2 rounded-xl bg-claude-accent text-claude-text hover:opacity-90 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
+                                            <Upload className="w-4 h-4" /> Upload File
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 flex flex-col shadow-sm">
+                                    {currentFolderId && (
+                                        <div className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 shrink-0">
+                                            <button onClick={() => setCurrentFolderId(null)} className="flex items-center gap-1 text-sm font-bold text-claude-secondary hover:text-claude-text transition-colors">
+                                                <Folder className="w-4 h-4" /> Library
+                                            </button>
+                                            <ChevronLeft className="w-4 h-4 text-claude-secondary rotate-180" />
+                                            <span className="text-sm font-bold truncate max-w-[250px] text-claude-text">{folders.find(f => f.id === currentFolderId)?.name}</span>
+                                        </div>
+                                    )}
+                                    <div className="p-3 flex-1">
+                                        {!currentFolderId && folders.length === 0 && files.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
+                                                <FileText className="w-8 h-8 mb-3 opacity-30" />
+                                                <p className="text-sm font-medium">Directory is empty</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-1.5">
+                                                {!currentFolderId && folders.map(folder => (
+                                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="gsap-hover-card flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 cursor-pointer group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                                                                <Folder className="w-5 h-5 text-amber-500" fill="currentColor" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-sm text-claude-text">{folder.name}</div>
+                                                                <div className="text-xs font-medium text-claude-secondary">{folder.file_count || 0} items</div>
+                                                            </div>
+                                                        </div>
+                                                        {isAdmin && (
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(e, folder.id); }} className="p-2 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
                                                         )}
-                                                        <button onClick={() => { handleBlockUser(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10">Block</button>
-                                                        <button onClick={() => { setReportingUserId(member.id); setIsReportModalOpen(true); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-claude-text hover:bg-claude-border/50">Report</button>
+                                                    </div>
+                                                ))}
+                                                {files.map(file => (
+                                                    <div key={file.id} className="gsap-hover-card cursor-pointer flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60" onClick={() => handleViewFile(file)}>
+                                                        <div className="flex items-center gap-4 min-w-0 pr-4">
+                                                            <div className="w-10 h-10 rounded-lg bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
+                                                                <FileText className="w-5 h-5 text-claude-secondary" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <span className="font-bold text-sm hover:text-claude-accent transition-colors truncate block text-claude-text">{file.name}</span>
+                                                                <div className="text-xs font-bold text-claude-secondary uppercase tracking-wider">{file.file_type}</div>
+                                                            </div>
+                                                        </div>
+                                                        {(isAdmin || file.uploaded_by === currentUserId) && (
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(e, file.id); }} className="p-2 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-500/10 rounded-lg shrink-0 transition-all">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {currentFolderId && files.length === 0 && (
+                                                    <div className="py-12 text-center text-claude-secondary">
+                                                        <Folder className="w-8 h-8 opacity-30 mx-auto mb-3" />
+                                                        <p className="text-sm font-medium">Folder is empty</p>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* RIGHT COLUMN */}
-                    <div className="col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 no-scrollbar">
-                        <div className="gsap-right-item flex flex-col h-[45%] min-h-[300px]">
-                            <div className="flex items-center justify-between mb-4 shrink-0 px-2">
-                                <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Layers className="w-5 h-5 text-claude-accent" /> Shared Decks</h2>
-                                <button onClick={() => setShowShareDeckModal(true)} className="px-4 py-2 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/40 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm text-claude-text">
-                                    <Plus className="w-4 h-4" /> Share Deck
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 p-4 shadow-sm">
-                                {sharedDecks.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
-                                        <Layers className="w-8 h-8 mb-3 opacity-30" />
-                                        <p className="text-sm font-medium">No decks shared yet</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {sharedDecks.map(deck => (
-                                            <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card group flex flex-col justify-between p-5 rounded-2xl border border-claude-border hover:border-claude-accent/40 bg-claude-bg cursor-pointer transition-colors relative shadow-sm hover:shadow-claude-accent/5">
-                                                <div className="pr-8">
-                                                    <h3 className="font-bold text-claude-text truncate" title={deck.title}>{deck.title}</h3>
-                                                    <p className="text-xs text-claude-secondary mt-1 font-medium">Shared by @{deck.shared_by_name}</p>
-                                                </div>
-                                                <div className="mt-6 flex items-center gap-2">
-                                                    <span className="text-xs font-bold px-2.5 py-1 rounded bg-claude-surface border border-claude-border text-claude-secondary">{deck.card_count || 0} cards</span>
-                                                </div>
-                                                <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="p-2 bg-claude-accent/10 hover:bg-claude-accent text-claude-accent hover:text-claude-text rounded-lg transition-colors" title="Start Cram">
-                                                        <Zap className="w-4 h-4 fill-current" />
-                                                    </button>
-                                                    {isAdmin && (
-                                                        <button onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Remove">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="gsap-right-item flex flex-col flex-1 min-h-[300px]">
-                            <div className="flex items-center justify-between mb-4 shrink-0 px-2">
-                                <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={() => setShowCreateFolderModal(true)} className="px-4 py-2 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/40 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm text-claude-text">
-                                        <Plus className="w-4 h-4 text-claude-secondary" /> Folder
-                                    </button>
-                                    <button onClick={() => setShowUploadModal(true)} className="px-4 py-2 rounded-xl bg-claude-accent text-claude-text hover:opacity-90 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
-                                        <Upload className="w-4 h-4" /> Upload File
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 flex flex-col shadow-sm">
-                                {currentFolderId && (
-                                    <div className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 shrink-0">
-                                        <button onClick={() => setCurrentFolderId(null)} className="flex items-center gap-1 text-sm font-bold text-claude-secondary hover:text-claude-text transition-colors">
-                                            <Folder className="w-4 h-4" /> Library
-                                        </button>
-                                        <ChevronLeft className="w-4 h-4 text-claude-secondary rotate-180" />
-                                        <span className="text-sm font-bold truncate max-w-[250px] text-claude-text">{folders.find(f => f.id === currentFolderId)?.name}</span>
-                                    </div>
-                                )}
-                                <div className="p-3 flex-1">
-                                    {!currentFolderId && folders.length === 0 && files.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
-                                            <FileText className="w-8 h-8 mb-3 opacity-30" />
-                                            <p className="text-sm font-medium">Directory is empty</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-1.5">
-                                            {!currentFolderId && folders.map(folder => (
-                                                <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="gsap-hover-card flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 cursor-pointer group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                                                            <Folder className="w-5 h-5 text-amber-500" fill="currentColor" />
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-bold text-sm text-claude-text">{folder.name}</div>
-                                                            <div className="text-xs font-medium text-claude-secondary">{folder.file_count || 0} items</div>
-                                                        </div>
-                                                    </div>
-                                                    {isAdmin && (
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(e, folder.id); }} className="p-2 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {files.map(file => (
-                                                <div key={file.id} className="gsap-hover-card cursor-pointer flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60" onClick={() => handleViewFile(file)}>
-                                                    <div className="flex items-center gap-4 min-w-0 pr-4">
-                                                        <div className="w-10 h-10 rounded-lg bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
-                                                            <FileText className="w-5 h-5 text-claude-secondary" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <span className="font-bold text-sm hover:text-claude-accent transition-colors truncate block text-claude-text">{file.name}</span>
-                                                            <div className="text-xs font-bold text-claude-secondary uppercase tracking-wider">{file.file_type}</div>
-                                                        </div>
-                                                    </div>
-                                                    {(isAdmin || file.uploaded_by === currentUserId) && (
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(e, file.id); }} className="p-2 opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-500/10 rounded-lg shrink-0 transition-all">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {currentFolderId && files.length === 0 && (
-                                                <div className="py-12 text-center text-claude-secondary">
-                                                    <Folder className="w-8 h-8 opacity-30 mx-auto mb-3" />
-                                                    <p className="text-sm font-medium">Folder is empty</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* --- MOBILE VIEW --- */}
@@ -823,161 +934,179 @@ export default function GroupDetails() {
                 </header>
 
                 <div className="flex-1 p-4 space-y-6 pb-48">
-                    <div
-                        onClick={handleCopyCode}
-                        className="gsap-mobile-item gsap-hover-card flex items-center justify-between p-5 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 transition-transform shadow-sm"
-                    >
-                        <div>
-                            <div className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-1">Invite Code</div>
-                            <div className="font-mono text-3xl tracking-widest font-bold text-claude-text">{group.join_code}</div>
-                        </div>
-                        {copied ? <CheckCircle2 className="w-7 h-7 text-green-500" /> : <Copy className="w-7 h-7 text-claude-secondary" />}
+                    <div className="flex items-center gap-2">
+                        {[
+                            { key: 'schedule', label: 'Schedule' },
+                            { key: 'resources', label: 'Resources' },
+                        ].map((tab) => (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setActiveTab(tab.key)}
+                                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                                    activeTab === tab.key
+                                        ? 'bg-claude-accent text-[#182a31] shadow-[0_16px_30px_rgba(41,28,7,0.18)]'
+                                        : 'border border-claude-border/60 bg-claude-surface/40 text-claude-secondary'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
 
-                    {sessions.length > 0 && (
-                        <div className="space-y-3">
-                            <h2 className="gsap-mobile-item text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2 pl-2">
-                                <Activity className="w-4 h-4" /> Live Sessions
-                            </h2>
-                            {sessions.map(session => (
-                                <div key={session.id} className="gsap-mobile-item gsap-hover-card p-5 rounded-3xl bg-red-500/5 border border-red-500/20 flex flex-col gap-4">
-                                    <div>
-                                        <div className="font-bold text-lg text-claude-text">{session.deck_title}</div>
-                                        <div className="text-xs font-medium text-red-400 mt-1">{session.active_members || 1} members active</div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold text-sm shadow-sm hover:bg-red-600 active:scale-95 transition-all">Join</button>
-                                        {isAdmin && (
-                                            <button onClick={() => handleEndSession(session.id)} className="px-5 py-3 bg-red-500/10 text-red-500 rounded-xl font-bold text-sm hover:bg-red-500/20 active:scale-95 transition-all">End</button>
-                                        )}
-                                    </div>
+                    {activeTab === 'schedule' ? (
+                        <GroupScheduleHub
+                            group={group}
+                            calendarData={groupSchedule}
+                            loading={scheduleLoading}
+                            isAdmin={isAdmin}
+                            composerRequestKey={scheduleComposerRequestKey}
+                            onRangeChange={handleScheduleRangeChange}
+                            onSetShareMode={handleSetShareMode}
+                            onCreateMeetup={handleCreateMeetup}
+                            onJoinMeetup={handleJoinMeetup}
+                            onLeaveMeetup={handleLeaveMeetup}
+                            onCancelMeetup={handleCancelMeetup}
+                        />
+                    ) : (
+                        <>
+                            <div
+                                onClick={handleCopyCode}
+                                className="gsap-mobile-item gsap-hover-card flex items-center justify-between p-5 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 transition-transform shadow-sm"
+                            >
+                                <div>
+                                    <div className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-1">Invite Code</div>
+                                    <div className="font-mono text-3xl tracking-widest font-bold text-claude-text">{group.join_code}</div>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                {copied ? <CheckCircle2 className="w-7 h-7 text-green-500" /> : <Copy className="w-7 h-7 text-claude-secondary" />}
+                            </div>
 
-                    <div className="space-y-4">
-                        <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
-                            <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Layers className="w-5 h-5 text-claude-accent" /> Decks</h2>
-                            <button onClick={() => setShowShareDeckModal(true)} className="text-xs font-bold text-claude-accent px-4 py-2 bg-claude-accent/10 rounded-xl active:bg-claude-accent/20 transition-colors">Share</button>
-                        </div>
-                        <div className="gsap-mobile-item flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 snap-x no-scrollbar">
-                            {sharedDecks.length === 0 ? (
-                                <div className="w-full py-8 text-center text-claude-secondary text-sm font-medium border border-dashed border-claude-border/80 rounded-3xl bg-claude-surface/50">No decks shared yet</div>
-                            ) : (
-                                sharedDecks.map(deck => (
-                                    <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 flex flex-col justify-between transition-transform shadow-sm">
-                                        <div>
-                                            <h3 className="font-bold text-base truncate text-claude-text mb-1">{deck.title}</h3>
-                                            <p className="text-xs font-medium text-claude-secondary truncate">@{deck.shared_by_name}</p>
-                                        </div>
-                                        <div className="mt-6 flex justify-between items-end">
-                                            <span className="text-xs font-bold text-claude-secondary px-2 py-1 bg-claude-bg rounded-md border border-claude-border/50">{deck.card_count || 0} cards</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="w-10 h-10 flex items-center justify-center bg-claude-accent/10 text-claude-accent hover:bg-claude-accent hover:text-claude-text rounded-xl transition-colors">
-                                                <Zap className="w-5 h-5 fill-current" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
-                            <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
-                            <button onClick={() => setShowCreateFolderModal(true)} className="text-xs font-bold text-claude-secondary bg-claude-surface border border-claude-border px-4 py-2 rounded-xl active:bg-claude-border/50 transition-colors">New Folder</button>
-                        </div>
-                        <div className="gsap-mobile-item rounded-3xl border border-claude-border/50 overflow-hidden bg-claude-surface/40 backdrop-blur-xl shadow-sm">
-                            {currentFolderId && (
-                                <div onClick={() => setCurrentFolderId(null)} className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 active:bg-claude-bg">
-                                    <ChevronLeft className="w-5 h-5 text-claude-secondary" />
-                                    <span className="text-sm font-bold truncate text-claude-text">{folders.find(f => f.id === currentFolderId)?.name}</span>
+                            <div className="space-y-4">
+                                <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
+                                    <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Layers className="w-5 h-5 text-claude-accent" /> Decks</h2>
+                                    <button onClick={() => setShowShareDeckModal(true)} className="text-xs font-bold text-claude-accent px-4 py-2 bg-claude-accent/10 rounded-xl active:bg-claude-accent/20 transition-colors">Share</button>
                                 </div>
-                            )}
-                            <div className="divide-y divide-claude-border/60">
-                                {!currentFolderId && folders.length === 0 && files.length === 0 ? (
-                                    <div className="py-10 text-center font-medium text-claude-secondary text-sm">Directory is empty</div>
-                                ) : (
-                                    <>
-                                        {!currentFolderId && folders.map(folder => (
-                                            <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 flex items-center justify-between active:bg-claude-border/50 transition-colors">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20">
-                                                        <Folder className="w-5 h-5 text-amber-500" fill="currentColor" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-sm text-claude-text">{folder.name}</div>
-                                                        <div className="text-xs font-medium text-claude-secondary">{folder.file_count || 0} items</div>
-                                                    </div>
+                                <div className="gsap-mobile-item flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 snap-x no-scrollbar">
+                                    {sharedDecks.length === 0 ? (
+                                        <div className="w-full py-8 text-center text-claude-secondary text-sm font-medium border border-dashed border-claude-border/80 rounded-3xl bg-claude-surface/50">No decks shared yet</div>
+                                    ) : (
+                                        sharedDecks.map(deck => (
+                                            <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 flex flex-col justify-between transition-transform shadow-sm relative">
+                                                <div>
+                                                    <h3 className="font-bold text-base truncate text-claude-text mb-1">{deck.title}</h3>
+                                                    <p className="text-xs font-medium text-claude-secondary truncate">@{deck.shared_by_name}</p>
+                                                </div>
+                                                <div className="mt-6 flex justify-between items-end">
+                                                    <span className="text-xs font-bold text-claude-secondary px-2 py-1 bg-claude-bg rounded-md border border-claude-border/50">{deck.card_count || 0} cards</span>
                                                 </div>
                                                 {isAdmin && (
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(e, folder.id); }} className="p-2 text-red-500">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }} className="absolute top-4 right-4 p-2 text-red-500">
                                                         <Trash2 className="w-5 h-5" />
                                                     </button>
                                                 )}
                                             </div>
-                                        ))}
-                                        {files.map(file => (
-                                            <div key={file.id} onClick={() => handleViewFile(file)} className="p-4 flex items-center justify-between active:bg-claude-border/50 transition-colors">
-                                                <div className="flex items-center gap-4 min-w-0 pr-2">
-                                                    <div className="w-10 h-10 rounded-xl bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
-                                                        <FileText className="w-5 h-5 text-claude-secondary" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <span className="font-bold text-sm truncate block text-claude-text">{file.name}</span>
-                                                        <div className="text-xs font-bold uppercase tracking-wider text-claude-secondary">{file.file_type}</div>
-                                                    </div>
-                                                </div>
-                                                {(isAdmin || file.uploaded_by === currentUserId) && (
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(e, file.id); }} className="p-2 text-red-500 shrink-0">
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        {currentFolderId && files.length === 0 && (
-                                            <div className="py-8 text-center text-claude-secondary font-medium text-sm">Folder is empty</div>
-                                        )}
-                                    </>
-                                )}
+                                        ))
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div className="space-y-4">
-                        <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
-                            <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Users className="w-5 h-5 text-claude-accent" /> Members</h2>
-                            <span className="text-xs font-bold text-claude-text bg-claude-surface border border-claude-border px-3 py-1.5 rounded-xl">{members.length}</span>
-                        </div>
-                        <div className="gsap-mobile-item divide-y divide-claude-border/50 bg-claude-surface/40 backdrop-blur-xl rounded-3xl border border-claude-border/50 shadow-sm">
-                            {members.map(member => (
-                                <div key={member.id} className="p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" loading="lazy" className="w-12 h-12 rounded-full bg-white border border-claude-border p-0.5" />
-                                        <div className="min-w-0">
-                                            <div className="font-bold text-sm truncate text-claude-text">{member.display_name || member.username}</div>
-                                            <div className="text-xs font-medium text-claude-secondary truncate mt-0.5">@{member.username} {member.role === 'admin' && '· Admin'}</div>
+                            <div className="space-y-4">
+                                <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
+                                    <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
+                                    <button onClick={() => setShowCreateFolderModal(true)} className="text-xs font-bold text-claude-secondary bg-claude-surface border border-claude-border px-4 py-2 rounded-xl active:bg-claude-border/50 transition-colors">New Folder</button>
+                                </div>
+                                <div className="gsap-mobile-item rounded-3xl border border-claude-border/50 overflow-hidden bg-claude-surface/40 backdrop-blur-xl shadow-sm">
+                                    {currentFolderId && (
+                                        <div onClick={() => setCurrentFolderId(null)} className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 active:bg-claude-bg">
+                                            <ChevronLeft className="w-5 h-5 text-claude-secondary" />
+                                            <span className="text-sm font-bold truncate text-claude-text">{folders.find(f => f.id === currentFolderId)?.name}</span>
                                         </div>
+                                    )}
+                                    <div className="divide-y divide-claude-border/60">
+                                        {!currentFolderId && folders.length === 0 && files.length === 0 ? (
+                                            <div className="py-10 text-center font-medium text-claude-secondary text-sm">Directory is empty</div>
+                                        ) : (
+                                            <>
+                                                {!currentFolderId && folders.map(folder => (
+                                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 flex items-center justify-between active:bg-claude-border/50 transition-colors">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20">
+                                                                <Folder className="w-5 h-5 text-amber-500" fill="currentColor" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-sm text-claude-text">{folder.name}</div>
+                                                                <div className="text-xs font-medium text-claude-secondary">{folder.file_count || 0} items</div>
+                                                            </div>
+                                                        </div>
+                                                        {isAdmin && (
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(e, folder.id); }} className="p-2 text-red-500">
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {files.map(file => (
+                                                    <div key={file.id} onClick={() => handleViewFile(file)} className="p-4 flex items-center justify-between active:bg-claude-border/50 transition-colors">
+                                                        <div className="flex items-center gap-4 min-w-0 pr-2">
+                                                            <div className="w-10 h-10 rounded-xl bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
+                                                                <FileText className="w-5 h-5 text-claude-secondary" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <span className="font-bold text-sm truncate block text-claude-text">{file.name}</span>
+                                                                <div className="text-xs font-bold uppercase tracking-wider text-claude-secondary">{file.file_type}</div>
+                                                            </div>
+                                                        </div>
+                                                        {(isAdmin || file.uploaded_by === currentUserId) && (
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(e, file.id); }} className="p-2 text-red-500 shrink-0">
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {currentFolderId && files.length === 0 && (
+                                                    <div className="py-8 text-center text-claude-secondary font-medium text-sm">Folder is empty</div>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
-                                    {member.id !== currentUserId && (
-                                        <div className="relative">
-                                            <button onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)} className="p-2 text-claude-secondary active:bg-claude-border/50 rounded-xl transition-colors">
-                                                <MoreVertical className="w-5 h-5" />
-                                            </button>
-                                            {activeMemberMenuId === member.id && (
-                                                <div className="absolute right-0 bottom-full mb-2 w-40 bg-claude-bg border border-claude-border rounded-2xl shadow-xl overflow-hidden z-20">
-                                                    {isAdmin && member.role !== 'admin' && <button onClick={() => { handleRemoveMember(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-red-500 hover:bg-red-500/10 border-b border-claude-border/50 transition-colors">Remove</button>}
-                                                    <button onClick={() => { handleBlockUser(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-red-500 hover:bg-red-500/10 border-b border-claude-border/50 transition-colors">Block</button>
-                                                    <button onClick={() => { setReportingUserId(member.id); setIsReportModalOpen(true); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-claude-text hover:bg-claude-surface transition-colors">Report</button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
+                                    <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Users className="w-5 h-5 text-claude-accent" /> Members</h2>
+                                    <span className="text-xs font-bold text-claude-text bg-claude-surface border border-claude-border px-3 py-1.5 rounded-xl">{members.length}</span>
+                                </div>
+                                <div className="gsap-mobile-item divide-y divide-claude-border/50 bg-claude-surface/40 backdrop-blur-xl rounded-3xl border border-claude-border/50 shadow-sm">
+                                    {members.map(member => (
+                                        <div key={member.id} className="p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" loading="lazy" className="w-12 h-12 rounded-full bg-white border border-claude-border p-0.5" />
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-sm truncate text-claude-text">{member.display_name || member.username}</div>
+                                                    <div className="text-xs font-medium text-claude-secondary truncate mt-0.5">@{member.username} {member.role === 'admin' && '· Admin'}</div>
+                                                </div>
+                                            </div>
+                                            {member.id !== currentUserId && (
+                                                <div className="relative">
+                                                    <button onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)} className="p-2 text-claude-secondary active:bg-claude-border/50 rounded-xl transition-colors">
+                                                        <MoreVertical className="w-5 h-5" />
+                                                    </button>
+                                                    {activeMemberMenuId === member.id && (
+                                                        <div className="absolute right-0 bottom-full mb-2 w-40 bg-claude-bg border border-claude-border rounded-2xl shadow-xl overflow-hidden z-20">
+                                                            {isAdmin && member.role !== 'admin' && <button onClick={() => { handleRemoveMember(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-red-500 hover:bg-red-500/10 border-b border-claude-border/50 transition-colors">Remove</button>}
+                                                            <button onClick={() => { handleBlockUser(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-red-500 hover:bg-red-500/10 border-b border-claude-border/50 transition-colors">Block</button>
+                                                            <button onClick={() => { setReportingUserId(member.id); setIsReportModalOpen(true); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-claude-text hover:bg-claude-surface transition-colors">Report</button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
             </div>

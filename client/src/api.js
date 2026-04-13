@@ -381,6 +381,34 @@ export const api = {
     getGroupFiles: (id, folderId) => isLoggedIn() ? serverApi.getGroupFiles(id, folderId) : Promise.resolve([]),
     uploadGroupFile: (id, fileData) => isLoggedIn() ? serverApi.uploadGroupFile(id, fileData) : Promise.reject(new Error('Must be logged in')),
     deleteGroupFile: (id, fileId) => isLoggedIn() ? serverApi.deleteGroupFile(id, fileId) : Promise.reject(new Error('Must be logged in')),
+
+    getGroupScheduleCalendar: (id, rangeStart, rangeEnd) => isLoggedIn()
+        ? serverApi.getGroupScheduleCalendar(id, rangeStart, rangeEnd)
+        : Promise.reject(new Error('Must be logged in')),
+    getGroupScheduleShare: (id) => isLoggedIn()
+        ? serverApi.getGroupScheduleShare(id)
+        : Promise.reject(new Error('Must be logged in')),
+    setGroupScheduleShare: (id, visibilityMode) => isLoggedIn()
+        ? serverApi.setGroupScheduleShare(id, visibilityMode)
+        : Promise.reject(new Error('Must be logged in')),
+    createGroupMeetup: (id, meetup) => isLoggedIn()
+        ? serverApi.createGroupMeetup(id, meetup)
+        : Promise.reject(new Error('Must be logged in')),
+    updateGroupMeetup: (meetupId, updates) => isLoggedIn()
+        ? serverApi.updateGroupMeetup(meetupId, updates)
+        : Promise.reject(new Error('Must be logged in')),
+    cancelGroupMeetup: (meetupId) => isLoggedIn()
+        ? serverApi.cancelGroupMeetup(meetupId)
+        : Promise.reject(new Error('Must be logged in')),
+    joinGroupMeetup: (meetupId) => isLoggedIn()
+        ? serverApi.joinGroupMeetup(meetupId)
+        : Promise.reject(new Error('Must be logged in')),
+    leaveGroupMeetup: (meetupId) => isLoggedIn()
+        ? serverApi.leaveGroupMeetup(meetupId)
+        : Promise.reject(new Error('Must be logged in')),
+    listJoinedGroupMeetups: (rangeStart, rangeEnd) => isLoggedIn()
+        ? serverApi.listJoinedGroupMeetups(rangeStart, rangeEnd)
+        : Promise.resolve([]),
     // Cram Sessions
     getGroupSessions: (id) => isLoggedIn() ? serverApi.getGroupSessions(id) : Promise.resolve([]),
     startGroupSession: (id, deckId) => isLoggedIn() ? serverApi.startGroupSession(id, deckId) : Promise.reject(new Error('Must be logged in')),

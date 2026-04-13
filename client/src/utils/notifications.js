@@ -5,6 +5,11 @@ const HOUR_IN_MS = 60 * 60 * 1000;
 const MINUTE_IN_MS = 60 * 1000;
 const MAX_ACTIVE_ASSIGNMENT_NOTIFICATIONS = 50;
 const DEFAULT_SMALL_ICON = 'ic_stat_icon_config_sample';
+const ASSIGNMENT_NOTIFICATION_ID_START = 1;
+const ASSIGNMENT_NOTIFICATION_ID_END = 49_999;
+const MEETUP_NOTIFICATION_ID_START = 50_000;
+const MEETUP_NOTIFICATION_ID_END = 99_999;
+const MAX_ACTIVE_MEETUP_NOTIFICATIONS = 50;
 
 // Pattern to detect exams, quizzes, and tests by title
 const EXAM_PATTERN = /\b(test|quiz|exam|midterm|final|assessment)\b/i;
@@ -59,6 +64,19 @@ const ADAPTIVE_CRAM_REMINDER = {
     },
     iconColor: '#F97316',
 };
+
+const MEETUP_REMINDER_CONFIGS = [
+    {
+        leadTimeMs: 30 * MINUTE_IN_MS,
+        title: (groupName) => `${groupName} starts in 30 minutes`,
+        iconColor: '#DEB96A',
+    },
+    {
+        leadTimeMs: 0,
+        title: (groupName) => `${groupName} is starting now`,
+        iconColor: '#DEB96A',
+    },
+];
 
 function shouldScheduleAdaptiveCramReminder(assignment, dueDate, now) {
     const weakTopicCount = Number(assignment?.study_recommendation?.weak_topic_count || 0);
@@ -120,6 +138,77 @@ function buildAssignmentReminderNotifications(assignment, dueDate, now, starting
     return scheduledNotifications;
 }
 
+function isNotificationIdInRange(id, rangeStart, rangeEnd) {
+    return Number.isInteger(id) && id >= rangeStart && id <= rangeEnd;
+}
+
+async function getPendingNotificationsInRange(rangeStart, rangeEnd) {
+    const pending = await LocalNotifications.getPending();
+    return pending.notifications.filter((notification) =>
+        isNotificationIdInRange(notification.id, rangeStart, rangeEnd)
+    );
+}
+
+async function cancelNotificationRange(rangeStart, rangeEnd) {
+    const notifications = await getPendingNotificationsInRange(rangeStart, rangeEnd);
+    if (notifications.length > 0) {
+        await LocalNotifications.cancel({ notifications });
+    }
+}
+
+function formatMeetupNotificationTime(startAt) {
+    const date = startAt instanceof Date ? startAt : new Date(startAt);
+    if (Number.isNaN(date.getTime())) return 'soon';
+
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    }).format(date);
+}
+
+function buildMeetupNotificationBody(meetup, startAt) {
+    const pieces = [
+        meetup?.topic || 'Study session',
+        formatMeetupNotificationTime(startAt),
+    ];
+
+    if (meetup?.location_label) {
+        pieces.push(meetup.location_label);
+    } else if (meetup?.location_url) {
+        pieces.push('Open link');
+    }
+
+    return pieces.join(' · ');
+}
+
+function buildMeetupReminderNotifications(meetup, now, startingId) {
+    const startAt = new Date(meetup?.start_at ?? '');
+    if (Number.isNaN(startAt.getTime()) || startAt <= now) {
+        return [];
+    }
+
+    const groupName = meetup?.group_name || 'Study Group';
+    let nextId = startingId;
+
+    return MEETUP_REMINDER_CONFIGS.flatMap((reminder) => {
+        const scheduledAt = new Date(startAt.getTime() - reminder.leadTimeMs);
+        if (scheduledAt <= now) {
+            return [];
+        }
+
+        return [{
+            id: nextId++,
+            title: reminder.title(groupName),
+            body: buildMeetupNotificationBody(meetup, startAt),
+            schedule: { at: scheduledAt },
+            smallIcon: DEFAULT_SMALL_ICON,
+            iconColor: reminder.iconColor,
+        }];
+    });
+}
+
 export async function requestNotificationPermissions() {
     if (!Capacitor.isNativePlatform()) return false;
     
@@ -145,13 +234,9 @@ export async function checkNotificationPermissions() {
 
 export async function scheduleAssignmentNotifications(assignments, notificationsEnabled) {
     if (!Capacitor.isNativePlatform() || !notificationsEnabled) {
-        // Cancel all if not enabled or not native
         if (Capacitor.isNativePlatform()) {
             try {
-                const pending = await LocalNotifications.getPending();
-                if (pending.notifications.length > 0) {
-                    await LocalNotifications.cancel({ notifications: pending.notifications });
-                }
+                await cancelNotificationRange(ASSIGNMENT_NOTIFICATION_ID_START, ASSIGNMENT_NOTIFICATION_ID_END);
             } catch (e) {
                 console.error('Failed to cancel notifications', e);
             }
@@ -163,15 +248,11 @@ export async function scheduleAssignmentNotifications(assignments, notifications
         const hasPermission = await checkNotificationPermissions();
         if (!hasPermission) return;
 
-        // First, get all pending assignment notifications to cancel them and reschedule
-        const pending = await LocalNotifications.getPending();
-        if (pending.notifications.length > 0) {
-            await LocalNotifications.cancel({ notifications: pending.notifications });
-        }
+        await cancelNotificationRange(ASSIGNMENT_NOTIFICATION_ID_START, ASSIGNMENT_NOTIFICATION_ID_END);
 
         const now = new Date();
         const notificationsToSchedule = [];
-        let idCounter = 1;
+        let idCounter = ASSIGNMENT_NOTIFICATION_ID_START;
         const assignmentList = Array.isArray(assignments) ? assignments : [];
 
         const futureAssignments = assignmentList
@@ -205,5 +286,59 @@ export async function scheduleAssignmentNotifications(assignments, notifications
         }
     } catch (error) {
         console.error('Error scheduling notifications:', error);
+    }
+}
+
+export async function scheduleMeetupNotifications(meetups, notificationsEnabled) {
+    if (!Capacitor.isNativePlatform() || !notificationsEnabled) {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                await cancelNotificationRange(MEETUP_NOTIFICATION_ID_START, MEETUP_NOTIFICATION_ID_END);
+            } catch (error) {
+                console.error('Failed to cancel meetup notifications', error);
+            }
+        }
+        return;
+    }
+
+    try {
+        const hasPermission = await checkNotificationPermissions();
+        if (!hasPermission) return;
+
+        await cancelNotificationRange(MEETUP_NOTIFICATION_ID_START, MEETUP_NOTIFICATION_ID_END);
+
+        const now = new Date();
+        const notificationsToSchedule = [];
+        let idCounter = MEETUP_NOTIFICATION_ID_START;
+        const meetupList = Array.isArray(meetups) ? meetups : [];
+
+        const upcomingMeetups = meetupList
+            .filter((meetup) => meetup?.status !== 'cancelled')
+            .map((meetup) => ({
+                meetup,
+                startAt: new Date(meetup?.start_at ?? ''),
+            }))
+            .filter(({ startAt }) => !Number.isNaN(startAt.getTime()) && startAt > now)
+            .sort((left, right) => left.startAt.getTime() - right.startAt.getTime());
+
+        for (const { meetup } of upcomingMeetups) {
+            const remindersForMeetup = buildMeetupReminderNotifications(meetup, now, idCounter);
+            if (remindersForMeetup.length === 0) continue;
+
+            if (notificationsToSchedule.length + remindersForMeetup.length > MAX_ACTIVE_MEETUP_NOTIFICATIONS) {
+                break;
+            }
+
+            notificationsToSchedule.push(...remindersForMeetup);
+            idCounter += remindersForMeetup.length;
+        }
+
+        if (notificationsToSchedule.length > 0) {
+            await LocalNotifications.schedule({
+                notifications: notificationsToSchedule,
+            });
+        }
+    } catch (error) {
+        console.error('Error scheduling meetup notifications:', error);
     }
 }

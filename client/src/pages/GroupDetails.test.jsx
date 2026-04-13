@@ -44,16 +44,22 @@ vi.mock('../api', () => ({
     getGroupInfo: vi.fn(),
     getGroupMembers: vi.fn(),
     getGroupDecks: vi.fn(),
-    getGroupSessions: vi.fn(),
     getGroupFolders: vi.fn(),
     getGroupFiles: vi.fn(),
+    getGroupScheduleCalendar: vi.fn(),
+    setGroupScheduleShare: vi.fn(),
+    createGroupMeetup: vi.fn(),
+    joinGroupMeetup: vi.fn(),
+    leaveGroupMeetup: vi.fn(),
+    cancelGroupMeetup: vi.fn(),
+    listJoinedGroupMeetups: vi.fn(),
     uploadGroupFile: vi.fn(),
     generateAiDeck: vi.fn(),
   },
 }));
 
 vi.mock('../api/authApi', () => ({
-  subscribeToGroupSessionEvents: vi.fn(),
+  subscribeToGroupMeetupEvents: vi.fn(),
 }));
 
 vi.mock('../hooks/useToast', () => ({
@@ -114,6 +120,7 @@ const renderGroupDetails = () => render(
   <MemoryRouter initialEntries={['/groups/group-1']}>
     <Routes>
       <Route path="/groups/:id" element={<GroupDetails />} />
+      <Route path="/groups/:id/cram/:sessionId" element={<div>Cram Page</div>} />
     </Routes>
   </MemoryRouter>
 );
@@ -133,9 +140,20 @@ describe('GroupDetails upload flow', () => {
     });
     api.getGroupMembers.mockResolvedValue([]);
     api.getGroupDecks.mockResolvedValue([]);
-    api.getGroupSessions.mockResolvedValue([]);
     api.getGroupFolders.mockResolvedValue([]);
     api.getGroupFiles.mockResolvedValue([]);
+    api.getGroupScheduleCalendar.mockResolvedValue({
+      my_share_mode: null,
+      members: [],
+      schedule_slots: [],
+      meetups: [],
+    });
+    api.setGroupScheduleShare.mockResolvedValue({ visibility_mode: 'busy_free' });
+    api.createGroupMeetup.mockResolvedValue({ id: 'meetup-1' });
+    api.joinGroupMeetup.mockResolvedValue({ status: 'joined' });
+    api.leaveGroupMeetup.mockResolvedValue({ status: 'left' });
+    api.cancelGroupMeetup.mockResolvedValue({ status: 'cancelled' });
+    api.listJoinedGroupMeetups.mockResolvedValue([]);
     api.uploadGroupFile.mockResolvedValue({
       id: 'file-1',
       name: 'Chapter 1 Notes.pdf',
@@ -147,7 +165,7 @@ describe('GroupDetails upload flow', () => {
       deck_id: 'deck-1',
       card_count: 12,
     });
-    authApi.subscribeToGroupSessionEvents.mockReturnValue(() => {});
+    authApi.subscribeToGroupMeetupEvents.mockReturnValue(() => {});
 
     storageBucket.upload.mockResolvedValue({ error: null });
     storageBucket.getPublicUrl.mockReturnValue({
@@ -172,6 +190,7 @@ describe('GroupDetails upload flow', () => {
       expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
     });
 
+    fireEvent.click(screen.getAllByRole('button', { name: /resources/i })[0]);
     fireEvent.click(screen.getAllByRole('button', { name: /upload file/i })[0]);
 
     fireEvent.change(screen.getByPlaceholderText('e.g. Chapter 1 Notes'), {
@@ -231,6 +250,7 @@ describe('GroupDetails upload flow', () => {
       expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
     });
 
+    fireEvent.click(screen.getAllByRole('button', { name: /resources/i })[0]);
     fireEvent.click(screen.getAllByRole('button', { name: /upload file/i })[0]);
 
     fireEvent.change(screen.getByPlaceholderText('e.g. Chapter 1 Notes'), {
@@ -255,5 +275,40 @@ describe('GroupDetails upload flow', () => {
     expect(api.uploadGroupFile).not.toHaveBeenCalled();
     expect(screen.getByPlaceholderText('e.g. Chapter 1 Notes')).toBeInTheDocument();
     expect(screen.queryByText('Uploading File...')).not.toBeInTheDocument();
+  });
+
+  it('proposes a meetup without creating or navigating into a cram session', async () => {
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /propose session/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+    fireEvent.change(screen.getByPlaceholderText(/organic chemistry problem set/i), {
+      target: { value: 'Chapter 5 review' },
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/library east, room 202/i), {
+      target: { value: 'Library East' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /create session/i }));
+
+    await waitFor(() => {
+      expect(api.createGroupMeetup).toHaveBeenCalledWith(
+        'group-1',
+        expect.objectContaining({
+          topic: 'Chapter 5 review',
+          location_label: 'Library East',
+        }),
+      );
+    });
+
+    expect(api.joinGroupMeetup).not.toHaveBeenCalled();
+    expect(screen.queryByText('Cram Page')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
   });
 });

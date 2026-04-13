@@ -3671,6 +3671,24 @@ const callGroupSessionEndpoint = ({ action, payload }) =>
         body: { action, ...(payload || {}) },
     });
 
+const normalizeDateValue = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 10);
+};
+
+const normalizeTimestampValue = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString();
+};
+
 export const getGroups = async () => safeFetchArray((async () => {
     const data = await callGroupRpc('list_user_groups');
     return data || [];
@@ -3782,6 +3800,149 @@ export const deleteGroupFile = (id, fileId) => callGroupActionEndpoint({
     action: 'group-file-delete',
     payload: { groupId: id, fileId },
 });
+
+// Group scheduling hub
+export const getGroupScheduleCalendar = async (groupId, rangeStart, rangeEnd) => {
+    const data = await callGroupRpc('get_group_schedule_calendar', {
+        target_group_id: groupId,
+        range_start: normalizeDateValue(rangeStart),
+        range_end: normalizeDateValue(rangeEnd),
+    });
+
+    return data || {
+        members: [],
+        schedule_slots: [],
+        meetups: [],
+    };
+};
+
+export const getGroupScheduleShare = async (groupId) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('group_schedule_shares')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) _sbThrow(error);
+    return data || null;
+};
+
+export const setGroupScheduleShare = async (groupId, visibilityMode) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('group_schedule_shares')
+        .upsert({
+            group_id: groupId,
+            user_id: userId,
+            visibility_mode: visibilityMode,
+        })
+        .select()
+        .single();
+
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const createGroupMeetup = async (groupId, meetup) => {
+    const data = await callGroupRpc('create_group_meetup', {
+        target_group_id: groupId,
+        target_topic: meetup?.topic,
+        target_start_at: normalizeTimestampValue(meetup?.start_at),
+        target_end_at: normalizeTimestampValue(meetup?.end_at),
+        target_timezone: meetup?.timezone,
+        target_location_label: meetup?.location_label ?? null,
+        target_location_url: meetup?.location_url ?? null,
+    });
+
+    return data;
+};
+
+export const updateGroupMeetup = async (meetupId, updates) => {
+    const normalizedUpdates = {
+        ...updates,
+        start_at: updates?.start_at ? normalizeTimestampValue(updates.start_at) : undefined,
+        end_at: updates?.end_at ? normalizeTimestampValue(updates.end_at) : undefined,
+    };
+
+    const { data, error } = await supabase
+        .from('group_meetups')
+        .update(normalizedUpdates)
+        .eq('id', meetupId)
+        .select()
+        .single();
+
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const cancelGroupMeetup = async (meetupId) => {
+    const data = await callGroupRpc('cancel_group_meetup', {
+        target_meetup_id: meetupId,
+    });
+    return data;
+};
+
+export const joinGroupMeetup = async (meetupId) => {
+    const data = await callGroupRpc('join_group_meetup', {
+        target_meetup_id: meetupId,
+    });
+    return data;
+};
+
+export const leaveGroupMeetup = async (meetupId) => {
+    const data = await callGroupRpc('leave_group_meetup', {
+        target_meetup_id: meetupId,
+    });
+    return data;
+};
+
+export const listJoinedGroupMeetups = async (rangeStart = null, rangeEnd = null) => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_joined_group_meetups', {
+        range_start: normalizeTimestampValue(rangeStart),
+        range_end: normalizeTimestampValue(rangeEnd),
+    });
+
+    return data || [];
+})());
+
+export const subscribeToGroupMeetupEvents = (groupId, handlers = {}) => {
+    const channel = supabase
+        .channel(`group_meetups_${groupId}`)
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'group_meetups',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            if (payload?.eventType === 'INSERT') {
+                handlers.onMeetupCreated?.(payload.new, payload);
+            }
+
+            if (payload?.eventType === 'UPDATE') {
+                handlers.onMeetupUpdated?.(payload.new, payload.old, payload);
+            }
+
+            if (payload?.eventType === 'DELETE') {
+                handlers.onMeetupDeleted?.(payload.old, payload);
+            }
+
+            handlers.onChanged?.(payload);
+        })
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'group_meetup_attendees',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            handlers.onAttendanceChanged?.(payload);
+            handlers.onChanged?.(payload);
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
 
 // Cram Sessions
 export const getGroupSessions = async (id) => safeFetchArray((async () => {

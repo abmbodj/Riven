@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AppProviders } from './AppProviders.jsx';
 import { RootLayout } from './components/layout/RootLayout.jsx';
 import PushNotificationBridge from './components/PushNotificationBridge.jsx';
+import GroupMeetupReminderBridge from './components/GroupMeetupReminderBridge.jsx';
 import WebAppUpdateManager from './components/WebAppUpdateManager.jsx';
 import { routesConfig } from './routes/config.jsx';
 import { PageLoader } from './components/ui/PageLoader.jsx';
@@ -18,6 +19,7 @@ function App() {
       <WebAppUpdateManager>
         <AppRouter>
 <PushNotificationBridge />
+          <GroupMeetupReminderBridge />
           <PosthogPageviewTracker />
           <RootLayout>
             <ErrorBoundary>

@@ -32,7 +32,10 @@ vi.mock('@capacitor/local-notifications', () => ({
     },
 }));
 
-import { scheduleAssignmentNotifications } from './notifications.js';
+import {
+    scheduleAssignmentNotifications,
+    scheduleMeetupNotifications,
+} from './notifications.js';
 
 const NOW = new Date('2026-03-21T12:00:00.000Z');
 
@@ -138,6 +141,18 @@ describe('scheduleAssignmentNotifications', () => {
         expect(scheduleMock).not.toHaveBeenCalled();
     });
 
+    it('cancels only assignment notification ids when disabled', async () => {
+        getPendingMock.mockResolvedValue({
+            notifications: [{ id: 9 }, { id: 50_002 }],
+        });
+
+        await scheduleAssignmentNotifications([createAssignment()], false);
+
+        expect(cancelMock).toHaveBeenCalledWith({
+            notifications: [{ id: 9 }],
+        });
+    });
+
     it('prioritizes the soonest due assignments and respects the 50 notification cap', async () => {
         const assignments = Array.from({ length: 12 }, (_, index) => (
             createAssignment({
@@ -189,5 +204,61 @@ describe('scheduleAssignmentNotifications', () => {
         expect(
             notifications.some((notification) => notification.body.includes('3 weak topics'))
         ).toBe(true);
+    });
+});
+
+describe('scheduleMeetupNotifications', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+        vi.clearAllMocks();
+
+        isNativePlatformMock.mockReturnValue(true);
+        checkPermissionsMock.mockResolvedValue({ display: 'granted' });
+        getPendingMock.mockResolvedValue({ notifications: [] });
+        cancelMock.mockResolvedValue(undefined);
+        scheduleMock.mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('schedules reminder and starting-now notifications for joined meetups', async () => {
+        const meetupStart = new Date(NOW.getTime() + 4 * 60 * 60 * 1000);
+
+        await scheduleMeetupNotifications([
+            {
+                meetup_id: 'meetup-1',
+                group_name: 'Biology Lab',
+                topic: 'Cell respiration review',
+                start_at: meetupStart.toISOString(),
+                end_at: new Date(meetupStart.getTime() + 60 * 60 * 1000).toISOString(),
+                location_label: 'Library East',
+                status: 'scheduled',
+            },
+        ], true);
+
+        const notifications = getScheduledNotifications();
+        expect(notifications).toHaveLength(2);
+        expect(notifications.map((notification) => notification.title)).toEqual([
+            'Biology Lab starts in 30 minutes',
+            'Biology Lab is starting now',
+        ]);
+        expect(notifications[0].body).toContain('Cell respiration review');
+        expect(notifications[0].body).toContain('Library East');
+        expect(notifications[0].id).toBeGreaterThanOrEqual(50_000);
+    });
+
+    it('cancels only meetup notifications when disabled', async () => {
+        getPendingMock.mockResolvedValue({
+            notifications: [{ id: 9 }, { id: 50_010 }],
+        });
+
+        await scheduleMeetupNotifications([], false);
+
+        expect(cancelMock).toHaveBeenCalledWith({
+            notifications: [{ id: 50_010 }],
+        });
     });
 });
