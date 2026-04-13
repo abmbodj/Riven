@@ -134,12 +134,17 @@ export default function GroupDetails() {
             return saved === null ? true : saved === 'true';
         })();
 
-        const joinedMeetups = await api.listJoinedGroupMeetups(
-            new Date(),
-            new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)),
-        );
+        try {
+            const joinedMeetups = await api.listJoinedGroupMeetups(
+                new Date(),
+                new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)),
+            );
 
-        await scheduleMeetupNotifications(joinedMeetups, notificationsEnabled);
+            await scheduleMeetupNotifications(joinedMeetups, notificationsEnabled);
+        } catch (error) {
+            console.error('syncNativeMeetupNotifications failed', error);
+            return;
+        }
     }, []);
 
     const refreshScheduleRange = useCallback(async () => {

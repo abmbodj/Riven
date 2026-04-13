@@ -28,6 +28,14 @@ const createInsertChain = (data) => {
   return { insert, select, single };
 };
 
+const createUpdateChain = (data) => {
+  const single = vi.fn().mockResolvedValue({ data, error: null });
+  const select = vi.fn().mockReturnValue({ single });
+  const eq = vi.fn().mockReturnValue({ select });
+  const update = vi.fn().mockReturnValue({ eq });
+  return { update, eq, select, single };
+};
+
 const buildJsonResponse = (body) => ({
   ok: true,
   headers: {
@@ -91,6 +99,7 @@ describe('authApi PostgREST inserts', () => {
       professor: 'Dr. Euler',
       room: 'B12',
       zoom_link: 'https://zoom.test/math',
+      subject: null,
     });
   });
 
@@ -229,5 +238,24 @@ describe('authApi PostgREST inserts', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('deactivate_user_push_device', {
       installation_id_param: 'install-123',
     });
+  });
+
+  it('preserves explicit null meetup timestamps when updating a meetup', async () => {
+    const { update, eq } = createUpdateChain({ id: 'meetup-1' });
+    supabase.from.mockReturnValue({ update });
+
+    const result = await authApi.updateGroupMeetup('meetup-1', {
+      topic: 'Chapter 5 review',
+      start_at: null,
+      end_at: null,
+    });
+
+    expect(update).toHaveBeenCalledWith({
+      topic: 'Chapter 5 review',
+      start_at: null,
+      end_at: null,
+    });
+    expect(eq).toHaveBeenCalledWith('id', 'meetup-1');
+    expect(result).toEqual({ id: 'meetup-1' });
   });
 });

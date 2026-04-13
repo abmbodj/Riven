@@ -3862,9 +3862,19 @@ export const createGroupMeetup = async (groupId, meetup) => {
 export const updateGroupMeetup = async (meetupId, updates) => {
     const normalizedUpdates = {
         ...updates,
-        start_at: updates?.start_at ? normalizeTimestampValue(updates.start_at) : undefined,
-        end_at: updates?.end_at ? normalizeTimestampValue(updates.end_at) : undefined,
     };
+
+    if (Object.prototype.hasOwnProperty.call(updates ?? {}, 'start_at')) {
+        normalizedUpdates.start_at = updates.start_at === null
+            ? null
+            : normalizeTimestampValue(updates.start_at);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates ?? {}, 'end_at')) {
+        normalizedUpdates.end_at = updates.end_at === null
+            ? null
+            : normalizeTimestampValue(updates.end_at);
+    }
 
     const { data, error } = await supabase
         .from('group_meetups')

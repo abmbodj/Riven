@@ -285,6 +285,7 @@ describe('GroupDetails upload flow', () => {
     });
 
     fireEvent.click(screen.getAllByRole('button', { name: /propose session/i })[0]);
+    expect(screen.getByRole('dialog', { name: /pick the time/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
     fireEvent.change(screen.getByPlaceholderText(/organic chemistry problem set/i), {
@@ -310,5 +311,27 @@ describe('GroupDetails upload flow', () => {
     expect(api.joinGroupMeetup).not.toHaveBeenCalled();
     expect(screen.queryByText('Cram Page')).not.toBeInTheDocument();
     expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {
+    api.createGroupMeetup.mockRejectedValueOnce(new Error('Create failed'));
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /propose session/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+    fireEvent.change(screen.getByPlaceholderText(/organic chemistry problem set/i), {
+      target: { value: 'Chapter 8 review' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /create session/i }));
+
+    expect(await screen.findByText('Create failed')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /add the details/i })).toBeInTheDocument();
   });
 });

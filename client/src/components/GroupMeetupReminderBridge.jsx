@@ -7,6 +7,7 @@ import * as authApi from '../api/authApi';
 
 const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 const REMINDER_WINDOW_IN_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_TIMEOUT_IN_MS = 2_147_483_647;
 
 const REMINDER_VARIANTS = [
     {
@@ -92,16 +93,41 @@ export default function GroupMeetupReminderBridge() {
         toast.show(buildReminderToast(meetup, variant));
     }, [toast]);
 
+    const scheduleReminderTimeout = useCallback((delay, callback) => {
+        const targetTime = Date.now() + delay;
+
+        const scheduleNext = () => {
+            const remainingDelay = targetTime - Date.now();
+
+            if (remainingDelay <= 0) {
+                callback();
+                return;
+            }
+
+            const timeoutId = window.setTimeout(scheduleNext, Math.min(remainingDelay, MAX_TIMEOUT_IN_MS));
+            timeoutIdsRef.current.push(timeoutId);
+        };
+
+        scheduleNext();
+    }, []);
+
     const syncMeetupReminders = useCallback(async () => {
         if (Capacitor.isNativePlatform() || loading || !isLoggedIn) return;
 
         clearTimeouts();
 
         const now = Date.now();
-        const meetups = await api.listJoinedGroupMeetups(
-            new Date(now - THIRTY_MINUTES_IN_MS),
-            new Date(now + REMINDER_WINDOW_IN_MS),
-        );
+        let meetups;
+
+        try {
+            meetups = await api.listJoinedGroupMeetups(
+                new Date(now - THIRTY_MINUTES_IN_MS),
+                new Date(now + REMINDER_WINDOW_IN_MS),
+            );
+        } catch (error) {
+            console.error('GroupMeetupReminderBridge.syncMeetupReminders failed', error);
+            return;
+        }
 
         meetups.forEach((meetup) => {
             const startAt = new Date(meetup?.start_at ?? '');
@@ -118,13 +144,12 @@ export default function GroupMeetupReminderBridge() {
 
                 if (delay <= 0) return;
 
-                const timeoutId = window.setTimeout(() => {
+                scheduleReminderTimeout(delay, () => {
                     showReminderToast(meetup, variant);
-                }, delay);
-                timeoutIdsRef.current.push(timeoutId);
+                });
             });
         });
-    }, [clearTimeouts, isLoggedIn, loading, showReminderToast]);
+    }, [clearTimeouts, isLoggedIn, loading, scheduleReminderTimeout, showReminderToast]);
 
     useEffect(() => {
         if (Capacitor.isNativePlatform() || loading || !isLoggedIn) {

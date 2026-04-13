@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
     CalendarDays,
@@ -28,6 +28,7 @@ import {
     startOfDay,
     toLocalDateTimeValue,
 } from './groupScheduleUtils.js';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 const SHARE_MODES = [
     {
@@ -52,6 +53,7 @@ const SHARE_MODES = [
 
 const DURATION_OPTIONS = [45, 60, 90, 120];
 const EMPTY_ARRAY = [];
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 function createDefaultComposerDate(selectedDate = new Date()) {
     const base = startOfDay(selectedDate);
@@ -80,6 +82,16 @@ function createComposerState(selectedDate) {
 
 function isMeetupCancelled(meetup) {
     return meetup?.status === 'cancelled';
+}
+
+function getValidStartOfDay(value) {
+    const parsedDate = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+    }
+
+    return startOfDay(parsedDate);
 }
 
 function getMeetupStateLabel(meetup) {
@@ -286,6 +298,9 @@ export default function GroupScheduleHub({
     const [composer, setComposer] = useState(() => createComposerState(new Date()));
     const [submitting, setSubmitting] = useState(false);
     const [composerError, setComposerError] = useState('');
+    const dialogRef = useRef(null);
+    const restoreFocusRef = useRef(null);
+    const titleIdRef = useRef(`group-meetup-composer-title-${Math.random().toString(36).slice(2, 9)}`);
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
@@ -308,6 +323,8 @@ export default function GroupScheduleHub({
         [meetups],
     );
 
+    useBodyScrollLock(composerOpen);
+
     useEffect(() => {
         const isSelectedVisible = weekDays.some((day) => isSameLocalDay(day, selectedDate));
         if (!isSelectedVisible) {
@@ -329,6 +346,10 @@ export default function GroupScheduleHub({
     const handleNextWeek = () => setAnchorDate((current) => addDays(current, 7));
 
     const openComposer = (suggestion = null) => {
+        if (document.activeElement instanceof HTMLElement) {
+            restoreFocusRef.current = document.activeElement;
+        }
+
         const baseDate = suggestion?.startsAt || selectedDate;
         const nextComposer = createComposerState(baseDate);
 
@@ -348,7 +369,68 @@ export default function GroupScheduleHub({
         setComposerError('');
         setComposerStep(1);
         setSubmitting(false);
+
+        const elementToRestore = restoreFocusRef.current;
+        if (elementToRestore instanceof HTMLElement) {
+            window.requestAnimationFrame(() => {
+                if (elementToRestore.isConnected) {
+                    elementToRestore.focus();
+                }
+            });
+        }
     };
+
+    useEffect(() => {
+        if (!composerOpen || !dialogRef.current) return undefined;
+
+        const dialog = dialogRef.current;
+        const focusTarget = dialog.querySelector(
+            composerStep === 1 ? 'input[name="meetup-start-at"]' : 'input[name="meetup-topic"]',
+        );
+        const focusableElements = dialog.querySelectorAll(FOCUSABLE_SELECTOR);
+        const fallbackTarget = focusableElements[0];
+
+        (focusTarget instanceof HTMLElement ? focusTarget : fallbackTarget)?.focus();
+
+        const handleTab = (event) => {
+            if (event.key !== 'Tab') return;
+
+            const focusable = [...dialog.querySelectorAll(FOCUSABLE_SELECTOR)]
+                .filter((element) => !element.hasAttribute('disabled'));
+
+            if (!focusable.length) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        dialog.addEventListener('keydown', handleTab);
+
+        return () => {
+            dialog.removeEventListener('keydown', handleTab);
+        };
+    }, [composerOpen, composerStep]);
+
+    useEffect(() => {
+        if (!composerOpen || submitting) return undefined;
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                closeComposer();
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [composerOpen, submitting]);
 
     const handleShareChange = async (mode) => {
         setShareBusy(true);
@@ -401,6 +483,8 @@ export default function GroupScheduleHub({
 
             setSelectedDate(startOfDay(startAt));
             closeComposer();
+        } catch (error) {
+            setComposerError(error?.message || 'Failed to create the study session.');
         } finally {
             setSubmitting(false);
         }
@@ -705,7 +789,12 @@ export default function GroupScheduleHub({
                                 <button
                                     key={meetup.id}
                                     type="button"
-                                    onClick={() => setSelectedDate(startOfDay(meetup.start_at))}
+                                    onClick={() => {
+                                        const meetupDay = getValidStartOfDay(meetup.start_at);
+                                        if (meetupDay) {
+                                            setSelectedDate(meetupDay);
+                                        }
+                                    }}
                                     className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition-colors hover:bg-white/[0.05]"
                                 >
                                     <p className="text-sm font-semibold text-claude-text line-clamp-2">{meetup.topic}</p>
@@ -749,23 +838,29 @@ export default function GroupScheduleHub({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
+                            aria-hidden="true"
                             className="absolute inset-0 bg-black/65 backdrop-blur-sm"
                             onClick={submitting ? undefined : closeComposer}
                         />
 
                         <motion.form
+                            ref={dialogRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby={titleIdRef.current}
                             initial={{ opacity: 0, y: 24, scale: 0.98 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 24, scale: 0.98 }}
                             onSubmit={handleComposerSubmit}
                             className="relative w-full max-w-lg rounded-t-[2.2rem] border border-white/10 bg-[rgba(22,42,49,0.92)] p-6 shadow-[0_40px_90px_rgba(0,0,0,0.34)] md:rounded-[2rem] md:p-7"
+                            onClick={(event) => event.stopPropagation()}
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
                                         Propose Session
                                     </p>
-                                    <h3 className="mt-2 text-2xl font-semibold text-claude-text">
+                                    <h3 id={titleIdRef.current} className="mt-2 text-2xl font-semibold text-claude-text">
                                         {composerStep === 1 ? 'Pick the time' : 'Add the details'}
                                     </h3>
                                 </div>
@@ -787,6 +882,7 @@ export default function GroupScheduleHub({
                                         </span>
                                         <input
                                             type="datetime-local"
+                                            name="meetup-start-at"
                                             value={composer.startAtLocal}
                                             onChange={(event) => setComposer((current) => ({ ...current, startAtLocal: event.target.value }))}
                                             className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
@@ -823,6 +919,7 @@ export default function GroupScheduleHub({
                                         </span>
                                         <input
                                             type="text"
+                                            name="meetup-topic"
                                             value={composer.topic}
                                             onChange={(event) => setComposer((current) => ({ ...current, topic: event.target.value }))}
                                             placeholder="e.g. Organic chemistry problem set"
