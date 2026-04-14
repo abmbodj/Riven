@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildNaturalNoteStyleInstructions,
+  buildYoutubeNotesContents,
   consumeAiQuota,
   generateClassPreview,
   generateDeckFromAi,
@@ -10,6 +12,25 @@ import {
 } from '../../supabase/functions/_shared/aiCore.mjs';
 
 describe('aiCore', () => {
+  it('builds shared note-style instructions for natural notes without exam-question filler', () => {
+    const instructions = buildNaturalNoteStyleInstructions({ includeKeyConcepts: true });
+
+    expect(instructions).toContain('college student');
+    expect(instructions).toContain('Key Concepts');
+    expect(instructions).not.toContain('Potential Exam Questions');
+    expect(instructions).not.toContain('takeaway');
+  });
+
+  it('builds YouTube notes prompts with the shared natural note voice', () => {
+    const contents = buildYoutubeNotesContents('ATP lecture transcript', 'Biology 101', 'Biology');
+    const promptText = contents[0]?.text ?? '';
+
+    expect(promptText).toContain('college student');
+    expect(promptText).toContain('Key Concepts');
+    expect(promptText).not.toContain('Potential Exam Questions');
+    expect(promptText).not.toContain('takeaway');
+  });
+
   it('resets stale AI quota counters before reporting limits', () => {
     const result = getAiLimitStatus({
       user: {

@@ -1,9 +1,10 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
-import { buildSubjectContext, consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared/aiCore.mjs';
+import { consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared/aiCore.mjs';
 import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { buildSinglePassNoteEnhancePrompt, buildSinglePassNoteGeneratePrompt } from '../_shared/notePrompts.mjs';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
@@ -12,29 +13,6 @@ type PersistUsagePayload = {
   count: number;
   lastReset: Date;
 };
-
-const TIPTAP_FORMAT_INSTRUCTIONS = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
-Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
-Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
-
-const buildGeneratePrompt = (className?: string) => `You are a lecture notes assistant. Given the lecture transcription, produce clean, structured notes as a Tiptap JSON document.
-
-${buildSubjectContext(className)}
-
-H1 major topics, H2 subtopics, H3 detail. Bullets for concepts, ordered lists for steps. Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway. Include "Key Concepts" and "Potential Exam Questions" (3-5 questions) sections. Be concise — omit filler.
-
-${TIPTAP_FORMAT_INSTRUCTIONS}`;
-
-const buildEnhancePrompt = (userNotes: string, className?: string) => `You are a lecture notes assistant. Expand the student's notes using the lecture transcription as context.
-
-${buildSubjectContext(className)}
-
-Preserve student's phrasing. Fill gaps from transcription. Add missing terms, definitions, examples. H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions. Ordered lists for steps. End sections with takeaway. Add "Key Concepts" and "Potential Exam Questions" sections. Student notes take priority.
-
-${TIPTAP_FORMAT_INSTRUCTIONS}
-
-Student's notes:
-${userNotes}`;
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -134,8 +112,8 @@ serve(async (request) => {
     // Determine mode and build prompt
     const isEnhanceMode = userNotes && userNotes.trim().length > 0;
     const systemPrompt = isEnhanceMode
-      ? buildEnhancePrompt(userNotes, className)
-      : buildGeneratePrompt(className);
+      ? buildSinglePassNoteEnhancePrompt(userNotes, className)
+      : buildSinglePassNoteGeneratePrompt(className);
 
     const aiMessages = [
       { role: 'user' as const, content: `${systemPrompt}\n\nLecture Audio Transcription:\n${transcription}` },

@@ -17,6 +17,7 @@ import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
 import { supabase } from '../lib/supabaseClient';
 import GroupScheduleHub from '../components/groups/GroupScheduleHub.jsx';
+import { getVisibleMonthRange } from '../components/groups/groupScheduleUtils.js';
 import { scheduleMeetupNotifications } from '../utils/notifications.js';
 
 const toDateIdentity = (value) => {
@@ -154,10 +155,7 @@ export default function GroupDetails() {
     }, [loadGroupSchedule]);
 
     useEffect(() => {
-        const initialStart = new Date();
-        initialStart.setHours(0, 0, 0, 0);
-        const initialEnd = new Date(initialStart);
-        initialEnd.setDate(initialEnd.getDate() + 6);
+        const { start: initialStart, end: initialEnd } = getVisibleMonthRange(new Date());
 
         void loadGroup();
         void loadGroupSchedule(initialStart, initialEnd, { showLoader: true });

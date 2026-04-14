@@ -10,16 +10,16 @@ const TOAST_STYLES = {
     success: {
         icon: Check,
         accent: 'text-emerald-300',
-        iconWrap: 'border-emerald-400/20 bg-emerald-400/12 text-emerald-300',
-        ring: 'before:bg-emerald-300/80',
-        glow: 'shadow-[0_22px_48px_rgba(7,24,18,0.34),0_10px_24px_rgba(16,185,129,0.12)]',
+        iconWrap: 'border-emerald-400/24 bg-emerald-400/10 text-emerald-300',
+        ring: 'before:bg-emerald-300/72',
+        glow: 'shadow-[0_18px_40px_rgba(7,24,18,0.26),0_8px_18px_rgba(16,185,129,0.08)]',
     },
     error: {
         icon: AlertCircle,
         accent: 'text-rose-300',
-        iconWrap: 'border-rose-400/20 bg-rose-400/12 text-rose-300',
-        ring: 'before:bg-rose-300/80',
-        glow: 'shadow-[0_22px_48px_rgba(25,10,12,0.36),0_10px_24px_rgba(244,63,94,0.12)]',
+        iconWrap: 'border-rose-400/24 bg-rose-400/10 text-rose-300',
+        ring: 'before:bg-rose-300/72',
+        glow: 'shadow-[0_18px_40px_rgba(25,10,12,0.28),0_8px_18px_rgba(244,63,94,0.08)]',
     },
 };
 
@@ -119,29 +119,29 @@ function ToastCard({
             animate={animateAnimation}
             exit={exitAnimation}
             transition={transition}
-            className={`pointer-events-auto relative w-full max-w-[min(100%,24rem)] overflow-hidden rounded-[1.4rem] border border-white/10 bg-[color-mix(in_srgb,var(--surface-color)_90%,rgba(255,255,255,0.08))] text-claude-text backdrop-blur-xl before:absolute before:bottom-4 before:left-4 before:top-4 before:w-[3px] before:rounded-full ${style.ring} ${style.glow}`}
+            className={`pointer-events-auto relative w-full max-w-[min(100%,24rem)] overflow-hidden rounded-[1.25rem] border border-white/9 bg-[color-mix(in_srgb,var(--surface-color)_86%,rgba(255,255,255,0.12))] text-claude-text backdrop-blur-[18px] before:absolute before:bottom-3 before:left-3.5 before:top-3 before:w-[2px] before:rounded-full ${style.ring} ${style.glow}`}
             data-testid={`toast-${toast.type}`}
         >
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.03)_40%,transparent_72%)] opacity-80" />
-            <div className="absolute inset-[1px] rounded-[calc(1.4rem-1px)] border border-white/5" />
+            <div className="absolute inset-0 bg-[linear-gradient(150deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05)_36%,rgba(255,255,255,0.01)_72%)] opacity-75" />
+            <div className="absolute inset-[1px] rounded-[calc(1.25rem-1px)] border border-white/6" />
 
-            <div className="relative flex items-start gap-3.5 px-4 py-3.5 md:px-[18px]">
-                <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border ${style.iconWrap}`}>
-                    <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+            <div className="relative flex items-center gap-3 px-3.5 py-3 md:px-4">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.95rem] border ${style.iconWrap}`}>
+                    <Icon className="h-[17px] w-[17px]" aria-hidden="true" />
                 </div>
 
-                <div className="min-w-0 flex-1 pr-1">
-                    <p className={`font-mono text-[9px] font-bold uppercase tracking-[0.22em] ${style.accent}`}>
+                <div className="min-w-0 flex-1 py-0.5 pr-1">
+                    <p className={`font-mono text-[9px] font-bold uppercase leading-none tracking-[0.22em] ${style.accent}`}>
                         {toast.type === 'success' ? 'Notice' : 'Attention'}
                     </p>
-                    <p className="mt-1 text-sm font-medium leading-5 text-claude-text/95">
+                    <p className="mt-1.5 text-sm font-medium leading-[1.22] text-claude-text/95">
                         {toast.message}
                     </p>
                 </div>
 
                 <button
                     onClick={() => dismiss(toast.id)}
-                    className="tap-action -mr-1 -mt-1 inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:bg-white/6 hover:text-claude-text active:scale-[0.97]"
+                    className="tap-action -mr-1 inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-full text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:bg-white/7 hover:text-claude-text active:scale-[0.97]"
                     aria-label="Dismiss notification"
                 >
                     <X className="h-4 w-4" />

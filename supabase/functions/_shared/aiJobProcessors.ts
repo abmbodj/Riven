@@ -2,12 +2,18 @@ import {
   buildDeckContents,
   buildExamContents,
   buildGuideContents,
-  buildSubjectContext,
   consumeAiQuota,
   createHttpError,
   parseAiJsonResponse,
 } from './aiCore.mjs';
 import { createAiClient, contentsToMessages, type AiClient, type AiMessage, type AiResponseFormat } from './aiClient.ts';
+import {
+  buildMergePrompt,
+  buildNoteDraftPrompt,
+  buildNoteEnrichPrompt,
+  buildSectionNotePrompt,
+  buildYoutubeSourcePrompt,
+} from './notePrompts.mjs';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
@@ -31,70 +37,6 @@ type JobProcessorArgs = {
   admin: any;
   job: any;
 };
-
-const TIPTAP_FORMAT = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
-Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
-Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
-
-const buildNoteDraftPrompt = (userNotes: string | null, className?: string | null, subject?: string | null) => `You are a lecture notes assistant producing a fast first draft as a Tiptap JSON document.
-
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-Goal: produce a usable, structured draft quickly.
-- Preserve the student's notes verbatim where they exist.
-- Fill only the highest-confidence gaps from the lecture audio.
-- Use H1/H2/H3 hierarchy and bullets for concepts.
-- Include bold key terms and blockquotes for direct definitions.
-- Do NOT include "Key Concepts" or "Potential Exam Questions" yet.
-- Be concise and prioritize clarity over completeness.
-
-${TIPTAP_FORMAT}
-
-Student notes:
-${userNotes || 'No student notes were provided.'}`;
-
-const buildNoteEnrichPrompt = (userNotes: string | null, className: string | null | undefined, draftDoc: unknown, subject?: string | null) => `You are a lecture notes assistant refining an existing draft into a complete study-ready set of notes as Tiptap JSON.
-
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-Requirements:
-- Preserve the structure and wording of the draft unless accuracy requires improvement.
-- Keep the strongest parts of the student's original notes.
-- Add missing terms, definitions, examples, and connective explanations.
-- End sections with short takeaways when helpful.
-- Add a "Key Concepts" section.
-- Add a "Potential Exam Questions" section with 3-5 questions.
-
-${TIPTAP_FORMAT}
-
-Student notes:
-${userNotes || 'No student notes were provided.'}
-
-Current draft JSON:
-${JSON.stringify(draftDoc)}`;
-
-const buildSectionNotePrompt = (
-  sectionIndex: number,
-  totalSections: number,
-  userNotes: string | null,
-  className?: string | null,
-  subject?: string | null,
-) => `You are a lecture notes assistant. Given a transcript excerpt from a lecture, produce structured notes as a Tiptap JSON document for this section only.
-
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-This is section ${sectionIndex + 1} of ${totalSections} from a longer lecture.
-- Use H2 for the section's main topic, H3 for subtopics.
-- Bullet lists for concepts, ordered lists for sequential steps.
-- Bold key terms on first use.
-- Blockquotes for direct definitions.
-- Do NOT include "Key Concepts" or "Potential Exam Questions" — those go in the final merge.
-- Be concise. Do not pad with filler.
-
-${TIPTAP_FORMAT}
-
-Student notes (for context, if any):
-${userNotes || 'No student notes were provided.'}`;
 
 const generateNotesForSection = async ({
   ai,
@@ -138,44 +80,6 @@ const generateNotesForSection = async ({
   }
 };
 
-const buildMergePrompt = (
-  userNotes: string | null,
-  className: string | null | undefined,
-  sectionDocs: unknown[],
-  subject?: string | null,
-) => `You are a lecture notes assistant. You have notes for each section of a lecture. Merge them into one complete, polished Tiptap JSON document.
-
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-Requirements:
-- Preserve the structure and wording of each section's notes.
-- Remove any duplication introduced at section boundaries.
-- Add a final "Key Concepts" section summarizing the whole lecture.
-- Add a "Potential Exam Questions" section with 3–5 questions covering the full lecture.
-- Keep H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions.
-
-${TIPTAP_FORMAT}
-
-Student notes (for context, if any):
-${userNotes || 'No student notes were provided.'}
-
-Section notes JSON array:
-${JSON.stringify(sectionDocs)}`;
-
-const buildYoutubeSourcePrompt = (className?: string | null, subject?: string | null) => `You are an expert academic note taker watching an educational YouTube video.
-Produce clean, complete notes as a Tiptap JSON document that can be reused to generate other study materials.
-
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-Requirements:
-- Organize content into H1/H2/H3 sections.
-- Use bullet lists for concepts and ordered lists for sequential steps.
-- Bold key terms on first mention.
-- Use blockquotes for compact definitions or laws.
-- Include a final "Key Concepts" section.
-- Be detailed enough that flashcards, guides, and exams can be generated from this output alone.
-
-${TIPTAP_FORMAT}`;
 
 const shouldFallbackToFinalModel = (error: unknown) => {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
@@ -638,7 +542,7 @@ const processNoteEnhancementJob = async ({
       firstPreviewAt = draftResult.firstPreviewAt;
     }
 
-    await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
+    await reporter.update('enriching', 72, 'Refining draft into final notes', {
       preview_doc: draftDoc,
       preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
         ? (draftDoc as Record<string, unknown>).content
@@ -709,7 +613,7 @@ const processNoteEnhancementJob = async ({
       );
     });
 
-    await reporter.update('enriching', 75, 'Merging sections and adding study aids');
+    await reporter.update('enriching', 75, 'Merging sections into final notes');
 
     const mergeText = await generateWithFallback({
       ai,

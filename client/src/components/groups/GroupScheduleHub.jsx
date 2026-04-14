@@ -15,17 +15,21 @@ import {
     X,
 } from 'lucide-react';
 import {
-    addDays,
-    buildAgendaForDate,
+    addMonths,
     calculateBestTimes,
     formatDateLabel,
     formatMeetupRange,
     formatTimeLabel,
     fromLocalDateTimeValue,
-    getRollingWeekDays,
+    getMonthGridDays,
+    getVisibleMonthRange,
     isSameLocalDay,
+    isSameLocalMonth,
     SHORT_DAY_LABELS,
     startOfDay,
+    startOfMonth,
+    summarizeDay,
+    toDateKey,
     toLocalDateTimeValue,
 } from './groupScheduleUtils.js';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
@@ -84,16 +88,6 @@ function isMeetupCancelled(meetup) {
     return meetup?.status === 'cancelled';
 }
 
-function getValidStartOfDay(value) {
-    const parsedDate = value instanceof Date ? value : new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-        return null;
-    }
-
-    return startOfDay(parsedDate);
-}
-
 function getMeetupStateLabel(meetup) {
     if (isMeetupCancelled(meetup)) return 'Cancelled';
     if (meetup?.is_joined) return 'Going';
@@ -101,11 +95,47 @@ function getMeetupStateLabel(meetup) {
     return 'Open';
 }
 
+function getLocalTimezoneLabel(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Local time';
+
+    const timezoneName = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+        .formatToParts(date)
+        .find((part) => part.type === 'timeZoneName')
+        ?.value;
+
+    return timezoneName ? `Local time (${timezoneName})` : 'Local time';
+}
+
 function formatSuggestionLabel(suggestion) {
     return `${SHORT_DAY_LABELS[suggestion.startsAt.getDay()]} ${formatDateLabel(suggestion.startsAt, {
         hour: 'numeric',
         minute: '2-digit',
     })} · ${suggestion.freeCount} free`;
+}
+
+function getCellPreview(summary) {
+    if (summary.activeMeetupCount > 0) {
+        return summary.meetups.find((meetup) => meetup.status !== 'cancelled')?.topic
+            || `${summary.activeMeetupCount} study meetup${summary.activeMeetupCount === 1 ? '' : 's'}`;
+    }
+
+    if (summary.scheduleCount > 0) {
+        return `${summary.scheduleCount} shared busy block${summary.scheduleCount === 1 ? '' : 's'}`;
+    }
+
+    if (summary.cancelledMeetupCount > 0) {
+        return `${summary.cancelledMeetupCount} cancelled meetup${summary.cancelledMeetupCount === 1 ? '' : 's'}`;
+    }
+
+    return '';
+}
+
+function getPreservedDayForMonth(selectedDate, targetMonth) {
+    const year = targetMonth.getFullYear();
+    const month = targetMonth.getMonth();
+    const maxDay = new Date(year, month + 1, 0).getDate();
+    return startOfDay(new Date(year, month, Math.min(selectedDate.getDate(), maxDay)));
 }
 
 function AvatarStack({ attendees = [], count = 0 }) {
@@ -202,6 +232,8 @@ function ScheduleBlockCard({ item }) {
 function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
     const stateLabel = getMeetupStateLabel(meetup);
     const canCancel = !isMeetupCancelled(meetup) && (Boolean(meetup?.is_creator) || isAdmin);
+    const locationHref = meetup.location_url || null;
+    const locationLabel = meetup.location_label || (locationHref ? 'Shared link available' : '');
 
     return (
         <div className="rounded-[1.45rem] border border-claude-accent/25 bg-[linear-gradient(145deg,rgba(222,185,106,0.14),rgba(43,30,12,0.72))] px-4 py-4 shadow-[0_24px_44px_rgba(17,10,2,0.2)]">
@@ -215,24 +247,38 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                             {meetup.attendee_count || 0} attending
                         </span>
                     </div>
-                    <h3 className="mt-3 text-base font-semibold leading-6 text-claude-text">
+                    <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6 text-claude-text">
                         {meetup.topic}
                     </h3>
                     <div className="mt-3 space-y-2 text-sm text-claude-secondary">
-                        <div className="flex items-center gap-2">
-                            <Clock3 className="h-4 w-4 text-claude-accent" />
-                            <span>{formatMeetupRange(meetup.start_at, meetup.end_at)}</span>
-                        </div>
-                        {meetup.location_label && (
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-claude-accent" />
-                                <span className="truncate">{meetup.location_label}</span>
+                        <div className="flex items-start gap-2">
+                            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-claude-accent" />
+                            <div className="min-w-0">
+                                <div>{formatMeetupRange(meetup.start_at, meetup.end_at)}</div>
+                                <div className="mt-1 text-xs text-claude-secondary/80">
+                                    {getLocalTimezoneLabel(meetup.start_at)}
+                                </div>
                             </div>
-                        )}
-                        {!meetup.location_label && meetup.location_url && (
+                        </div>
+                        {locationLabel && (
                             <div className="flex items-center gap-2">
-                                <Link2 className="h-4 w-4 text-claude-accent" />
-                                <span className="truncate">Shared link available</span>
+                                {meetup.location_label ? (
+                                    <MapPin className="h-4 w-4 shrink-0 text-claude-accent" />
+                                ) : (
+                                    <Link2 className="h-4 w-4 shrink-0 text-claude-accent" />
+                                )}
+                                {locationHref ? (
+                                    <a
+                                        href={locationHref}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="truncate underline-offset-4 hover:underline"
+                                    >
+                                        {locationLabel}
+                                    </a>
+                                ) : (
+                                    <span className="truncate">{locationLabel}</span>
+                                )}
                             </div>
                         )}
                     </div>
@@ -251,7 +297,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                         onClick={() => onLeave(meetup)}
                         className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:border-white/20 hover:bg-white/[0.09]"
                     >
-                        Going
+                        Leave
                     </button>
                 ) : (
                     <button
@@ -274,6 +320,234 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                 )}
             </div>
         </div>
+    );
+}
+
+function MonthGrid({
+    anchorDate,
+    monthDays,
+    selectedDate,
+    daySummaryByKey,
+    onSelectDay,
+}) {
+    const today = startOfDay(new Date());
+
+    return (
+        <div role="grid" aria-label="Monthly group schedule" className="space-y-2">
+            <div className="grid grid-cols-7 gap-2 px-1">
+                {SHORT_DAY_LABELS.map((label) => (
+                    <div
+                        key={label}
+                        className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-claude-secondary"
+                    >
+                        {label}
+                    </div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-2">
+                {monthDays.map((date) => {
+                    const key = toDateKey(date);
+                    const summary = daySummaryByKey.get(key) || {
+                        scheduleCount: 0,
+                        meetupCount: 0,
+                        activeMeetupCount: 0,
+                        cancelledMeetupCount: 0,
+                        meetups: EMPTY_ARRAY,
+                    };
+                    const inMonth = isSameLocalMonth(date, anchorDate);
+                    const isSelected = isSameLocalDay(date, selectedDate);
+                    const isToday = isSameLocalDay(date, today);
+                    const preview = getCellPreview(summary);
+                    const ariaLabel = [
+                        formatDateLabel(date, { weekday: 'long', month: 'long', day: 'numeric' }),
+                        !inMonth ? 'outside the current month' : null,
+                        summary.activeMeetupCount > 0 ? `${summary.activeMeetupCount} study meetup${summary.activeMeetupCount === 1 ? '' : 's'}` : null,
+                        summary.cancelledMeetupCount > 0 ? `${summary.cancelledMeetupCount} cancelled meetup${summary.cancelledMeetupCount === 1 ? '' : 's'}` : null,
+                        summary.scheduleCount > 0 ? `${summary.scheduleCount} shared busy block${summary.scheduleCount === 1 ? '' : 's'}` : null,
+                    ].filter(Boolean).join(', ');
+
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            role="gridcell"
+                            aria-label={ariaLabel}
+                            aria-selected={isSelected}
+                            aria-current={isToday ? 'date' : undefined}
+                            onClick={() => onSelectDay(date)}
+                            className={[
+                                'group relative flex aspect-square min-h-[78px] min-w-0 flex-col rounded-[1.4rem] border px-2.5 py-2.5 text-left transition-all md:min-h-[96px] md:px-3 md:py-3',
+                                inMonth
+                                    ? 'border-white/10 bg-[rgba(12,19,30,0.54)] text-claude-text'
+                                    : 'border-white/6 bg-[rgba(8,12,20,0.26)] text-claude-secondary/75',
+                                isSelected
+                                    ? 'border-claude-accent/45 bg-claude-accent/12 shadow-[0_0_0_1px_rgba(222,185,106,0.18),0_24px_44px_rgba(27,17,3,0.2)]'
+                                    : 'hover:border-white/16 hover:bg-white/[0.045]',
+                                isToday && !isSelected ? 'ring-1 ring-inset ring-emerald-400/60' : '',
+                            ].join(' ')}
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <span
+                                    className={[
+                                        'inline-flex h-9 w-9 items-center justify-center rounded-full text-base font-semibold',
+                                        isSelected
+                                            ? 'bg-claude-accent/18 text-claude-text'
+                                            : isToday
+                                            ? 'bg-emerald-400/14 text-emerald-200'
+                                            : 'text-current',
+                                    ].join(' ')}
+                                >
+                                    {date.getDate()}
+                                </span>
+
+                                {summary.activeMeetupCount > 0 && (
+                                    <span className="rounded-full border border-claude-accent/25 bg-claude-accent/12 px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                                        {summary.activeMeetupCount}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="mt-auto min-w-0 space-y-2">
+                                {preview && (
+                                    <p className="hidden min-w-0 line-clamp-2 text-[11px] leading-4 text-claude-secondary md:block">
+                                        {preview}
+                                    </p>
+                                )}
+
+                                {summary.scheduleCount > 0 && (
+                                    <div className="flex flex-col gap-1" aria-hidden="true">
+                                        {Array.from({ length: Math.min(summary.scheduleCount, 2) }).map((_, index) => (
+                                            <span
+                                                key={`${key}-schedule-${index}`}
+                                                className="h-1.5 rounded-full bg-[linear-gradient(90deg,rgba(95,134,113,0.72),rgba(64,96,80,0.28))]"
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {summary.activeMeetupCount > 0 && (
+                                    <div className="flex items-center gap-1.5" aria-hidden="true">
+                                        {Array.from({ length: Math.min(summary.activeMeetupCount, 3) }).map((_, index) => (
+                                            <span
+                                                key={`${key}-meetup-${index}`}
+                                                className="h-2.5 w-2.5 rounded-full bg-claude-accent shadow-[0_0_14px_rgba(222,185,106,0.42)]"
+                                            />
+                                        ))}
+                                        {summary.activeMeetupCount > 3 && (
+                                            <span className="text-[10px] font-mono font-semibold text-claude-accent">
+                                                +{summary.activeMeetupCount - 3}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {summary.activeMeetupCount === 0 && summary.cancelledMeetupCount > 0 && (
+                                    <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-claude-secondary/70">
+                                        Cancelled
+                                    </div>
+                                )}
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function DayDetailSurface({
+    selectedDate,
+    agendaItems,
+    suggestions,
+    suggestionMode,
+    renderAgendaItem,
+    onToday,
+    onPropose,
+    onSuggestionSelect,
+    className = '',
+}) {
+    const hasAgenda = agendaItems.length > 0;
+    const suggestionCopy = suggestionMode === 'fallback'
+        ? 'No strong overlap landed on this day, so these nearby openings from the visible month are the best alternatives.'
+        : 'Suggested overlap windows for the selected day.';
+
+    return (
+        <section
+            data-testid="group-schedule-day-surface"
+            className={`rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(20,26,38,0.92),rgba(10,14,23,0.9))] p-4 shadow-[0_32px_60px_rgba(4,7,10,0.22)] md:p-5 ${className}`.trim()}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                        Selected Day
+                    </p>
+                    <h3 className="mt-2 text-xl font-semibold leading-tight text-claude-text md:text-2xl">
+                        {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </h3>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-claude-secondary">
+                        {hasAgenda
+                            ? 'Meetups and shared class windows stay anchored here so you can see the day clearly before you RSVP.'
+                            : 'Nothing is scheduled here yet. You can jump back to today or propose a session straight from this date.'}
+                    </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={onToday}
+                        className="rounded-full border border-emerald-400/18 bg-emerald-400/12 px-3 py-2 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-400/18"
+                    >
+                        Today
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onPropose}
+                        className="inline-flex items-center gap-2 rounded-[1.1rem] border border-claude-accent/28 bg-claude-accent/14 px-3.5 py-2.5 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/18"
+                    >
+                        <CalendarPlus2 className="h-4 w-4 text-claude-accent" />
+                        <span className="hidden sm:inline">Propose Session</span>
+                    </button>
+                </div>
+            </div>
+
+            <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-claude-accent" />
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                        Best Times
+                    </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                    {suggestions.length > 0
+                        ? suggestionCopy
+                        : 'Share schedules with at least one more member and this panel will surface the clearest overlap automatically.'}
+                </p>
+
+                {suggestions.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {suggestions.map((suggestion) => (
+                            <button
+                                key={suggestion.key}
+                                type="button"
+                                onClick={() => onSuggestionSelect(suggestion)}
+                                className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
+                            >
+                                {formatSuggestionLabel(suggestion)}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-5 space-y-3">
+                {hasAgenda ? agendaItems.map(renderAgendaItem) : (
+                    <div className="rounded-[1.45rem] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm leading-6 text-claude-secondary">
+                        No shared class blocks or study meetups are scheduled for this date yet.
+                    </div>
+                )}
+            </div>
+        </section>
     );
 }
 
@@ -306,35 +580,54 @@ export default function GroupScheduleHub({
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
     const meetups = calendarData?.meetups ?? EMPTY_ARRAY;
     const myShareMode = calendarData?.my_share_mode || null;
-    const weekDays = useMemo(() => getRollingWeekDays(anchorDate), [anchorDate]);
-    const agendaItems = useMemo(
-        () => buildAgendaForDate(selectedDate, scheduleSlots, meetups),
-        [meetups, scheduleSlots, selectedDate],
+    const visibleRange = useMemo(() => getVisibleMonthRange(anchorDate), [anchorDate]);
+    const monthDays = useMemo(() => getMonthGridDays(anchorDate), [anchorDate]);
+
+    const daySummaryByKey = useMemo(() => {
+        const summaryMap = new Map();
+
+        monthDays.forEach((date) => {
+            summaryMap.set(toDateKey(date), summarizeDay(date, scheduleSlots, meetups));
+        });
+
+        return summaryMap;
+    }, [meetups, monthDays, scheduleSlots]);
+
+    const selectedDaySummary = useMemo(
+        () => daySummaryByKey.get(toDateKey(selectedDate)) || summarizeDay(selectedDate, scheduleSlots, meetups),
+        [daySummaryByKey, meetups, scheduleSlots, selectedDate],
     );
+
+    const agendaItems = selectedDaySummary.agendaItems;
     const bestTimes = useMemo(
-        () => calculateBestTimes({ anchorDate, members, meetups, scheduleSlots }),
-        [anchorDate, members, meetups, scheduleSlots],
+        () => calculateBestTimes({
+            rangeStart: visibleRange.start,
+            rangeEnd: visibleRange.end,
+            members,
+            meetups,
+            scheduleSlots,
+            limit: 6,
+        }),
+        [members, meetups, scheduleSlots, visibleRange.end, visibleRange.start],
     );
-    const upcomingMeetups = useMemo(
-        () => meetups
-            .filter((meetup) => !isMeetupCancelled(meetup))
-            .sort((left, right) => new Date(left.start_at) - new Date(right.start_at))
-            .slice(0, 5),
-        [meetups],
+    const selectedDaySuggestions = useMemo(
+        () => bestTimes.filter((suggestion) => isSameLocalDay(suggestion.startsAt, selectedDate)).slice(0, 3),
+        [bestTimes, selectedDate],
     );
+    const displayedSuggestions = selectedDaySuggestions.length > 0
+        ? selectedDaySuggestions
+        : bestTimes.slice(0, 3);
+    const suggestionMode = selectedDaySuggestions.length > 0
+        ? 'selected'
+        : bestTimes.length > 0
+        ? 'fallback'
+        : 'empty';
 
     useBodyScrollLock(composerOpen);
 
     useEffect(() => {
-        const isSelectedVisible = weekDays.some((day) => isSameLocalDay(day, selectedDate));
-        if (!isSelectedVisible) {
-            setSelectedDate(weekDays[0]);
-        }
-    }, [selectedDate, weekDays]);
-
-    useEffect(() => {
-        onRangeChange?.(weekDays[0], weekDays[6]);
-    }, [onRangeChange, weekDays]);
+        onRangeChange?.(visibleRange.start, visibleRange.end);
+    }, [onRangeChange, visibleRange.end, visibleRange.start]);
 
     useEffect(() => {
         if (!composerRequestKey) return;
@@ -342,8 +635,19 @@ export default function GroupScheduleHub({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [composerRequestKey]);
 
-    const handlePrevWeek = () => setAnchorDate((current) => addDays(current, -7));
-    const handleNextWeek = () => setAnchorDate((current) => addDays(current, 7));
+    const handleSelectToday = () => {
+        const today = startOfDay(new Date());
+        setAnchorDate(today);
+        setSelectedDate(today);
+    };
+
+    const shiftMonth = (direction) => {
+        setAnchorDate((current) => {
+            const nextMonth = addMonths(current, direction);
+            setSelectedDate((currentSelected) => getPreservedDayForMonth(currentSelected, nextMonth));
+            return nextMonth;
+        });
+    };
 
     const openComposer = (suggestion = null) => {
         if (document.activeElement instanceof HTMLElement) {
@@ -481,6 +785,7 @@ export default function GroupScheduleHub({
                 location_url: composer.locationUrl.trim() || null,
             });
 
+            setAnchorDate(startOfMonth(startAt));
             setSelectedDate(startOfDay(startAt));
             closeComposer();
         } catch (error) {
@@ -509,326 +814,99 @@ export default function GroupScheduleHub({
 
     if (loading) {
         return (
-            <div className="space-y-4">
-                <div className="h-32 rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
-                <div className="grid gap-4 md:grid-cols-[minmax(0,1.7fr)_320px]">
-                    <div className="h-[420px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
-                    <div className="h-[420px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+            <div data-testid="group-schedule-hub" className="space-y-4">
+                <div className="h-28 rounded-[1.9rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px]">
+                    <div className="h-[520px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                    <div className="h-[520px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-4 md:space-y-6">
-            <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] p-5 shadow-[0_30px_60px_rgba(9,13,16,0.2)] md:p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div data-testid="group-schedule-hub" className="space-y-4 md:space-y-5">
+            <section className="rounded-[1.9rem] border border-white/10 bg-[linear-gradient(150deg,rgba(21,27,38,0.9),rgba(11,16,25,0.92))] p-4 shadow-[0_24px_48px_rgba(6,9,12,0.18)] md:p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="max-w-2xl">
                         <div className="flex items-center gap-2">
-                            <span className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                Schedule
-                            </span>
-                            <span className="text-[11px] font-medium text-claude-secondary">
-                                Coordination hub for {group?.name}
+                            <UsersRound className="h-4 w-4 text-claude-accent" />
+                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                                Shared Availability
                             </span>
                         </div>
-                        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-claude-text md:text-[2rem]">
-                            Shared availability, clear RSVPs, fast session planning.
+                        <h2 className="mt-2 text-lg font-semibold text-claude-text md:text-xl">
+                            Keep your class schedule visible to {group?.name || 'this group'} on your terms.
                         </h2>
-                        <p className="mt-3 max-w-xl text-sm leading-6 text-claude-secondary md:text-[15px]">
-                            Everyone sees the same week, shared class time stays opt-in, and proposing a study session takes just a couple of taps.
+                        <p className="mt-2 max-w-xl text-sm leading-6 text-claude-secondary">
+                            {myShareMode && myShareMode !== 'hidden'
+                                ? 'Your schedule is contributing to the calendar right now. Switch modes any time without changing your meetups.'
+                                : 'Opt in with busy/free or full detail to help the group spot the easiest overlap windows.'}
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={() => openComposer()}
-                        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-claude-accent px-5 py-3 text-sm font-semibold text-[#182a31] shadow-[0_18px_36px_rgba(40,28,9,0.24)] transition-transform hover:-translate-y-0.5"
-                    >
-                        <CalendarPlus2 className="h-4 w-4" />
-                        Propose Session
-                    </button>
-                </div>
-
-                <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-black/10 p-4 md:p-5">
-                    <div className="flex items-center gap-2">
-                        <UsersRound className="h-4 w-4 text-claude-accent" />
-                        <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                            Shared Availability
-                        </span>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-claude-secondary">
-                        {myShareMode && myShareMode !== 'hidden'
-                            ? 'Your schedule is contributing to the group calendar right now.'
-                            : 'You can keep this private, share only busy/free time, or reveal full class names for this group.'}
-                    </p>
-                    <div className="mt-4">
+                    <div className="w-full max-w-xl">
                         <ShareModeControl currentMode={myShareMode} onChange={handleShareChange} busy={shareBusy} />
                     </div>
                 </div>
             </section>
 
-            <div className="md:hidden space-y-4">
-                <section className="rounded-[1.8rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px] xl:grid-cols-[minmax(0,1.65fr)_380px]">
+                <section className="rounded-[2.2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.32),rgba(9,13,21,0.94)_62%)] p-4 shadow-[0_30px_60px_rgba(4,7,10,0.22)] md:p-5 lg:p-6">
                     <div className="flex items-center justify-between gap-3">
-                        <div>
-                            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                Next 7 Days
+                        <button
+                            type="button"
+                            onClick={() => shiftMonth(-1)}
+                            aria-label="Previous month"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
+                        >
+                            <ChevronLeft className="h-5 w-5" />
+                        </button>
+
+                        <div className="min-w-0 flex-1 text-center">
+                            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                Schedule
                             </p>
-                            <p className="mt-1 text-sm text-claude-secondary">
-                                Swipe across the week and tap a day to inspect it.
-                            </p>
+                            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-claude-text">
+                                {formatDateLabel(anchorDate, { month: 'long', year: 'numeric' })}
+                            </h2>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button type="button" onClick={handlePrevWeek} className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-claude-text">
-                                <ChevronLeft className="h-4 w-4" />
-                            </button>
-                            <button type="button" onClick={handleNextWeek} className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-claude-text">
-                                <ChevronRight className="h-4 w-4" />
-                            </button>
-                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => shiftMonth(1)}
+                            aria-label="Next month"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
+                        >
+                            <ChevronRight className="h-5 w-5" />
+                        </button>
                     </div>
 
-                    <div className="-mx-1 mt-4 flex snap-x gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
-                        {weekDays.map((day) => {
-                            const isActive = isSameLocalDay(day, selectedDate);
-                            const dayAgendaCount = buildAgendaForDate(day, scheduleSlots, meetups).length;
-
-                            return (
-                                <button
-                                    key={day.toISOString()}
-                                    type="button"
-                                    onClick={() => setSelectedDate(day)}
-                                    className={`snap-start rounded-[1.3rem] border px-4 py-3 text-left transition-all ${
-                                        isActive
-                                            ? 'border-claude-accent/40 bg-claude-accent/12 text-claude-text'
-                                            : 'border-white/10 bg-white/[0.04] text-claude-secondary'
-                                    }`}
-                                >
-                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em]">
-                                        {SHORT_DAY_LABELS[day.getDay()]}
-                                    </p>
-                                    <p className="mt-1 text-xl font-semibold">
-                                        {day.getDate()}
-                                    </p>
-                                    <p className="mt-2 text-xs font-medium">
-                                        {dayAgendaCount} items
-                                    </p>
-                                </button>
-                            );
-                        })}
+                    <div className="mt-6">
+                        <MonthGrid
+                            anchorDate={anchorDate}
+                            monthDays={monthDays}
+                            selectedDate={selectedDate}
+                            daySummaryByKey={daySummaryByKey}
+                            onSelectDay={(date) => setSelectedDate(startOfDay(date))}
+                        />
                     </div>
                 </section>
 
-                <section className="rounded-[1.8rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-4">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-claude-accent" />
-                        <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                            Best Times
-                        </span>
-                    </div>
-                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                        {bestTimes.length > 0 ? bestTimes.map((suggestion) => (
-                            <button
-                                key={suggestion.key}
-                                type="button"
-                                onClick={() => {
-                                    setSelectedDate(startOfDay(suggestion.startsAt));
-                                    openComposer(suggestion);
-                                }}
-                                className="shrink-0 rounded-full border border-claude-accent/20 bg-claude-accent/10 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
-                            >
-                                {formatSuggestionLabel(suggestion)}
-                            </button>
-                        )) : (
-                            <p className="text-sm leading-6 text-claude-secondary">
-                                Share schedules with at least one more member and we’ll surface the clearest overlap here.
-                            </p>
-                        )}
-                    </div>
-                </section>
-
-                <section className="rounded-[1.8rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-4">
-                    <div className="flex items-center justify-between gap-3">
-                        <div>
-                            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                {formatDateLabel(selectedDate, { weekday: 'long', month: 'short', day: 'numeric' })}
-                            </p>
-                            <p className="mt-1 text-sm text-claude-secondary">
-                                Today’s classes and proposed sessions.
-                            </p>
-                        </div>
-                        <CalendarDays className="h-5 w-5 text-claude-secondary" />
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                        {agendaItems.length > 0 ? agendaItems.map(renderAgendaItem) : (
-                            <div className="rounded-[1.4rem] border border-dashed border-white/12 bg-white/[0.03] px-4 py-5 text-sm leading-6 text-claude-secondary">
-                                No shared class blocks or study sessions are scheduled for this day yet.
-                            </div>
-                        )}
-                    </div>
-                </section>
-            </div>
-
-            <div className="hidden md:grid md:grid-cols-[minmax(0,1.7fr)_320px] md:gap-6">
-                <section className="rounded-[2rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-5">
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                Rolling Week
-                            </p>
-                            <h3 className="mt-2 text-xl font-semibold text-claude-text">
-                                {formatDateLabel(weekDays[0], { month: 'short', day: 'numeric' })} - {formatDateLabel(weekDays[6], { month: 'short', day: 'numeric' })}
-                            </h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button type="button" onClick={handlePrevWeek} className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-claude-text transition-colors hover:bg-white/[0.08]">
-                                <ChevronLeft className="h-4 w-4" />
-                            </button>
-                            <button type="button" onClick={handleNextWeek} className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-claude-text transition-colors hover:bg-white/[0.08]">
-                                <ChevronRight className="h-4 w-4" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="mt-5 grid grid-cols-7 gap-3">
-                        {weekDays.map((day) => {
-                            const items = buildAgendaForDate(day, scheduleSlots, meetups);
-                            const isActive = isSameLocalDay(day, selectedDate);
-
-                            return (
-                                <button
-                                    key={day.toISOString()}
-                                    type="button"
-                                    onClick={() => setSelectedDate(day)}
-                                    className={`flex min-h-[420px] flex-col rounded-[1.45rem] border p-3 text-left transition-all ${
-                                        isActive
-                                            ? 'border-claude-accent/32 bg-claude-accent/8 shadow-[0_18px_32px_rgba(30,18,3,0.16)]'
-                                            : 'border-white/8 bg-white/[0.02] hover:border-white/14 hover:bg-white/[0.04]'
-                                    }`}
-                                >
-                                    <div className="shrink-0">
-                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                            {SHORT_DAY_LABELS[day.getDay()]}
-                                        </p>
-                                        <p className="mt-2 text-2xl font-semibold text-claude-text">
-                                            {day.getDate()}
-                                        </p>
-                                    </div>
-
-                                    <div className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
-                                        {items.length > 0 ? items.map((item) => (
-                                            item.kind === 'schedule' ? (
-                                                <div key={item.id} className="rounded-[1rem] border border-[#7d9a86]/18 bg-[rgba(84,114,98,0.18)] px-3 py-2">
-                                                    <p className="text-xs font-semibold text-claude-text">{item.title}</p>
-                                                    <p className="mt-1 text-[11px] text-[#d9e8dd]/70">
-                                                        {formatTimeLabel(item.startAt.toTimeString().slice(0, 5))}
-                                                    </p>
-                                                </div>
-                                            ) : (
-                                                <div key={item.id} className="rounded-[1rem] border border-claude-accent/20 bg-claude-accent/10 px-3 py-2">
-                                                    <p className="text-xs font-semibold text-claude-text line-clamp-2">{item.meetup.topic}</p>
-                                                    <p className="mt-1 text-[11px] text-claude-secondary">
-                                                        {formatDateLabel(new Date(item.meetup.start_at), { hour: 'numeric', minute: '2-digit' })}
-                                                    </p>
-                                                </div>
-                                            )
-                                        )) : (
-                                            <div className="rounded-[1rem] border border-dashed border-white/10 bg-white/[0.02] px-3 py-4 text-[11px] leading-5 text-claude-secondary">
-                                                Open
-                                            </div>
-                                        )}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </section>
-
-                <aside className="space-y-4">
-                    <section className="rounded-[2rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-5">
-                        <div className="flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-claude-accent" />
-                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                Best Times
-                            </span>
-                        </div>
-                        <div className="mt-4 space-y-2">
-                            {bestTimes.length > 0 ? bestTimes.map((suggestion) => (
-                                <button
-                                    key={suggestion.key}
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedDate(startOfDay(suggestion.startsAt));
-                                        openComposer(suggestion);
-                                    }}
-                                    className="w-full rounded-[1.2rem] border border-claude-accent/18 bg-claude-accent/10 px-4 py-3 text-left transition-colors hover:bg-claude-accent/16"
-                                >
-                                    <p className="text-sm font-semibold text-claude-text">
-                                        {formatSuggestionLabel(suggestion)}
-                                    </p>
-                                </button>
-                            )) : (
-                                <p className="text-sm leading-6 text-claude-secondary">
-                                    Once more members share class time, this panel will surface the easiest overlap windows automatically.
-                                </p>
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="rounded-[2rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-5">
-                        <div className="flex items-center gap-2">
-                            <CalendarDays className="h-4 w-4 text-claude-accent" />
-                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                Upcoming
-                            </span>
-                        </div>
-                        <div className="mt-4 space-y-3">
-                            {upcomingMeetups.length > 0 ? upcomingMeetups.map((meetup) => (
-                                <button
-                                    key={meetup.id}
-                                    type="button"
-                                    onClick={() => {
-                                        const meetupDay = getValidStartOfDay(meetup.start_at);
-                                        if (meetupDay) {
-                                            setSelectedDate(meetupDay);
-                                        }
-                                    }}
-                                    className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition-colors hover:bg-white/[0.05]"
-                                >
-                                    <p className="text-sm font-semibold text-claude-text line-clamp-2">{meetup.topic}</p>
-                                    <p className="mt-1 text-xs font-medium text-claude-secondary">
-                                        {formatMeetupRange(meetup.start_at, meetup.end_at)}
-                                    </p>
-                                    <p className="mt-2 text-[11px] font-medium text-claude-secondary">
-                                        {meetup.attendee_count || 0} attending
-                                    </p>
-                                </button>
-                            )) : (
-                                <p className="text-sm leading-6 text-claude-secondary">
-                                    No upcoming sessions yet. Pick a suggestion above or propose one from scratch.
-                                </p>
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="rounded-[2rem] border border-white/10 bg-[rgba(255,255,255,0.035)] p-5">
-                        <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                            Selected Day
-                        </p>
-                        <p className="mt-2 text-lg font-semibold text-claude-text">
-                            {formatDateLabel(selectedDate, { weekday: 'long', month: 'short', day: 'numeric' })}
-                        </p>
-                        <div className="mt-4 space-y-3">
-                            {agendaItems.length > 0 ? agendaItems.map(renderAgendaItem) : (
-                                <div className="rounded-[1.4rem] border border-dashed border-white/12 bg-white/[0.03] px-4 py-5 text-sm leading-6 text-claude-secondary">
-                                    This day is open right now.
-                                </div>
-                            )}
-                        </div>
-                    </section>
-                </aside>
+                <DayDetailSurface
+                    selectedDate={selectedDate}
+                    agendaItems={agendaItems}
+                    suggestions={displayedSuggestions}
+                    suggestionMode={suggestionMode}
+                    renderAgendaItem={renderAgendaItem}
+                    onToday={handleSelectToday}
+                    onPropose={() => openComposer()}
+                    onSuggestionSelect={(suggestion) => {
+                        setSelectedDate(startOfDay(suggestion.startsAt));
+                        openComposer(suggestion);
+                    }}
+                    className="lg:sticky lg:top-24"
+                />
             </div>
 
             <AnimatePresence>

@@ -1,8 +1,9 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GroupDetails from './GroupDetails.jsx';
+import { getVisibleMonthRange } from '../components/groups/groupScheduleUtils.js';
 
 const {
   mockToast,
@@ -311,6 +312,81 @@ describe('GroupDetails upload flow', () => {
     expect(api.joinGroupMeetup).not.toHaveBeenCalled();
     expect(screen.queryByText('Cram Page')).not.toBeInTheDocument();
     expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+  });
+
+  it('renders a month calendar by default and requests the visible month range', async () => {
+    const now = new Date();
+    const expectedRange = getVisibleMonthRange(now);
+    const expectedMonthLabel = new Intl.DateTimeFormat(undefined, {
+      month: 'long',
+      year: 'numeric',
+    }).format(now);
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      expect(api.getGroupScheduleCalendar).toHaveBeenCalledWith('group-1', expectedRange.start, expectedRange.end);
+    });
+
+    expect(screen.getAllByRole('grid', { name: /monthly group schedule/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(expectedMonthLabel).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Rolling Week')).not.toBeInTheDocument();
+    expect(screen.queryByText('Next 7 Days')).not.toBeInTheDocument();
+  });
+
+  it('updates the selected-day surface when a calendar day is tapped', async () => {
+    const now = new Date();
+    const targetDay = Math.min(now.getDate() + 2, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
+    const targetStart = new Date(now.getFullYear(), now.getMonth(), targetDay, 16, 30, 0, 0);
+    const targetEnd = new Date(targetStart.getTime() + (60 * 60 * 1000));
+    const targetLabel = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }).format(targetStart);
+
+    api.getGroupScheduleCalendar.mockResolvedValueOnce({
+      my_share_mode: 'busy_free',
+      members: [],
+      schedule_slots: [],
+      meetups: [
+        {
+          id: 'meetup-calendar-tap',
+          topic: 'Calendar redesign session',
+          start_at: targetStart.toISOString(),
+          end_at: targetEnd.toISOString(),
+          status: 'scheduled',
+          attendee_count: 2,
+          attendees: [],
+          attendee_ids: ['user-1', 'user-2'],
+          is_joined: true,
+          is_creator: false,
+        },
+      ],
+    });
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-schedule-hub').length).toBeGreaterThan(0);
+    });
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    const monthGrid = within(primaryHub).getByRole('grid', { name: /monthly group schedule/i });
+    const daySurface = within(primaryHub).getByTestId('group-schedule-day-surface');
+    const targetCell = within(monthGrid).getAllByRole('gridcell').find((cell) => (
+      cell.getAttribute('aria-label')?.includes(targetLabel)
+    ));
+
+    expect(targetCell).toBeTruthy();
+    fireEvent.click(targetCell);
+
+    expect(await within(daySurface).findByText('Calendar redesign session')).toBeInTheDocument();
+    expect(within(daySurface).getByText(targetLabel)).toBeInTheDocument();
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {

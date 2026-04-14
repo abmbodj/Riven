@@ -36,7 +36,7 @@ const ENHANCEMENT_PHASE_LABELS = {
     fetching_audio: 'Fetching lecture audio',
     processing_media: 'Preparing lecture audio',
     drafting: 'Drafting enhanced notes',
-    enriching: 'Enriching with key concepts and questions',
+    enriching: 'Refining notes for clarity',
     saving: 'Saving enhanced notes',
     done: 'Enhanced notes ready',
     error: 'Enhancement failed',

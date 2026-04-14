@@ -62,6 +62,31 @@ const buildSubjectContext = (className, subject) => {
 
 export { buildSubjectContext };
 
+export const buildNaturalNoteStyleInstructions = ({
+  includeKeyConcepts = false,
+  preserveStudentPhrasing = true,
+} = {}) => {
+  const lines = [
+    'Style and voice:',
+    '- Write like a well-written college student making notes for later study: clear, natural, human, and academically solid.',
+    '- Keep the tone grounded and direct rather than polished like a study guide, textbook, or executive summary.',
+    preserveStudentPhrasing
+      ? '- Preserve the student\'s original wording when it is already clear and accurate.'
+      : '- Write in a natural student-note voice rather than a polished summary voice.',
+    '- Use headings only when they genuinely help organize the material.',
+    '- Mix short explanatory paragraphs with bullets when that fits the content.',
+    '- Use ordered lists only for real sequences, processes, or steps.',
+    '- Bold key terms on first use and use blockquotes only for short definitions, theorems, or laws when helpful.',
+    '- Avoid canned transitions, generic wrap-up labels, motivational filler, and repetitive framing language.',
+    includeKeyConcepts
+      ? '- End with a short "Key Concepts" section that briefly recaps the main ideas.'
+      : '- Do not add a recap section yet.',
+    '- Do not add an exam-question section.',
+  ];
+
+  return lines.join('\n');
+};
+
 const cleanAiResponseText = (rawResponse) => {
   let cleaned = String(rawResponse ?? '').trim();
 
@@ -1008,6 +1033,10 @@ const buildYoutubeVideoSource = (transcript) => ({
   text: `Video Source Material:\n${transcript}`,
 });
 
+const NOTE_TIPTAP_FORMAT = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
+Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
+Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
+
 export const buildYoutubeDeckContents = (youtubeUrl, className, subject) => [
   { text: buildDeckPrompt(className, subject) },
   buildYoutubeVideoSource(youtubeUrl),
@@ -1024,12 +1053,16 @@ export const buildYoutubeExamContents = (youtubeUrl, className, subject) => [
 ];
 
 const buildNotesFromVideoPrompt = (className, subject) => `You are an expert note-taker watching an educational YouTube video.
-Produce concise, complete notes as a Tiptap JSON document.
+Produce natural, study-ready notes as a Tiptap JSON document.
 
 ${buildSubjectContext(className, subject)}
 
-${TIPTAP_FORMAT}
-Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway. Include "Key Concepts" summary section.`;
+${buildNaturalNoteStyleInstructions({
+  includeKeyConcepts: true,
+  preserveStudentPhrasing: false,
+})}
+
+${NOTE_TIPTAP_FORMAT}`;
 
 export const buildYoutubeNotesContents = (youtubeUrl, className, subject) => [
   { text: buildNotesFromVideoPrompt(className, subject) },

@@ -4,9 +4,25 @@ const DEFAULT_END_HOUR = 22;
 
 export const SHORT_DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function startOfDay(value) {
+function toValidDate(value) {
     const date = value instanceof Date ? new Date(value) : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function toIdentity(value) {
+    if (value === null || value === undefined) return null;
+    return String(value);
+}
+
+export function startOfDay(value) {
+    const date = toValidDate(value) || new Date();
     date.setHours(0, 0, 0, 0);
+    return date;
+}
+
+export function startOfMonth(value) {
+    const date = startOfDay(value);
+    date.setDate(1);
     return date;
 }
 
@@ -16,8 +32,15 @@ export function addDays(value, amount) {
     return date;
 }
 
+export function addMonths(value, amount) {
+    const date = startOfMonth(value);
+    date.setMonth(date.getMonth() + amount);
+    return date;
+}
+
 export function toDateKey(value) {
-    const date = value instanceof Date ? value : new Date(value);
+    const date = toValidDate(value);
+    if (!date) return '';
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
@@ -25,8 +48,44 @@ export function isSameLocalDay(left, right) {
     return toDateKey(left) === toDateKey(right);
 }
 
+export function isSameLocalMonth(left, right) {
+    const leftDate = toValidDate(left);
+    const rightDate = toValidDate(right);
+
+    if (!leftDate || !rightDate) return false;
+
+    return leftDate.getFullYear() === rightDate.getFullYear()
+        && leftDate.getMonth() === rightDate.getMonth();
+}
+
 export function getRollingWeekDays(anchorDate) {
     return Array.from({ length: 7 }, (_, index) => addDays(anchorDate, index));
+}
+
+// The visible month shell is always a 6-row grid that begins on Sunday.
+export function getVisibleMonthRange(anchorDate) {
+    const firstOfMonth = startOfMonth(anchorDate);
+    const start = addDays(firstOfMonth, -firstOfMonth.getDay());
+    const end = addDays(start, 41);
+
+    return { start, end };
+}
+
+export function getMonthGridDays(anchorDate) {
+    const { start } = getVisibleMonthRange(anchorDate);
+    return Array.from({ length: 42 }, (_, index) => addDays(start, index));
+}
+
+export function getDateRangeDays(rangeStart, rangeEnd) {
+    const start = startOfDay(rangeStart);
+    const end = startOfDay(rangeEnd);
+    const days = [];
+
+    for (let cursor = start; cursor.getTime() <= end.getTime(); cursor = addDays(cursor, 1)) {
+        days.push(cursor);
+    }
+
+    return days;
 }
 
 export function formatTimeLabel(value) {
@@ -41,14 +100,16 @@ export function formatTimeLabel(value) {
     return `${normalizedHour}:${String(minutes).padStart(2, '0')} ${meridiem}`;
 }
 
-export function formatDateLabel(date, options = {}) {
+export function formatDateLabel(value, options = {}) {
+    const date = toValidDate(value);
+    if (!date) return '';
     return new Intl.DateTimeFormat(undefined, options).format(date);
 }
 
 export function formatMeetupRange(startAt, endAt) {
-    const start = startAt instanceof Date ? startAt : new Date(startAt);
-    const end = endAt instanceof Date ? endAt : new Date(endAt);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '';
+    const start = toValidDate(startAt);
+    const end = toValidDate(endAt);
+    if (!start || !end) return '';
 
     const sameDay = isSameLocalDay(start, end);
     const startLabel = new Intl.DateTimeFormat(undefined, sameDay ? {
@@ -77,17 +138,15 @@ export function combineDateAndTime(date, time24) {
 }
 
 export function toLocalDateTimeValue(value) {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
+    const date = toValidDate(value);
+    if (!date) return '';
 
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
     return local.toISOString().slice(0, 16);
 }
 
 export function fromLocalDateTimeValue(value) {
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return parsed;
+    return toValidDate(value);
 }
 
 export function formatMemberName(member) {
@@ -119,35 +178,55 @@ function slotToAgendaItem(slot, date) {
 }
 
 function meetupToAgendaItem(meetup) {
-    const startAt = new Date(meetup.start_at);
-    const endAt = new Date(meetup.end_at);
-
     return {
         id: `meetup:${meetup.id}`,
         kind: 'meetup',
-        startAt,
-        endAt,
+        startAt: new Date(meetup.start_at),
+        endAt: new Date(meetup.end_at),
         meetup,
     };
 }
 
-export function buildAgendaForDate(date, scheduleSlots = [], meetups = []) {
-    const dayScheduleItems = scheduleSlots
-        .filter((slot) => Number(slot.day_of_week) === date.getDay())
+export function getScheduleItemsForDate(date, scheduleSlots = []) {
+    return scheduleSlots
+        .filter((slot) => Number(slot.day_of_week) === startOfDay(date).getDay())
         .map((slot) => slotToAgendaItem(slot, date));
+}
 
-    const dayMeetupItems = meetups
+export function getMeetupsForDate(date, meetups = []) {
+    return meetups
         .filter((meetup) => isSameLocalDay(meetup.start_at, date))
-        .map((meetup) => meetupToAgendaItem(meetup));
+        .sort((left, right) => new Date(left.start_at) - new Date(right.start_at));
+}
 
-    return [...dayScheduleItems, ...dayMeetupItems].sort((left, right) => (
-        left.startAt.getTime() - right.startAt.getTime()
-    ));
+export function summarizeDay(date, scheduleSlots = [], meetups = []) {
+    const scheduleItems = getScheduleItemsForDate(date, scheduleSlots);
+    const dayMeetups = getMeetupsForDate(date, meetups);
+    const agendaItems = [
+        ...scheduleItems,
+        ...dayMeetups.map((meetup) => meetupToAgendaItem(meetup)),
+    ].sort((left, right) => left.startAt.getTime() - right.startAt.getTime());
+
+    return {
+        scheduleItems,
+        meetups: dayMeetups,
+        agendaItems,
+        scheduleCount: scheduleItems.length,
+        meetupCount: dayMeetups.length,
+        activeMeetupCount: dayMeetups.filter((meetup) => meetup.status !== 'cancelled').length,
+        cancelledMeetupCount: dayMeetups.filter((meetup) => meetup.status === 'cancelled').length,
+    };
+}
+
+export function buildAgendaForDate(date, scheduleSlots = [], meetups = []) {
+    return summarizeDay(date, scheduleSlots, meetups).agendaItems;
 }
 
 function getOccupiedIntervalsForMember(memberId, date, scheduleSlots, meetups) {
+    const identity = toIdentity(memberId);
+
     const slotIntervals = scheduleSlots
-        .filter((slot) => Number(slot.user_id) === Number(memberId) && Number(slot.day_of_week) === date.getDay())
+        .filter((slot) => toIdentity(slot.user_id) === identity && Number(slot.day_of_week) === date.getDay())
         .map((slot) => ({
             start: combineDateAndTime(date, slot.start_time).getTime(),
             end: combineDateAndTime(date, slot.end_time).getTime(),
@@ -156,7 +235,7 @@ function getOccupiedIntervalsForMember(memberId, date, scheduleSlots, meetups) {
     const meetupIntervals = meetups
         .filter((meetup) => {
             const attendeeIds = Array.isArray(meetup.attendee_ids) ? meetup.attendee_ids : [];
-            return attendeeIds.some((attendeeId) => Number(attendeeId) === Number(memberId))
+            return attendeeIds.some((attendeeId) => toIdentity(attendeeId) === identity)
                 && meetup.status !== 'cancelled'
                 && isSameLocalDay(meetup.start_at, date);
         })
@@ -183,6 +262,8 @@ function overlapsAnyMeetup(start, end, meetups, date) {
 
 export function calculateBestTimes({
     anchorDate,
+    rangeStart,
+    rangeEnd,
     members = [],
     scheduleSlots = [],
     meetups = [],
@@ -192,7 +273,10 @@ export function calculateBestTimes({
     const visibleMembers = members.filter((member) => member.share_mode && member.share_mode !== 'hidden');
     if (visibleMembers.length < 2) return [];
 
-    const days = getRollingWeekDays(anchorDate);
+    const days = rangeStart && rangeEnd
+        ? getDateRangeDays(rangeStart, rangeEnd)
+        : getRollingWeekDays(anchorDate || new Date());
+
     const candidates = [];
 
     days.forEach((date, dayIndex) => {
@@ -223,7 +307,7 @@ export function calculateBestTimes({
                 endsAt,
                 freeCount: freeMembers.length,
                 memberIds: freeMembers.map((member) => member.id),
-                score: (freeMembers.length * 100) - (dayIndex * 6) - proximityScore,
+                score: (freeMembers.length * 100) - (dayIndex * 2) - proximityScore,
             });
         }
     });
