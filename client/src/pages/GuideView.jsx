@@ -530,7 +530,7 @@ export default function GuideView() {
             const nextResult = {
                 outcome: 'revealed',
                 shouldAdvance: false,
-                feedback: currentCard.target_answer,
+                feedback: "Here's the answer — take a moment to study it, then decide whether to try again or move on.",
                 persistedState,
                 sessionComplete: false,
                 nextCardId: null,
