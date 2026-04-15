@@ -243,6 +243,7 @@ function FrogEye({
 export default function RiverMascot({
     state = 'idle',
     caption = '',
+    compact = false,
     className = '',
 }) {
     const mobileBudget = useMobileVisualBudget();
@@ -293,7 +294,7 @@ export default function RiverMascot({
 
             <div className="relative flex flex-col">
                 <div className="relative mx-auto flex w-full max-w-[320px] flex-col items-center">
-                    {caption ? (
+                    {caption && !compact ? (
                         <motion.div
                             initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}

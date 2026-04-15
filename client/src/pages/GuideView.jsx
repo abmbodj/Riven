@@ -955,7 +955,7 @@ export default function GuideView() {
                                 {/* River + section progress header */}
                                 <div className="flex items-start gap-4 sm:gap-6 mb-6 sm:mb-8">
                                     <div className="shrink-0 w-[100px] sm:w-[140px]">
-                                        <RiverMascot state={riverState} caption={riverCaption} />
+                                        <RiverMascot state={riverState} caption={riverCaption} compact />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-1">
                                         <p
