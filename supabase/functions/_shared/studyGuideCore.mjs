@@ -259,6 +259,34 @@ const normalizeCardRiver = (value) => {
   };
 };
 
+const normalizeWorkedExampleStep = (value) => {
+  if (!value || typeof value !== 'object') return null;
+  const step = normalizeText(value.step, '');
+  if (!step) return null;
+  return {
+    step,
+    detail: normalizeText(value.detail, ''),
+  };
+};
+
+const normalizeWorkedExample = (value, index) => {
+  if (!value || typeof value !== 'object') return null;
+  const problem = normalizeText(value.problem, '');
+  if (!problem) return null;
+
+  const steps = Array.isArray(value.steps)
+    ? value.steps.map(normalizeWorkedExampleStep).filter(Boolean).slice(0, 10)
+    : [];
+
+  return {
+    title: normalizeText(value.title, `Example ${index + 1}`),
+    problem,
+    steps,
+    result: normalizeText(value.result, ''),
+    takeaway: normalizeText(value.takeaway, ''),
+  };
+};
+
 const normalizeTeaching = (value, card, concept) => {
   const raw = value && typeof value === 'object' ? value : {};
   const steps = normalizeStringArray(raw.steps, 6);
@@ -272,8 +300,15 @@ const normalizeTeaching = (value, card, concept) => {
     card.hints?.[0]?.text,
   ].map((item) => normalizeOptionalText(item)).filter(Boolean);
 
+  const workedExamples = Array.isArray(raw.worked_examples)
+    ? raw.worked_examples.map(normalizeWorkedExample).filter(Boolean).slice(0, 5)
+    : [];
+
   return {
     explain: normalizeText(raw.explain, fallbackExplain),
+    intuition: normalizeText(raw.intuition, ''),
+    worked_examples: workedExamples,
+    common_mistakes: normalizeStringArray(raw.common_mistakes, 6),
     example: normalizeText(raw.example, fallbackExample),
     steps: steps.length > 0 ? steps : fallbackSteps.slice(0, 3),
     why_it_matters: normalizeText(

@@ -174,9 +174,12 @@ export default function GuideView() {
     const [riverCaption, setRiverCaption] = useState('River is ready to teach.');
     const [activeAssistOption, setActiveAssistOption] = useState(null);
     const [refinedAnswer, setRefinedAnswer] = useState('');
+    const [teachSection, setTeachSection] = useState(0);
+    const [expandedSteps, setExpandedSteps] = useState({});
 
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
+    const sectionRefs = useRef({});
 
     useEffect(() => {
         toastRef.current = toast;
@@ -228,6 +231,33 @@ export default function GuideView() {
     const currentConcept = currentCard
         ? guideData?.knowledge_map?.concepts.find((concept) => concept.id === currentCard.concept_id) || null
         : null;
+
+    const isToctStyleCard = currentCard?.teaching?.worked_examples?.length > 0
+        || Boolean(currentCard?.teaching?.intuition);
+
+    const teachSections = useMemo(() => {
+        if (!currentCard?.teaching) return [];
+        const t = currentCard.teaching;
+        const sections = [];
+        sections.push({ key: 'explain', label: 'Explanation', type: 'explain' });
+        if (t.intuition) {
+            sections.push({ key: 'intuition', label: 'The Why', type: 'intuition' });
+        }
+        if (t.worked_examples?.length > 0) {
+            t.worked_examples.forEach((ex, i) => {
+                sections.push({ key: `example-${i}`, label: ex.title || `Example ${i + 1}`, type: 'worked_example', data: ex });
+            });
+        }
+        if (t.common_mistakes?.length > 0) {
+            sections.push({ key: 'mistakes', label: 'Watch Out', type: 'common_mistakes' });
+        }
+        // Fallback for old guides without TOCT fields
+        if (sections.length === 1) {
+            if (t.steps?.length > 0) sections.push({ key: 'steps', label: 'Breakdown', type: 'legacy_steps' });
+            if (t.why_it_matters) sections.push({ key: 'why', label: 'Why It Matters', type: 'legacy_why' });
+        }
+        return sections;
+    }, [currentCard]);
 
     const persistStudyState = useCallback(async (nextState) => {
         const updatedGuide = await api.updateStudyGuide(id, { study_state: nextState });
@@ -317,6 +347,8 @@ export default function GuideView() {
         setAnswer('');
         setResult(null);
         setActiveAssistOption(null);
+        setTeachSection(0);
+        setExpandedSteps({});
         setRiverState(nextCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(nextCard));
         setSessionStage('teach');
@@ -327,6 +359,8 @@ export default function GuideView() {
         setAnswer('');
         setResult(null);
         setActiveAssistOption(null);
+        setTeachSection(0);
+        setExpandedSteps({});
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
@@ -336,6 +370,41 @@ export default function GuideView() {
         setActiveAssistOption(option);
         setRiverState(option.pose || 'point');
         setRiverCaption(option.text);
+    };
+
+    const handleAdvanceTeach = () => {
+        const nextIndex = teachSection + 1;
+        if (nextIndex >= teachSections.length) {
+            handleBeginCheck();
+            return;
+        }
+        setTeachSection(nextIndex);
+        const section = teachSections[nextIndex];
+        const captions = {
+            intuition: 'Let me show you why this works...',
+            worked_example: 'Watch how this plays out step by step.',
+            common_mistakes: 'Before you try \u2014 watch out for these.',
+            legacy_steps: 'Let me break this down.',
+            legacy_why: currentCard?.teaching?.why_it_matters?.slice(0, 100) || 'Here is why this matters.',
+        };
+        const poses = {
+            explain: 'teach',
+            intuition: 'thinking',
+            worked_example: 'point',
+            common_mistakes: 'gentle-correct',
+            legacy_steps: 'teach',
+            legacy_why: 'thinking',
+        };
+        setRiverState(poses[section.type] || 'teach');
+        setRiverCaption(captions[section.type] || 'River is teaching.');
+        requestAnimationFrame(() => {
+            sectionRefs.current[section.key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
+
+    const toggleStep = (exampleIndex, stepIndex) => {
+        const key = `${exampleIndex}-${stepIndex}`;
+        setExpandedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
     const handleBeginCheck = () => {
@@ -657,6 +726,8 @@ export default function GuideView() {
         setCompletionPayload(null);
         setResult(null);
         setActiveAssistOption(null);
+        setTeachSection(0);
+        setExpandedSteps({});
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
@@ -757,12 +828,16 @@ export default function GuideView() {
                             );
                         })}
                         <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary">
-                            {sessionStage === 'teach' && <span>Teach</span>}
+                            {sessionStage === 'teach' && (
+                                isToctStyleCard && teachSections.length > 1
+                                    ? <span>Teach <span className="text-claude-accent">{teachSection + 1}/{teachSections.length}</span></span>
+                                    : <span>Teach</span>
+                            )}
                             {sessionStage === 'check' && (
-                                <><span className="opacity-40">Teach →</span>{' '}<span className="text-claude-accent">Check</span></>
+                                <><span className="opacity-40">Teach &rarr;</span>{' '}<span className="text-claude-accent">Check</span></>
                             )}
                             {sessionStage === 'feedback' && (
-                                <><span className="opacity-40">Check →</span>{' '}<span className="text-claude-accent">Feedback</span></>
+                                <><span className="opacity-40">Check &rarr;</span>{' '}<span className="text-claude-accent">Feedback</span></>
                             )}
                         </span>
                     </motion.div>
@@ -827,6 +902,365 @@ export default function GuideView() {
                 ) : null}
 
                 {sessionStage === 'teach' && currentCard ? (
+                    isToctStyleCard ? (
+                    /* ── Blackboard Lecture (TOCT-style cards) ── */
+                    <motion.section
+                        data-testid="river-session-teach"
+                        className="mt-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: PANEL_EASE }}
+                    >
+                        {/* Wooden frame */}
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={{
+                                padding: 'clamp(6px, 1.2vw, 14px)',
+                                background: 'linear-gradient(165deg, #5c3d2e 0%, #4a2f20 30%, #3d251a 70%, #2e1c13 100%)',
+                                boxShadow: '0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+                            }}
+                        >
+                            {/* Wood grain texture */}
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.12]"
+                                style={{
+                                    backgroundImage: 'repeating-linear-gradient(95deg, transparent, transparent 8px, rgba(255,220,180,0.15) 8px, rgba(255,220,180,0.15) 9px)',
+                                }}
+                            />
+
+                            {/* Chalkboard surface */}
+                            <div
+                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-5 py-6 sm:px-8 sm:py-8"
+                                style={{
+                                    background: 'linear-gradient(175deg, #2a4a3a 0%, #243f33 40%, #1e362c 70%, #1a3028 100%)',
+                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.35), inset 0 0 60px rgba(0,0,0,0.15)',
+                                }}
+                            >
+                                {/* Chalk dust particles overlay */}
+                                <div
+                                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.04]"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.6), transparent), radial-gradient(1.5px 1.5px at 45% 80%, rgba(255,255,255,0.5), transparent), radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.7), transparent)',
+                                    }}
+                                />
+
+                                {/* Chalk tray line at bottom */}
+                                <div
+                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                    style={{
+                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.06) 80%, transparent)',
+                                    }}
+                                />
+
+                                {/* River + section progress header */}
+                                <div className="flex items-start gap-4 sm:gap-6 mb-6 sm:mb-8">
+                                    <div className="shrink-0 w-[100px] sm:w-[140px]">
+                                        <RiverMascot state={riverState} caption={riverCaption} />
+                                    </div>
+                                    <div className="flex-1 min-w-0 pt-1">
+                                        <p
+                                            className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.2em]"
+                                            style={{ color: 'rgba(222,185,106,0.7)' }}
+                                        >
+                                            {guideData.session_meta.river_role} &middot; {teachSection + 1}/{teachSections.length}
+                                        </p>
+                                        <h2
+                                            className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-serif italic font-bold leading-tight"
+                                            style={{ color: '#e8dcc8' }}
+                                        >
+                                            <SubjectRenderer content={currentConcept?.title || currentCard.prompt} />
+                                        </h2>
+                                        {/* Chalk progress dots */}
+                                        <div className="mt-3 flex items-center gap-1.5">
+                                            {teachSections.map((section, i) => (
+                                                <div
+                                                    key={section.key}
+                                                    className="transition-all duration-500"
+                                                    style={{
+                                                        width: i <= teachSection ? 20 : 6,
+                                                        height: 4,
+                                                        borderRadius: 2,
+                                                        backgroundColor: i <= teachSection
+                                                            ? 'rgba(222,185,106,0.65)'
+                                                            : 'rgba(255,255,255,0.12)',
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Lecture sections ── */}
+                                <div className="space-y-6">
+                                    {teachSections.map((section, sectionIndex) => {
+                                        if (sectionIndex > teachSection) return null;
+                                        const isLatest = sectionIndex === teachSection;
+
+                                        return (
+                                            <motion.div
+                                                key={section.key}
+                                                ref={(el) => { sectionRefs.current[section.key] = el; }}
+                                                initial={{ opacity: 0, y: 12 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.5, ease: PANEL_EASE }}
+                                            >
+                                                {/* Section label */}
+                                                <div className="flex items-center gap-3 mb-3">
+                                                    <span
+                                                        className="text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.2em]"
+                                                        style={{ color: 'rgba(222,185,106,0.55)' }}
+                                                    >
+                                                        {section.label}
+                                                    </span>
+                                                    <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                                                </div>
+
+                                                {/* ── Explain section ── */}
+                                                {section.type === 'explain' && (
+                                                    <motion.div
+                                                        className="space-y-3"
+                                                        initial="hidden"
+                                                        animate="visible"
+                                                        variants={{
+                                                            hidden: {},
+                                                            visible: { transition: { staggerChildren: 0.06 } },
+                                                        }}
+                                                    >
+                                                        {currentCard.teaching.explain.split('\n\n').filter(Boolean).map((paragraph, pi) => (
+                                                            <motion.p
+                                                                key={pi}
+                                                                className="text-[15px] sm:text-base leading-[1.8] max-w-[72ch]"
+                                                                style={{ color: '#d4ccb8' }}
+                                                                variants={{
+                                                                    hidden: { opacity: 0, y: 6 },
+                                                                    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: PANEL_EASE } },
+                                                                }}
+                                                            >
+                                                                <SubjectRenderer content={paragraph} inline />
+                                                            </motion.p>
+                                                        ))}
+                                                    </motion.div>
+                                                )}
+
+                                                {/* ── Intuition section ── */}
+                                                {section.type === 'intuition' && (
+                                                    <div
+                                                        className="rounded-xl px-5 py-4"
+                                                        style={{
+                                                            backgroundColor: 'rgba(222,185,106,0.06)',
+                                                            border: '1px solid rgba(222,185,106,0.12)',
+                                                        }}
+                                                    >
+                                                        <p
+                                                            className="text-[15px] sm:text-base leading-[1.8] italic max-w-[68ch]"
+                                                            style={{ color: '#d4ccb8' }}
+                                                        >
+                                                            <SubjectRenderer content={currentCard.teaching.intuition} inline />
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* ── Worked example section ── */}
+                                                {section.type === 'worked_example' && section.data && (
+                                                    <div
+                                                        className="rounded-xl overflow-hidden"
+                                                        style={{
+                                                            backgroundColor: 'rgba(0,0,0,0.18)',
+                                                            border: '1px solid rgba(255,255,255,0.06)',
+                                                        }}
+                                                    >
+                                                        {/* Problem statement */}
+                                                        <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.55)' }}>
+                                                                Problem
+                                                            </p>
+                                                            <p className="mt-2 text-[15px] sm:text-base leading-[1.7] font-medium" style={{ color: '#e8dcc8' }}>
+                                                                <SubjectRenderer content={section.data.problem} inline />
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Steps */}
+                                                        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                                                            {section.data.steps.map((exStep, si) => {
+                                                                const stepKey = `${sectionIndex}-${si}`;
+                                                                const isExpanded = expandedSteps[stepKey];
+                                                                return (
+                                                                    <div key={si}>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => toggleStep(sectionIndex, si)}
+                                                                            className="w-full text-left px-5 py-3 flex items-start gap-3 transition-colors hover:bg-white/[0.02]"
+                                                                        >
+                                                                            <span
+                                                                                className="shrink-0 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-medium"
+                                                                                style={{
+                                                                                    backgroundColor: 'rgba(222,185,106,0.15)',
+                                                                                    color: 'rgba(222,185,106,0.8)',
+                                                                                }}
+                                                                            >
+                                                                                {si + 1}
+                                                                            </span>
+                                                                            <span className="flex-1 text-sm leading-6" style={{ color: '#d4ccb8' }}>
+                                                                                <SubjectRenderer content={exStep.step} inline />
+                                                                            </span>
+                                                                            <ChevronLeft
+                                                                                className="shrink-0 mt-0.5 w-4 h-4 transition-transform duration-200"
+                                                                                style={{
+                                                                                    color: 'rgba(255,255,255,0.25)',
+                                                                                    transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0)',
+                                                                                }}
+                                                                            />
+                                                                        </button>
+                                                                        {isExpanded && exStep.detail && (
+                                                                            <motion.div
+                                                                                initial={{ opacity: 0, height: 0 }}
+                                                                                animate={{ opacity: 1, height: 'auto' }}
+                                                                                exit={{ opacity: 0, height: 0 }}
+                                                                                transition={{ duration: 0.25, ease: PANEL_EASE }}
+                                                                                className="px-5 pb-3 pl-13"
+                                                                            >
+                                                                                <p className="text-sm leading-6" style={{ color: 'rgba(212,204,184,0.7)', paddingLeft: 32 }}>
+                                                                                    <SubjectRenderer content={exStep.detail} inline />
+                                                                                </p>
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+
+                                                        {/* Result + Takeaway */}
+                                                        {(section.data.result || section.data.takeaway) && (
+                                                            <div className="px-5 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(222,185,106,0.04)' }}>
+                                                                {section.data.result && (
+                                                                    <p className="text-sm leading-6 font-medium" style={{ color: '#e8dcc8' }}>
+                                                                        <SubjectRenderer content={section.data.result} inline />
+                                                                    </p>
+                                                                )}
+                                                                {section.data.takeaway && (
+                                                                    <p className="mt-1 text-sm leading-6 italic" style={{ color: 'rgba(222,185,106,0.6)' }}>
+                                                                        {section.data.takeaway}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* ── Common mistakes section ── */}
+                                                {section.type === 'common_mistakes' && (
+                                                    <div className="space-y-2.5">
+                                                        {currentCard.teaching.common_mistakes.map((mistake, mi) => (
+                                                            <div
+                                                                key={mi}
+                                                                className="flex items-start gap-3 rounded-xl px-4 py-3"
+                                                                style={{
+                                                                    backgroundColor: 'rgba(213,150,120,0.08)',
+                                                                    border: '1px solid rgba(213,150,120,0.15)',
+                                                                }}
+                                                            >
+                                                                <span className="shrink-0 mt-0.5 text-sm" style={{ color: 'rgba(213,150,120,0.7)' }}>&times;</span>
+                                                                <p className="text-sm leading-6" style={{ color: '#d4ccb8' }}>
+                                                                    <SubjectRenderer content={mistake} inline />
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* ── Legacy: steps ── */}
+                                                {section.type === 'legacy_steps' && (
+                                                    <div className="space-y-2.5">
+                                                        {currentCard.teaching.steps.map((step, si) => (
+                                                            <div
+                                                                key={si}
+                                                                className="flex items-start gap-3 rounded-xl px-4 py-3"
+                                                                style={{
+                                                                    backgroundColor: 'rgba(0,0,0,0.15)',
+                                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                                }}
+                                                            >
+                                                                <span className="shrink-0 mt-0.5 text-sm font-mono" style={{ color: 'rgba(222,185,106,0.6)' }}>{si + 1}.</span>
+                                                                <p className="text-sm leading-6" style={{ color: '#d4ccb8' }}>
+                                                                    <SubjectRenderer content={step} inline />
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* ── Legacy: why it matters ── */}
+                                                {section.type === 'legacy_why' && (
+                                                    <div>
+                                                        <p className="text-sm leading-7" style={{ color: 'rgba(212,204,184,0.75)' }}>
+                                                            <SubjectRenderer content={currentCard.teaching.why_it_matters} />
+                                                        </p>
+                                                        {currentCard.teaching.example && (
+                                                            <div
+                                                                className="mt-3 rounded-xl px-4 py-3"
+                                                                style={{
+                                                                    backgroundColor: 'rgba(0,0,0,0.15)',
+                                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                                }}
+                                                            >
+                                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] mb-2" style={{ color: 'rgba(222,185,106,0.45)' }}>
+                                                                    Example
+                                                                </p>
+                                                                <p className="text-sm leading-6" style={{ color: '#d4ccb8' }}>
+                                                                    <SubjectRenderer content={currentCard.teaching.example} inline />
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* ── Bottom actions ── */}
+                                <div className="mt-8 flex flex-wrap items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={teachSection < teachSections.length - 1 ? handleAdvanceTeach : handleBeginCheck}
+                                        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all duration-200"
+                                        style={{
+                                            backgroundColor: teachSection < teachSections.length - 1
+                                                ? 'rgba(222,185,106,0.15)'
+                                                : 'rgba(222,185,106,0.9)',
+                                            color: teachSection < teachSections.length - 1 ? '#deb96a' : '#1a3028',
+                                            border: teachSection < teachSections.length - 1 ? '1px solid rgba(222,185,106,0.25)' : 'none',
+                                        }}
+                                    >
+                                        {teachSection < teachSections.length - 1
+                                            ? `Continue \u2192 ${teachSections[teachSection + 1]?.label}`
+                                            : 'I\u2019m ready to answer'}
+                                    </button>
+                                    {teachSection < teachSections.length - 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleBeginCheck}
+                                            className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 py-2 text-sm transition-colors"
+                                            style={{ color: 'rgba(212,204,184,0.45)' }}
+                                        >
+                                            Skip to question
+                                        </button>
+                                    )}
+                                    <span className="flex-1" aria-hidden="true" />
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveAndLeave}
+                                        className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2 text-xs transition-colors"
+                                        style={{ color: 'rgba(212,204,184,0.35)' }}
+                                    >
+                                        Save and leave
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.section>
+                    ) : (
+                    /* ── Legacy teach layout (old v4 cards without TOCT fields) ── */
                     <motion.section
                         data-testid="river-session-teach"
                         className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
@@ -841,7 +1275,7 @@ export default function GuideView() {
                                 <motion.div
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: 0, ease: PANEL_EASE }}
+                                    transition={{ duration: 0.3, ease: PANEL_EASE }}
                                 >
                                     <div className="rounded-[1.8rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-5">
                                         <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
@@ -929,6 +1363,7 @@ export default function GuideView() {
                             </div>
                         </div>
                     </motion.section>
+                    )
                 ) : null}
 
                 {sessionStage === 'check' && currentCard ? (

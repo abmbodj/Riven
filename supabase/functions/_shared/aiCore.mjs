@@ -404,7 +404,7 @@ Required structure:
       "date": "YYYY-MM-DD or empty string"
     },
     "source_mode": "setup|source|hybrid",
-    "estimated_minutes": 18,
+    "estimated_minutes": 25,
     "lecture_style": "storybook seminar",
     "preferred_tutor_tone": "calm, precise, encouraging",
     "river_role": "friendly lecture cat"
@@ -489,7 +489,20 @@ Required structure:
         "struggle": "line when the student struggles"
       },
       "teaching": {
-        "explain": "short lecture explanation before the recall check",
+        "explain": "3-5 paragraph thorough explanation (minimum 400 words). Build understanding progressively: what the concept is, how it works mechanically, then why it behaves this way. Never summarize in one paragraph.",
+        "intuition": "The 'why' behind this concept — a mental model, analogy, or intuitive explanation that makes it click. Use 'imagine...', 'think of it like...', or 'the reason this works is...'",
+        "worked_examples": [
+          {
+            "title": "Example 1: Basic application",
+            "problem": "Clear problem statement",
+            "steps": [
+              { "step": "What to do in this step", "detail": "Why this step works and how to think about it" }
+            ],
+            "result": "The final answer with units or context",
+            "takeaway": "The one thing this example teaches"
+          }
+        ],
+        "common_mistakes": ["mistake 1: what students get wrong and why it is wrong", "mistake 2: another common error with correction"],
         "example": "concrete contextual example",
         "steps": ["step 1", "step 2", "step 3"],
         "why_it_matters": "why this concept matters in the bigger picture"
@@ -571,13 +584,15 @@ Required structure:
     "river_cue": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
   }
 }
-Build a tutor session, not a study guide, notes page, or passive summary.
-Use active recall first. Ask before telling whenever possible.
-Structure the experience like a lecture: intro -> teach -> check understanding -> feedback -> complete.
-Create a 3-8 card, one-card-at-a-time training flow with a low-pressure diagnostic start, early success, rising challenge, at least one recovery path, and a mastery finish.
-Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, teaching content, assist_options, presentation cues, and feedback variants.
+Build a tutor session in the style of The Organic Chemistry Tutor: teach thoroughly first, THEN check understanding.
+Structure the experience like a deep lecture: intro -> thorough explanation -> worked examples -> common mistakes -> check understanding -> feedback -> complete.
+Create a 2-4 card, one-card-at-a-time training flow. Each card should feel like a 5-8 minute video lesson: thorough explanation, intuitive reasoning, 2-3 worked examples building in difficulty, and explicit common mistakes BEFORE asking the student to try.
+The "teaching.explain" field MUST be 3-5 paragraphs (at minimum 400 words). Never produce a single-paragraph explanation. Build understanding layer by layer.
+The "teaching.worked_examples" array MUST contain 2-3 complete worked examples. Each example must show every step with detailed reasoning in the "detail" field. Examples should progress from straightforward to more challenging.
+The "teaching.intuition" field MUST provide a mental model, analogy, or intuitive explanation that makes the concept click.
+The "teaching.common_mistakes" array MUST list 2-3 mistakes students commonly make, with clear explanations of why each is wrong.
+Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, teaching content, presentation cues, and feedback variants.
 River must stay central, warm, slightly playful, and distinct. Use the green knit beanie as a signature trait.
-Assist options must feel instant and pre-authored, never like open-ended tutor chat.
 Partial answers should usually count as good enough progress when the learner shows real understanding; reserve hard stops for clear misconceptions.
 Keep prompts concise. Keep target answers concise. Keep River premium, calm, clear, and emotionally supportive.`;
 };
