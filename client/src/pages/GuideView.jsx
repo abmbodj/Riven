@@ -772,15 +772,48 @@ export default function GuideView() {
                     Back to Tutor Sessions
                 </button>
 
-                <div
-                    data-testid="river-session-unsupported"
-                    className="mx-auto mt-12 max-w-2xl rounded-[1.75rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
-                >
-                    <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">River Session</p>
-                    <h1 className="mt-3 text-3xl font-serif italic font-bold">This guide is no longer supported</h1>
-                    <p className="mt-4 text-sm leading-6 text-claude-secondary">
-                        River Tutor Session v4 is a hard cutover. Older study-guide and exam-coach artifacts no longer run inside this route.
-                    </p>
+                <div data-testid="river-session-unsupported" className="mx-auto mt-12 max-w-2xl">
+                    <div
+                        className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                        style={{
+                            padding: 'clamp(6px, 1vw, 12px)',
+                            background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+                            boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+                        }}
+                    >
+                        <div
+                            className="pointer-events-none absolute inset-0 opacity-[0.1]"
+                            style={{
+                                backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+                            }}
+                        />
+                        <div
+                            className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
+                            style={{
+                                background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+                                boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
+                                style={{
+                                    backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
+                                }}
+                            />
+                            <div
+                                className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                style={{
+                                    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+                                }}
+                            />
+
+                            <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>River Session</p>
+                            <h1 className="mt-3 text-3xl font-serif italic font-bold" style={{ color: '#efe4d1' }}>This guide is no longer supported</h1>
+                            <p className="mt-4 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                River Tutor Session v4 is a hard cutover. Older study-guide and exam-coach artifacts no longer run inside this route.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -852,57 +885,93 @@ export default function GuideView() {
                 {sessionStage === 'intro' ? (
                     <motion.section
                         data-testid="river-session-intro"
-                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.42, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-                            <div>
-                                <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-accent">Today's lecture</p>
-                                <h1 className="mt-3 text-4xl sm:text-5xl font-serif italic font-bold tracking-tight">{title}</h1>
-                                <p className="mt-4 max-w-2xl text-sm leading-6 text-claude-secondary">
-                                    {guideData.lecture.opening}
-                                </p>
-                                <div className="mt-6 grid gap-3 md:grid-cols-3">
-                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Subject</p>
-                                        <p className="mt-2 text-lg font-semibold">{guideData.session_meta.subject}</p>
-                                    </div>
-                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Goal</p>
-                                        <p className="mt-2 text-sm leading-6">{guideData.session_meta.student_goal}</p>
-                                    </div>
-                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Style</p>
-                                        <p className="mt-2 text-sm leading-6 capitalize">{guideData.session_meta.lecture_style}</p>
-                                    </div>
-                                </div>
-                                {guideData.lecture.agenda.length > 0 ? (
-                                    <div className="mt-6 rounded-[1.6rem] border border-white/8 bg-[rgba(255,255,255,0.02)] p-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Agenda</p>
-                                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                                            {guideData.lecture.agenda.map((item, index) => (
-                                                <div key={`${item}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
-                                                    <span className="mr-2 text-claude-accent">{index + 1}.</span>
-                                                    {item}
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={{
+                                padding: 'clamp(6px, 1vw, 12px)',
+                                background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+                                boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.1]"
+                                style={{
+                                    backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+                                }}
+                            />
+                            <div
+                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
+                                style={{
+                                    background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+                                }}
+                            >
+                                <div
+                                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
+                                    }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                    style={{
+                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+                                    }}
+                                />
+
+                                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                                    <div>
+                                        <p className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(222,185,106,0.78)' }}>Today's lecture</p>
+                                        <h1 className="mt-3 text-4xl sm:text-5xl font-serif italic font-bold tracking-tight" style={{ color: '#efe4d1' }}>{title}</h1>
+                                        <p className="mt-4 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                            {guideData.lecture.opening}
+                                        </p>
+                                        <div className="mt-6 grid gap-3 md:grid-cols-3">
+                                            <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Subject</p>
+                                                <p className="mt-2 text-lg font-semibold" style={{ color: '#efe4d1' }}>{guideData.session_meta.subject}</p>
+                                            </div>
+                                            <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Goal</p>
+                                                <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.student_goal}</p>
+                                            </div>
+                                            <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Style</p>
+                                                <p className="mt-2 text-sm leading-6 capitalize" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.lecture_style}</p>
+                                            </div>
+                                        </div>
+                                        {guideData.lecture.agenda.length > 0 ? (
+                                            <div className="mt-6 rounded-[1.6rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Agenda</p>
+                                                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                                    {guideData.lecture.agenda.map((item, index) => (
+                                                        <div key={`${item}-${index}`} className="rounded-[1rem] border px-3 py-3 text-sm leading-6" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)', color: 'rgba(228,219,201,0.9)' }}>
+                                                            <span className="mr-2" style={{ color: 'rgba(222,185,106,0.85)' }}>{index + 1}.</span>
+                                                            {item}
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
+                                            </div>
+                                        ) : null}
+                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleStart}
+                                                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                            >
+                                                Start with River
+                                            </button>
                                         </div>
                                     </div>
-                                ) : null}
-                                <div className="mt-6 flex flex-wrap gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={handleStart}
-                                        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
-                                    >
-                                        Start with River
-                                    </button>
+
+                                    <RiverMascot state={riverState} caption={riverCaption} />
                                 </div>
                             </div>
-
-                            <RiverMascot state={riverState} caption={riverCaption} />
                         </div>
                     </motion.section>
                 ) : null}
@@ -1000,7 +1069,6 @@ export default function GuideView() {
                                 <div className="space-y-6">
                                     {teachSections.map((section, sectionIndex) => {
                                         if (sectionIndex > teachSection) return null;
-                                        const isLatest = sectionIndex === teachSection;
 
                                         return (
                                             <motion.div
@@ -1269,26 +1337,61 @@ export default function GuideView() {
                     /* ── Legacy teach layout (old v4 cards without TOCT fields) ── */
                     <motion.section
                         data-testid="river-session-teach"
-                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.32, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-                            <RiverMascot state={riverState} caption={riverCaption} />
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={{
+                                padding: 'clamp(6px, 1vw, 12px)',
+                                background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+                                boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.1]"
+                                style={{
+                                    backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+                                }}
+                            />
 
-                            <div className="space-y-4">
+                            <div
+                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
+                                style={{
+                                    background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+                                }}
+                            >
+                                <div
+                                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
+                                    }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                    style={{
+                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+                                    }}
+                                />
+
+                                <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                                    <RiverMascot state={riverState} caption={riverCaption} />
+
+                                    <div className="space-y-4">
                                 <motion.div
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3, ease: PANEL_EASE }}
                                 >
-                                    <div className="rounded-[1.8rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-5">
-                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
+                                    <div className="rounded-[1.8rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', background: 'linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))' }}>
+                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.8)' }}>
                                             {guideData.session_meta.river_role}
                                         </p>
-                                        <h2 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold leading-tight"><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></h2>
-                                        <div className="mt-4 text-base leading-7 text-claude-text">
+                                        <h2 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold leading-tight" style={{ color: '#efe4d1' }}><SubjectRenderer content={currentConcept?.title || currentCard.prompt} /></h2>
+                                        <div className="mt-4 text-base leading-7" style={{ color: 'rgba(228,219,201,0.9)' }}>
                                             <SubjectRenderer content={currentCard.teaching.explain} />
                                         </div>
                                     </div>
@@ -1300,24 +1403,24 @@ export default function GuideView() {
                                     transition={{ duration: 0.3, delay: 0.08, ease: PANEL_EASE }}
                                 >
                                     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                                        <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Breakdown</p>
+                                        <div className="rounded-[1.6rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Breakdown</p>
                                             <div className="mt-3 space-y-2.5">
                                                 {currentCard.teaching.steps.map((step, index) => (
-                                                    <div key={`${step}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
-                                                        <span className="mr-2 text-claude-accent">{index + 1}.</span>
+                                                    <div key={`${step}-${index}`} className="rounded-[1rem] border px-3 py-3 text-sm leading-6" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)', color: 'rgba(228,219,201,0.9)' }}>
+                                                        <span className="mr-2" style={{ color: 'rgba(222,185,106,0.85)' }}>{index + 1}.</span>
                                                         <SubjectRenderer content={step} inline />
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Why it matters</p>
-                                            <div className="mt-3 text-sm leading-6 text-claude-secondary"><SubjectRenderer content={currentCard.teaching.why_it_matters} /></div>
-                                            <div className="mt-4 rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3">
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Anchor example</p>
-                                                <div className="mt-2 text-sm leading-6 text-claude-text"><SubjectRenderer content={currentCard.teaching.example} /></div>
+                                        <div className="rounded-[1.6rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Why it matters</p>
+                                            <div className="mt-3 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}><SubjectRenderer content={currentCard.teaching.why_it_matters} /></div>
+                                            <div className="mt-4 rounded-[1rem] border px-3 py-3" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Anchor example</p>
+                                                <div className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.9)' }}><SubjectRenderer content={currentCard.teaching.example} /></div>
                                             </div>
                                         </div>
                                     </div>
@@ -1328,22 +1431,23 @@ export default function GuideView() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3, delay: 0.16, ease: PANEL_EASE }}
                                 >
-                                <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Ask River</p>
+                                <div className="rounded-[1.6rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Ask River</p>
                                     <div className="mt-3 flex flex-wrap gap-2.5">
                                         {assistOptions.map((option) => (
                                             <button
                                                 key={option.id}
                                                 type="button"
                                                 onClick={() => handleSelectAssist(option)}
-                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-claude-text transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10"
+                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10"
+                                                style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(228,219,201,0.9)' }}
                                             >
                                                 {option.label}
                                             </button>
                                         ))}
                                     </div>
                                     {activeAssistOption ? (
-                                        <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6 text-claude-text">
+                                        <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.92)' }}>
                                             <SubjectRenderer content={activeAssistOption.text} />
                                         </div>
                                     ) : null}
@@ -1361,11 +1465,14 @@ export default function GuideView() {
                                     <button
                                         type="button"
                                         onClick={handleSaveAndLeave}
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-secondary transition-colors hover:text-claude-text"
+                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                        style={{ borderColor: 'rgba(255,255,255,0.2)', color: 'rgba(228,219,201,0.82)' }}
                                     >
                                         Save and leave
                                     </button>
                                 </div>
+                            </div>
+                        </div>
                             </div>
                         </div>
                     </motion.section>
@@ -1457,7 +1564,7 @@ export default function GuideView() {
                                                 disabled={submitting}
                                                 className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
                                             >
-                                                {submitting ? 'Checking…' : 'Submit Answer'}
+                                                {submitting ? 'Checking...' : 'Submit Answer'}
                                             </button>
                                             <button
                                                 type="button"
@@ -1501,143 +1608,186 @@ export default function GuideView() {
                 {sessionStage === 'feedback' && currentCard && result ? (
                     <motion.section
                         data-testid="river-session-feedback"
-                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.28, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-                            <RiverMascot state={riverState} caption={riverCaption} />
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={{
+                                padding: 'clamp(6px, 1vw, 12px)',
+                                background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+                                boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.1]"
+                                style={{
+                                    backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+                                }}
+                            />
 
-                            <div className="space-y-4">
+                            <div
+                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
+                                style={{
+                                    background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+                                }}
+                            >
                                 <div
-                                    className="rounded-[1.6rem] border p-5 transition-colors duration-500"
+                                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
                                     style={{
-                                        borderColor: `${poseAccent}38`,
-                                        backgroundColor: `${poseAccent}0e`,
+                                        backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
                                     }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River's feedback</p>
-                                        {result.outcome && result.outcome !== 'revealed' ? (
-                                            <span
-                                                className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
+                                />
+                                <div
+                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                    style={{
+                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+                                    }}
+                                />
+
+                                <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                                    <RiverMascot state={riverState} caption={riverCaption} />
+
+                                    <div className="space-y-4">
+                                        <div
+                                            className="rounded-[1.6rem] border p-5 transition-colors duration-500"
+                                            style={{
+                                                borderColor: `${poseAccent}48`,
+                                                backgroundColor: 'rgba(0,0,0,0.16)',
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River's feedback</p>
+                                                {result.outcome && result.outcome !== 'revealed' ? (
+                                                    <span
+                                                        className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
+                                                        style={{
+                                                            color: '#efe4d1',
+                                                            backgroundColor: `${poseAccent}26`,
+                                                            border: `1px solid ${poseAccent}4a`,
+                                                        }}
+                                                    >
+                                                        {result.outcome}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <p className="mt-3 text-base leading-7" style={{ color: 'rgba(228,219,201,0.9)' }}>{result.feedback}</p>
+                                        </div>
+
+                                        {(result.shouldAdvance || result.outcome === 'revealed') && (
+                                            <div className="rounded-[1.6rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Model answer</p>
+                                                <p className="mt-3 text-base leading-7" style={{ color: 'rgba(228,219,201,0.9)' }}>{result.modelAnswer}</p>
+                                            </div>
+                                        )}
+
+                                        {result.missingTags?.length ? (
+                                            <div
+                                                className="rounded-[1.4rem] border p-4"
                                                 style={{
-                                                    color: poseAccent,
-                                                    backgroundColor: `${poseAccent}1a`,
-                                                    border: `1px solid ${poseAccent}33`,
+                                                    borderColor: 'rgba(255,255,255,0.16)',
+                                                    backgroundColor: 'rgba(0,0,0,0.16)',
                                                 }}
                                             >
-                                                {result.outcome}
-                                            </span>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>
+                                                    Concepts to revisit
+                                                </p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {result.missingTags.map((tag) => (
+                                                        <span
+                                                            key={tag}
+                                                            className="rounded-full px-3 py-1.5 text-xs"
+                                                            style={{
+                                                                border: `1px solid ${poseAccent}40`,
+                                                                backgroundColor: `${poseAccent}20`,
+                                                                color: '#efe4d1',
+                                                            }}
+                                                        >
+                                                            {tag.replace(/-/g, ' ')}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         ) : null}
-                                    </div>
-                                    <p className="mt-3 text-base leading-7 text-claude-text">{result.feedback}</p>
-                                </div>
 
-                                <div className="rounded-[1.6rem] border border-claude-accent/18 bg-claude-accent/8 p-5">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Model answer</p>
-                                    <p className="mt-3 text-base leading-7 text-claude-text">{result.modelAnswer}</p>
-                                </div>
-
-                                {result.missingTags?.length ? (
-                                    <div
-                                        className="rounded-[1.4rem] border p-4"
-                                        style={{
-                                            borderColor: `${poseAccent}25`,
-                                            backgroundColor: `${poseAccent}08`,
-                                        }}
-                                    >
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
-                                            Concepts to revisit
-                                        </p>
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            {result.missingTags.map((tag) => (
-                                                <span
-                                                    key={tag}
-                                                    className="rounded-full px-3 py-1.5 text-xs text-claude-text"
-                                                    style={{
-                                                        border: `1px solid ${poseAccent}2e`,
-                                                        backgroundColor: `${poseAccent}12`,
-                                                    }}
+                                        {result.followUpQuestion && !result.shouldAdvance ? (
+                                            <motion.div
+                                                className="rounded-[1.6rem] border p-5"
+                                                style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.35, delay: 0.12, ease: PANEL_EASE }}
+                                            >
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River's hint</p>
+                                                <p className="mt-3 text-base leading-7 italic" style={{ color: 'rgba(228,219,201,0.9)' }}>
+                                                    {result.followUpQuestion}
+                                                </p>
+                                                <label
+                                                    htmlFor="river-refined-answer"
+                                                    className="mt-4 block text-[10px] font-mono uppercase tracking-[0.16em]"
+                                                    style={{ color: 'rgba(222,185,106,0.62)' }}
                                                 >
-                                                    {tag.replace(/-/g, ' ')}
-                                                </span>
-                                            ))}
+                                                    Refine your answer
+                                                </label>
+                                                <textarea
+                                                    id="river-refined-answer"
+                                                    aria-label="Refine your answer"
+                                                    value={refinedAnswer}
+                                                    onChange={(event) => setRefinedAnswer(event.target.value)}
+                                                    disabled={submitting}
+                                                    className="mt-2 min-h-[120px] w-full rounded-[1.2rem] border px-4 py-3 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                                    style={{
+                                                        color: '#f1e8d8',
+                                                        backgroundColor: 'rgba(15, 35, 28, 0.28)',
+                                                        borderColor: `${poseAccent}42`,
+                                                        boxShadow: 'inset 0 1px 6px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)',
+                                                    }}
+                                                    placeholder="Try again with River's hint in mind..."
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRefinedSubmit}
+                                                    disabled={submitting || !refinedAnswer.trim()}
+                                                    className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                                                >
+                                                    {submitting ? 'Checking...' : 'Submit refined answer'}
+                                                </button>
+                                            </motion.div>
+                                        ) : null}
+
+                                        <div className="flex flex-wrap gap-3">
+                                            {result.shouldAdvance ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAdvance}
+                                                    className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                >
+                                                    Keep going
+                                                </button>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleTryAgain}
+                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                        style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                                    >
+                                                        Try again
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAdvance}
+                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                    >
+                                                        Continue anyway
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
-                                ) : null}
-
-                                {result.followUpQuestion && !result.shouldAdvance ? (
-                                    <motion.div
-                                        className="rounded-[1.6rem] border border-claude-accent/25 bg-claude-accent/6 p-5"
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.35, delay: 0.12, ease: PANEL_EASE }}
-                                    >
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">River's follow-up</p>
-                                        <p className="mt-3 text-base leading-7 text-claude-text italic">
-                                            {result.followUpQuestion}
-                                        </p>
-                                        <label
-                                            htmlFor="river-refined-answer"
-                                            className="mt-4 block text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary"
-                                        >
-                                            Refine your answer
-                                        </label>
-                                        <textarea
-                                            id="river-refined-answer"
-                                            aria-label="Refine your answer"
-                                            value={refinedAnswer}
-                                            onChange={(event) => setRefinedAnswer(event.target.value)}
-                                            disabled={submitting}
-                                            className="mt-2 min-h-[120px] w-full rounded-[1.2rem] border px-4 py-3 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
-                                            style={{
-                                                color: '#f1e8d8',
-                                                backgroundColor: 'rgba(15, 35, 28, 0.28)',
-                                                borderColor: `${poseAccent}42`,
-                                                boxShadow: 'inset 0 1px 6px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)',
-                                            }}
-                                            placeholder="Try again with River's hint in mind…"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={handleRefinedSubmit}
-                                            disabled={submitting || !refinedAnswer.trim()}
-                                            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
-                                        >
-                                            {submitting ? 'Checking…' : 'Submit refined answer'}
-                                        </button>
-                                    </motion.div>
-                                ) : null}
-
-                                <div className="flex flex-wrap gap-3">
-                                    {result.shouldAdvance ? (
-                                        <button
-                                            type="button"
-                                            onClick={handleAdvance}
-                                            className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
-                                        >
-                                            Keep going
-                                        </button>
-                                    ) : (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={handleTryAgain}
-                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-accent/30 bg-claude-accent/8 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/14"
-                                            >
-                                                Try again
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleAdvance}
-                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
-                                            >
-                                                Continue anyway
-                                            </button>
-                                        </>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1647,70 +1797,108 @@ export default function GuideView() {
                 {sessionStage === 'complete' ? (
                     <motion.section
                         data-testid="river-session-complete"
-                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.34, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-                            <div>
-                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                    {completionIsPartial ? 'Session saved' : 'Session complete'}
-                                </p>
-                                <h1 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold">
-                                    {completionIsPartial ? 'Session saved' : (guideData.completion?.title || 'Session complete')}
-                                </h1>
-                                <p className="mt-4 max-w-2xl text-sm leading-6 text-claude-secondary">
-                                    {completionIsPartial
-                                        ? 'River has preserved this lecture exactly where you left it.'
-                                        : (guideData.completion?.mastery_message || 'You converted recall into structure.')}
-                                </p>
-                                <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
-                                    {getCompleteCaption(guideData, completionPayload)}
-                                </p>
-                                {completionPayload ? (
-                                    <div className="mt-8">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">XP earned</p>
-                                        <p className="mt-1 font-serif italic text-7xl font-bold tabular-nums leading-none text-claude-text">
-                                            {animatedXP}
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={{
+                                padding: 'clamp(6px, 1vw, 12px)',
+                                background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+                                boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.1]"
+                                style={{
+                                    backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+                                }}
+                            />
+
+                            <div
+                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
+                                style={{
+                                    background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+                                }}
+                            >
+                                <div
+                                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
+                                    }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                    style={{
+                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+                                    }}
+                                />
+
+                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                                    <div>
+                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                            {completionIsPartial ? 'Session saved' : 'Session complete'}
                                         </p>
-                                        <div className="mt-6 flex flex-wrap gap-8">
-                                            <div>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Mastery</p>
-                                                <p className="mt-1 text-2xl font-semibold tabular-nums">{animatedMastery}%</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Next review</p>
-                                                <p className="mt-1 text-base font-medium">
-                                                    {completionPayload.nextReviewAt
-                                                        ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
-                                                        : 'When you are ready'}
+                                        <h1 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold" style={{ color: '#efe4d1' }}>
+                                            {completionIsPartial ? 'Session saved' : (guideData.completion?.title || 'Session complete')}
+                                        </h1>
+                                        <p className="mt-4 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                            {completionIsPartial
+                                                ? 'River has preserved this lecture exactly where you left it.'
+                                                : (guideData.completion?.mastery_message || 'You converted recall into structure.')}
+                                        </p>
+                                        <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                            {getCompleteCaption(guideData, completionPayload)}
+                                        </p>
+                                        {completionPayload ? (
+                                            <div className="mt-8 rounded-[1.4rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>XP earned</p>
+                                                <p className="mt-1 font-serif italic text-7xl font-bold tabular-nums leading-none" style={{ color: '#efe4d1' }}>
+                                                    {animatedXP}
                                                 </p>
+                                                <div className="mt-6 flex flex-wrap gap-8">
+                                                    <div>
+                                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Mastery</p>
+                                                        <p className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: '#efe4d1' }}>{animatedMastery}%</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Next review</p>
+                                                        <p className="mt-1 text-base font-medium" style={{ color: 'rgba(228,219,201,0.92)' }}>
+                                                            {completionPayload.nextReviewAt
+                                                                ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
+                                                                : 'When you are ready'}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
+                                        ) : null}
+                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            {completionIsPartial ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleResumeFromWrapUp}
+                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                >
+                                                    Resume session
+                                                </button>
+                                            ) : null}
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/guides')}
+                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
+                                            >
+                                                Back to Tutor Sessions
+                                            </button>
                                         </div>
                                     </div>
-                                ) : null}
-                                <div className="mt-6 flex flex-wrap gap-3">
-                                    {completionIsPartial ? (
-                                        <button
-                                            type="button"
-                                            onClick={handleResumeFromWrapUp}
-                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
-                                        >
-                                            Resume session
-                                        </button>
-                                    ) : null}
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/guides')}
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35"
-                                    >
-                                        Back to Tutor Sessions
-                                    </button>
+
+                                    <RiverMascot state={riverState} caption={riverCaption} />
                                 </div>
                             </div>
-
-                            <RiverMascot state={riverState} caption={riverCaption} />
                         </div>
                     </motion.section>
                 ) : null}
