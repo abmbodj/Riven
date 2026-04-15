@@ -219,6 +219,7 @@ export default function GuideView() {
 
     useEffect(() => {
         loadGuide();
+        api.warmupAiFunctions('study-session-complete');
     }, [loadGuide]);
 
     const unsupported = formatVersion < ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION || !guideData;
@@ -311,7 +312,12 @@ export default function GuideView() {
             }));
             setSessionStage('complete');
         } catch (error) {
-            const message = error?.body?.error || error?.message || 'Failed to complete tutor session';
+            const isNetworkError = error instanceof TypeError && !error.status;
+            const message = error?.body?.error
+                || (isNetworkError
+                    ? 'Unable to save your session — check your connection and try again.'
+                    : error?.message)
+                || 'Failed to complete tutor session';
             toastRef.current.error(message);
             finalizingRef.current = false;
         }

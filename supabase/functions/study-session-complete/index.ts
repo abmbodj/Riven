@@ -169,6 +169,9 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  if (request.headers.get('x-warmup') === '1') {
+    return new Response('ok', { status: 200, headers: getCorsHeaders(request) });
+  }
   const rl = await checkRateLimit(request, 'default');
   if (rl) return rl;
 
