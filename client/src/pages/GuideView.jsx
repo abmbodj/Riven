@@ -1026,7 +1026,7 @@ export default function GuideView() {
                                                             visible: { transition: { staggerChildren: 0.06 } },
                                                         }}
                                                     >
-                                                        {currentCard.teaching.explain.split('\n\n').filter(Boolean).map((paragraph, pi) => (
+                                                        {currentCard?.teaching?.explain && currentCard.teaching.explain.split('\n\n').filter(Boolean).map((paragraph, pi) => (
                                                             <motion.p
                                                                 key={pi}
                                                                 className="text-[15px] sm:text-base leading-[1.8] max-w-[72ch]"
