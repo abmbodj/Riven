@@ -632,14 +632,16 @@ export default function DeckLibrary() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => { if (!isSelectMode) setIsSearchOpen(true); }}
-                        className="flex-1 flex items-center gap-3 p-3 glass-panel rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                        aria-disabled={isSelectMode}
+                        className={`flex-1 flex items-center gap-3 p-3 glass-panel rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${isSelectMode ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
                     >
                         <Search className="w-5 h-5 opacity-60 ml-1" />
                         <span className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Search collection...</span>
                     </button>
                     <button
                         onClick={() => { if (!isSelectMode) setIsMenuOpen(true); }}
-                        className={`p-3.5 border rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                        aria-disabled={isSelectMode}
+                        className={`p-3.5 border rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${isSelectMode ? 'opacity-40 cursor-not-allowed pointer-events-none' : activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                     >
                         {activeFolder || activeTag ? <Filter className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>

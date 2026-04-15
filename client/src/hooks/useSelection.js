@@ -27,13 +27,18 @@ export function useSelection(items) {
         });
     }, []);
 
+    const allItemsSelected = useCallback(
+        (idSet) => items.length > 0 && items.every(item => idSet.has(item.id)),
+        [items]
+    );
+
     const toggleSelectAll = useCallback(() => {
         setSelectedIds(prev =>
-            prev.size === items.length && items.length > 0
+            allItemsSelected(prev)
                 ? new Set()
                 : new Set(items.map(item => item.id))
         );
-    }, [items]);
+    }, [items, allItemsSelected]);
 
     const isSelected = useCallback((id) => selectedIds.has(id), [selectedIds]);
 
@@ -49,7 +54,7 @@ export function useSelection(items) {
         isSelectMode,
         selectedIds,
         selectedCount: selectedIds.size,
-        isAllSelected: items.length > 0 && selectedIds.size === items.length,
+        isAllSelected: allItemsSelected(selectedIds),
         enterSelectMode,
         exitSelectMode,
         toggleSelect,

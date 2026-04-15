@@ -152,7 +152,8 @@ export default function NotesLibrary() {
 
     const handleBulkDelete = async () => {
         const ids = [...selectedIds];
-        setNotes(prev => prev.filter(n => !selectedIds.has(n.id)));
+        const idSet = new Set(ids);
+        setNotes(prev => prev.filter(n => !idSet.has(n.id)));
         exitSelectMode();
         try {
             await api.bulkDeleteNotes(ids);

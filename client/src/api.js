@@ -302,8 +302,9 @@ export const api = {
     },
     bulkDeleteDecks: async (ids) => {
         cache.delete(cacheKey('decks'));
+        const loggedIn = isLoggedIn();
         return Promise.all(ids.map(id =>
-            isLoggedIn() ? serverApi.deleteDeck(id) : db.deleteDeck(id)
+            loggedIn ? serverApi.deleteDeck(id) : db.deleteDeck(id)
         ));
     },
     duplicateDeck: (id) => {
