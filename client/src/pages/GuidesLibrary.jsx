@@ -2,13 +2,15 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    BookOpen, ChevronLeft, Sparkles, Calendar, Clock3, Loader2, X, Upload, Check, ArrowRight, Target, Play
+    BookOpen, ChevronLeft, Sparkles, Calendar, Clock3, Loader2, X, Upload, Check, ArrowRight, Target, Play, CheckSquare
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import OnboardingArt from '../components/OnboardingArt.jsx';
+import { useSelection } from '../hooks/useSelection';
+import BulkActionBar from '../components/BulkActionBar';
 import {
     estimateSessionEffortMinutes,
     getGuideMasterySnapshot,
@@ -32,7 +34,7 @@ const getGuideDisplayLabel = (guide) => (
     isActiveRecallGuide(guide) ? 'tutor session' : 'unsupported guide'
 );
 
-const GuideCard = memo(({ guide, classes, index }) => {
+const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelected = false, onToggle }) => {
     const navigate = useNavigate();
     const cls = guide.class_id ? classes.find(c => c.id === guide.class_id) : null;
     const activeRecall = isActiveRecallGuide(guide);
@@ -70,8 +72,9 @@ const GuideCard = memo(({ guide, classes, index }) => {
 
             <button
                 type="button"
-                onClick={() => navigate(`/guide/${guide.id}`)}
-                className="group relative block w-full bg-claude-surface border border-claude-border p-4 sm:p-6 pt-6 sm:pt-8 rounded-[1.35rem] sm:rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target text-left"
+                onClick={() => isSelectMode ? onToggle?.(guide.id) : navigate(`/guide/${guide.id}`)}
+                aria-pressed={isSelectMode ? isSelected : undefined}
+                className={`group relative block w-full bg-claude-surface border p-4 sm:p-6 pt-6 sm:pt-8 rounded-[1.35rem] sm:rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target text-left ${isSelected ? 'border-claude-accent ring-2 ring-claude-accent/60 bg-claude-accent/5' : 'border-claude-border'}`}
             >
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-claude-text/5 to-transparent pointer-events-none" />
@@ -193,6 +196,17 @@ const GuideCard = memo(({ guide, classes, index }) => {
                 <div className="absolute -bottom-4 -right-4 opacity-[0.03] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] scale-[1.2] sm:scale-150">
                     <BookOpen className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
+
+                {/* Checkbox overlay — visible in select mode */}
+                {isSelectMode && (
+                    <div className={`absolute top-3 right-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border bg-claude-bg/80 backdrop-blur-sm'}`}>
+                        {isSelected && (
+                            <svg className="w-3.5 h-3.5 text-[#162a31]" viewBox="0 0 14 14" fill="none">
+                                <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        )}
+                    </div>
+                )}
             </button>
         </motion.div>
     );
@@ -211,6 +225,7 @@ export default function GuidesLibrary() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
     // Generate form
     const [genSource, setGenSource] = useState('none'); // 'none' | 'note' | 'file'
@@ -243,6 +258,25 @@ export default function GuidesLibrary() {
     }, []);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    const {
+        isSelectMode, selectedIds, selectedCount, isAllSelected,
+        enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
+    } = useSelection(guides);
+
+    const handleBulkDelete = async () => {
+        const ids = [...selectedIds];
+        setGuides(prev => prev.filter(g => !selectedIds.has(g.id)));
+        exitSelectMode();
+        try {
+            await api.bulkDeleteStudyGuides(ids);
+            toast.success(`${ids.length} tutor session${ids.length === 1 ? '' : 's'} deleted`);
+            loadData();
+        } catch (err) {
+            toast.error(err?.message || 'Failed to delete some sessions');
+            loadData();
+        }
+    };
 
     const handleFileChange = (e) => {
         const file = e.target.files?.[0];
@@ -615,26 +649,45 @@ export default function GuidesLibrary() {
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Tutor Sessions</h1>
                     <p className="mt-2 text-sm text-claude-secondary">River-led active recall that turns setup answers, notes, or files into a one-card training flow.</p>
                 </div>
-                <button
-                    onClick={() => {
-                        setShowGenerateModal(true);
-                        setGenSource('none');
-                        setSelectedNotes([]);
-                        setGenFile(null);
-                        setGenTitle('');
-                        setGenExamLabel('');
-                        setGenExamDate('');
-                        setGenTopics('');
-                        setGenWeakTopics('');
-                        setGenTone('calm review');
-                        setShowSetupQuestions(true);
-                    }}
-                    className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
-                    aria-label="Create tutor session"
-                >
-                    <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
-                    <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New session</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    {!isSelectMode ? (
+                        <button
+                            onClick={enterSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 active:scale-95"
+                            aria-label="Enter selection mode"
+                        >
+                            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={exitSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-accent border border-claude-accent/40 tap-action flex items-center justify-center active:scale-95"
+                            aria-label="Exit selection mode"
+                        >
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => {
+                            setShowGenerateModal(true);
+                            setGenSource('none');
+                            setSelectedNotes([]);
+                            setGenFile(null);
+                            setGenTitle('');
+                            setGenExamLabel('');
+                            setGenExamDate('');
+                            setGenTopics('');
+                            setGenWeakTopics('');
+                            setGenTone('calm review');
+                            setShowSetupQuestions(true);
+                        }}
+                        className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        aria-label="Create tutor session"
+                    >
+                        <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New session</span>
+                    </button>
+                </div>
             </div>
 
             {/* Guides Grid */}
@@ -650,11 +703,40 @@ export default function GuidesLibrary() {
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">
                         {guides.map((guide, i) => (
-                            <GuideCard key={guide.id} guide={guide} classes={classes} index={i} />
+                            <GuideCard
+                                key={guide.id}
+                                guide={guide}
+                                classes={classes}
+                                index={i}
+                                isSelectMode={isSelectMode}
+                                isSelected={selectedIds.has(guide.id)}
+                                onToggle={toggleSelect}
+                            />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Bulk delete confirmation */}
+            <ConfirmModal
+                isOpen={bulkDeleteConfirm}
+                title={`Delete ${selectedCount} tutor session${selectedCount === 1 ? '' : 's'}?`}
+                message={`This will permanently delete ${selectedCount} selected tutor session${selectedCount === 1 ? '' : 's'}. This cannot be undone.`}
+                confirmText="Delete All"
+                onConfirm={() => { setBulkDeleteConfirm(false); handleBulkDelete(); }}
+                onCancel={() => setBulkDeleteConfirm(false)}
+                destructive
+            />
+
+            {/* Bulk action bar */}
+            <BulkActionBar
+                isVisible={isSelectMode && selectedCount > 0}
+                selectedCount={selectedCount}
+                isAllSelected={isAllSelected}
+                onSelectAll={toggleSelectAll}
+                onDelete={() => setBulkDeleteConfirm(true)}
+                onExit={exitSelectMode}
+            />
         </div>
     );
 }

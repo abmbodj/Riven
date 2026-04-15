@@ -2,16 +2,29 @@ import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    FileText, ChevronLeft, Plus, Search, X, Calendar, Sparkles, Mic, Upload
+    FileText, ChevronLeft, Plus, Search, X, Calendar, Sparkles, Mic, Upload, CheckSquare
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
+import { useSelection } from '../hooks/useSelection';
+import BulkActionBar from '../components/BulkActionBar';
 
-const NoteCard = memo(({ note, classes, index }) => {
+const NoteCard = memo(({ note, classes, index, isSelectMode = false, isSelected = false, onToggle }) => {
     const cls = note.class_id ? classes.find(c => c.id === note.class_id) : null;
     const sourceIcon = note.source_type === 'audio' ? Mic : note.source_type === 'import' ? Upload : FileText;
     const SourceIcon = sourceIcon;
+
+    const CardWrapper = isSelectMode ? 'div' : Link;
+    const wrapperProps = isSelectMode
+        ? {
+            onClick: () => onToggle?.(note.id),
+            role: 'button',
+            'aria-pressed': isSelected,
+            tabIndex: 0,
+            onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle?.(note.id); } },
+          }
+        : { to: `/note/${note.id}` };
 
     return (
         <motion.div
@@ -25,9 +38,9 @@ const NoteCard = memo(({ note, classes, index }) => {
             {/* Specimen tape */}
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 pointer-events-none" />
 
-            <Link
-                to={`/note/${note.id}`}
-                className="group relative block bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target"
+            <CardWrapper
+                {...wrapperProps}
+                className={`group relative block bg-claude-surface border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target ${isSelected ? 'border-claude-accent ring-2 ring-claude-accent/60 bg-claude-accent/5' : 'border-claude-border'}`}
             >
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-claude-text/5 to-transparent pointer-events-none" />
@@ -62,7 +75,18 @@ const NoteCard = memo(({ note, classes, index }) => {
                 <div className="absolute -bottom-4 -right-4 opacity-[0.03] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] transform origin-center scale-[1.2] sm:scale-150">
                     <FileText className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
-            </Link>
+
+                {/* Checkbox overlay — visible in select mode */}
+                {isSelectMode && (
+                    <div className={`absolute top-3 right-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border bg-claude-bg/80 backdrop-blur-sm'}`}>
+                        {isSelected && (
+                            <svg className="w-3.5 h-3.5 text-[#162a31]" viewBox="0 0 14 14" fill="none">
+                                <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        )}
+                    </div>
+                )}
+            </CardWrapper>
         </motion.div>
     );
 });
@@ -79,6 +103,7 @@ export default function NotesLibrary() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
@@ -119,6 +144,25 @@ export default function NotesLibrary() {
             }
             return true;
         }), [notes, activeClass, searchQuery]);
+
+    const {
+        isSelectMode, selectedIds, selectedCount, isAllSelected,
+        enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
+    } = useSelection(filteredNotes);
+
+    const handleBulkDelete = async () => {
+        const ids = [...selectedIds];
+        setNotes(prev => prev.filter(n => !selectedIds.has(n.id)));
+        exitSelectMode();
+        try {
+            await api.bulkDeleteNotes(ids);
+            toast.success(`${ids.length} note${ids.length === 1 ? '' : 's'} deleted`);
+            loadData();
+        } catch (err) {
+            toast.error(err?.message || 'Failed to delete some notes');
+            loadData();
+        }
+    };
 
     const handleCreateNote = async () => {
         try {
@@ -235,8 +279,25 @@ export default function NotesLibrary() {
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Notes</h1>
                 </div>
                 <div className="flex items-center gap-2">
+                    {!isSelectMode ? (
+                        <button
+                            onClick={enterSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 active:scale-95"
+                            aria-label="Enter selection mode"
+                        >
+                            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={exitSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-accent border border-claude-accent/40 tap-action flex items-center justify-center active:scale-95"
+                            aria-label="Exit selection mode"
+                        >
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    )}
                     <button
-                        onClick={() => setIsSearchOpen(true)}
+                        onClick={() => { if (!isSelectMode) setIsSearchOpen(true); }}
                         className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <Search className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -285,11 +346,40 @@ export default function NotesLibrary() {
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">
                         {filteredNotes.map((note, i) => (
-                            <NoteCard key={note.id} note={note} classes={classes} index={i} />
+                            <NoteCard
+                                key={note.id}
+                                note={note}
+                                classes={classes}
+                                index={i}
+                                isSelectMode={isSelectMode}
+                                isSelected={selectedIds.has(note.id)}
+                                onToggle={toggleSelect}
+                            />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Bulk delete confirmation */}
+            <ConfirmModal
+                isOpen={bulkDeleteConfirm}
+                title={`Delete ${selectedCount} note${selectedCount === 1 ? '' : 's'}?`}
+                message={`This will permanently delete ${selectedCount} selected note${selectedCount === 1 ? '' : 's'}. This cannot be undone.`}
+                confirmText="Delete All"
+                onConfirm={() => { setBulkDeleteConfirm(false); handleBulkDelete(); }}
+                onCancel={() => setBulkDeleteConfirm(false)}
+                destructive
+            />
+
+            {/* Bulk action bar */}
+            <BulkActionBar
+                isVisible={isSelectMode && selectedCount > 0}
+                selectedCount={selectedCount}
+                isAllSelected={isAllSelected}
+                onSelectAll={toggleSelectAll}
+                onDelete={() => setBulkDeleteConfirm(true)}
+                onExit={exitSelectMode}
+            />
         </div>
     );
 }

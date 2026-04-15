@@ -4,7 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
     Layers, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
-    Menu, Filter, Library
+    Menu, Filter, Library, CheckSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -12,6 +12,8 @@ import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
 import { folderNameSchema, tagNameSchema } from '../schemas/forms';
+import { useSelection } from '../hooks/useSelection';
+import BulkActionBar from '../components/BulkActionBar';
 
 
 
@@ -29,9 +31,20 @@ const SORT_OPTIONS = [
 
 // Memoized deck card with botanical styling
 // Memoized deck card with Herbarium Specimen styling
-const DeckCard = memo(({ deck, folders, classes, index }) => {
+const DeckCard = memo(({ deck, folders, classes, index, isSelectMode = false, isSelected = false, onToggle }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
     const folderColor = folder?.color || 'var(--accent-color)';
+
+    const CardWrapper = isSelectMode ? 'div' : Link;
+    const wrapperProps = isSelectMode
+        ? {
+            onClick: () => onToggle?.(deck.id),
+            role: 'button',
+            'aria-pressed': isSelected,
+            tabIndex: 0,
+            onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle?.(deck.id); } },
+          }
+        : { to: `/deck/${deck.id}` };
 
     return (
         <motion.div
@@ -48,9 +61,9 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
                 <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
             </div>
 
-            <Link
-                to={`/deck/${deck.id}`}
-                className="group relative block bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target"
+            <CardWrapper
+                {...wrapperProps}
+                className={`group relative block bg-claude-surface border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target ${isSelected ? 'border-claude-accent ring-2 ring-claude-accent/60 bg-claude-accent/5' : 'border-claude-border'}`}
             >
                 {/* Subtle paper grain and texture */}
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
@@ -111,7 +124,18 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
                 <div className="absolute -bottom-4 -right-4 opacity-[0.03] sm:opacity-[0.04] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] transform origin-center scale-[1.2] sm:scale-150">
                     <Sparkles className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
-            </Link>
+
+                {/* Checkbox overlay — visible in select mode */}
+                {isSelectMode && (
+                    <div className={`absolute top-3 right-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border bg-claude-bg/80 backdrop-blur-sm'}`}>
+                        {isSelected && (
+                            <svg className="w-3.5 h-3.5 text-[#162a31]" viewBox="0 0 14 14" fill="none">
+                                <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        )}
+                    </div>
+                )}
+            </CardWrapper>
         </motion.div>
     );
 });
@@ -195,6 +219,7 @@ export default function DeckLibrary() {
     const [showTagModal, setShowTagModal] = useState(false);
     const [editingFolder, setEditingFolder] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, type: null, item: null });
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
     // Form state
     const [newFolder, setNewFolder] = useState({ name: '', color: '#6366f1' });
@@ -270,6 +295,25 @@ export default function DeckLibrary() {
                     return new Date(b.created_at) - new Date(a.created_at);
             }
         }), [decks, activeFolder, activeTag, searchQuery, sortBy]);
+
+    const {
+        isSelectMode, selectedIds, selectedCount, isAllSelected,
+        enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
+    } = useSelection(filteredDecks);
+
+    const handleBulkDelete = async () => {
+        const ids = [...selectedIds];
+        setDecks(prev => prev.filter(d => !selectedIds.has(d.id)));
+        exitSelectMode();
+        try {
+            await api.bulkDeleteDecks(ids);
+            toast.success(`${ids.length} deck${ids.length === 1 ? '' : 's'} deleted`);
+            loadData();
+        } catch (err) {
+            toast.error(err?.message || 'Failed to delete some decks');
+            loadData();
+        }
+    };
 
     // Folder actions
     const handleCreateFolder = async (e) => {
@@ -550,6 +594,23 @@ export default function DeckLibrary() {
                 </div>
                 <div className="flex items-center gap-2">
 
+                    {!isSelectMode ? (
+                        <button
+                            onClick={enterSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 active:scale-95"
+                            aria-label="Enter selection mode"
+                        >
+                            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={exitSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-accent border border-claude-accent/40 tap-action flex items-center justify-center active:scale-95"
+                            aria-label="Exit selection mode"
+                        >
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    )}
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
@@ -570,14 +631,14 @@ export default function DeckLibrary() {
             <div className="sticky top-safe z-30 mb-8 py-2 -mx-4 px-4 bg-claude-bg/80 md:backdrop-blur-md border-b border-claude-border/10">
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => setIsSearchOpen(true)}
+                        onClick={() => { if (!isSelectMode) setIsSearchOpen(true); }}
                         className="flex-1 flex items-center gap-3 p-3 glass-panel rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                     >
                         <Search className="w-5 h-5 opacity-60 ml-1" />
                         <span className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Search collection...</span>
                     </button>
                     <button
-                        onClick={() => setIsMenuOpen(true)}
+                        onClick={() => { if (!isSelectMode) setIsMenuOpen(true); }}
                         className={`p-3.5 border rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                     >
                         {activeFolder || activeTag ? <Filter className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -685,6 +746,9 @@ export default function DeckLibrary() {
                                 folders={folders}
                                 classes={classes}
                                 index={i}
+                                isSelectMode={isSelectMode}
+                                isSelected={selectedIds.has(deck.id)}
+                                onToggle={toggleSelect}
                             />
                         ))}
                     </div>
@@ -729,6 +793,27 @@ export default function DeckLibrary() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Bulk delete confirmation */}
+            <ConfirmModal
+                isOpen={bulkDeleteConfirm}
+                title={`Delete ${selectedCount} deck${selectedCount === 1 ? '' : 's'}?`}
+                message={`This will permanently delete ${selectedCount} selected deck${selectedCount === 1 ? '' : 's'}. This cannot be undone.`}
+                confirmText="Delete All"
+                onConfirm={() => { setBulkDeleteConfirm(false); handleBulkDelete(); }}
+                onCancel={() => setBulkDeleteConfirm(false)}
+                destructive
+            />
+
+            {/* Bulk action bar */}
+            <BulkActionBar
+                isVisible={isSelectMode && selectedCount > 0}
+                selectedCount={selectedCount}
+                isAllSelected={isAllSelected}
+                onSelectAll={toggleSelectAll}
+                onDelete={() => setBulkDeleteConfirm(true)}
+                onExit={exitSelectMode}
+            />
 
             <AnimatePresence>
                 {showTagModal && (

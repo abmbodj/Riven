@@ -3,19 +3,32 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ClipboardCheck, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, FileText, BookOpen,
-    BarChart3, Trash2
+    BarChart3, Trash2, CheckSquare
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
+import { useSelection } from '../hooks/useSelection';
+import BulkActionBar from '../components/BulkActionBar';
 import PricingModal from '../components/ui/PricingModal';
 import ExamAnalytics from '../components/ExamAnalytics';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-const ExamCard = memo(({ exam, classes, index, onDelete }) => {
+const ExamCard = memo(({ exam, classes, index, onDelete, isSelectMode = false, isSelected = false, onToggle }) => {
     const cls = exam.class_id ? classes.find(c => c.id === exam.class_id) : null;
+
+    const CardWrapper = isSelectMode ? 'div' : Link;
+    const wrapperProps = isSelectMode
+        ? {
+            onClick: () => onToggle?.(exam.id),
+            role: 'button',
+            'aria-pressed': isSelected,
+            tabIndex: 0,
+            onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle?.(exam.id); } },
+          }
+        : { to: `/exam/${exam.id}` };
     const questionCount = Array.isArray(exam.questions) ? exam.questions.length : 0;
     const mcqCount = Array.isArray(exam.questions) ? exam.questions.filter(q => q.type !== 'short_answer').length : 0;
     const saCount = questionCount - mcqCount;
@@ -31,9 +44,9 @@ const ExamCard = memo(({ exam, classes, index, onDelete }) => {
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 pointer-events-none" />
 
-            <Link
-                to={`/exam/${exam.id}`}
-                className="group relative block bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target"
+            <CardWrapper
+                {...wrapperProps}
+                className={`group relative block bg-claude-surface border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target ${isSelected ? 'border-claude-accent ring-2 ring-claude-accent/60 bg-claude-accent/5' : 'border-claude-border'}`}
             >
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-claude-text/5 to-transparent pointer-events-none" />
@@ -85,15 +98,28 @@ const ExamCard = memo(({ exam, classes, index, onDelete }) => {
                 <div className="absolute -bottom-4 -right-4 opacity-[0.03] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] scale-[1.2] sm:scale-150">
                     <ClipboardCheck className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
-            </Link>
 
-            {/* Delete button */}
-            <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(exam); }}
-                className="absolute top-2 right-2 z-20 p-2 rounded-lg bg-claude-bg/80 border border-claude-border text-claude-secondary hover:text-red-400 hover:border-red-500/30 transition-colors sm:opacity-0 sm:group-hover/card:opacity-100 tap-action"
-            >
-                <Trash2 className="w-3.5 h-3.5" />
-            </button>
+                {/* Checkbox overlay — visible in select mode */}
+                {isSelectMode && (
+                    <div className={`absolute top-3 right-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border bg-claude-bg/80 backdrop-blur-sm'}`}>
+                        {isSelected && (
+                            <svg className="w-3.5 h-3.5 text-[#162a31]" viewBox="0 0 14 14" fill="none">
+                                <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        )}
+                    </div>
+                )}
+            </CardWrapper>
+
+            {/* Per-card delete button — hidden in select mode */}
+            {!isSelectMode && (
+                <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(exam); }}
+                    className="absolute top-2 right-2 z-20 p-2 rounded-lg bg-claude-bg/80 border border-claude-border text-claude-secondary hover:text-red-400 hover:border-red-500/30 transition-colors sm:opacity-0 sm:group-hover/card:opacity-100 tap-action"
+                >
+                    <Trash2 className="w-3.5 h-3.5" />
+                </button>
+            )}
         </motion.div>
     );
 });
@@ -112,6 +138,7 @@ export default function ExamsLibrary() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
     const [activeTab, setActiveTab] = useState('exams'); // 'exams' | 'analytics'
 
     // Generate form
@@ -142,6 +169,30 @@ export default function ExamsLibrary() {
     }, []);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    const {
+        isSelectMode, selectedIds, selectedCount, isAllSelected,
+        enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
+    } = useSelection(exams);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        if (tab !== 'exams') exitSelectMode();
+    };
+
+    const handleBulkDelete = async () => {
+        const ids = [...selectedIds];
+        setExams(prev => prev.filter(e => !selectedIds.has(e.id)));
+        exitSelectMode();
+        try {
+            await api.bulkDeleteMockExams(ids);
+            toast.success(`${ids.length} exam${ids.length === 1 ? '' : 's'} deleted`);
+            loadData();
+        } catch (err) {
+            toast.error(err?.message || 'Failed to delete some exams');
+            loadData();
+        }
+    };
 
     const handleFileChange = (e) => {
         const file = e.target.files?.[0];
@@ -357,25 +408,44 @@ export default function ExamsLibrary() {
                     </div>
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Mock Exams</h1>
                 </div>
-                <button
-                    onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNote(null); setSelectedGuide(null); setGenFile(null); setGenTitle(''); }}
-                    className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95"
-                >
-                    <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {activeTab === 'exams' && (!isSelectMode ? (
+                        <button
+                            onClick={enterSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 active:scale-95"
+                            aria-label="Enter selection mode"
+                        >
+                            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={exitSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-accent border border-claude-accent/40 tap-action flex items-center justify-center active:scale-95"
+                            aria-label="Exit selection mode"
+                        >
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNote(null); setSelectedGuide(null); setGenFile(null); setGenTitle(''); }}
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                    >
+                        <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
+                    </button>
+                </div>
             </div>
 
             {/* Tab switcher */}
             <div className="flex items-center gap-2 px-1 mb-6">
                 <button
-                    onClick={() => setActiveTab('exams')}
+                    onClick={() => handleTabChange('exams')}
                     className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'exams' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                 >
                     <ClipboardCheck className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
                     Exams ({exams.length})
                 </button>
                 <button
-                    onClick={() => setActiveTab('analytics')}
+                    onClick={() => handleTabChange('analytics')}
                     className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'analytics' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                 >
                     <BarChart3 className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
@@ -401,6 +471,9 @@ export default function ExamsLibrary() {
                                     classes={classes}
                                     index={i}
                                     onDelete={(item) => setDeleteConfirm({ show: true, item })}
+                                    isSelectMode={isSelectMode}
+                                    isSelected={selectedIds.has(exam.id)}
+                                    onToggle={toggleSelect}
                                 />
                             ))}
                         </div>
@@ -409,6 +482,27 @@ export default function ExamsLibrary() {
                     <ExamAnalytics />
                 )}
             </div>
+
+            {/* Bulk delete confirmation */}
+            <ConfirmModal
+                isOpen={bulkDeleteConfirm}
+                title={`Delete ${selectedCount} exam${selectedCount === 1 ? '' : 's'}?`}
+                message={`This will permanently delete ${selectedCount} selected exam${selectedCount === 1 ? '' : 's'}. This cannot be undone.`}
+                confirmText="Delete All"
+                onConfirm={() => { setBulkDeleteConfirm(false); handleBulkDelete(); }}
+                onCancel={() => setBulkDeleteConfirm(false)}
+                destructive
+            />
+
+            {/* Bulk action bar */}
+            <BulkActionBar
+                isVisible={isSelectMode && selectedCount > 0}
+                selectedCount={selectedCount}
+                isAllSelected={isAllSelected}
+                onSelectAll={toggleSelectAll}
+                onDelete={() => setBulkDeleteConfirm(true)}
+                onExit={exitSelectMode}
+            />
         </div>
     );
 }

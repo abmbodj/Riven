@@ -189,6 +189,10 @@ export const api = {
     deleteNote: (id) => isLoggedIn()
         ? serverApi.deleteNote(id)
         : Promise.reject(new Error('Must be logged in to delete notes')),
+    bulkDeleteNotes: async (ids) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete notes'));
+        return Promise.all(ids.map(id => serverApi.deleteNote(id)));
+    },
     uploadNoteAudio: (noteId, audioBlob) => isLoggedIn()
         ? serverApi.uploadNoteAudio(noteId, audioBlob)
         : Promise.reject(new Error('Must be logged in to upload audio')),
@@ -221,6 +225,10 @@ export const api = {
     deleteStudyGuide: (id) => isLoggedIn()
         ? serverApi.deleteStudyGuide(id)
         : Promise.reject(new Error('Must be logged in to delete tutor sessions')),
+    bulkDeleteStudyGuides: async (ids) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete tutor sessions'));
+        return Promise.all(ids.map(id => serverApi.deleteStudyGuide(id)));
+    },
 
     // ============ MOCK EXAMS ============
     getMockExams: (classId) => isLoggedIn()
@@ -232,6 +240,10 @@ export const api = {
     deleteMockExam: (id) => isLoggedIn()
         ? serverApi.deleteMockExam(id)
         : Promise.reject(new Error('Must be logged in to delete mock exams')),
+    bulkDeleteMockExams: async (ids) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete mock exams'));
+        return Promise.all(ids.map(id => serverApi.deleteMockExam(id)));
+    },
 
     // ============ EXAM ATTEMPTS ============
     createExamAttempt: (examId, score, total, answers, opts) => isLoggedIn()
@@ -287,6 +299,12 @@ export const api = {
         return isLoggedIn()
             ? serverApi.deleteDeck(id)
             : db.deleteDeck(id);
+    },
+    bulkDeleteDecks: async (ids) => {
+        cache.delete(cacheKey('decks'));
+        return Promise.all(ids.map(id =>
+            isLoggedIn() ? serverApi.deleteDeck(id) : db.deleteDeck(id)
+        ));
     },
     duplicateDeck: (id) => {
         cache.delete(cacheKey('decks'));
