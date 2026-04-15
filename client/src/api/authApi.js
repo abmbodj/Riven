@@ -2653,6 +2653,7 @@ export const saveStudySession = async (deckId, cardsStudied, cardsCorrect, durat
             cards_correct: cardsCorrect || 0,
             duration_seconds: durationSeconds || 0,
             session_type: sessionType || 'study',
+            xp_earned: 0,
         })
         .select()
         .single();
