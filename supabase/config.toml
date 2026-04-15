@@ -463,6 +463,9 @@ verify_jwt = false
 [functions.simulate-free]
 verify_jwt = false
 
+[functions.study-session-complete]
+verify_jwt = false
+
 [functions.revenuecat-webhook]
 verify_jwt = false
 
