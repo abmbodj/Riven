@@ -11,6 +11,7 @@ vi.mock('../api', () => ({
     deleteStudyGuide: vi.fn(),
     completeStudyCoachSession: vi.fn(),
     assistStudyCoach: vi.fn(),
+    warmupAiFunctions: vi.fn(),
   },
 }));
 

@@ -1375,72 +1375,124 @@ export default function GuideView() {
                 {sessionStage === 'check' && currentCard ? (
                     <motion.section
                         data-testid="river-session-check"
-                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-10"
+                        className="mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.28, ease: PANEL_EASE }}
                     >
-                        <div className="mx-auto max-w-2xl">
-                            <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                Check understanding
-                            </p>
-                            <h2 className="mt-4 text-4xl sm:text-5xl font-serif italic font-bold leading-tight">
-                                <SubjectRenderer content={currentCard.prompt} />
-                            </h2>
-                            {riverCaption ? (
-                                <p className="mt-3 max-w-prose text-sm italic leading-6 text-claude-secondary">
-                                    {riverCaption}
-                                </p>
-                            ) : null}
-
-                            <label htmlFor="river-answer" className="mt-8 block text-[11px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
-                                Your answer
-                            </label>
-                            <textarea
-                                id="river-answer"
-                                aria-label="Your answer"
-                                value={answer}
-                                onChange={(event) => setAnswer(event.target.value)}
-                                disabled={submitting}
-                                className="mt-3 min-h-[260px] w-full rounded-[1.6rem] border bg-claude-bg/70 px-5 py-4 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
-                                style={{ borderColor: answer.length > 0 ? undefined : `${poseAccent}35` }}
-                                placeholder="Answer from memory first."
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={{
+                                padding: 'clamp(6px, 1vw, 12px)',
+                                background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+                                boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.1]"
+                                style={{
+                                    backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+                                }}
                             />
 
-                            <div className="mt-5 flex flex-wrap items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={handleSubmit}
-                                    disabled={submitting}
-                                    className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
-                                >
-                                    {submitting ? 'Checking…' : 'Submit Answer'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleShowAnswer}
-                                    disabled={submitting}
-                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35 hover:bg-claude-bg/60 disabled:opacity-60"
-                                >
-                                    Show Answer
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleSkipForNow}
-                                    disabled={submitting}
-                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium text-claude-secondary transition-colors hover:text-claude-text disabled:opacity-60"
-                                >
-                                    Skip for now
-                                </button>
-                                <span className="flex-1" aria-hidden="true" />
-                                <button
-                                    type="button"
-                                    onClick={handleSaveAndLeave}
-                                    disabled={submitting}
-                                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2 text-xs text-claude-secondary transition-colors hover:text-claude-text disabled:opacity-60"
-                                >
-                                    Save and leave
-                                </button>
+                            <div
+                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-5 py-6 sm:px-10 sm:py-10"
+                                style={{
+                                    background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+                                }}
+                            >
+                                <div
+                                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
+                                    }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
+                                    style={{
+                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+                                    }}
+                                />
+
+                                <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                                    <RiverMascot state={riverState} caption={riverCaption} />
+
+                                    <div className="max-w-2xl">
+                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                            Check understanding
+                                        </p>
+                                        <h2 className="mt-4 text-4xl sm:text-5xl font-serif italic font-bold leading-tight" style={{ color: '#efe4d1' }}>
+                                            <SubjectRenderer content={currentCard.prompt} />
+                                        </h2>
+                                        {riverCaption ? (
+                                            <p className="mt-3 max-w-prose text-sm italic leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                {riverCaption}
+                                            </p>
+                                        ) : null}
+
+                                        <label htmlFor="river-answer" className="mt-8 block text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
+                                            Your answer
+                                        </label>
+                                        <textarea
+                                            id="river-answer"
+                                            aria-label="Your answer"
+                                            value={answer}
+                                            onChange={(event) => setAnswer(event.target.value)}
+                                            disabled={submitting}
+                                            className="mt-3 min-h-[260px] w-full rounded-[1.4rem] border px-5 py-4 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                            style={{
+                                                color: '#f1e8d8',
+                                                backgroundColor: 'rgba(15, 35, 28, 0.34)',
+                                                borderColor: answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
+                                                boxShadow: 'inset 0 1px 8px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
+                                            }}
+                                            placeholder="Answer from memory first."
+                                        />
+
+                                        <div className="mt-5 flex flex-wrap items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleSubmit}
+                                                disabled={submitting}
+                                                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                                            >
+                                                {submitting ? 'Checking…' : 'Submit Answer'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleShowAnswer}
+                                                disabled={submitting}
+                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium text-claude-text transition-colors disabled:opacity-60"
+                                                style={{
+                                                    borderColor: 'rgba(255,255,255,0.22)',
+                                                    backgroundColor: 'rgba(0,0,0,0.16)',
+                                                }}
+                                            >
+                                                Show Answer
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleSkipForNow}
+                                                disabled={submitting}
+                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60"
+                                                style={{ color: 'rgba(228,219,201,0.78)' }}
+                                            >
+                                                Skip for now
+                                            </button>
+                                            <span className="flex-1" aria-hidden="true" />
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveAndLeave}
+                                                disabled={submitting}
+                                                className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2 text-xs transition-colors disabled:opacity-60"
+                                                style={{ color: 'rgba(228,219,201,0.62)' }}
+                                            >
+                                                Save and leave
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </motion.section>
@@ -1539,8 +1591,13 @@ export default function GuideView() {
                                             value={refinedAnswer}
                                             onChange={(event) => setRefinedAnswer(event.target.value)}
                                             disabled={submitting}
-                                            className="mt-2 min-h-[120px] w-full rounded-[1.2rem] border bg-claude-bg/70 px-4 py-3 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
-                                            style={{ borderColor: `${poseAccent}30` }}
+                                            className="mt-2 min-h-[120px] w-full rounded-[1.2rem] border px-4 py-3 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                            style={{
+                                                color: '#f1e8d8',
+                                                backgroundColor: 'rgba(15, 35, 28, 0.28)',
+                                                borderColor: `${poseAccent}42`,
+                                                boxShadow: 'inset 0 1px 6px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)',
+                                            }}
                                             placeholder="Try again with River's hint in mind…"
                                         />
                                         <button
