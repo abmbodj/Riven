@@ -86,7 +86,7 @@ const calculateSessionXp = ({
     (beforeSnapshot?.masteryBands?.support?.length || 0) - (afterSnapshot?.masteryBands?.support?.length || 0),
   );
   const masteryGain = Math.max(0, (afterSnapshot?.averageMastery || 0) - (beforeSnapshot?.averageMastery || 0));
-  const evidenceOfLearning = delta.sectionsReviewed > 0
+  const evidenceOfLearning = delta.reviewedSections > 0
     || delta.masteryDeltaPercent > 0
     || recoveredWeakTopics > 0;
 
@@ -95,7 +95,7 @@ const calculateSessionXp = ({
   }
 
   const baseXp = (
-    delta.sectionsReviewed * 20
+    delta.reviewedSections * 20
     + Math.max(0, delta.masteryDeltaPercent) * 2
     + recoveredWeakTopics * 18
     + (mode === 'cram' ? 12 : 0)
@@ -257,7 +257,7 @@ serve(async (request) => {
         mode,
         started_at: normalizedBefore.last_reviewed_at || nowIso,
         ended_at: nowIso,
-        xp_earned: xpEarned,
+        xp_earned: toNumber(xpEarned, 0),
         mastery_delta: delta.masteryDeltaPercent,
         weak_area_delta: {
           before: delta.weakCountBefore,
