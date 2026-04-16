@@ -569,7 +569,7 @@ export default function GroupDetails() {
         try {
             haptics.light?.();
             await api.joinGroupMeetup(meetup.id);
-            toast.success(‘You’re going.’);
+            toast.success("You’re going.");
             await syncNativeMeetupNotifications().catch((error) => {
                 console.error(‘Failed to sync meetup notifications’, error);
             });
