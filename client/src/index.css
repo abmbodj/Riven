@@ -85,15 +85,10 @@
     z-index: 9998;
     pointer-events: none;
     opacity: 0.03;
+    mix-blend-mode: overlay;
     background-image: url('/noise.png');
     background-repeat: repeat;
     background-size: 128px 128px;
-  }
-
-  @media (min-width: 768px) {
-    body::before {
-      mix-blend-mode: overlay;
-    }
   }
 
   /* Gradient mesh background */
