@@ -569,9 +569,9 @@ export default function GroupDetails() {
         try {
             haptics.light?.();
             await api.joinGroupMeetup(meetup.id);
-            toast.success("You’re going.");
+            toast.success("You're going.");
             await syncNativeMeetupNotifications().catch((error) => {
-                console.error(‘Failed to sync meetup notifications’, error);
+                console.error('Failed to sync meetup notifications', error);
             });
         } catch (err) {
             // Revert on failure
@@ -583,7 +583,7 @@ export default function GroupDetails() {
                         : m,
                 ),
             }) : prev);
-            toast.error(err.message || ‘Failed to join the session’);
+            toast.error(err.message || 'Failed to join the session');
         }
     };
 
@@ -601,9 +601,9 @@ export default function GroupDetails() {
         try {
             haptics.light?.();
             await api.leaveGroupMeetup(meetup.id);
-            toast.success(‘You left the session.’);
+            toast.success('You left the session.');
             await syncNativeMeetupNotifications().catch((error) => {
-                console.error(‘Failed to sync meetup notifications’, error);
+                console.error('Failed to sync meetup notifications', error);
             });
         } catch (err) {
             // Revert on failure
@@ -615,38 +615,38 @@ export default function GroupDetails() {
                         : m,
                 ),
             }) : prev);
-            toast.error(err.message || ‘Failed to leave the session’);
+            toast.error(err.message || 'Failed to leave the session');
         }
     };
 
     const handleCancelMeetup = (meetup) => {
         confirmAction(
-            ‘Cancel Session’,
-            ‘This will cancel the scheduled study session for everyone in the group.’,
+            'Cancel Session',
+            'This will cancel the scheduled study session for everyone in the group.',
             async () => {
                 // Optimistic update
                 setGroupSchedule((prev) => prev ? ({
                     ...prev,
                     meetups: prev.meetups.map((m) =>
-                        m.id === meetup.id ? { ...m, status: ‘cancelled’ } : m,
+                        m.id === meetup.id ? { ...m, status: 'cancelled' } : m,
                     ),
                 }) : prev);
 
                 try {
                     await api.cancelGroupMeetup(meetup.id);
-                    toast.success(‘Session cancelled’);
+                    toast.success('Session cancelled');
                     await syncNativeMeetupNotifications().catch((error) => {
-                        console.error(‘Failed to sync meetup notifications’, error);
+                        console.error('Failed to sync meetup notifications', error);
                     });
                 } catch (err) {
                     // Revert on failure
                     setGroupSchedule((prev) => prev ? ({
                         ...prev,
                         meetups: prev.meetups.map((m) =>
-                            m.id === meetup.id ? { ...m, status: ‘active’ } : m,
+                            m.id === meetup.id ? { ...m, status: 'active' } : m,
                         ),
                     }) : prev);
-                    toast.error(err.message || ‘Failed to cancel the session’);
+                    toast.error(err.message || 'Failed to cancel the session');
                 }
             },
         );
