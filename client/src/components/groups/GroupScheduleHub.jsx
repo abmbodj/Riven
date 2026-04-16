@@ -798,7 +798,7 @@ export default function GroupScheduleHub({
         }
 
         if (!composer.topic.trim()) {
-            setComposerError('Add a session topic so everyone knows what they're joining.');
+            setComposerError("Add a session topic so everyone knows what they're joining.");
             return;
         }
 
