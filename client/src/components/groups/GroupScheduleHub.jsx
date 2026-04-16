@@ -360,7 +360,16 @@ function MonthGrid({
                             aria-selected={isSelected}
                             aria-current={isToday ? 'date' : undefined}
                             onClick={() => onSelectDay(date)}
-                            className="flex flex-col items-center gap-1 py-1.5 focus:outline-none focus-visible:ring-0"
+                            className={[
+                                'flex flex-col items-center gap-1 rounded-xl py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-0',
+                                isSelected
+                                    ? 'bg-claude-accent/[0.15] ring-1 ring-inset ring-claude-accent/25'
+                                    : hasMeetups
+                                    ? 'bg-claude-accent/[0.07] hover:bg-claude-accent/[0.11]'
+                                    : hasSchedule
+                                    ? 'bg-botanical-forest/[0.06] hover:bg-botanical-forest/[0.1]'
+                                    : 'hover:bg-white/[0.04]',
+                            ].join(' ')}
                         >
                             {/* Day number circle */}
                             <span
@@ -371,26 +380,38 @@ function MonthGrid({
                                         : isToday
                                         ? 'bg-emerald-400/[0.08] text-emerald-200 ring-1 ring-emerald-400/60'
                                         : inMonth
-                                        ? 'text-claude-text hover:bg-white/[0.07]'
+                                        ? 'text-claude-text'
                                         : 'text-claude-secondary/30',
                                 ].join(' ')}
                             >
                                 {date.getDate()}
                             </span>
 
-                            {/* Event indicator dots */}
-                            <div className="flex h-2 items-center justify-center gap-[3px]" aria-hidden="true">
-                                {hasMeetups && Array.from({ length: Math.min(summary.activeMeetupCount, 3) }).map((_, index) => (
-                                    <span
-                                        key={`${key}-dot-${index}`}
-                                        className={[
-                                            'h-1.5 w-1.5 rounded-full',
-                                            isSelected ? 'bg-[#182a31]/50' : 'bg-claude-accent',
-                                        ].join(' ')}
-                                    />
-                                ))}
-                                {!hasMeetups && hasSchedule && (
-                                    <span className="h-1 w-4 rounded-full bg-botanical-forest/55" />
+                            {/* Event indicators */}
+                            <div className="flex h-3 items-center justify-center gap-1" aria-hidden="true">
+                                {hasMeetups && (
+                                    <>
+                                        <span className={[
+                                            'h-2 w-2 rounded-full',
+                                            isSelected
+                                                ? 'bg-[#182a31]/50'
+                                                : 'bg-claude-accent shadow-[0_0_6px_rgba(222,185,106,0.45)]',
+                                        ].join(' ')} />
+                                        {summary.activeMeetupCount > 1 && (
+                                            <span className={[
+                                                'text-[10px] font-mono font-bold leading-none',
+                                                isSelected ? 'text-[#182a31]/70' : 'text-claude-accent',
+                                            ].join(' ')}>
+                                                {summary.activeMeetupCount}
+                                            </span>
+                                        )}
+                                    </>
+                                )}
+                                {hasSchedule && (
+                                    <span className={[
+                                        'h-1 w-3 rounded-full',
+                                        isSelected ? 'bg-[#182a31]/40' : 'bg-botanical-forest/70',
+                                    ].join(' ')} />
                                 )}
                                 {hasCancelledOnly && (
                                     <span className="h-1.5 w-1.5 rounded-full bg-white/[0.18]" />
@@ -404,43 +425,7 @@ function MonthGrid({
     );
 }
 
-// Mobile-only slide-up bottom sheet wrapper
-function DayDetailSheet({ open, onClose, children }) {
-    return (
-        <AnimatePresence>
-            {open && (
-                <>
-                    <motion.div
-                        key="sheet-backdrop"
-                        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        onClick={onClose}
-                    />
-                    <motion.div
-                        key="sheet-panel"
-                        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[76vh] flex-col rounded-t-[2rem] border-t border-white/10 bg-[rgba(20,32,38,0.97)] shadow-[0_-24px_60px_rgba(0,0,0,0.5)] backdrop-blur-xl lg:hidden"
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-                    >
-                        {/* Drag handle */}
-                        <div className="mx-auto mt-3 mb-1 h-1 w-10 shrink-0 rounded-full bg-white/20" />
-                        {/* Scrollable content */}
-                        <div className="flex-1 overflow-y-auto overscroll-contain">
-                            {children}
-                        </div>
-                    </motion.div>
-                </>
-            )}
-        </AnimatePresence>
-    );
-}
-
-// Day detail panel (used in both mobile sheet and desktop sidebar)
+// Day detail panel
 function DayDetailSurface({
     selectedDate,
     agendaItems,
@@ -450,7 +435,6 @@ function DayDetailSurface({
     onToday,
     onPropose,
     onSuggestionSelect,
-    onClose,
     className = '',
 }) {
     const hasAgenda = agendaItems.length > 0;
@@ -485,16 +469,6 @@ function DayDetailSurface({
                         <CalendarPlus2 className="h-4 w-4 text-claude-accent" />
                         <span className="hidden sm:inline">Propose</span>
                     </button>
-                    {onClose && (
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            aria-label="Close"
-                            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-secondary transition-colors hover:text-claude-text"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-                    )}
                 </div>
             </div>
 
@@ -591,7 +565,6 @@ export default function GroupScheduleHub({
 }) {
     const [anchorDate, setAnchorDate] = useState(() => startOfDay(new Date()));
     const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
-    const [sheetOpen, setSheetOpen] = useState(false);
     const [shareBusy, setShareBusy] = useState(false);
     const [composerOpen, setComposerOpen] = useState(false);
     const [composerStep, setComposerStep] = useState(1);
@@ -649,7 +622,7 @@ export default function GroupScheduleHub({
         ? 'fallback'
         : 'empty';
 
-    useBodyScrollLock(composerOpen || sheetOpen);
+    useBodyScrollLock(composerOpen);
 
     useEffect(() => {
         onRangeChange?.(visibleRange.start, visibleRange.end);
@@ -673,11 +646,6 @@ export default function GroupScheduleHub({
             setSelectedDate((currentSelected) => getPreservedDayForMonth(currentSelected, nextMonth));
             return nextMonth;
         });
-    };
-
-    const handleSelectDay = (date) => {
-        setSelectedDate(startOfDay(date));
-        setSheetOpen(true);
     };
 
     const openComposer = (suggestion = null) => {
@@ -843,7 +811,6 @@ export default function GroupScheduleHub({
         );
     };
 
-    // Shared props for both mobile sheet and desktop sidebar instances
     const dayDetailProps = {
         selectedDate,
         agendaItems,
@@ -864,7 +831,7 @@ export default function GroupScheduleHub({
                 <div className="h-20 rounded-[1.9rem] border border-white/10 bg-white/[0.04] animate-pulse" />
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px]">
                     <div className="h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
-                    <div className="hidden lg:block h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                    <div className="h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
                 </div>
             </div>
         );
@@ -929,28 +896,17 @@ export default function GroupScheduleHub({
                             monthDays={monthDays}
                             selectedDate={selectedDate}
                             daySummaryByKey={daySummaryByKey}
-                            onSelectDay={handleSelectDay}
+                            onSelectDay={(date) => setSelectedDate(startOfDay(date))}
                         />
                     </div>
                 </section>
 
-                {/* Desktop sidebar — hidden on mobile */}
-                <div className="hidden lg:block">
-                    <DayDetailSurface
-                        {...dayDetailProps}
-                        className="lg:sticky lg:top-24"
-                    />
-                </div>
-            </div>
-
-            {/* Mobile bottom sheet — hidden on lg+ */}
-            <DayDetailSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+                {/* Day detail — inline below calendar on mobile, sidebar on desktop */}
                 <DayDetailSurface
                     {...dayDetailProps}
-                    onClose={() => setSheetOpen(false)}
-                    className="rounded-none border-0 bg-transparent shadow-none"
+                    className="lg:sticky lg:top-24"
                 />
-            </DayDetailSheet>
+            </div>
 
             {/* Meetup composer modal */}
             <AnimatePresence>
