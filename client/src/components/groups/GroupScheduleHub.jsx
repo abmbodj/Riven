@@ -51,7 +51,7 @@ const SHARE_MODES = [
         value: 'hidden',
         label: 'Hidden',
         icon: X,
-        description: 'Stay private and keep your schedule out of the group view.',
+        description: 'Stay private.',
     },
 ];
 
@@ -114,23 +114,6 @@ function formatSuggestionLabel(suggestion) {
     })} · ${suggestion.freeCount} free`;
 }
 
-function getCellPreview(summary) {
-    if (summary.activeMeetupCount > 0) {
-        return summary.meetups.find((meetup) => meetup.status !== 'cancelled')?.topic
-            || `${summary.activeMeetupCount} study meetup${summary.activeMeetupCount === 1 ? '' : 's'}`;
-    }
-
-    if (summary.scheduleCount > 0) {
-        return `${summary.scheduleCount} shared busy block${summary.scheduleCount === 1 ? '' : 's'}`;
-    }
-
-    if (summary.cancelledMeetupCount > 0) {
-        return `${summary.cancelledMeetupCount} cancelled meetup${summary.cancelledMeetupCount === 1 ? '' : 's'}`;
-    }
-
-    return '';
-}
-
 function getPreservedDayForMonth(selectedDate, targetMonth) {
     const year = targetMonth.getFullYear();
     const month = targetMonth.getMonth();
@@ -171,37 +154,32 @@ function AvatarStack({ attendees = [], count = 0 }) {
 
 function ShareModeControl({ currentMode, onChange, busy }) {
     return (
-        <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-                {SHARE_MODES.map((mode) => {
-                    const Icon = mode.icon;
-                    const isActive = (currentMode || 'hidden') === mode.value;
+        <div className="grid grid-cols-3 gap-2">
+            {SHARE_MODES.map((mode) => {
+                const Icon = mode.icon;
+                const isActive = (currentMode || 'hidden') === mode.value;
 
-                    return (
-                        <button
-                            key={mode.value}
-                            type="button"
-                            onClick={() => onChange(mode.value)}
-                            disabled={busy}
-                            className={`rounded-[1.15rem] border px-3 py-3 text-left transition-all ${
-                                isActive
-                                    ? 'border-claude-accent/40 bg-claude-accent/12 text-claude-text shadow-[0_18px_34px_rgba(28,20,7,0.18)]'
-                                    : 'border-white/10 bg-white/[0.04] text-claude-secondary hover:border-white/20 hover:text-claude-text'
-                            } disabled:opacity-50`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                <span className="text-[11px] font-mono font-bold uppercase tracking-[0.14em]">
-                                    {mode.label}
-                                </span>
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-            <p className="max-w-xl text-sm leading-6 text-claude-secondary">
-                {SHARE_MODES.find((mode) => mode.value === (currentMode || 'hidden'))?.description}
-            </p>
+                return (
+                    <button
+                        key={mode.value}
+                        type="button"
+                        onClick={() => onChange(mode.value)}
+                        disabled={busy}
+                        className={`rounded-[1.15rem] border px-3 py-3 text-left transition-all ${
+                            isActive
+                                ? 'border-claude-accent/40 bg-claude-accent/12 text-claude-text shadow-[0_18px_34px_rgba(28,20,7,0.18)]'
+                                : 'border-white/10 bg-white/[0.04] text-claude-secondary hover:border-white/20 hover:text-claude-text'
+                        } disabled:opacity-50`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.14em]">
+                                {mode.label}
+                            </span>
+                        </div>
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -323,6 +301,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
     );
 }
 
+// Compact Google Calendar-style month grid
 function MonthGrid({
     anchorDate,
     monthDays,
@@ -333,19 +312,21 @@ function MonthGrid({
     const today = startOfDay(new Date());
 
     return (
-        <div role="grid" aria-label="Monthly group schedule" className="space-y-2">
-            <div className="grid grid-cols-7 gap-2 px-1">
+        <div role="grid" aria-label="Monthly group schedule">
+            {/* Day-of-week headers */}
+            <div className="grid grid-cols-7 pb-2">
                 {SHORT_DAY_LABELS.map((label) => (
                     <div
                         key={label}
-                        className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-claude-secondary"
+                        className="text-center text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-claude-secondary/50"
                     >
                         {label}
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            {/* Day cells */}
+            <div className="grid grid-cols-7">
                 {monthDays.map((date) => {
                     const key = toDateKey(date);
                     const summary = daySummaryByKey.get(key) || {
@@ -358,13 +339,16 @@ function MonthGrid({
                     const inMonth = isSameLocalMonth(date, anchorDate);
                     const isSelected = isSameLocalDay(date, selectedDate);
                     const isToday = isSameLocalDay(date, today);
-                    const preview = getCellPreview(summary);
+                    const hasMeetups = summary.activeMeetupCount > 0;
+                    const hasSchedule = summary.scheduleCount > 0;
+                    const hasCancelledOnly = !hasMeetups && !hasSchedule && summary.cancelledMeetupCount > 0;
+
                     const ariaLabel = [
                         formatDateLabel(date, { weekday: 'long', month: 'long', day: 'numeric' }),
-                        !inMonth ? 'outside the current month' : null,
-                        summary.activeMeetupCount > 0 ? `${summary.activeMeetupCount} study meetup${summary.activeMeetupCount === 1 ? '' : 's'}` : null,
-                        summary.cancelledMeetupCount > 0 ? `${summary.cancelledMeetupCount} cancelled meetup${summary.cancelledMeetupCount === 1 ? '' : 's'}` : null,
-                        summary.scheduleCount > 0 ? `${summary.scheduleCount} shared busy block${summary.scheduleCount === 1 ? '' : 's'}` : null,
+                        !inMonth ? 'outside current month' : null,
+                        hasMeetups ? `${summary.activeMeetupCount} meetup${summary.activeMeetupCount === 1 ? '' : 's'}` : null,
+                        summary.cancelledMeetupCount > 0 ? `${summary.cancelledMeetupCount} cancelled` : null,
+                        hasSchedule ? `${summary.scheduleCount} busy block${summary.scheduleCount === 1 ? '' : 's'}` : null,
                     ].filter(Boolean).join(', ');
 
                     return (
@@ -376,76 +360,40 @@ function MonthGrid({
                             aria-selected={isSelected}
                             aria-current={isToday ? 'date' : undefined}
                             onClick={() => onSelectDay(date)}
-                            className={[
-                                'group relative flex aspect-square min-h-[78px] min-w-0 flex-col rounded-[1.4rem] border px-2.5 py-2.5 text-left transition-all md:min-h-[96px] md:px-3 md:py-3',
-                                inMonth
-                                    ? 'border-white/10 bg-[rgba(12,19,30,0.54)] text-claude-text'
-                                    : 'border-white/6 bg-[rgba(8,12,20,0.26)] text-claude-secondary/75',
-                                isSelected
-                                    ? 'border-claude-accent/45 bg-claude-accent/12 shadow-[0_0_0_1px_rgba(222,185,106,0.18),0_24px_44px_rgba(27,17,3,0.2)]'
-                                    : 'hover:border-white/16 hover:bg-white/[0.045]',
-                                isToday && !isSelected ? 'ring-1 ring-inset ring-emerald-400/60' : '',
-                            ].join(' ')}
+                            className="flex flex-col items-center gap-1 py-1.5 focus:outline-none focus-visible:ring-0"
                         >
-                            <div className="flex items-start justify-between gap-2">
-                                <span
-                                    className={[
-                                        'inline-flex h-9 w-9 items-center justify-center rounded-full text-base font-semibold',
-                                        isSelected
-                                            ? 'bg-claude-accent/18 text-claude-text'
-                                            : isToday
-                                            ? 'bg-emerald-400/14 text-emerald-200'
-                                            : 'text-current',
-                                    ].join(' ')}
-                                >
-                                    {date.getDate()}
-                                </span>
+                            {/* Day number circle */}
+                            <span
+                                className={[
+                                    'inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all duration-150',
+                                    isSelected
+                                        ? 'bg-claude-accent text-[#182a31] shadow-[0_0_18px_rgba(222,185,106,0.28)]'
+                                        : isToday
+                                        ? 'bg-emerald-400/[0.08] text-emerald-200 ring-1 ring-emerald-400/60'
+                                        : inMonth
+                                        ? 'text-claude-text hover:bg-white/[0.07]'
+                                        : 'text-claude-secondary/30',
+                                ].join(' ')}
+                            >
+                                {date.getDate()}
+                            </span>
 
-                                {summary.activeMeetupCount > 0 && (
-                                    <span className="rounded-full border border-claude-accent/25 bg-claude-accent/12 px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                        {summary.activeMeetupCount}
-                                    </span>
+                            {/* Event indicator dots */}
+                            <div className="flex h-2 items-center justify-center gap-[3px]" aria-hidden="true">
+                                {hasMeetups && Array.from({ length: Math.min(summary.activeMeetupCount, 3) }).map((_, index) => (
+                                    <span
+                                        key={`${key}-dot-${index}`}
+                                        className={[
+                                            'h-1.5 w-1.5 rounded-full',
+                                            isSelected ? 'bg-[#182a31]/50' : 'bg-claude-accent',
+                                        ].join(' ')}
+                                    />
+                                ))}
+                                {!hasMeetups && hasSchedule && (
+                                    <span className="h-1 w-4 rounded-full bg-botanical-forest/55" />
                                 )}
-                            </div>
-
-                            <div className="mt-auto min-w-0 space-y-2">
-                                {preview && (
-                                    <p className="hidden min-w-0 line-clamp-2 text-[11px] leading-4 text-claude-secondary md:block">
-                                        {preview}
-                                    </p>
-                                )}
-
-                                {summary.scheduleCount > 0 && (
-                                    <div className="flex flex-col gap-1" aria-hidden="true">
-                                        {Array.from({ length: Math.min(summary.scheduleCount, 2) }).map((_, index) => (
-                                            <span
-                                                key={`${key}-schedule-${index}`}
-                                                className="h-1.5 rounded-full bg-[linear-gradient(90deg,rgba(95,134,113,0.72),rgba(64,96,80,0.28))]"
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-
-                                {summary.activeMeetupCount > 0 && (
-                                    <div className="flex items-center gap-1.5" aria-hidden="true">
-                                        {Array.from({ length: Math.min(summary.activeMeetupCount, 3) }).map((_, index) => (
-                                            <span
-                                                key={`${key}-meetup-${index}`}
-                                                className="h-2.5 w-2.5 rounded-full bg-claude-accent shadow-[0_0_14px_rgba(222,185,106,0.42)]"
-                                            />
-                                        ))}
-                                        {summary.activeMeetupCount > 3 && (
-                                            <span className="text-[10px] font-mono font-semibold text-claude-accent">
-                                                +{summary.activeMeetupCount - 3}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-
-                                {summary.activeMeetupCount === 0 && summary.cancelledMeetupCount > 0 && (
-                                    <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-claude-secondary/70">
-                                        Cancelled
-                                    </div>
+                                {hasCancelledOnly && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-white/[0.18]" />
                                 )}
                             </div>
                         </button>
@@ -456,6 +404,43 @@ function MonthGrid({
     );
 }
 
+// Mobile-only slide-up bottom sheet wrapper
+function DayDetailSheet({ open, onClose, children }) {
+    return (
+        <AnimatePresence>
+            {open && (
+                <>
+                    <motion.div
+                        key="sheet-backdrop"
+                        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={onClose}
+                    />
+                    <motion.div
+                        key="sheet-panel"
+                        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[76vh] flex-col rounded-t-[2rem] border-t border-white/10 bg-[rgba(20,32,38,0.97)] shadow-[0_-24px_60px_rgba(0,0,0,0.5)] backdrop-blur-xl lg:hidden"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+                    >
+                        {/* Drag handle */}
+                        <div className="mx-auto mt-3 mb-1 h-1 w-10 shrink-0 rounded-full bg-white/20" />
+                        {/* Scrollable content */}
+                        <div className="flex-1 overflow-y-auto overscroll-contain">
+                            {children}
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
+    );
+}
+
+// Day detail panel (used in both mobile sheet and desktop sidebar)
 function DayDetailSurface({
     selectedDate,
     agendaItems,
@@ -465,32 +450,24 @@ function DayDetailSurface({
     onToday,
     onPropose,
     onSuggestionSelect,
+    onClose,
     className = '',
 }) {
     const hasAgenda = agendaItems.length > 0;
     const suggestionCopy = suggestionMode === 'fallback'
-        ? 'No strong overlap landed on this day, so these nearby openings from the visible month are the best alternatives.'
-        : 'Suggested overlap windows for the selected day.';
+        ? 'Best nearby openings this month.'
+        : 'Best overlap windows for this day.';
 
     return (
         <section
             data-testid="group-schedule-day-surface"
             className={`rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(20,26,38,0.92),rgba(10,14,23,0.9))] p-4 shadow-[0_32px_60px_rgba(4,7,10,0.22)] md:p-5 ${className}`.trim()}
         >
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                        Selected Day
-                    </p>
-                    <h3 className="mt-2 text-xl font-semibold leading-tight text-claude-text md:text-2xl">
-                        {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
-                    </h3>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-claude-secondary">
-                        {hasAgenda
-                            ? 'Meetups and shared class windows stay anchored here so you can see the day clearly before you RSVP.'
-                            : 'Nothing is scheduled here yet. You can jump back to today or propose a session straight from this date.'}
-                    </p>
-                </div>
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xl font-semibold leading-tight text-claude-text">
+                    {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
+                </h3>
 
                 <div className="flex shrink-0 items-center gap-2">
                     <button
@@ -503,47 +480,95 @@ function DayDetailSurface({
                     <button
                         type="button"
                         onClick={onPropose}
-                        className="inline-flex items-center gap-2 rounded-[1.1rem] border border-claude-accent/28 bg-claude-accent/14 px-3.5 py-2.5 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/18"
+                        className="inline-flex items-center gap-1.5 rounded-[1.1rem] border border-claude-accent/28 bg-claude-accent/14 px-3 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/18"
                     >
                         <CalendarPlus2 className="h-4 w-4 text-claude-accent" />
-                        <span className="hidden sm:inline">Propose Session</span>
+                        <span className="hidden sm:inline">Propose</span>
                     </button>
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            aria-label="Close"
+                            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-secondary transition-colors hover:text-claude-text"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+            {/* Best Times panel */}
+            <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
                 <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-claude-accent" />
                     <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
                         Best Times
                     </span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-claude-secondary">
-                    {suggestions.length > 0
-                        ? suggestionCopy
-                        : 'Share schedules with at least one more member and this panel will surface the clearest overlap automatically.'}
-                </p>
 
-                {suggestions.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {suggestions.map((suggestion) => (
-                            <button
-                                key={suggestion.key}
-                                type="button"
-                                onClick={() => onSuggestionSelect(suggestion)}
-                                className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
-                            >
-                                {formatSuggestionLabel(suggestion)}
-                            </button>
-                        ))}
-                    </div>
+                {suggestions.length > 0 ? (
+                    <>
+                        <p className="mt-1.5 text-xs leading-5 text-claude-secondary">
+                            {suggestionCopy}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {suggestions.map((suggestion) => (
+                                <button
+                                    key={suggestion.key}
+                                    type="button"
+                                    onClick={() => onSuggestionSelect(suggestion)}
+                                    className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
+                                >
+                                    {formatSuggestionLabel(suggestion)}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <p className="mt-1.5 text-xs leading-5 text-claude-secondary">
+                        Share your schedule to unlock overlap suggestions.
+                    </p>
                 )}
             </div>
 
-            <div className="mt-5 space-y-3">
-                {hasAgenda ? agendaItems.map(renderAgendaItem) : (
-                    <div className="rounded-[1.45rem] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm leading-6 text-claude-secondary">
-                        No shared class blocks or study meetups are scheduled for this date yet.
+            {/* Agenda */}
+            <div className="mt-5">
+                {hasAgenda ? (
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        {agendaItems.map((item) => (
+                            <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.97 }}
+                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                layout="position"
+                                className="mb-3 last:mb-0"
+                            >
+                                {renderAgendaItem(item)}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                ) : (
+                    <div className="flex flex-col items-center gap-4 py-10 text-center">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
+                            <CalendarDays className="h-5 w-5 text-claude-secondary" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold text-claude-text">Nothing scheduled</p>
+                            <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                Propose a session to get things going.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onPropose}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/30 bg-claude-accent/14 px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/20"
+                        >
+                            <CalendarPlus2 className="h-3.5 w-3.5 text-claude-accent" />
+                            Propose Session
+                        </button>
                     </div>
                 )}
             </div>
@@ -566,6 +591,7 @@ export default function GroupScheduleHub({
 }) {
     const [anchorDate, setAnchorDate] = useState(() => startOfDay(new Date()));
     const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+    const [sheetOpen, setSheetOpen] = useState(false);
     const [shareBusy, setShareBusy] = useState(false);
     const [composerOpen, setComposerOpen] = useState(false);
     const [composerStep, setComposerStep] = useState(1);
@@ -623,7 +649,7 @@ export default function GroupScheduleHub({
         ? 'fallback'
         : 'empty';
 
-    useBodyScrollLock(composerOpen);
+    useBodyScrollLock(composerOpen || sheetOpen);
 
     useEffect(() => {
         onRangeChange?.(visibleRange.start, visibleRange.end);
@@ -647,6 +673,11 @@ export default function GroupScheduleHub({
             setSelectedDate((currentSelected) => getPreservedDayForMonth(currentSelected, nextMonth));
             return nextMonth;
         });
+    };
+
+    const handleSelectDay = (date) => {
+        setSelectedDate(startOfDay(date));
+        setSheetOpen(true);
     };
 
     const openComposer = (suggestion = null) => {
@@ -767,7 +798,7 @@ export default function GroupScheduleHub({
         }
 
         if (!composer.topic.trim()) {
-            setComposerError('Add a session topic so everyone knows what they’re joining.');
+            setComposerError('Add a session topic so everyone knows what they're joining.');
             return;
         }
 
@@ -812,13 +843,28 @@ export default function GroupScheduleHub({
         );
     };
 
+    // Shared props for both mobile sheet and desktop sidebar instances
+    const dayDetailProps = {
+        selectedDate,
+        agendaItems,
+        suggestions: displayedSuggestions,
+        suggestionMode,
+        renderAgendaItem,
+        onToday: handleSelectToday,
+        onPropose: () => openComposer(),
+        onSuggestionSelect: (suggestion) => {
+            setSelectedDate(startOfDay(suggestion.startsAt));
+            openComposer(suggestion);
+        },
+    };
+
     if (loading) {
         return (
             <div data-testid="group-schedule-hub" className="space-y-4">
-                <div className="h-28 rounded-[1.9rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                <div className="h-20 rounded-[1.9rem] border border-white/10 bg-white/[0.04] animate-pulse" />
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px]">
-                    <div className="h-[520px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
-                    <div className="h-[520px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                    <div className="h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                    <div className="hidden lg:block h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
                 </div>
             </div>
         );
@@ -826,9 +872,10 @@ export default function GroupScheduleHub({
 
     return (
         <div data-testid="group-schedule-hub" className="space-y-4 md:space-y-5">
+            {/* Shared Availability — text-reduced header */}
             <section className="rounded-[1.9rem] border border-white/10 bg-[linear-gradient(150deg,rgba(21,27,38,0.9),rgba(11,16,25,0.92))] p-4 shadow-[0_24px_48px_rgba(6,9,12,0.18)] md:p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="max-w-2xl">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <UsersRound className="h-4 w-4 text-claude-accent" />
                             <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
@@ -836,13 +883,8 @@ export default function GroupScheduleHub({
                             </span>
                         </div>
                         <h2 className="mt-2 text-lg font-semibold text-claude-text md:text-xl">
-                            Keep your class schedule visible to {group?.name || 'this group'} on your terms.
+                            Keep your schedule visible to {group?.name || 'this group'} on your terms.
                         </h2>
-                        <p className="mt-2 max-w-xl text-sm leading-6 text-claude-secondary">
-                            {myShareMode && myShareMode !== 'hidden'
-                                ? 'Your schedule is contributing to the calendar right now. Switch modes any time without changing your meetups.'
-                                : 'Opt in with busy/free or full detail to help the group spot the easiest overlap windows.'}
-                        </p>
                     </div>
 
                     <div className="w-full max-w-xl">
@@ -852,22 +894,21 @@ export default function GroupScheduleHub({
             </section>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px] xl:grid-cols-[minmax(0,1.65fr)_380px]">
+                {/* Calendar section */}
                 <section className="rounded-[2.2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.32),rgba(9,13,21,0.94)_62%)] p-4 shadow-[0_30px_60px_rgba(4,7,10,0.22)] md:p-5 lg:p-6">
+                    {/* Month navigation */}
                     <div className="flex items-center justify-between gap-3">
                         <button
                             type="button"
                             onClick={() => shiftMonth(-1)}
                             aria-label="Previous month"
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
                         >
                             <ChevronLeft className="h-5 w-5" />
                         </button>
 
                         <div className="min-w-0 flex-1 text-center">
-                            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                Schedule
-                            </p>
-                            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-claude-text">
+                            <h2 className="text-2xl font-semibold tracking-tight text-claude-text md:text-3xl">
                                 {formatDateLabel(anchorDate, { month: 'long', year: 'numeric' })}
                             </h2>
                         </div>
@@ -876,39 +917,42 @@ export default function GroupScheduleHub({
                             type="button"
                             onClick={() => shiftMonth(1)}
                             aria-label="Next month"
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
                         >
                             <ChevronRight className="h-5 w-5" />
                         </button>
                     </div>
 
-                    <div className="mt-6">
+                    <div className="mt-5">
                         <MonthGrid
                             anchorDate={anchorDate}
                             monthDays={monthDays}
                             selectedDate={selectedDate}
                             daySummaryByKey={daySummaryByKey}
-                            onSelectDay={(date) => setSelectedDate(startOfDay(date))}
+                            onSelectDay={handleSelectDay}
                         />
                     </div>
                 </section>
 
-                <DayDetailSurface
-                    selectedDate={selectedDate}
-                    agendaItems={agendaItems}
-                    suggestions={displayedSuggestions}
-                    suggestionMode={suggestionMode}
-                    renderAgendaItem={renderAgendaItem}
-                    onToday={handleSelectToday}
-                    onPropose={() => openComposer()}
-                    onSuggestionSelect={(suggestion) => {
-                        setSelectedDate(startOfDay(suggestion.startsAt));
-                        openComposer(suggestion);
-                    }}
-                    className="lg:sticky lg:top-24"
-                />
+                {/* Desktop sidebar — hidden on mobile */}
+                <div className="hidden lg:block">
+                    <DayDetailSurface
+                        {...dayDetailProps}
+                        className="lg:sticky lg:top-24"
+                    />
+                </div>
             </div>
 
+            {/* Mobile bottom sheet — hidden on lg+ */}
+            <DayDetailSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+                <DayDetailSurface
+                    {...dayDetailProps}
+                    onClose={() => setSheetOpen(false)}
+                    className="rounded-none border-0 bg-transparent shadow-none"
+                />
+            </DayDetailSheet>
+
+            {/* Meetup composer modal */}
             <AnimatePresence>
                 {composerOpen && (
                     <div className="fixed inset-0 z-[100] flex items-end justify-center md:items-center md:p-4">
