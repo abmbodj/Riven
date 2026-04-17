@@ -348,7 +348,7 @@ function MonthGrid({
                         !inMonth ? 'outside current month' : null,
                         hasMeetups ? `${summary.activeMeetupCount} meetup${summary.activeMeetupCount === 1 ? '' : 's'}` : null,
                         summary.cancelledMeetupCount > 0 ? `${summary.cancelledMeetupCount} cancelled` : null,
-                        hasSchedule ? `${summary.scheduleCount} busy block${summary.scheduleCount === 1 ? '' : 's'}` : null,
+                        hasSchedule ? `${summary.scheduleCount} class block${summary.scheduleCount === 1 ? '' : 's'}` : null,
                     ].filter(Boolean).join(', ');
 
                     return (
@@ -408,10 +408,22 @@ function MonthGrid({
                                     </>
                                 )}
                                 {hasSchedule && (
-                                    <span className={[
-                                        'h-1 w-3 rounded-full',
-                                        isSelected ? 'bg-[#182a31]/40' : 'bg-botanical-forest/70',
-                                    ].join(' ')} />
+                                    <>
+                                        <span className={[
+                                            'h-2 w-2 rounded-full',
+                                            isSelected
+                                                ? 'bg-[#182a31]/40'
+                                                : 'bg-[#7db591] shadow-[0_0_5px_rgba(93,172,118,0.5)]',
+                                        ].join(' ')} />
+                                        {summary.scheduleCount > 1 && (
+                                            <span className={[
+                                                'text-[10px] font-mono font-bold leading-none',
+                                                isSelected ? 'text-[#182a31]/60' : 'text-[#7db591]',
+                                            ].join(' ')}>
+                                                {summary.scheduleCount}
+                                            </span>
+                                        )}
+                                    </>
                                 )}
                                 {hasCancelledOnly && (
                                     <span className="h-1.5 w-1.5 rounded-full bg-white/[0.18]" />
