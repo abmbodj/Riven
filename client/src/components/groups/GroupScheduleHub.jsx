@@ -59,6 +59,10 @@ const DURATION_OPTIONS = [45, 60, 90, 120];
 const EMPTY_ARRAY = [];
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
+const schedulePanelClass = 'glass-panel-premium rounded-[2rem] border border-white/10 shadow-[0_28px_56px_rgba(3,7,11,0.24)]';
+const scheduleSoftPanelClass = 'guide-shell rounded-[1.4rem] border border-white/10 bg-white/[0.03]';
+const scheduleChipClass = 'rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.14em]';
+
 function createDefaultComposerDate(selectedDate = new Date()) {
     const base = startOfDay(selectedDate);
     const now = new Date();
@@ -154,7 +158,7 @@ function AvatarStack({ attendees = [], count = 0 }) {
 
 function ShareModeControl({ currentMode, onChange, busy }) {
     return (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2.5">
             {SHARE_MODES.map((mode) => {
                 const Icon = mode.icon;
                 const isActive = (currentMode || 'hidden') === mode.value;
@@ -165,18 +169,22 @@ function ShareModeControl({ currentMode, onChange, busy }) {
                         type="button"
                         onClick={() => onChange(mode.value)}
                         disabled={busy}
-                        className={`rounded-[1.15rem] border px-3 py-3 text-left transition-all ${
+                        className={`relative overflow-hidden rounded-[1.15rem] border px-3 py-3 text-left transition-all ${
                             isActive
-                                ? 'border-claude-accent/40 bg-claude-accent/12 text-claude-text shadow-[0_18px_34px_rgba(28,20,7,0.18)]'
-                                : 'border-white/10 bg-white/[0.04] text-claude-secondary hover:border-white/20 hover:text-claude-text'
+                                ? 'border-claude-accent/38 bg-[linear-gradient(150deg,rgba(222,185,106,0.18),rgba(40,29,10,0.5))] text-claude-text shadow-[0_18px_34px_rgba(28,20,7,0.2)]'
+                                : 'border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] text-claude-secondary hover:border-white/20 hover:text-claude-text'
                         } disabled:opacity-50`}
                     >
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(222,185,106,0.09),transparent_55%)]" />
                         <div className="flex items-center gap-2">
                             <Icon className="h-4 w-4" />
                             <span className="text-[11px] font-mono font-bold uppercase tracking-[0.14em]">
                                 {mode.label}
                             </span>
                         </div>
+                        <p className="mt-1.5 line-clamp-1 text-[11px] font-medium text-inherit/75">
+                            {mode.description}
+                        </p>
                     </button>
                 );
             })}
@@ -186,7 +194,7 @@ function ShareModeControl({ currentMode, onChange, busy }) {
 
 function ScheduleBlockCard({ item }) {
     return (
-        <div className="rounded-[1.3rem] border border-[#7d9a86]/20 bg-[linear-gradient(135deg,rgba(93,132,112,0.2),rgba(23,47,40,0.72))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="guide-shell rounded-[1.3rem] border border-[#7d9a86]/25 bg-[linear-gradient(135deg,rgba(93,132,112,0.24),rgba(23,47,40,0.76))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <p className="text-sm font-semibold text-claude-text">
@@ -196,7 +204,7 @@ function ScheduleBlockCard({ item }) {
                         {item.subtitle}
                     </p>
                 </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-[#d9e8dd]/80">
+                <div className={`${scheduleChipClass} text-[#d9e8dd]/80`}>
                     {formatTimeLabel(item.startAt.toTimeString().slice(0, 5))}
                 </div>
             </div>
@@ -214,7 +222,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
     const locationLabel = meetup.location_label || (locationHref ? 'Shared link available' : '');
 
     return (
-        <div className="rounded-[1.45rem] border border-claude-accent/25 bg-[linear-gradient(145deg,rgba(222,185,106,0.14),rgba(43,30,12,0.72))] px-4 py-4 shadow-[0_24px_44px_rgba(17,10,2,0.2)]">
+        <div className="glass-panel-premium rounded-[1.45rem] border border-claude-accent/28 bg-[linear-gradient(145deg,rgba(222,185,106,0.16),rgba(43,30,12,0.74))] px-4 py-4 shadow-[0_24px_44px_rgba(17,10,2,0.24)]">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -273,7 +281,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                     <button
                         type="button"
                         onClick={() => onLeave(meetup)}
-                        className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:border-white/20 hover:bg-white/[0.09]"
+                        className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:border-white/20 hover:bg-white/[0.1]"
                     >
                         Leave
                     </button>
@@ -281,7 +289,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                     <button
                         type="button"
                         onClick={() => onJoin(meetup)}
-                        className="rounded-full border border-claude-accent/30 bg-claude-accent px-4 py-2 text-sm font-semibold text-[#182a31] transition-transform hover:-translate-y-0.5"
+                        className="rounded-full border border-claude-accent/30 bg-claude-accent px-4 py-2 text-sm font-semibold text-[#182a31] shadow-[0_12px_26px_rgba(41,28,7,0.2)] transition-transform hover:-translate-y-0.5"
                     >
                         Join
                     </button>
@@ -291,7 +299,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                     <button
                         type="button"
                         onClick={() => onCancel(meetup)}
-                        className="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/16"
+                        className="rounded-full border border-red-400/22 bg-red-500/12 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/18"
                     >
                         Cancel
                     </button>
@@ -314,11 +322,11 @@ function MonthGrid({
     return (
         <div role="grid" aria-label="Monthly group schedule">
             {/* Day-of-week headers */}
-            <div className="grid grid-cols-7 pb-2">
+            <div className="grid grid-cols-7 pb-2.5">
                 {SHORT_DAY_LABELS.map((label) => (
                     <div
                         key={label}
-                        className="text-center text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-claude-secondary/50"
+                        className="text-center text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-claude-secondary/55"
                     >
                         {label}
                     </div>
@@ -363,11 +371,11 @@ function MonthGrid({
                             className={[
                                 'flex flex-col items-center gap-1 rounded-xl py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-0',
                                 isSelected
-                                    ? 'bg-claude-accent/[0.15] ring-1 ring-inset ring-claude-accent/25'
+                                    ? 'bg-[linear-gradient(155deg,rgba(222,185,106,0.19),rgba(44,31,10,0.45))] ring-1 ring-inset ring-claude-accent/35'
                                     : hasMeetups
-                                    ? 'bg-claude-accent/[0.07] hover:bg-claude-accent/[0.11]'
+                                    ? 'bg-claude-accent/[0.07] hover:bg-claude-accent/[0.13]'
                                     : hasSchedule
-                                    ? 'bg-botanical-forest/[0.06] hover:bg-botanical-forest/[0.1]'
+                                    ? 'bg-botanical-forest/[0.07] hover:bg-botanical-forest/[0.12]'
                                     : 'hover:bg-white/[0.04]',
                             ].join(' ')}
                         >
@@ -378,7 +386,7 @@ function MonthGrid({
                                     isSelected
                                         ? 'bg-claude-accent text-[#182a31] shadow-[0_0_18px_rgba(222,185,106,0.28)]'
                                         : isToday
-                                        ? 'bg-emerald-400/[0.08] text-emerald-200 ring-1 ring-emerald-400/60'
+                                        ? 'bg-emerald-400/[0.1] text-emerald-100 ring-1 ring-emerald-400/70'
                                         : inMonth
                                         ? 'text-claude-text'
                                         : 'text-claude-secondary/30',
@@ -457,11 +465,11 @@ function DayDetailSurface({
     return (
         <section
             data-testid="group-schedule-day-surface"
-            className={`rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(20,26,38,0.92),rgba(10,14,23,0.9))] p-4 shadow-[0_32px_60px_rgba(4,7,10,0.22)] md:p-5 ${className}`.trim()}
+            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-4 md:p-5 ${className}`.trim()}
         >
             {/* Header */}
             <div className="flex items-center justify-between gap-3">
-                <h3 className="text-xl font-semibold leading-tight text-claude-text">
+                <h3 className="font-display text-[1.6rem] font-bold italic leading-tight tracking-tight text-claude-text">
                     {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
                 </h3>
 
@@ -469,14 +477,14 @@ function DayDetailSurface({
                     <button
                         type="button"
                         onClick={onToday}
-                        className="rounded-full border border-emerald-400/18 bg-emerald-400/12 px-3 py-2 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-400/18"
+                        className="rounded-full border border-emerald-400/20 bg-emerald-400/14 px-3 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/22"
                     >
                         Today
                     </button>
                     <button
                         type="button"
                         onClick={onPropose}
-                        className="inline-flex items-center gap-1.5 rounded-[1.1rem] border border-claude-accent/28 bg-claude-accent/14 px-3 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/18"
+                        className="inline-flex items-center gap-1.5 rounded-[1.1rem] border border-claude-accent/30 bg-claude-accent/16 px-3 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
                     >
                         <CalendarPlus2 className="h-4 w-4 text-claude-accent" />
                         <span className="hidden sm:inline">Propose</span>
@@ -485,7 +493,7 @@ function DayDetailSurface({
             </div>
 
             {/* Best Times panel */}
-            <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+            <div className={`mt-4 ${scheduleSoftPanelClass} p-4`}>
                 <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-claude-accent" />
                     <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
@@ -542,15 +550,15 @@ function DayDetailSurface({
                             <CalendarDays className="h-5 w-5 text-claude-secondary" />
                         </div>
                         <div>
-                            <p className="text-sm font-semibold text-claude-text">Nothing scheduled</p>
-                            <p className="mt-1 text-xs leading-5 text-claude-secondary">
-                                Propose a session to get things going.
-                            </p>
+                                <p className="font-display text-xl font-bold italic tracking-tight text-claude-text">Nothing scheduled</p>
+                                <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                    Propose a session to get things going.
+                                </p>
                         </div>
                         <button
                             type="button"
                             onClick={onPropose}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/30 bg-claude-accent/14 px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/20"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/30 bg-claude-accent/16 px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
                         >
                             <CalendarPlus2 className="h-3.5 w-3.5 text-claude-accent" />
                             Propose Session
@@ -840,10 +848,10 @@ export default function GroupScheduleHub({
     if (loading) {
         return (
             <div data-testid="group-schedule-hub" className="space-y-4">
-                <div className="h-20 rounded-[1.9rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                <div className="h-20 rounded-[1.9rem] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] animate-pulse" />
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px]">
-                    <div className="h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
-                    <div className="h-[400px] rounded-[2rem] border border-white/10 bg-white/[0.04] animate-pulse" />
+                    <div className="h-[400px] rounded-[2rem] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] animate-pulse" />
+                    <div className="h-[400px] rounded-[2rem] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] animate-pulse" />
                 </div>
             </div>
         );
@@ -852,7 +860,7 @@ export default function GroupScheduleHub({
     return (
         <div data-testid="group-schedule-hub" className="space-y-4 md:space-y-5">
             {/* Shared Availability — text-reduced header */}
-            <section className="rounded-[1.9rem] border border-white/10 bg-[linear-gradient(150deg,rgba(21,27,38,0.9),rgba(11,16,25,0.92))] p-4 shadow-[0_24px_48px_rgba(6,9,12,0.18)] md:p-5">
+            <section className={`${schedulePanelClass} p-4 md:p-5`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -861,7 +869,7 @@ export default function GroupScheduleHub({
                                 Shared Availability
                             </span>
                         </div>
-                        <h2 className="mt-2 text-lg font-semibold text-claude-text md:text-xl">
+                        <h2 className="mt-2 font-display text-2xl font-bold italic tracking-tight text-claude-text md:text-[2rem]">
                             Keep your schedule visible to {group?.name || 'this group'} on your terms.
                         </h2>
                     </div>
@@ -874,20 +882,20 @@ export default function GroupScheduleHub({
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px] xl:grid-cols-[minmax(0,1.65fr)_380px]">
                 {/* Calendar section */}
-                <section className="rounded-[2.2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.32),rgba(9,13,21,0.94)_62%)] p-4 shadow-[0_30px_60px_rgba(4,7,10,0.22)] md:p-5 lg:p-6">
+                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.34),rgba(9,13,21,0.95)_62%)] p-4 md:p-5 lg:p-6`}>
                     {/* Month navigation */}
                     <div className="flex items-center justify-between gap-3">
                         <button
                             type="button"
                             onClick={() => shiftMonth(-1)}
                             aria-label="Previous month"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-claude-text transition-colors hover:bg-white/[0.1]"
                         >
                             <ChevronLeft className="h-5 w-5" />
                         </button>
 
                         <div className="min-w-0 flex-1 text-center">
-                            <h2 className="text-2xl font-semibold tracking-tight text-claude-text md:text-3xl">
+                            <h2 className="font-display text-[2rem] font-bold italic tracking-tight text-claude-text md:text-[2.35rem]">
                                 {formatDateLabel(anchorDate, { month: 'long', year: 'numeric' })}
                             </h2>
                         </div>
@@ -896,7 +904,7 @@ export default function GroupScheduleHub({
                             type="button"
                             onClick={() => shiftMonth(1)}
                             aria-label="Next month"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-text transition-colors hover:bg-white/[0.08]"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-claude-text transition-colors hover:bg-white/[0.1]"
                         >
                             <ChevronRight className="h-5 w-5" />
                         </button>
@@ -942,7 +950,7 @@ export default function GroupScheduleHub({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 24, scale: 0.98 }}
                             onSubmit={handleComposerSubmit}
-                            className="relative w-full max-w-lg rounded-t-[2.2rem] border border-white/10 bg-[rgba(22,42,49,0.92)] p-6 shadow-[0_40px_90px_rgba(0,0,0,0.34)] md:rounded-[2rem] md:p-7"
+                            className="relative w-full max-w-lg rounded-t-[2.2rem] border border-white/10 bg-[linear-gradient(165deg,rgba(30,56,64,0.95),rgba(12,20,28,0.95))] p-6 shadow-[0_40px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl md:rounded-[2rem] md:p-7"
                             onClick={(event) => event.stopPropagation()}
                         >
                             <div className="flex items-center justify-between gap-3">
@@ -950,7 +958,7 @@ export default function GroupScheduleHub({
                                     <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
                                         Propose Session
                                     </p>
-                                    <h3 id={titleIdRef.current} className="mt-2 text-2xl font-semibold text-claude-text">
+                                    <h3 id={titleIdRef.current} className="mt-2 font-display text-[2rem] font-bold italic tracking-tight text-claude-text">
                                         {composerStep === 1 ? 'Pick the time' : 'Add the details'}
                                     </h3>
                                 </div>
@@ -958,7 +966,7 @@ export default function GroupScheduleHub({
                                     type="button"
                                     onClick={closeComposer}
                                     disabled={submitting}
-                                    className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-claude-text"
+                                    className="rounded-full border border-white/10 bg-white/[0.05] p-2 text-claude-text transition-colors hover:bg-white/[0.1]"
                                 >
                                     <X className="h-5 w-5" />
                                 </button>
@@ -975,7 +983,7 @@ export default function GroupScheduleHub({
                                             name="meetup-start-at"
                                             value={composer.startAtLocal}
                                             onChange={(event) => setComposer((current) => ({ ...current, startAtLocal: event.target.value }))}
-                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
+                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
                                         />
                                     </label>
 
@@ -992,8 +1000,8 @@ export default function GroupScheduleHub({
                                                     className={`rounded-[1rem] border px-3 py-3 text-sm font-semibold transition-colors ${
                                                         Number(composer.durationMinutes) === option
                                                             ? 'border-claude-accent/35 bg-claude-accent/12 text-claude-text'
-                                                            : 'border-white/10 bg-white/[0.04] text-claude-secondary'
-                                                    }`}
+                                                            : 'border-white/10 bg-white/[0.05] text-claude-secondary'
+                                                     }`}
                                                 >
                                                     {option}m
                                                 </button>
@@ -1013,7 +1021,7 @@ export default function GroupScheduleHub({
                                             value={composer.topic}
                                             onChange={(event) => setComposer((current) => ({ ...current, topic: event.target.value }))}
                                             placeholder="e.g. Organic chemistry problem set"
-                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
+                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
                                         />
                                     </label>
 
@@ -1026,7 +1034,7 @@ export default function GroupScheduleHub({
                                             value={composer.locationLabel}
                                             onChange={(event) => setComposer((current) => ({ ...current, locationLabel: event.target.value }))}
                                             placeholder="Library East, Room 202"
-                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
+                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
                                         />
                                     </label>
 
@@ -1039,7 +1047,7 @@ export default function GroupScheduleHub({
                                             value={composer.locationUrl}
                                             onChange={(event) => setComposer((current) => ({ ...current, locationUrl: event.target.value }))}
                                             placeholder="https://..."
-                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.04] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
+                                            className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
                                         />
                                     </label>
                                 </div>
@@ -1057,7 +1065,7 @@ export default function GroupScheduleHub({
                                         type="button"
                                         onClick={() => setComposerStep(1)}
                                         disabled={submitting}
-                                        className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-claude-text"
+                                        className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-claude-text"
                                     >
                                         Back
                                     </button>
