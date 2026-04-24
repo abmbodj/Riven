@@ -176,6 +176,8 @@ export default function GuideView() {
     const [refinedAnswer, setRefinedAnswer] = useState('');
     const [teachSection, setTeachSection] = useState(0);
     const [expandedSteps, setExpandedSteps] = useState({});
+    const [explainRevealed, setExplainRevealed] = useState(1);
+    const [fuzzyPeek, setFuzzyPeek] = useState(false);
 
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
@@ -259,6 +261,22 @@ export default function GuideView() {
         }
         return sections;
     }, [currentCard]);
+
+    const explainParagraphs = useMemo(() => {
+        const raw = currentCard?.teaching?.explain;
+        if (!raw || typeof raw !== 'string') return [];
+        return raw.split('\n\n').map((p) => p.trim()).filter(Boolean);
+    }, [currentCard]);
+
+    const onExplainSection = teachSections[teachSection]?.type === 'explain';
+    const explainTotal = explainParagraphs.length;
+    const explainFullyRevealed = !onExplainSection || explainRevealed >= explainTotal;
+    const showFuzzyPrompt = (
+        onExplainSection
+        && explainRevealed >= 3
+        && explainRevealed < explainTotal
+        && explainTotal > 4
+    );
 
     const persistStudyState = useCallback(async (nextState) => {
         const updatedGuide = await api.updateStudyGuide(id, { study_state: nextState });
@@ -355,6 +373,8 @@ export default function GuideView() {
         setActiveAssistOption(null);
         setTeachSection(0);
         setExpandedSteps({});
+        setExplainRevealed(1);
+        setFuzzyPeek(false);
         setRiverState(nextCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(nextCard));
         setSessionStage('teach');
@@ -367,6 +387,8 @@ export default function GuideView() {
         setActiveAssistOption(null);
         setTeachSection(0);
         setExpandedSteps({});
+        setExplainRevealed(1);
+        setFuzzyPeek(false);
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
@@ -379,12 +401,19 @@ export default function GuideView() {
     };
 
     const handleAdvanceTeach = () => {
+        // On the explain section, advance the progressive reveal first; only
+        // move to the next teaching section once all paragraphs are revealed.
+        if (onExplainSection && explainRevealed < explainTotal) {
+            handleRevealNext();
+            return;
+        }
         const nextIndex = teachSection + 1;
         if (nextIndex >= teachSections.length) {
             handleBeginCheck();
             return;
         }
         setTeachSection(nextIndex);
+        setFuzzyPeek(false);
         const section = teachSections[nextIndex];
         const captions = {
             intuition: 'Let me show you why this works...',
@@ -412,6 +441,44 @@ export default function GuideView() {
         const key = `${exampleIndex}-${stepIndex}`;
         setExpandedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
     };
+
+    const handleRevealNext = useCallback(() => {
+        setFuzzyPeek(false);
+        setExplainRevealed((prev) => {
+            const next = Math.min(prev + 1, explainTotal);
+            const reachedEnd = next >= explainTotal;
+            setRiverState(reachedEnd ? 'point' : 'thinking');
+            setRiverCaption(reachedEnd
+                ? 'That’s the whole thought. Ready for the why?'
+                : 'Take a beat. Then keep going.');
+            return next;
+        });
+    }, [explainTotal]);
+
+    const handleFuzzy = useCallback(() => {
+        setFuzzyPeek(true);
+        setRiverState('thinking');
+        setRiverCaption('No rush. Let me put it another way.');
+    }, []);
+
+    const handleGotIt = useCallback(() => {
+        setRiverState('encourage');
+        setRiverCaption('Good — keep that.');
+        handleRevealNext();
+    }, [handleRevealNext]);
+
+    useEffect(() => {
+        if (sessionStage !== 'teach' || !onExplainSection || explainFullyRevealed) return undefined;
+        const onKey = (e) => {
+            if (e.key !== ' ' && e.key !== 'ArrowDown') return;
+            const tag = e.target?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+            e.preventDefault();
+            handleRevealNext();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [sessionStage, onExplainSection, explainFullyRevealed, handleRevealNext]);
 
     const handleBeginCheck = () => {
         setActiveAssistOption(null);
@@ -1089,31 +1156,97 @@ export default function GuideView() {
                                                     <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                                                 </div>
 
-                                                {/* ── Explain section ── */}
+                                                {/* ── Explain section (progressive reveal) ── */}
                                                 {section.type === 'explain' && (
-                                                    <motion.div
-                                                        className="space-y-3"
-                                                        initial="hidden"
-                                                        animate="visible"
-                                                        variants={{
-                                                            hidden: {},
-                                                            visible: { transition: { staggerChildren: 0.06 } },
-                                                        }}
-                                                    >
-                                                        {currentCard?.teaching?.explain && currentCard.teaching.explain.split('\n\n').filter(Boolean).map((paragraph, pi) => (
-                                                            <motion.p
-                                                                key={pi}
-                                                                className="text-[15px] sm:text-base leading-[1.8] max-w-[72ch]"
-                                                                style={{ color: '#d4ccb8' }}
-                                                                variants={{
-                                                                    hidden: { opacity: 0, y: 6 },
-                                                                    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: PANEL_EASE } },
+                                                    <div className="space-y-3">
+                                                        {explainParagraphs.slice(0, explainRevealed).map((paragraph, pi) => {
+                                                            const isCurrent = pi === explainRevealed - 1;
+                                                            return (
+                                                                <motion.p
+                                                                    key={pi}
+                                                                    className="text-[15px] sm:text-base leading-[1.8] max-w-[72ch] transition-[color,opacity] duration-500 ease-out"
+                                                                    initial={{ opacity: 0, y: 8 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ duration: 0.45, ease: PANEL_EASE }}
+                                                                    style={{
+                                                                        color: isCurrent
+                                                                            ? '#e8dcc8'
+                                                                            : 'color-mix(in oklab, #d4ccb8 55%, transparent)',
+                                                                    }}
+                                                                >
+                                                                    <SubjectRenderer content={paragraph} inline />
+                                                                </motion.p>
+                                                            );
+                                                        })}
+
+                                                        {/* Mid-reveal checkpoint */}
+                                                        {showFuzzyPrompt && !fuzzyPeek && (
+                                                            <motion.div
+                                                                key="fuzzy-prompt"
+                                                                initial={{ opacity: 0, y: 6 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                transition={{ duration: 0.35, ease: PANEL_EASE, delay: 0.15 }}
+                                                                className="mt-5 flex flex-wrap items-center gap-3 pt-4"
+                                                                style={{ borderTop: '1px dashed rgba(222,185,106,0.18)' }}
+                                                            >
+                                                                <span
+                                                                    className="text-[10px] font-mono uppercase tracking-[0.2em]"
+                                                                    style={{ color: 'rgba(222,185,106,0.55)' }}
+                                                                >
+                                                                    Does this click?
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleGotIt}
+                                                                    className="inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors"
+                                                                    style={{
+                                                                        backgroundColor: 'rgba(222,185,106,0.12)',
+                                                                        color: '#deb96a',
+                                                                        border: '1px solid rgba(222,185,106,0.22)',
+                                                                    }}
+                                                                >
+                                                                    Got it
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleFuzzy}
+                                                                    className="inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors"
+                                                                    style={{
+                                                                        backgroundColor: 'rgba(255,255,255,0.04)',
+                                                                        color: 'rgba(212,204,184,0.7)',
+                                                                        border: '1px solid rgba(255,255,255,0.08)',
+                                                                    }}
+                                                                >
+                                                                    Still fuzzy
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
+
+                                                        {/* Fuzzy peek: show intuition inline as an alternate framing */}
+                                                        {fuzzyPeek && currentCard?.teaching?.intuition && (
+                                                            <motion.div
+                                                                key="fuzzy-peek"
+                                                                initial={{ opacity: 0, y: 6 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                transition={{ duration: 0.4, ease: PANEL_EASE }}
+                                                                className="mt-4 rounded-xl px-5 py-4"
+                                                                style={{
+                                                                    backgroundColor: 'rgba(222,185,106,0.06)',
+                                                                    border: '1px solid rgba(222,185,106,0.14)',
                                                                 }}
                                                             >
-                                                                <SubjectRenderer content={paragraph} inline />
-                                                            </motion.p>
-                                                        ))}
-                                                    </motion.div>
+                                                                <p className="text-[10px] font-mono uppercase tracking-[0.2em] mb-2" style={{ color: 'rgba(222,185,106,0.6)' }}>
+                                                                    Another way to see it
+                                                                </p>
+                                                                <p
+                                                                    className="text-[15px] sm:text-base leading-[1.8] italic max-w-[68ch]"
+                                                                    style={{ color: '#e8dcc8' }}
+                                                                >
+                                                                    <SubjectRenderer content={currentCard.teaching.intuition} inline />
+                                                                </p>
+                                                            </motion.div>
+                                                        )}
+                                                    </div>
                                                 )}
 
                                                 {/* ── Intuition section ── */}
@@ -1296,7 +1429,7 @@ export default function GuideView() {
                                 <div className="mt-8 flex flex-wrap items-center gap-3">
                                     <button
                                         type="button"
-                                        onClick={teachSection < teachSections.length - 1 ? handleAdvanceTeach : handleBeginCheck}
+                                        onClick={handleAdvanceTeach}
                                         className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all duration-200"
                                         style={{
                                             backgroundColor: teachSection < teachSections.length - 1
@@ -1306,9 +1439,11 @@ export default function GuideView() {
                                             border: teachSection < teachSections.length - 1 ? '1px solid rgba(222,185,106,0.25)' : 'none',
                                         }}
                                     >
-                                        {teachSection < teachSections.length - 1
-                                            ? `Continue \u2192 ${teachSections[teachSection + 1]?.label}`
-                                            : 'I\u2019m ready to answer'}
+                                        {onExplainSection && explainRevealed < explainTotal
+                                            ? `Go on \u2192  (${explainRevealed}/${explainTotal})`
+                                            : (teachSection < teachSections.length - 1
+                                                ? `Continue \u2192 ${teachSections[teachSection + 1]?.label}`
+                                                : 'I\u2019m ready to answer')}
                                     </button>
                                     {teachSection < teachSections.length - 1 && (
                                         <button

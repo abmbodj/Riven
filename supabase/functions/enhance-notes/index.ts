@@ -5,9 +5,14 @@ import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { buildSinglePassNoteEnhancePrompt, buildSinglePassNoteGeneratePrompt } from '../_shared/notePrompts.mjs';
+import { buildRetryInstruction, validateNoteDoc } from '../_shared/noteValidator.mjs';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
+
+const RETRY_SEVERITY_THRESHOLD = 4;
+const NOTES_MODEL = 'moonshotai/kimi-k2-instruct-0905';
+const NOTES_MAX_TOKENS = 8192;
 
 type PersistUsagePayload = {
   count: number;
@@ -126,9 +131,9 @@ serve(async (request) => {
       (async () => {
         try {
           const streamResponse = ai.streamContent({
-            model: 'llama-3.3-70b-versatile',
+            model: NOTES_MODEL,
             messages: aiMessages,
-            maxTokens: 6144,
+            maxTokens: NOTES_MAX_TOKENS,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -145,13 +150,38 @@ serve(async (request) => {
             }
           }
 
-          const enhancedContent = parseAiJsonResponse(
+          let enhancedContent = parseAiJsonResponse(
             fullText,
             'AI generated invalid notes format. Please try again.',
           );
 
           if (!enhancedContent || typeof enhancedContent !== 'object' || enhancedContent.type !== 'doc') {
             throw createHttpError('AI failed to generate valid enhanced notes.', 500);
+          }
+
+          const validation = validateNoteDoc(enhancedContent);
+          if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD) {
+            try {
+              const retryText = await ai.generateContent({
+                model: NOTES_MODEL,
+                messages: [
+                  ...aiMessages,
+                  { role: 'assistant' as const, content: fullText },
+                  { role: 'user' as const, content: buildRetryInstruction(validation) },
+                ],
+                maxTokens: NOTES_MAX_TOKENS,
+                responseFormat: 'json_object',
+              });
+              const retried = parseAiJsonResponse(retryText, 'Retry produced invalid JSON');
+              if (retried && typeof retried === 'object' && retried.type === 'doc') {
+                const retriedValidation = validateNoteDoc(retried);
+                if (retriedValidation.severity < validation.severity) {
+                  enhancedContent = retried;
+                }
+              }
+            } catch (retryErr) {
+              console.warn('[enhance-notes] retry failed, keeping original output', retryErr);
+            }
           }
 
           // Update the note with enhanced content
@@ -191,18 +221,44 @@ serve(async (request) => {
 
     // ── BATCH PATH ──────────────────────────────────────
     const rawText = await ai.generateContent({
-      model: 'llama-3.3-70b-versatile',
+      model: NOTES_MODEL,
       messages: aiMessages,
+      maxTokens: NOTES_MAX_TOKENS,
       responseFormat: 'json_object',
     });
 
-    const enhancedContent = parseAiJsonResponse(
+    let enhancedContent = parseAiJsonResponse(
       rawText,
       'AI generated invalid notes format. Please try again.',
     );
 
     if (!enhancedContent || typeof enhancedContent !== 'object' || enhancedContent.type !== 'doc') {
       throw createHttpError('AI failed to generate valid enhanced notes.', 500);
+    }
+
+    const validation = validateNoteDoc(enhancedContent);
+    if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD) {
+      try {
+        const retryText = await ai.generateContent({
+          model: NOTES_MODEL,
+          messages: [
+            ...aiMessages,
+            { role: 'assistant' as const, content: rawText },
+            { role: 'user' as const, content: buildRetryInstruction(validation) },
+          ],
+          maxTokens: NOTES_MAX_TOKENS,
+          responseFormat: 'json_object',
+        });
+        const retried = parseAiJsonResponse(retryText, 'Retry produced invalid JSON');
+        if (retried && typeof retried === 'object' && retried.type === 'doc') {
+          const retriedValidation = validateNoteDoc(retried);
+          if (retriedValidation.severity < validation.severity) {
+            enhancedContent = retried;
+          }
+        }
+      } catch (retryErr) {
+        console.warn('[enhance-notes] retry failed, keeping original output', retryErr);
+      }
     }
 
     // Update the note with enhanced content

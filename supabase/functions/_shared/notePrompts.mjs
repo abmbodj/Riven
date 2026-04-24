@@ -27,13 +27,12 @@ export const buildNoteEnrichPrompt = (userNotes, className, draftDoc, subject) =
 ${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 ${buildNaturalNoteStyleInstructions({
-  includeKeyConcepts: true,
+  includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}
 - Preserve the structure and strongest wording of the draft unless accuracy requires revision.
 - Keep the best parts of the student's original notes.
-- Add missing terms, definitions, examples, and connective explanation where they materially help understanding.
-- Refine for clarity without turning the notes into a polished study guide.
+- Add missing terms, definitions, examples, and connective explanation wherever the content contract is not yet satisfied.
 
 ${NOTE_TIPTAP_FORMAT}
 
@@ -77,13 +76,13 @@ export const buildMergePrompt = (
 ${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 ${buildNaturalNoteStyleInstructions({
-  includeKeyConcepts: true,
+  includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}
 - Preserve the structure and strongest wording of each section's notes.
-- Remove duplication introduced at section boundaries.
+- Remove duplication introduced at section boundaries: if a term was defined in an earlier section, don't redefine it in a later one.
 - Smooth out abrupt transitions only where it helps readability.
-- Keep the result feeling like one coherent set of class notes, not a study guide.
+- The merged document should read as one coherent, ordered set of study notes.
 
 ${NOTE_TIPTAP_FORMAT}
 
@@ -106,30 +105,29 @@ ${buildNaturalNoteStyleInstructions({
 
 ${NOTE_TIPTAP_FORMAT}`;
 
-export const buildSinglePassNoteGeneratePrompt = (className, subject) => `You are a lecture notes assistant. Given the lecture transcription, produce natural, study-ready notes as a Tiptap JSON document.
+export const buildSinglePassNoteGeneratePrompt = (className, subject) => `You are a lecture notes assistant. Given the lecture transcription, produce study-ready notes as a Tiptap JSON document that satisfies the content contract below.
 
 ${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 ${buildNaturalNoteStyleInstructions({
-  includeKeyConcepts: true,
+  includeKeyConcepts: false,
   preserveStudentPhrasing: false,
 })}
-- Cover the main ideas, definitions, examples, and steps from the lecture without padding.
-- Use structure when it helps, but do not force a rigid outline.
+- Cover the main ideas, definitions, examples, and steps from the lecture.
+- Organize with H2 headings for major topics and H3 for sub-topics. A student scanning this should be able to tell at a glance what was covered.
 
 ${NOTE_TIPTAP_FORMAT}`;
 
-export const buildSinglePassNoteEnhancePrompt = (userNotes, className, subject) => `You are a lecture notes assistant. Expand the student's notes using the lecture transcription as context.
+export const buildSinglePassNoteEnhancePrompt = (userNotes, className, subject) => `You are a lecture notes assistant. Expand the student's notes using the lecture transcription as context, so the result satisfies the content contract below.
 
 ${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
 ${buildNaturalNoteStyleInstructions({
-  includeKeyConcepts: true,
+  includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}
 - Keep the student's voice where it already works.
-- Fill gaps from the transcription with high-confidence details, definitions, and examples.
-- Improve clarity without turning the notes into a polished study guide.
+- Fill gaps from the transcription with high-confidence details, definitions, and examples until every bolded term has a definition and every concept has an example.
 
 ${NOTE_TIPTAP_FORMAT}
 

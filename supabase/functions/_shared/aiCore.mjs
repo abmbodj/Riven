@@ -67,21 +67,31 @@ export const buildNaturalNoteStyleInstructions = ({
   preserveStudentPhrasing = true,
 } = {}) => {
   const lines = [
-    'Style and voice:',
-    '- Write like a well-written college student making notes for later study: clear, natural, human, and academically solid.',
-    '- Keep the tone grounded and direct rather than polished like a study guide, textbook, or executive summary.',
+    'Voice and structure:',
+    '- Write as study material a student could actually learn from: clear, human, academically solid, and organized for later review.',
     preserveStudentPhrasing
       ? '- Preserve the student\'s original wording when it is already clear and accurate.'
-      : '- Write in a natural student-note voice rather than a polished summary voice.',
-    '- Use headings only when they genuinely help organize the material.',
-    '- Mix short explanatory paragraphs with bullets when that fits the content.',
-    '- Use ordered lists only for real sequences, processes, or steps.',
-    '- Bold key terms on first use and use blockquotes only for short definitions, theorems, or laws when helpful.',
-    '- Avoid canned transitions, generic wrap-up labels, motivational filler, and repetitive framing language.',
+      : '- Use a natural explanatory voice rather than an executive-summary voice.',
+    '- Use H2 headings to mark major topic shifts and H3 for sub-topics. Do not leave the document as a flat bullet list.',
+    '- Introduce concepts in dependency order: foundations first, then things that build on them.',
+    '- Prefer short explanatory paragraphs when explaining *what* or *why*. Use bullets only for real lists, steps, or parallel items.',
+    '- Bold a term on first use, immediately followed by its definition.',
+    '- Use blockquotes only for short verbatim definitions, theorems, or laws.',
+    '',
+    'Content contract (non-negotiable):',
+    '- Every bolded technical term MUST be followed within the same paragraph or the next sentence by a one-sentence plain-language definition.',
+    '- Every abstract concept MUST have at least one concrete example, analogy, or worked instance. If the source material does not provide one, add a high-confidence generic example.',
+    '- Never list a term without defining it on first mention.',
+    '- Never introduce jargon without unpacking it in plain language.',
+    '',
+    'Forbidden:',
+    '- Filler transitions like "In summary,", "Overall,", "It is important to note", "In conclusion".',
+    '- Motivational or meta commentary about learning.',
+    '- Restating the introduction at the end.',
+    '- Exam-question sections.',
     includeKeyConcepts
-      ? '- End with a short "Key Concepts" section that briefly recaps the main ideas.'
-      : '- Do not add a recap section yet.',
-    '- Do not add an exam-question section.',
+      ? '- Do not add a redundant "Key Concepts" recap unless the lecture itself explicitly summarizes at the end; the notes should stand on their own without a restated summary.'
+      : '- Recap / "Key Concepts" / "Summary" / "Conclusion" sections.',
   ];
 
   return lines.join('\n');
