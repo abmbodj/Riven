@@ -160,19 +160,36 @@ serve(async (request) => {
           }
 
           const validation = validateNoteDoc(enhancedContent);
-          if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD) {
+          if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD && deadline - Date.now() > 5_000) {
             try {
-              const retryText = await ai.generateContent({
+              // Signal client to discard streamed chunks; a fresh corrected stream follows.
+              sendChunk('\x00retry-start\x00');
+
+              const retryMessages = [
+                ...aiMessages,
+                { role: 'assistant' as const, content: fullText },
+                { role: 'user' as const, content: buildRetryInstruction(validation) },
+              ];
+
+              let retryFullText = '';
+              const retryStream = ai.streamContent({
                 model: NOTES_MODEL,
-                messages: [
-                  ...aiMessages,
-                  { role: 'assistant' as const, content: fullText },
-                  { role: 'user' as const, content: buildRetryInstruction(validation) },
-                ],
+                messages: retryMessages,
                 maxTokens: NOTES_MAX_TOKENS,
-                responseFormat: 'json_object',
               });
-              const retried = parseAiJsonResponse(retryText, 'Retry produced invalid JSON');
+
+              for await (const chunk of retryStream) {
+                if (Date.now() > deadline) {
+                  throw createHttpError('Retry timed out. Please try again.', 504);
+                }
+                const text = chunk.text ?? '';
+                if (text) {
+                  retryFullText += text;
+                  sendChunk(text);
+                }
+              }
+
+              const retried = parseAiJsonResponse(retryFullText, 'Retry produced invalid JSON');
               if (retried && typeof retried === 'object' && retried.type === 'doc') {
                 const retriedValidation = validateNoteDoc(retried);
                 if (retriedValidation.severity < validation.severity) {

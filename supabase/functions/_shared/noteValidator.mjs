@@ -129,12 +129,12 @@ export const validateNoteDoc = (doc) => {
   }
 
   const boldFindings = getBoldFirstUses(doc);
-  const undefined = boldFindings.filter((f) => !f.defined).map((f) => f.term);
-  if (undefined.length > 0) {
+  const missingDefinitions = boldFindings.filter((f) => !f.defined).map((f) => f.term);
+  if (missingDefinitions.length > 0) {
     issues.push(
-      `These bolded terms appear without a definition nearby: ${undefined.map((t) => `"${t}"`).join(', ')}.`,
+      `These bolded terms appear without a definition nearby: ${missingDefinitions.map((t) => `"${t}"`).join(', ')}.`,
     );
-    severity += undefined.length;
+    severity += missingDefinitions.length;
   }
 
   const { topParagraphs, bulletItems, headings } = countStructure(doc);
