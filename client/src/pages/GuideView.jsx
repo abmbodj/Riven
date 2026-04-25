@@ -217,6 +217,7 @@ export default function GuideView() {
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
     const sectionRefs = useRef({});
+    const hasSeenRevealHint = useRef(localStorage.getItem('riven_reveal_hint_seen') === '1');
 
     useEffect(() => {
         toastRef.current = toast;
@@ -305,6 +306,9 @@ export default function GuideView() {
     const onExplainSection = teachSections[teachSection]?.type === 'explain';
     const explainTotal = explainParagraphs.length;
     const explainFullyRevealed = !onExplainSection || explainRevealed >= explainTotal;
+    const teachRevealCaption = (!hasSeenRevealHint.current && onExplainSection && explainRevealed === 1)
+        ? "I'll walk through this one part at a time. Press space or ↓ to keep going."
+        : riverCaption;
     const showFuzzyPrompt = (
         onExplainSection
         && explainRevealed >= 3
@@ -473,7 +477,14 @@ export default function GuideView() {
 
     const toggleStep = (exampleIndex, stepIndex) => {
         const key = `${exampleIndex}-${stepIndex}`;
-        setExpandedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
+        setExpandedSteps((prev) => ({ ...prev, [key]: prev[key] === false ? true : !prev[key] }));
+    };
+
+    const toggleAllSteps = (exampleIndex, steps) => {
+        const allOpen = steps.every((_, si) => expandedSteps[`${exampleIndex}-${si}`] !== false);
+        const next = {};
+        steps.forEach((_, si) => { next[`${exampleIndex}-${si}`] = !allOpen; });
+        setExpandedSteps((prev) => ({ ...prev, ...next }));
     };
 
     const handleRevealNext = useCallback(() => {
@@ -500,6 +511,13 @@ export default function GuideView() {
         setRiverCaption('Good — keep that.');
         handleRevealNext();
     }, [handleRevealNext]);
+
+    useEffect(() => {
+        if (explainRevealed > 1 && !hasSeenRevealHint.current) {
+            hasSeenRevealHint.current = true;
+            localStorage.setItem('riven_reveal_hint_seen', '1');
+        }
+    }, [explainRevealed]);
 
     useEffect(() => {
         if (sessionStage !== 'teach' || !onExplainSection || explainFullyRevealed) return undefined;
@@ -820,11 +838,14 @@ export default function GuideView() {
         });
     };
 
-    const handleSaveAndLeave = async () => {
-        await finalizeSession({
-            nextState: studyState,
-            sessionOutcome: 'stopped_early',
-            exitReason: 'user_left',
+    const handleSaveAndLeave = () => {
+        toast.warn('Leave now? Your spot is saved — River can resume exactly here.', {
+            label: 'Leave session',
+            onClick: () => finalizeSession({
+                nextState: studyState,
+                sessionOutcome: 'stopped_early',
+                exitReason: 'user_left',
+            }),
         });
     };
 
@@ -1131,7 +1152,7 @@ export default function GuideView() {
                                 {/* River + section progress header */}
                                 <div className="flex items-start gap-4 sm:gap-6 mb-6 sm:mb-8">
                                     <div className="shrink-0 w-[100px] sm:w-[140px]">
-                                        <RiverMascot state={riverState} caption={riverCaption} compact />
+                                        <RiverMascot state={riverState} caption={teachRevealCaption} compact />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-1">
                                         <p
@@ -1321,6 +1342,19 @@ export default function GuideView() {
                                                         </div>
 
                                                         {/* Steps */}
+                                                        {section.data.steps.length > 1 && (
+                                                            <div className="flex justify-end px-5 pt-2.5 pb-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleAllSteps(sectionIndex, section.data.steps)}
+                                                                    className="text-[10px] font-mono uppercase tracking-[0.14em] transition-opacity hover:opacity-100"
+                                                                    style={{ color: 'rgba(222,185,106,0.4)' }}
+                                                                >
+                                                                    {section.data.steps.every((_, si) => expandedSteps[`${sectionIndex}-${si}`] !== false)
+                                                                        ? 'Collapse all' : 'Expand all'}
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                         <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                                                             {section.data.steps.map((exStep, si) => {
                                                                 const stepKey = `${sectionIndex}-${si}`;
@@ -1460,7 +1494,10 @@ export default function GuideView() {
                                 </div>
 
                                 {/* ── Bottom actions ── */}
-                                <div className="mt-8 flex flex-wrap items-center gap-3">
+                                <div
+                                    className="sticky bottom-0 z-10 -mx-5 mt-8 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
+                                    style={{ backgroundColor: 'rgba(22, 48, 36, 0.97)', backdropFilter: 'blur(8px)' }}
+                                >
                                     <button
                                         type="button"
                                         onClick={handleAdvanceTeach}
@@ -1707,14 +1744,25 @@ export default function GuideView() {
                                             </p>
                                         ) : null}
 
-                                        <label htmlFor="river-answer" className="mt-8 block text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
-                                            Your answer
-                                        </label>
+                                        <div className="mt-8 flex items-center justify-between">
+                                            <label htmlFor="river-answer" className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
+                                                Your answer
+                                            </label>
+                                            <span className="hidden sm:block text-[10px] font-mono" style={{ color: 'rgba(222,185,106,0.3)' }}>
+                                                ⌘↵ to submit
+                                            </span>
+                                        </div>
                                         <textarea
                                             id="river-answer"
                                             aria-label="Your answer"
                                             value={answer}
                                             onChange={(event) => setAnswer(event.target.value)}
+                                            onKeyDown={(e) => {
+                                                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitting) {
+                                                    e.preventDefault();
+                                                    handleSubmit();
+                                                }
+                                            }}
                                             disabled={submitting}
                                             className="mt-3 min-h-[260px] w-full rounded-[1.4rem] border px-5 py-4 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
                                             style={{
@@ -1726,7 +1774,10 @@ export default function GuideView() {
                                             placeholder="Answer from memory first."
                                         />
 
-                                        <div className="mt-5 flex flex-wrap items-center gap-3">
+                                        <div
+                                            className="sticky bottom-0 z-10 -mx-5 mt-5 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
+                                            style={{ backgroundColor: 'rgba(22, 48, 36, 0.97)', backdropFilter: 'blur(8px)' }}
+                                        >
                                             <button
                                                 type="button"
                                                 onClick={handleSubmit}

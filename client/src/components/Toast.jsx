@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import Check from 'lucide-react/dist/esm/icons/check';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import X from 'lucide-react/dist/esm/icons/x';
 import { ToastContext } from '../context/ToastContext';
 export { ToastContext };
@@ -13,6 +14,7 @@ const TOAST_STYLES = {
         iconWrap: 'border-emerald-400/24 bg-emerald-400/10 text-emerald-300',
         ring: 'before:bg-emerald-300/72',
         glow: 'shadow-[0_18px_40px_rgba(7,24,18,0.26),0_8px_18px_rgba(16,185,129,0.08)]',
+        label: 'Notice',
     },
     error: {
         icon: AlertCircle,
@@ -20,6 +22,15 @@ const TOAST_STYLES = {
         iconWrap: 'border-rose-400/24 bg-rose-400/10 text-rose-300',
         ring: 'before:bg-rose-300/72',
         glow: 'shadow-[0_18px_40px_rgba(25,10,12,0.28),0_8px_18px_rgba(244,63,94,0.08)]',
+        label: 'Attention',
+    },
+    warn: {
+        icon: AlertTriangle,
+        accent: 'text-amber-300',
+        iconWrap: 'border-amber-400/24 bg-amber-400/10 text-amber-300',
+        ring: 'before:bg-amber-300/72',
+        glow: 'shadow-[0_18px_40px_rgba(20,16,6,0.28),0_8px_18px_rgba(251,191,36,0.08)]',
+        label: 'Hold on',
     },
 };
 
@@ -46,20 +57,22 @@ export function ToastProvider({ children }) {
         }
     }, []);
 
-    const show = useCallback((message, type = 'success') => {
+    const show = useCallback((message, type = 'success', options = {}) => {
         const id = ++idCounter.current;
-        setToasts(prev => [...prev, { id, message, type }]);
+        setToasts(prev => [...prev, { id, message, type, action: options.action ?? null }]);
+        const duration = type === 'warn' ? 6000 : 3500;
         const timerId = setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
             toastTimers.current.delete(id);
-        }, 3500);
+        }, duration);
         toastTimers.current.set(id, timerId);
     }, []);
 
     const success = useCallback((message) => show(message, 'success'), [show]);
     const error = useCallback((message) => show(message, 'error'), [show]);
+    const warn = useCallback((message, action) => show(message, 'warn', { action }), [show]);
 
-    const value = useMemo(() => ({ show, success, error }), [show, success, error]);
+    const value = useMemo(() => ({ show, success, error, warn }), [show, success, error, warn]);
     const initialAnimation = prefersReducedMotion
         ? { opacity: 0 }
         : { opacity: 0, x: 22, y: -10, scale: 0.98 };
@@ -132,11 +145,19 @@ function ToastCard({
 
                 <div className="min-w-0 flex-1 py-0.5 pr-1">
                     <p className={`font-mono text-[9px] font-bold uppercase leading-none tracking-[0.22em] ${style.accent}`}>
-                        {toast.type === 'success' ? 'Notice' : 'Attention'}
+                        {style.label}
                     </p>
                     <p className="mt-1.5 text-sm font-medium leading-[1.22] text-claude-text/95">
                         {toast.message}
                     </p>
+                    {toast.action && (
+                        <button
+                            onClick={() => { toast.action.onClick(); dismiss(toast.id); }}
+                            className={`mt-2 text-xs font-semibold underline underline-offset-2 transition-opacity hover:opacity-80 ${style.accent}`}
+                        >
+                            {toast.action.label}
+                        </button>
+                    )}
                 </div>
 
                 <button
