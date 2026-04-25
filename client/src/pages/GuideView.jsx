@@ -15,6 +15,41 @@ import {
 
 const PANEL_EASE = [0.22, 1, 0.36, 1];
 
+// Explain chunking: keep paragraphs whole when short; otherwise pack ~1-2 sentences per beat.
+const CHUNK_MIN_CHARS = 180;
+const CHUNK_TARGET_CHARS = 280;
+const CHUNK_MAX_CHARS = 380;
+
+const chunkExplain = (raw) => {
+    if (!raw || typeof raw !== 'string') return [];
+    const paragraphs = raw.split('\n\n').map((p) => p.trim()).filter(Boolean);
+    const out = [];
+    for (const para of paragraphs) {
+        if (para.length <= CHUNK_MAX_CHARS) {
+            out.push(para);
+            continue;
+        }
+        const sentences = (para.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [para])
+            .map((s) => s.trim())
+            .filter(Boolean);
+        let buf = '';
+        for (const s of sentences) {
+            if (!buf) {
+                buf = s;
+                continue;
+            }
+            if ((`${buf} ${s}`).length > CHUNK_TARGET_CHARS && buf.length >= CHUNK_MIN_CHARS) {
+                out.push(buf);
+                buf = s;
+            } else {
+                buf = `${buf} ${s}`;
+            }
+        }
+        if (buf) out.push(buf);
+    }
+    return out;
+};
+
 // Mirrors POSES.accent values from RiverMascot — drives surface tinting on feedback
 const RIVER_POSE_ACCENT = {
     idle: '#8fb27c',
@@ -262,11 +297,10 @@ export default function GuideView() {
         return sections;
     }, [currentCard]);
 
-    const explainParagraphs = useMemo(() => {
-        const raw = currentCard?.teaching?.explain;
-        if (!raw || typeof raw !== 'string') return [];
-        return raw.split('\n\n').map((p) => p.trim()).filter(Boolean);
-    }, [currentCard]);
+    const explainParagraphs = useMemo(
+        () => chunkExplain(currentCard?.teaching?.explain),
+        [currentCard],
+    );
 
     const onExplainSection = teachSections[teachSection]?.type === 'explain';
     const explainTotal = explainParagraphs.length;
