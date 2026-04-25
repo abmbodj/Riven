@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:ios": "vite build && npm run patch:revenuecat-ios && npx cap sync ios",
-    "ios:sync": "npm run patch:revenuecat-ios && npx cap sync ios",
+    "build:ios": "vite build && npm run patch:revenuecat-ios && npm run patch:voice-recorder-ios && npx cap sync ios",
+    "ios:sync": "npm run patch:revenuecat-ios && npm run patch:voice-recorder-ios && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "lint": "eslint .",
     "patch:revenuecat-ios": "node scripts/patch-revenuecat-ios-sdk.mjs",
-    "postinstall": "npm run patch:revenuecat-ios",
+    "patch:voice-recorder-ios": "node scripts/patch-voice-recorder-ios.mjs",
+    "postinstall": "npm run patch:revenuecat-ios && npm run patch:voice-recorder-ios",
     "preview": "vite preview",
     "test": "vitest"
   },

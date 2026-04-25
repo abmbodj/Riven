@@ -721,10 +721,13 @@ export default function NoteEditor() {
     }, [id, isNew]);
 
     useEffect(() => {
-        if (recorder.state === 'stopped' && !isEnhancementJobActive(activeEnhancementJob)) {
+        const hasAudio = Boolean(recorder.getBlob?.());
+        const readyToEnhance = recorder.state === 'stopped'
+            || (recorder.state === 'error' && hasAudio);
+        if (readyToEnhance && !isEnhancementJobActive(activeEnhancementJob)) {
             setShowEnhanceBanner(true);
         }
-    }, [activeEnhancementJob, recorder.state]);
+    }, [activeEnhancementJob, recorder.state, recorder.getBlob]);
 
     useEffect(() => {
         clearEnhancementPoll();
@@ -972,7 +975,11 @@ export default function NoteEditor() {
 
     const handleEnhance = async () => {
         const blob = recorder.getBlob();
-        if (!blob || !noteId) return;
+        if (!blob) {
+            toast.error('No recording found. Please record again.');
+            return;
+        }
+        if (!noteId) return;
 
         const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // 24MB — 1MB below Groq's 25MB limit
         if (blob.size > MAX_AUDIO_BYTES) {

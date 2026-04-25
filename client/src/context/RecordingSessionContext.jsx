@@ -530,6 +530,38 @@ export function RecordingSessionProvider({ children }) {
             const isStillRecording = status?.status === 'RECORDING' || status?.status === 'PAUSED';
 
             if (!isStillRecording) {
+                // Attempt to recover partial audio before giving up — the native
+                // AVAudioRecorder may have written data to disk even after an
+                // interruption (phone call, Siri) that stopped the session.
+                try {
+                    const result = await VoiceRecorder.stopRecording();
+                    if (result?.value?.recordDataBase64) {
+                        audioBlobRef.current = b64toBlob(
+                            result.value.recordDataBase64,
+                            result.value.mimeType,
+                        );
+                        clearPersistedActiveSession();
+                        void stopLiveActivity({
+                            activeNoteId: persisted.activeNoteId,
+                            activeNoteTitle: persisted.activeNoteTitle || 'Untitled',
+                            startedAt: persisted.startedAt || Date.now(),
+                        });
+                        stopDurationTimer();
+                        setSessionSnapshot((prev) => ({
+                            ...prev,
+                            activeNoteId: persisted.activeNoteId,
+                            activeNoteTitle: persisted.activeNoteTitle || 'Untitled',
+                            state: 'stopped',
+                            duration: prev.duration || 0,
+                            startedAt: null,
+                            error: null,
+                        }));
+                        return;
+                    }
+                } catch {
+                    // No recoverable audio — fall through to idle reset below.
+                }
+
                 clearPersistedActiveSession();
                 void stopLiveActivity({
                     activeNoteId: persisted.activeNoteId,
