@@ -477,11 +477,11 @@ export default function GuideView() {
 
     const toggleStep = (exampleIndex, stepIndex) => {
         const key = `${exampleIndex}-${stepIndex}`;
-        setExpandedSteps((prev) => ({ ...prev, [key]: prev[key] === false ? true : !prev[key] }));
+        setExpandedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
     const toggleAllSteps = (exampleIndex, steps) => {
-        const allOpen = steps.every((_, si) => expandedSteps[`${exampleIndex}-${si}`] !== false);
+        const allOpen = steps.every((_, si) => !!expandedSteps[`${exampleIndex}-${si}`]);
         const next = {};
         steps.forEach((_, si) => { next[`${exampleIndex}-${si}`] = !allOpen; });
         setExpandedSteps((prev) => ({ ...prev, ...next }));
@@ -1358,7 +1358,7 @@ export default function GuideView() {
                                                         <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                                                             {section.data.steps.map((exStep, si) => {
                                                                 const stepKey = `${sectionIndex}-${si}`;
-                                                                const isExpanded = expandedSteps[stepKey];
+                                                                const isExpanded = !!expandedSteps[stepKey];
                                                                 return (
                                                                     <div key={si}>
                                                                         <button
@@ -1749,7 +1749,7 @@ export default function GuideView() {
                                                 Your answer
                                             </label>
                                             <span className="hidden sm:block text-[10px] font-mono" style={{ color: 'rgba(222,185,106,0.3)' }}>
-                                                ⌘↵ to submit
+                                                Ctrl/⌘+↵ to submit
                                             </span>
                                         </div>
                                         <textarea

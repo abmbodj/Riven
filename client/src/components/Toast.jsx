@@ -152,7 +152,17 @@ function ToastCard({
                     </p>
                     {toast.action && (
                         <button
-                            onClick={() => { toast.action.onClick(); dismiss(toast.id); }}
+                            onClick={() => {
+                                try {
+                                    if (typeof toast.action.onClick === 'function') {
+                                        toast.action.onClick();
+                                    }
+                                } catch (err) {
+                                    console.error('Toast action error:', err);
+                                } finally {
+                                    dismiss(toast.id);
+                                }
+                            }}
                             className={`mt-2 text-xs font-semibold underline underline-offset-2 transition-opacity hover:opacity-80 ${style.accent}`}
                         >
                             {toast.action.label}
