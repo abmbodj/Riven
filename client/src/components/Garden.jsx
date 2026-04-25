@@ -715,20 +715,31 @@ export default function Garden({
             nearY(0);
         };
 
-        const onMove = (event) => {
-            const rect = node.getBoundingClientRect();
-            const xProgress = ((event.clientX - rect.left) / rect.width) - 0.5;
-            const yProgress = ((event.clientY - rect.top) / rect.height) - 0.5;
+        let latestX = 0;
+        let latestY = 0;
+        let rafPending = false;
 
-            farX(xProgress * 4);
-            farY(yProgress * 3.5);
-            midX(xProgress * 7);
-            midY(yProgress * 5.5);
-            nearX(xProgress * 10);
-            nearY(yProgress * 7);
+        const onMove = (event) => {
+            latestX = event.clientX;
+            latestY = event.clientY;
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                const rect = node.getBoundingClientRect();
+                const xProgress = ((latestX - rect.left) / rect.width) - 0.5;
+                const yProgress = ((latestY - rect.top) / rect.height) - 0.5;
+
+                farX(xProgress * 4);
+                farY(yProgress * 3.5);
+                midX(xProgress * 7);
+                midY(yProgress * 5.5);
+                nearX(xProgress * 10);
+                nearY(yProgress * 7);
+                rafPending = false;
+            });
         };
 
-        node.addEventListener('pointermove', onMove);
+        node.addEventListener('pointermove', onMove, { passive: true });
         node.addEventListener('pointerleave', reset);
 
         return () => {

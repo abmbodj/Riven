@@ -15,6 +15,44 @@ import {
 
 const PANEL_EASE = [0.22, 1, 0.36, 1];
 
+// Static style objects hoisted at module level — never recreated on re-render
+const BOARD_FRAME_STYLE = {
+    padding: 'clamp(6px, 1.2vw, 14px)',
+    background: 'linear-gradient(165deg, #5c3d2e 0%, #4a2f20 30%, #3d251a 70%, #2e1c13 100%)',
+    boxShadow: '0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+};
+const BOARD_GRAIN_STYLE = {
+    backgroundImage: 'repeating-linear-gradient(95deg, transparent, transparent 8px, rgba(255,220,180,0.15) 8px, rgba(255,220,180,0.15) 9px)',
+};
+const BOARD_SURFACE_STYLE = {
+    background: 'linear-gradient(175deg, #2a4a3a 0%, #243f33 40%, #1e362c 70%, #1a3028 100%)',
+    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.35), inset 0 0 60px rgba(0,0,0,0.15)',
+};
+const BOARD_DUST_STYLE = {
+    backgroundImage: 'radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.6), transparent), radial-gradient(1.5px 1.5px at 45% 80%, rgba(255,255,255,0.5), transparent), radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.7), transparent)',
+};
+const BOARD_TRAY_STYLE = {
+    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.06) 80%, transparent)',
+};
+const UNSUPPORTED_FRAME_STYLE = {
+    padding: 'clamp(6px, 1vw, 12px)',
+    background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
+    boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
+};
+const UNSUPPORTED_GRAIN_STYLE = {
+    backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
+};
+const UNSUPPORTED_SURFACE_STYLE = {
+    background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
+    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
+};
+const UNSUPPORTED_DUST_STYLE = {
+    backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
+};
+const UNSUPPORTED_TRAY_STYLE = {
+    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
+};
+
 // Explain chunking: keep paragraphs whole when short; otherwise pack ~1-2 sentences per beat.
 const CHUNK_MIN_CHARS = 180;
 const CHUNK_TARGET_CHARS = 280;
@@ -217,6 +255,7 @@ export default function GuideView() {
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
     const sectionRefs = useRef({});
+    const scrollRafRef = useRef(null);
     const hasSeenRevealHint = useRef(localStorage.getItem('riven_reveal_hint_seen') === '1');
 
     useEffect(() => {
@@ -419,7 +458,7 @@ export default function GuideView() {
         return persistedState;
     }, [currentCard, finalizeSession, guideData, persistStudyState]);
 
-    const handleStart = () => {
+    const handleStart = useCallback(() => {
         setAnswer('');
         setResult(null);
         setActiveAssistOption(null);
@@ -430,13 +469,13 @@ export default function GuideView() {
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
-    };
+    }, [currentCard]);
 
-    const handleSelectAssist = (option) => {
+    const handleSelectAssist = useCallback((option) => {
         setActiveAssistOption(option);
         setRiverState(option.pose || 'point');
         setRiverCaption(option.text);
-    };
+    }, []);
 
     const handleAdvanceTeach = () => {
         // On the explain section, advance the progressive reveal first; only
@@ -470,22 +509,25 @@ export default function GuideView() {
         };
         setRiverState(poses[section.type] || 'teach');
         setRiverCaption(captions[section.type] || 'River is teaching.');
-        requestAnimationFrame(() => {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = requestAnimationFrame(() => {
             sectionRefs.current[section.key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     };
 
-    const toggleStep = (exampleIndex, stepIndex) => {
+    const toggleStep = useCallback((exampleIndex, stepIndex) => {
         const key = `${exampleIndex}-${stepIndex}`;
         setExpandedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
-    };
+    }, []);
 
-    const toggleAllSteps = (exampleIndex, steps) => {
-        const allOpen = steps.every((_, si) => !!expandedSteps[`${exampleIndex}-${si}`]);
-        const next = {};
-        steps.forEach((_, si) => { next[`${exampleIndex}-${si}`] = !allOpen; });
-        setExpandedSteps((prev) => ({ ...prev, ...next }));
-    };
+    const toggleAllSteps = useCallback((exampleIndex, steps) => {
+        setExpandedSteps((prev) => {
+            const allOpen = steps.every((_, si) => !!prev[`${exampleIndex}-${si}`]);
+            const next = {};
+            steps.forEach((_, si) => { next[`${exampleIndex}-${si}`] = !allOpen; });
+            return { ...prev, ...next };
+        });
+    }, []);
 
     const handleRevealNext = useCallback(() => {
         setFuzzyPeek(false);
@@ -532,12 +574,12 @@ export default function GuideView() {
         return () => window.removeEventListener('keydown', onKey);
     }, [sessionStage, onExplainSection, explainFullyRevealed, handleRevealNext]);
 
-    const handleBeginCheck = () => {
+    const handleBeginCheck = useCallback(() => {
         setActiveAssistOption(null);
         setSessionStage('check');
         setRiverState('thinking');
         setRiverCaption(getCheckCaption(currentCard));
-    };
+    }, [currentCard]);
 
     const handleSubmit = async () => {
         if (!guideData || !currentCard || submitting) return;
@@ -720,14 +762,14 @@ export default function GuideView() {
         }
     };
 
-    const handleTryAgain = () => {
+    const handleTryAgain = useCallback(() => {
         setResult(null);
         setActiveAssistOption(null);
         setRefinedAnswer('');
         setSessionStage('check');
         setRiverState('thinking');
         setRiverCaption(getCheckCaption(currentCard));
-    };
+    }, [currentCard]);
 
     const handleRefinedSubmit = async () => {
         if (!guideData || !currentCard || submitting || !refinedAnswer.trim()) return;
@@ -838,7 +880,7 @@ export default function GuideView() {
         });
     };
 
-    const handleSaveAndLeave = () => {
+    const handleSaveAndLeave = useCallback(() => {
         toast.warn('Leave now? Your spot is saved — River can resume exactly here.', {
             label: 'Leave session',
             onClick: () => finalizeSession({
@@ -847,9 +889,9 @@ export default function GuideView() {
                 exitReason: 'user_left',
             }),
         });
-    };
+    }, [finalizeSession, studyState, toast]);
 
-    const handleResumeFromWrapUp = () => {
+    const handleResumeFromWrapUp = useCallback(() => {
         finalizingRef.current = false;
         setCompletionPayload(null);
         setResult(null);
@@ -859,7 +901,14 @@ export default function GuideView() {
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
-    };
+    }, [currentCard]);
+
+    const handleBackToGuides = useCallback(() => navigate('/guides'), [navigate]);
+
+    const visibleParagraphs = useMemo(
+        () => explainParagraphs.slice(0, explainRevealed),
+        [explainParagraphs, explainRevealed],
+    );
 
     // Hooks must be called before any conditional returns (Rules of Hooks)
     const currentCardIndex = useMemo(
@@ -887,7 +936,7 @@ export default function GuideView() {
             <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-10">
                 <button
                     type="button"
-                    onClick={() => navigate('/guides')}
+                    onClick={handleBackToGuides}
                     className="inline-flex items-center gap-2 text-sm text-claude-secondary hover:text-claude-text transition-colors"
                 >
                     <ChevronLeft className="w-4 h-4" />
@@ -897,36 +946,23 @@ export default function GuideView() {
                 <div data-testid="river-session-unsupported" className="mx-auto mt-12 max-w-2xl">
                     <div
                         className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
-                        style={{
-                            padding: 'clamp(6px, 1vw, 12px)',
-                            background: 'linear-gradient(165deg, #6a4a38 0%, #5b3f31 35%, #4a3428 70%, #3a2a20 100%)',
-                            boxShadow: '0 8px 34px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.1)',
-                        }}
+                        style={UNSUPPORTED_FRAME_STYLE}
                     >
                         <div
                             className="pointer-events-none absolute inset-0 opacity-[0.1]"
-                            style={{
-                                backgroundImage: 'repeating-linear-gradient(96deg, transparent, transparent 8px, rgba(255,220,180,0.16) 8px, rgba(255,220,180,0.16) 9px)',
-                            }}
+                            style={UNSUPPORTED_GRAIN_STYLE}
                         />
                         <div
                             className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
-                            style={{
-                                background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
-                                boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
-                            }}
+                            style={UNSUPPORTED_SURFACE_STYLE}
                         >
                             <div
                                 className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.035]"
-                                style={{
-                                    backgroundImage: 'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.7), transparent), radial-gradient(1.5px 1.5px at 44% 82%, rgba(255,255,255,0.55), transparent), radial-gradient(1px 1px at 84% 62%, rgba(255,255,255,0.75), transparent)',
-                                }}
+                                style={UNSUPPORTED_DUST_STYLE}
                             />
                             <div
                                 className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
-                                style={{
-                                    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
-                                }}
+                                style={UNSUPPORTED_TRAY_STYLE}
                             />
 
                             <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>River Session</p>
@@ -956,7 +992,7 @@ export default function GuideView() {
             <div className="mx-auto max-w-6xl">
                 <button
                     type="button"
-                    onClick={() => navigate('/guides')}
+                    onClick={handleBackToGuides}
                     className="inline-flex items-center gap-2 text-sm text-claude-secondary hover:text-claude-text transition-colors"
                 >
                     <ChevronLeft className="w-4 h-4" />
@@ -1111,42 +1147,29 @@ export default function GuideView() {
                         {/* Wooden frame */}
                         <div
                             className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
-                            style={{
-                                padding: 'clamp(6px, 1.2vw, 14px)',
-                                background: 'linear-gradient(165deg, #5c3d2e 0%, #4a2f20 30%, #3d251a 70%, #2e1c13 100%)',
-                                boxShadow: '0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
-                            }}
+                            style={BOARD_FRAME_STYLE}
                         >
                             {/* Wood grain texture */}
                             <div
                                 className="pointer-events-none absolute inset-0 opacity-[0.12]"
-                                style={{
-                                    backgroundImage: 'repeating-linear-gradient(95deg, transparent, transparent 8px, rgba(255,220,180,0.15) 8px, rgba(255,220,180,0.15) 9px)',
-                                }}
+                                style={BOARD_GRAIN_STYLE}
                             />
 
                             {/* Chalkboard surface */}
                             <div
                                 className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-5 py-6 sm:px-8 sm:py-8"
-                                style={{
-                                    background: 'linear-gradient(175deg, #2a4a3a 0%, #243f33 40%, #1e362c 70%, #1a3028 100%)',
-                                    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.35), inset 0 0 60px rgba(0,0,0,0.15)',
-                                }}
+                                style={BOARD_SURFACE_STYLE}
                             >
                                 {/* Chalk dust particles overlay */}
                                 <div
                                     className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.04]"
-                                    style={{
-                                        backgroundImage: 'radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.6), transparent), radial-gradient(1.5px 1.5px at 45% 80%, rgba(255,255,255,0.5), transparent), radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.7), transparent)',
-                                    }}
+                                    style={BOARD_DUST_STYLE}
                                 />
 
                                 {/* Chalk tray line at bottom */}
                                 <div
                                     className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
-                                    style={{
-                                        background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.06) 80%, transparent)',
-                                    }}
+                                    style={BOARD_TRAY_STYLE}
                                 />
 
                                 {/* River + section progress header */}
@@ -1214,7 +1237,7 @@ export default function GuideView() {
                                                 {/* ── Explain section (progressive reveal) ── */}
                                                 {section.type === 'explain' && (
                                                     <div className="space-y-3">
-                                                        {explainParagraphs.slice(0, explainRevealed).map((paragraph, pi) => {
+                                                        {visibleParagraphs.map((paragraph, pi) => {
                                                             const isCurrent = pi === explainRevealed - 1;
                                                             return (
                                                                 <motion.p
@@ -2107,7 +2130,7 @@ export default function GuideView() {
                                             ) : null}
                                             <button
                                                 type="button"
-                                                onClick={() => navigate('/guides')}
+                                                onClick={handleBackToGuides}
                                                 className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
                                                 style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
                                             >

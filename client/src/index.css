@@ -195,8 +195,9 @@
   --recording-waveform-bar-width: 3px;
   --recording-waveform-min-height: 4px;
   --recording-waveform-max-height: 14px;
+  --recording-waveform-min-scale: 0.29;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 2px;
   height: 16px;
 }
@@ -205,14 +206,16 @@
   --recording-waveform-bar-width: 2.5px;
   --recording-waveform-min-height: 3px;
   --recording-waveform-max-height: 11px;
+  --recording-waveform-min-scale: 0.27;
   height: 14px;
 }
 
 .recording-waveform__bar {
   width: var(--recording-waveform-bar-width);
-  height: var(--recording-waveform-min-height);
+  height: var(--recording-waveform-max-height);
   border-radius: 999px;
   background: var(--accent-color);
+  transform-origin: bottom center;
   animation: recording-waveform-pulse 1.2s ease-in-out infinite;
 }
 
@@ -227,12 +230,12 @@
 @keyframes recording-waveform-pulse {
   0%,
   100% {
-    height: var(--recording-waveform-min-height);
+    transform: scaleY(var(--recording-waveform-min-scale));
     opacity: 0.75;
   }
 
   50% {
-    height: var(--recording-waveform-max-height);
+    transform: scaleY(1);
     opacity: 1;
   }
 }
@@ -240,7 +243,7 @@
 @media (prefers-reduced-motion: reduce) {
   .recording-waveform__bar {
     animation: none;
-    height: calc((var(--recording-waveform-min-height) + var(--recording-waveform-max-height)) / 2);
+    transform: scaleY(0.65);
     opacity: 0.95;
   }
 }
@@ -605,6 +608,10 @@
   .guide-chip {
     position: relative;
     isolation: isolate;
+  }
+
+  .guide-shell {
+    contain: style paint;
   }
 
   .guide-shell,
@@ -1180,8 +1187,8 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
   }
 
   .mobile-top-nav-glass::before {
@@ -1210,8 +1217,8 @@
       0 24px 60px -20px rgba(0, 0, 0, 0.4),
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
   }
 
   .mobile-bottom-nav-shell__clip {
@@ -1275,8 +1282,8 @@
       0 0 0 1px color-mix(in srgb, var(--accent-color) 24%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.2),
       inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
     z-index: 1;
     pointer-events: none;
     transform: translateZ(0);
@@ -1291,13 +1298,11 @@
     justify-content: center;
     transform: translateZ(0);
     backface-visibility: hidden;
-    will-change: transform, opacity;
   }
 
   .mobile-fab-menu-frame {
     transform: translateZ(0);
     backface-visibility: hidden;
-    will-change: transform, opacity;
   }
 
   .mobile-fab-menu {
@@ -1313,11 +1318,10 @@
       0 32px 80px -20px rgba(0, 0, 0, 0.5),
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
     transform: translateZ(0);
     backface-visibility: hidden;
-    will-change: transform, opacity;
   }
 
   .mobile-fab-menu::before {
@@ -1765,10 +1769,6 @@
   from { opacity: 0; transform: translateX(-12px) scale(0.97); }
   to { opacity: 1; transform: translateX(0) scale(1); }
 }
-.animate-msg-in-sent,
-.animate-msg-in-received {
-  will-change: transform, opacity;
-}
 .animate-msg-in-sent {
   animation: msgInSent 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) both;
 }
@@ -1783,7 +1783,6 @@
 .animate-msg-out {
   animation: msgOut 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
   pointer-events: none;
-  will-change: transform, opacity;
 }
 
 /* Keyframes */

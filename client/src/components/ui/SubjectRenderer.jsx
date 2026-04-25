@@ -113,4 +113,4 @@ const SubjectRenderer = ({ content, className = '', inline = false }) => {
   return <div className={`subject-renderer ${className}`}>{rendered}</div>;
 };
 
-export default SubjectRenderer;
+export default React.memo(SubjectRenderer);

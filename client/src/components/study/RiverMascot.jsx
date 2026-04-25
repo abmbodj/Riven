@@ -240,7 +240,7 @@ function FrogEye({
     );
 }
 
-export default function RiverMascot({
+function RiverMascot({
     state = 'idle',
     caption = '',
     compact = false,
@@ -574,3 +574,7 @@ export default function RiverMascot({
         </div>
     );
 }
+
+export default React.memo(RiverMascot, (prev, next) => (
+    prev.state === next.state && prev.caption === next.caption && prev.compact === next.compact && prev.className === next.className
+));

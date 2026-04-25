@@ -3,10 +3,10 @@ import * as authApi from '../api/authApi';
 import { supabase } from '../lib/supabaseClient';
 import { clearOnboardingDoneClient, markOnboardingDoneClient } from '../utils/onboardingGate';
 import { getStoredPushInstallationId } from '../utils/pushNotifications.js';
-import { AuthContext, AuthActionsContext } from './authContextDef';
+import { AuthContext, AuthActionsContext, AuthStatusContext } from './authContextDef';
 
 // Re-export for convenience
-export { AuthContext, AuthActionsContext };
+export { AuthContext, AuthActionsContext, AuthStatusContext };
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -294,6 +294,10 @@ export function AuthProvider({ children }) {
 
     // ============ CONTEXT VALUES ============
 
+    // Status context — only changes on login/logout (not profile updates)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const statusValue = useMemo(() => ({ isLoggedIn: !!user, loading }), [!!user, loading]);
+
     // State context — only changes when auth state changes
     const stateValue = useMemo(() => ({
         user,
@@ -359,10 +363,12 @@ export function AuthProvider({ children }) {
     ]);
 
     return (
-        <AuthContext.Provider value={stateValue}>
-            <AuthActionsContext.Provider value={actionsValue}>
-                {children}
-            </AuthActionsContext.Provider>
-        </AuthContext.Provider>
+        <AuthStatusContext.Provider value={statusValue}>
+            <AuthContext.Provider value={stateValue}>
+                <AuthActionsContext.Provider value={actionsValue}>
+                    {children}
+                </AuthActionsContext.Provider>
+            </AuthContext.Provider>
+        </AuthStatusContext.Provider>
     );
 }

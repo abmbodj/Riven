@@ -712,15 +712,13 @@ export default function Messages() {
             setNewMessage('');
             setImagePreview(null);
             inputRef.current?.focus();
-            // Scroll first, then trigger the sent animation so virtualizer measures correctly
+            // One frame for virtualizer to measure, second frame for scroll + animation
             requestAnimationFrame(() => {
+                scrollToBottom('auto');
                 requestAnimationFrame(() => {
-                    scrollToBottom('auto');
-                    requestAnimationFrame(() => {
-                        animateSentRef.current.add(message.id);
-                        setMessages(prev => [...prev]); // re-render to apply animation class
-                        setTimeout(() => animateSentRef.current.delete(message.id), 250);
-                    });
+                    animateSentRef.current.add(message.id);
+                    setMessages(prev => [...prev]); // re-render to apply animation class
+                    setTimeout(() => animateSentRef.current.delete(message.id), 250);
                 });
             });
         } catch {
@@ -972,8 +970,7 @@ export default function Messages() {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 12 }}
                                     transition={{
-                                        delay: index * 0.05,
-                                        duration: 0.3,
+                                        duration: 0.2,
                                         ease: [0.25, 0.1, 0.25, 1]
                                     }}
                                 >

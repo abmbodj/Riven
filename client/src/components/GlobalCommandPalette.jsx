@@ -133,6 +133,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
     const navigate = useNavigate();
     const inputRef = useRef(null);
     const [query, setQuery] = useState('');
+    const [debouncedQuery, setDebouncedQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [loading, setLoading] = useState(false);
     const [resources, setResources] = useState({
@@ -168,8 +169,14 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
     }, [isOpen, onClose]);
 
     useEffect(() => {
+        const id = setTimeout(() => setDebouncedQuery(query), 150);
+        return () => clearTimeout(id);
+    }, [query]);
+
+    useEffect(() => {
         if (!isOpen) {
             setQuery('');
+            setDebouncedQuery('');
             setSelectedIndex(0);
             return;
         }
@@ -259,7 +266,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
     }, [isLoggedIn, resources]);
 
     const filteredResults = useMemo(() => {
-        const normalizedQuery = normalize(query);
+        const normalizedQuery = normalize(debouncedQuery);
         const matches = allResults.filter((item) => resultMatches(item, normalizedQuery));
 
         if (!normalizedQuery) {
@@ -267,11 +274,11 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
         }
 
         return matches.slice(0, 16);
-    }, [allResults, query]);
+    }, [allResults, debouncedQuery]);
 
     useEffect(() => {
         setSelectedIndex(0);
-    }, [query]);
+    }, [debouncedQuery]);
 
     useEffect(() => {
         if (selectedIndex >= filteredResults.length) {
