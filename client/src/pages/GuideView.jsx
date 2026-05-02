@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
+import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget.js';
 import SubjectRenderer from '../components/ui/SubjectRenderer';
 import RiverMascot from '../components/study/RiverMascot.jsx';
+import { UIContext } from '../context/UIContext.jsx';
 import {
     ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
     evaluateTutorCardResponse,
@@ -201,6 +203,30 @@ const getCompleteCaption = (guideData, completionPayload) => {
         || 'That was a clean pass. Come back tomorrow and retrieve it again.';
 };
 
+const getTeachSectionPresentation = (section, currentCard) => {
+    const captions = {
+        explain: 'River is teaching.',
+        intuition: 'Let me show you why this works...',
+        worked_example: 'Watch how this plays out step by step.',
+        common_mistakes: 'Before you try, watch out for these.',
+        legacy_steps: 'Let me break this down.',
+        legacy_why: currentCard?.teaching?.why_it_matters?.slice(0, 100) || 'Here is why this matters.',
+    };
+    const poses = {
+        explain: 'teach',
+        intuition: 'thinking',
+        worked_example: 'point',
+        common_mistakes: 'gentle-correct',
+        legacy_steps: 'teach',
+        legacy_why: 'thinking',
+    };
+
+    return {
+        caption: captions[section?.type] || 'River is teaching.',
+        state: poses[section?.type] || 'teach',
+    };
+};
+
 /**
  * Animates a number from 0 to `target` over `duration` ms with ease-out cubic.
  * Immediately returns `target` when prefers-reduced-motion is active.
@@ -227,11 +253,79 @@ function useCountUp(target, duration = 600) {
     return value;
 }
 
+function MobileTeacherStrip({
+    state,
+    caption,
+    roleLabel,
+    stageLabel,
+    accent = 'rgba(222,185,106,0.76)',
+}) {
+    return (
+        <div
+            className="rounded-[1.55rem] border px-3 py-3"
+            style={{
+                borderColor: 'rgba(255,255,255,0.16)',
+                background: 'linear-gradient(180deg,rgba(11,24,20,0.34),rgba(11,24,20,0.18))',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+            }}
+        >
+            <div className="flex items-center gap-3">
+                <div className="w-[104px] shrink-0">
+                    <RiverMascot
+                        state={state}
+                        compact
+                        className="rounded-[1.45rem] border-white/10 p-2.5 pt-3"
+                    />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: accent }}>
+                            River
+                        </p>
+                        {roleLabel ? (
+                            <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary/70">
+                                {roleLabel}
+                            </span>
+                        ) : null}
+                    </div>
+                    {stageLabel ? (
+                        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary/70">
+                            {stageLabel}
+                        </p>
+                    ) : null}
+                    <p className="mt-2 text-sm leading-6" style={{ color: '#efe4d1' }}>
+                        {caption}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function MobileSessionActionTray({ children }) {
+    return (
+        <div
+            className="sticky z-20 mt-5 flex flex-wrap items-center gap-3 rounded-[1.4rem] border px-4 py-3 md:hidden"
+            style={{
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.9rem)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                background: 'linear-gradient(180deg,rgba(19,39,31,0.98),rgba(16,32,26,0.96))',
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 12px 34px rgba(0,0,0,0.28)',
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
 export default function GuideView() {
     const { id } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
     const toastRef = useRef(toast);
+    const isMobileSession = useMobileVisualBudget();
+    const { setStudyMode, clearStudyMode } = useContext(UIContext) || {};
 
     const [loading, setLoading] = useState(true);
     const [guide, setGuide] = useState(null);
@@ -323,7 +417,7 @@ export default function GuideView() {
         }
         if (t.worked_examples?.length > 0) {
             t.worked_examples.forEach((ex, i) => {
-                sections.push({ key: `example-${i}`, label: ex.title || `Example ${i + 1}`, type: 'worked_example', data: ex });
+                sections.push({ key: `example-${i}`, label: ex.title || `Example ${i + 1}`, type: 'worked_example', data: { ...ex, index: i } });
             });
         }
         if (t.common_mistakes?.length > 0) {
@@ -477,7 +571,14 @@ export default function GuideView() {
         setRiverCaption(option.text);
     }, []);
 
-    const handleAdvanceTeach = () => {
+    const handleBeginCheck = useCallback(() => {
+        setActiveAssistOption(null);
+        setSessionStage('check');
+        setRiverState('thinking');
+        setRiverCaption(getCheckCaption(currentCard));
+    }, [currentCard]);
+
+    const handleAdvanceTeach = useCallback(() => {
         // On the explain section, advance the progressive reveal first; only
         // move to the next teaching section once all paragraphs are revealed.
         if (onExplainSection && explainRevealed < explainTotal) {
@@ -492,28 +593,23 @@ export default function GuideView() {
         setTeachSection(nextIndex);
         setFuzzyPeek(false);
         const section = teachSections[nextIndex];
-        const captions = {
-            intuition: 'Let me show you why this works...',
-            worked_example: 'Watch how this plays out step by step.',
-            common_mistakes: 'Before you try \u2014 watch out for these.',
-            legacy_steps: 'Let me break this down.',
-            legacy_why: currentCard?.teaching?.why_it_matters?.slice(0, 100) || 'Here is why this matters.',
-        };
-        const poses = {
-            explain: 'teach',
-            intuition: 'thinking',
-            worked_example: 'point',
-            common_mistakes: 'gentle-correct',
-            legacy_steps: 'teach',
-            legacy_why: 'thinking',
-        };
-        setRiverState(poses[section.type] || 'teach');
-        setRiverCaption(captions[section.type] || 'River is teaching.');
+        const presentation = getTeachSectionPresentation(section, currentCard);
+        setRiverState(presentation.state);
+        setRiverCaption(presentation.caption);
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = requestAnimationFrame(() => {
             sectionRefs.current[section.key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
-    };
+    }, [
+        currentCard,
+        explainRevealed,
+        explainTotal,
+        handleBeginCheck,
+        handleRevealNext,
+        onExplainSection,
+        teachSection,
+        teachSections,
+    ]);
 
     const toggleStep = useCallback((exampleIndex, stepIndex) => {
         const key = `${exampleIndex}-${stepIndex}`;
@@ -574,12 +670,36 @@ export default function GuideView() {
         return () => window.removeEventListener('keydown', onKey);
     }, [sessionStage, onExplainSection, explainFullyRevealed, handleRevealNext]);
 
-    const handleBeginCheck = useCallback(() => {
-        setActiveAssistOption(null);
-        setSessionStage('check');
-        setRiverState('thinking');
-        setRiverCaption(getCheckCaption(currentCard));
-    }, [currentCard]);
+    const handleTeachBack = useCallback(() => {
+        if (onExplainSection && explainRevealed > 1) {
+            setExplainRevealed((prev) => Math.max(1, prev - 1));
+            setRiverState('thinking');
+            setRiverCaption('Let me restate that more slowly.');
+            return;
+        }
+
+        if (teachSection <= 0) return;
+
+        const nextIndex = teachSection - 1;
+        const section = teachSections[nextIndex];
+        const presentation = getTeachSectionPresentation(section, currentCard);
+        setTeachSection(nextIndex);
+        setFuzzyPeek(false);
+        setRiverState(presentation.state);
+        setRiverCaption(presentation.caption);
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = requestAnimationFrame(() => {
+            sectionRefs.current[section.key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }, [currentCard, explainRevealed, onExplainSection, teachSection, teachSections]);
+
+    const handleReturnToTeach = useCallback(() => {
+        const section = teachSections[teachSection];
+        const presentation = getTeachSectionPresentation(section, currentCard);
+        setSessionStage('teach');
+        setRiverState(presentation.state);
+        setRiverCaption(section?.type === 'explain' ? getTeachCaption(currentCard) : presentation.caption);
+    }, [currentCard, teachSection, teachSections]);
 
     const handleSubmit = async () => {
         if (!guideData || !currentCard || submitting) return;
@@ -863,7 +983,7 @@ export default function GuideView() {
         }
     };
 
-    const handleAdvance = async () => {
+    const handleAdvance = useCallback(async () => {
         if (!guideData || !result) return;
 
         if (result.sessionComplete) {
@@ -878,7 +998,7 @@ export default function GuideView() {
         await moveToNextCard(result.persistedState || studyState, {
             allowIncompleteFinish: !result.shouldAdvance,
         });
-    };
+    }, [finalizeSession, guideData, moveToNextCard, result, studyState]);
 
     const handleSaveAndLeave = useCallback(() => {
         toast.warn('Leave now? Your spot is saved — River can resume exactly here.', {
@@ -917,8 +1037,106 @@ export default function GuideView() {
             : 0),
         [guideData, currentCard],
     );
+    const totalCards = guideData?.cards?.length ?? 0;
     const animatedXP = useCountUp(completionPayload?.xpEarned ?? 0, 700);
     const animatedMastery = useCountUp(completionPayload?.masteryDelta ?? 0, 600);
+    const currentTeachSectionMeta = teachSections[teachSection] || null;
+
+    useEffect(() => {
+        if (!clearStudyMode) return undefined;
+
+        if (!isMobileSession || unsupported || loading || !currentCard) {
+            clearStudyMode();
+            return undefined;
+        }
+
+        if (sessionStage === 'teach') {
+            setStudyMode?.({
+                tabs: [
+                    { label: 'River', handler: () => window.scrollTo({ top: 0, behavior: 'smooth' }), active: true },
+                    { label: 'Anchor', handler: handleBeginCheck },
+                    { label: 'Pause', handler: handleSaveAndLeave },
+                ],
+                currentIndex: teachSection,
+                totalSections: Math.max(teachSections.length, 1),
+                progressLabel: currentTeachSectionMeta?.label || 'Lesson beat',
+                prevLabel: onExplainSection && explainRevealed > 1 ? 'Rewind' : 'Back',
+                nextLabel: onExplainSection && explainRevealed < explainTotal ? 'More' : 'Next beat',
+                onPrev: handleTeachBack,
+                onNext: handleAdvanceTeach,
+                canPrev: teachSection > 0 || (onExplainSection && explainRevealed > 1),
+                canNext: true,
+            });
+            return () => clearStudyMode();
+        }
+
+        if (sessionStage === 'check') {
+            setStudyMode?.({
+                tabs: [
+                    { label: 'River', handler: () => window.scrollTo({ top: 0, behavior: 'smooth' }), active: true },
+                    { label: 'Answer', handler: () => document.getElementById('river-answer')?.focus() },
+                    { label: 'Pause', handler: handleSaveAndLeave },
+                ],
+                currentIndex: currentCardIndex > 0 ? currentCardIndex - 1 : 0,
+                totalSections: Math.max(totalCards, 1),
+                progressLabel: 'Recall check',
+                prevLabel: 'Review',
+                nextLabel: 'Pause',
+                onPrev: handleReturnToTeach,
+                onNext: handleSaveAndLeave,
+                canPrev: true,
+                canNext: true,
+            });
+            return () => clearStudyMode();
+        }
+
+        if (sessionStage === 'feedback' && result) {
+            setStudyMode?.({
+                tabs: [
+                    { label: 'River', handler: () => window.scrollTo({ top: 0, behavior: 'smooth' }), active: true },
+                    { label: result.shouldAdvance ? 'Model' : 'Hint', handler: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+                    { label: 'Pause', handler: handleSaveAndLeave },
+                ],
+                currentIndex: currentCardIndex > 0 ? currentCardIndex - 1 : 0,
+                totalSections: Math.max(totalCards, 1),
+                progressLabel: result.shouldAdvance ? 'River response' : 'Try the next angle',
+                prevLabel: result.shouldAdvance ? 'Review' : 'Retry',
+                nextLabel: result.shouldAdvance ? 'Next card' : 'Continue',
+                onPrev: result.shouldAdvance ? handleReturnToTeach : handleTryAgain,
+                onNext: handleAdvance,
+                canPrev: true,
+                canNext: true,
+            });
+            return () => clearStudyMode();
+        }
+
+        clearStudyMode();
+        return undefined;
+    }, [
+        clearStudyMode,
+        currentCard,
+        currentCardIndex,
+        currentTeachSectionMeta?.label,
+        explainRevealed,
+        explainTotal,
+        handleAdvance,
+        handleAdvanceTeach,
+        handleBeginCheck,
+        handleReturnToTeach,
+        handleSaveAndLeave,
+        handleTeachBack,
+        handleTryAgain,
+        isMobileSession,
+        loading,
+        onExplainSection,
+        result,
+        sessionStage,
+        setStudyMode,
+        teachSection,
+        teachSections.length,
+        totalCards,
+        unsupported,
+    ]);
 
     if (loading) {
         return (
@@ -983,9 +1201,6 @@ export default function GuideView() {
 
     // Current River pose accent color — drives surface tinting on feedback stage
     const poseAccent = RIVER_POSE_ACCENT[riverState] ?? '#8fb27c';
-
-    // Card position for pip track
-    const totalCards = guideData?.cards?.length ?? 0;
 
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-6 sm:px-6 sm:py-10">
@@ -1063,7 +1278,7 @@ export default function GuideView() {
                                 }}
                             />
                             <div
-                                className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-6 py-6 sm:px-8 sm:py-8"
+                                className={`relative rounded-[0.5rem] sm:rounded-[0.75rem] ${isMobileSession ? 'px-4 py-5' : 'px-6 py-6 sm:px-8 sm:py-8'}`}
                                 style={{
                                     background: 'linear-gradient(175deg, #3f6753 0%, #365a49 40%, #315042 72%, #2b483c 100%)',
                                     boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.26), inset 0 0 48px rgba(0,0,0,0.12)',
@@ -1082,60 +1297,387 @@ export default function GuideView() {
                                     }}
                                 />
 
-                                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-                                    <div>
-                                        <p className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(222,185,106,0.78)' }}>Today's lecture</p>
-                                        <h1 className="mt-3 text-4xl sm:text-5xl font-serif italic font-bold tracking-tight" style={{ color: '#efe4d1' }}>{title}</h1>
-                                        <p className="mt-4 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
-                                            {guideData.lecture.opening}
-                                        </p>
-                                        <div className="mt-6 grid gap-3 md:grid-cols-3">
-                                            <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Subject</p>
-                                                <p className="mt-2 text-lg font-semibold" style={{ color: '#efe4d1' }}>{guideData.session_meta.subject}</p>
-                                            </div>
-                                            <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Goal</p>
-                                                <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.student_goal}</p>
-                                            </div>
-                                            <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Style</p>
-                                                <p className="mt-2 text-sm leading-6 capitalize" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.lecture_style}</p>
+                                {isMobileSession ? (
+                                    <div className="space-y-4 pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))]">
+                                        <div>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                                River session
+                                            </p>
+                                            <h1 className="mt-2 text-[2rem] font-serif italic font-bold leading-[1.02]" style={{ color: '#efe4d1' }}>
+                                                {title}
+                                            </h1>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <span className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ borderColor: 'rgba(255,255,255,0.14)', color: '#efe4d1', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                    {guideData.session_meta.subject}
+                                                </span>
+                                                <span className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ borderColor: 'rgba(255,255,255,0.14)', color: 'rgba(228,219,201,0.82)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                    {guideData.lecture.agenda.length} stops
+                                                </span>
                                             </div>
                                         </div>
-                                        {guideData.lecture.agenda.length > 0 ? (
-                                            <div className="mt-6 rounded-[1.6rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Agenda</p>
-                                                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                                                    {guideData.lecture.agenda.map((item, index) => (
-                                                        <div key={`${item}-${index}`} className="rounded-[1rem] border px-3 py-3 text-sm leading-6" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)', color: 'rgba(228,219,201,0.9)' }}>
+
+                                        <MobileTeacherStrip
+                                            state={riverState}
+                                            caption={riverCaption}
+                                            roleLabel={guideData.session_meta.river_role}
+                                            stageLabel="River opens the lesson"
+                                        />
+
+                                        <div className="rounded-[1.45rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
+                                                What we&apos;ll cover
+                                            </p>
+                                            <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.86)' }}>
+                                                {guideData.lecture.opening}
+                                            </p>
+                                            {guideData.lecture.agenda.length > 0 ? (
+                                                <div className="mt-3 space-y-2">
+                                                    {guideData.lecture.agenda.slice(0, 3).map((item, index) => (
+                                                        <div
+                                                            key={`${item}-${index}`}
+                                                            className="rounded-[1rem] border px-3 py-2.5 text-sm leading-6"
+                                                            style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)', color: '#efe4d1' }}
+                                                        >
                                                             <span className="mr-2" style={{ color: 'rgba(222,185,106,0.85)' }}>{index + 1}.</span>
                                                             {item}
                                                         </div>
                                                     ))}
+                                                    {guideData.lecture.agenda.length > 3 ? (
+                                                        <p className="text-xs leading-5 text-claude-secondary/80">
+                                                            {guideData.lecture.agenda.length - 3} more lesson beats are waiting once River gets started.
+                                                        </p>
+                                                    ) : null}
                                                 </div>
+                                            ) : null}
+                                        </div>
+
+                                        <div className="grid gap-3 sm:hidden">
+                                            <div className="rounded-[1.2rem] border p-3" style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Goal</p>
+                                                <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.student_goal}</p>
                                             </div>
-                                        ) : null}
-                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            <div className="rounded-[1.2rem] border p-3" style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Style</p>
+                                                <p className="mt-2 text-sm leading-6 capitalize" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.lecture_style}</p>
+                                            </div>
+                                        </div>
+
+                                        <MobileSessionActionTray>
                                             <button
                                                 type="button"
                                                 onClick={handleStart}
-                                                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                             >
                                                 Start with River
                                             </button>
-                                        </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleBackToGuides}
+                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors"
+                                                style={{ color: 'rgba(228,219,201,0.76)' }}
+                                            >
+                                                Back
+                                            </button>
+                                        </MobileSessionActionTray>
                                     </div>
+                                ) : (
+                                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                                        <div>
+                                            <p className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(222,185,106,0.78)' }}>Today&apos;s lecture</p>
+                                            <h1 className="mt-3 text-4xl sm:text-5xl font-serif italic font-bold tracking-tight" style={{ color: '#efe4d1' }}>{title}</h1>
+                                            <p className="mt-4 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                {guideData.lecture.opening}
+                                            </p>
+                                            <div className="mt-6 grid gap-3 md:grid-cols-3">
+                                                <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Subject</p>
+                                                    <p className="mt-2 text-lg font-semibold" style={{ color: '#efe4d1' }}>{guideData.session_meta.subject}</p>
+                                                </div>
+                                                <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Goal</p>
+                                                    <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.student_goal}</p>
+                                                </div>
+                                                <div className="rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Style</p>
+                                                    <p className="mt-2 text-sm leading-6 capitalize" style={{ color: 'rgba(228,219,201,0.88)' }}>{guideData.session_meta.lecture_style}</p>
+                                                </div>
+                                            </div>
+                                            {guideData.lecture.agenda.length > 0 ? (
+                                                <div className="mt-6 rounded-[1.6rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Agenda</p>
+                                                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                                        {guideData.lecture.agenda.map((item, index) => (
+                                                            <div key={`${item}-${index}`} className="rounded-[1rem] border px-3 py-3 text-sm leading-6" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)', color: 'rgba(228,219,201,0.9)' }}>
+                                                                <span className="mr-2" style={{ color: 'rgba(222,185,106,0.85)' }}>{index + 1}.</span>
+                                                                {item}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                            <div className="mt-6 flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleStart}
+                                                    className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                >
+                                                    Start with River
+                                                </button>
+                                            </div>
+                                        </div>
 
-                                    <RiverMascot state={riverState} caption={riverCaption} />
-                                </div>
+                                        <RiverMascot state={riverState} caption={riverCaption} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </motion.section>
                 ) : null}
 
                 {sessionStage === 'teach' && currentCard ? (
-                    isToctStyleCard ? (
+                    isMobileSession ? (
+                    <motion.section
+                        data-testid="river-session-teach"
+                        className="mt-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: PANEL_EASE }}
+                    >
+                        <div
+                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                            style={BOARD_FRAME_STYLE}
+                        >
+                            <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={BOARD_GRAIN_STYLE} />
+                            <div
+                                className="relative rounded-[0.5rem] px-4 py-5"
+                                style={BOARD_SURFACE_STYLE}
+                            >
+                                <div className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-[0.04]" style={BOARD_DUST_STYLE} />
+                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]" style={BOARD_TRAY_STYLE} />
+
+                                <div className="space-y-4 pb-[calc(8.75rem+env(safe-area-inset-bottom,0px))]">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(222,185,106,0.72)' }}>
+                                                {guideData.session_meta.river_role}
+                                            </p>
+                                            <h2 className="mt-2 text-[2rem] font-serif italic font-bold leading-[1.02]" style={{ color: '#efe4d1' }}>
+                                                <SubjectRenderer content={currentConcept?.title || currentCard.prompt} />
+                                            </h2>
+                                        </div>
+                                        <div className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ borderColor: 'rgba(255,255,255,0.14)', color: '#efe4d1', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                            Beat {teachSection + 1}/{Math.max(teachSections.length, 1)}
+                                        </div>
+                                    </div>
+
+                                    <MobileTeacherStrip
+                                        state={riverState}
+                                        caption={teachRevealCaption}
+                                        roleLabel={guideData.session_meta.river_role}
+                                        stageLabel={currentTeachSectionMeta?.label || 'Explanation'}
+                                    />
+
+                                    <div
+                                        ref={(node) => {
+                                            if (currentTeachSectionMeta?.key) sectionRefs.current[currentTeachSectionMeta.key] = node;
+                                        }}
+                                        className="rounded-[1.55rem] border p-4"
+                                        style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                    >
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.68)' }}>
+                                            {currentTeachSectionMeta?.label || 'Explanation'}
+                                        </p>
+
+                                        {currentTeachSectionMeta?.type === 'explain' ? (
+                                            <div className="mt-3 space-y-3">
+                                                {visibleParagraphs.map((paragraph, index) => (
+                                                    <p key={`${currentCard.id}-mobile-explain-${index}`} className="text-base leading-8" style={{ color: '#efe4d1' }}>
+                                                        <SubjectRenderer content={paragraph} />
+                                                    </p>
+                                                ))}
+                                                {showFuzzyPrompt ? (
+                                                    <div className="rounded-[1.15rem] border px-4 py-3" style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                                                        <p className="text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                            River can restate this before you move on.
+                                                        </p>
+                                                        <div className="mt-3 flex flex-wrap gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleFuzzy}
+                                                                className="inline-flex min-h-[42px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors"
+                                                                style={{ borderColor: 'rgba(255,255,255,0.18)', color: '#efe4d1' }}
+                                                            >
+                                                                Put it another way
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleGotIt}
+                                                                className="inline-flex min-h-[42px] items-center justify-center rounded-full px-4 py-2 text-sm font-medium"
+                                                                style={{ color: 'rgba(228,219,201,0.78)' }}
+                                                            >
+                                                                I&apos;ve got it
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                                {fuzzyPeek ? (
+                                                    <div className="rounded-[1.15rem] border px-4 py-3" style={{ borderColor: 'rgba(143,178,124,0.26)', backgroundColor: 'rgba(143,178,124,0.08)' }}>
+                                                        <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
+                                                            <SubjectRenderer content={currentCard.teaching.why_it_matters || currentCard.teaching.example || currentCard.teaching.explain} />
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+
+                                        {currentTeachSectionMeta?.type === 'intuition' ? (
+                                            <div className="mt-3 text-base leading-8" style={{ color: '#efe4d1' }}>
+                                                <SubjectRenderer content={currentCard.teaching.intuition} />
+                                            </div>
+                                        ) : null}
+
+                                        {currentTeachSectionMeta?.type === 'worked_example' ? (
+                                            <div className="mt-3 space-y-3">
+                                                {currentTeachSectionMeta.data?.title ? (
+                                                    <h3 className="text-lg font-semibold" style={{ color: '#efe4d1' }}>
+                                                        {currentTeachSectionMeta.data.title}
+                                                    </h3>
+                                                ) : null}
+                                                {currentTeachSectionMeta.data?.scenario ? (
+                                                    <p className="text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                        <SubjectRenderer content={currentTeachSectionMeta.data.scenario} />
+                                                    </p>
+                                                ) : null}
+                                                <div className="space-y-2.5">
+                                                    {(currentTeachSectionMeta.data?.steps || []).map((step, index) => (
+                                                        <button
+                                                            key={`${currentTeachSectionMeta.key}-step-${index}`}
+                                                            type="button"
+                                                            onClick={() => toggleStep(currentTeachSectionMeta.data?.index || 0, index)}
+                                                            className="block w-full rounded-[1rem] border px-3 py-3 text-left transition-colors"
+                                                            style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                                        >
+                                                            <div className="flex items-start gap-3">
+                                                                <span className="mt-0.5 text-xs font-mono" style={{ color: 'rgba(222,185,106,0.8)' }}>{index + 1}.</span>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
+                                                                        <SubjectRenderer content={step.step || step} inline />
+                                                                    </p>
+                                                                    {expandedSteps[`${currentTeachSectionMeta.data?.index || 0}-${index}`] && step.explanation ? (
+                                                                        <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.76)' }}>
+                                                                            <SubjectRenderer content={step.explanation} inline />
+                                                                        </p>
+                                                                    ) : null}
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
+
+                                        {currentTeachSectionMeta?.type === 'common_mistakes' ? (
+                                            <div className="mt-3 space-y-2.5">
+                                                {currentCard.teaching.common_mistakes.map((mistake, index) => (
+                                                    <div
+                                                        key={`${currentCard.id}-mistake-${index}`}
+                                                        className="rounded-[1rem] border px-3 py-3"
+                                                        style={{ borderColor: 'rgba(213,150,120,0.18)', backgroundColor: 'rgba(213,150,120,0.08)' }}
+                                                    >
+                                                        <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
+                                                            <SubjectRenderer content={mistake} inline />
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        {currentTeachSectionMeta?.type === 'legacy_steps' ? (
+                                            <div className="mt-3 space-y-2.5">
+                                                {currentCard.teaching.steps.map((step, index) => (
+                                                    <div
+                                                        key={`${currentCard.id}-legacy-step-${index}`}
+                                                        className="rounded-[1rem] border px-3 py-3"
+                                                        style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                                    >
+                                                        <span className="mr-2 text-xs font-mono" style={{ color: 'rgba(222,185,106,0.8)' }}>{index + 1}.</span>
+                                                        <span className="text-sm leading-6" style={{ color: '#efe4d1' }}>
+                                                            <SubjectRenderer content={step} inline />
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        {currentTeachSectionMeta?.type === 'legacy_why' ? (
+                                            <div className="mt-3 space-y-3">
+                                                <p className="text-base leading-8" style={{ color: '#efe4d1' }}>
+                                                    <SubjectRenderer content={currentCard.teaching.why_it_matters} />
+                                                </p>
+                                                {currentCard.teaching.example ? (
+                                                    <div className="rounded-[1rem] border px-3 py-3" style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Anchor example</p>
+                                                        <p className="mt-2 text-sm leading-6" style={{ color: '#efe4d1' }}>
+                                                            <SubjectRenderer content={currentCard.teaching.example} />
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                    </div>
+
+                                    {assistOptions.length > 0 ? (
+                                        <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.66)' }}>Ask River</p>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {assistOptions.slice(0, 3).map((option) => (
+                                                    <button
+                                                        key={option.id}
+                                                        type="button"
+                                                        onClick={() => handleSelectAssist(option)}
+                                                        className="inline-flex min-h-[42px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors"
+                                                        style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: '#efe4d1' }}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {activeAssistOption ? (
+                                                <div className="mt-3 rounded-[1rem] border px-3 py-3" style={{ borderColor: 'rgba(143,178,124,0.26)', backgroundColor: 'rgba(143,178,124,0.08)' }}>
+                                                    <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
+                                                        <SubjectRenderer content={activeAssistOption.text} />
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+
+                                    <MobileSessionActionTray>
+                                        <button
+                                            type="button"
+                                            onClick={handleAdvanceTeach}
+                                            className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                        >
+                                            {onExplainSection && explainRevealed < explainTotal
+                                                ? `Keep going (${explainRevealed}/${explainTotal})`
+                                                : teachSection < teachSections.length - 1
+                                                    ? `Next: ${teachSections[teachSection + 1]?.label}`
+                                                    : 'Ready to answer'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={teachSection < teachSections.length - 1 ? handleBeginCheck : handleSaveAndLeave}
+                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors"
+                                            style={{ color: 'rgba(228,219,201,0.78)' }}
+                                        >
+                                            {teachSection < teachSections.length - 1 ? 'Skip to question' : 'Pause here'}
+                                        </button>
+                                    </MobileSessionActionTray>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.section>
+                    ) : isToctStyleCard ? (
                     /* ── Blackboard Lecture (TOCT-style cards) ── */
                     <motion.section
                         data-testid="river-session-teach"
@@ -1751,63 +2293,65 @@ export default function GuideView() {
                                     }}
                                 />
 
-                                <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-                                    <RiverMascot state={riverState} caption={riverCaption} />
-
-                                    <div className="max-w-2xl">
-                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
-                                            Check understanding
-                                        </p>
-                                        <h2 className="mt-4 text-4xl sm:text-5xl font-serif italic font-bold leading-tight" style={{ color: '#efe4d1' }}>
-                                            <SubjectRenderer content={currentCard.prompt} />
-                                        </h2>
-                                        {riverCaption ? (
-                                            <p className="mt-3 max-w-prose text-sm italic leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
-                                                {riverCaption}
+                                {isMobileSession ? (
+                                    <div className="space-y-4 pb-[calc(8.75rem+env(safe-area-inset-bottom,0px))]">
+                                        <div>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                                Check understanding
                                             </p>
-                                        ) : null}
-
-                                        <div className="mt-8 flex items-center justify-between">
-                                            <label htmlFor="river-answer" className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
-                                                Your answer
-                                            </label>
-                                            <span className="hidden sm:block text-[10px] font-mono" style={{ color: 'rgba(222,185,106,0.3)' }}>
-                                                Ctrl/⌘+↵ to submit
-                                            </span>
+                                            <h2 className="mt-2 text-[2rem] font-serif italic font-bold leading-[1.02]" style={{ color: '#efe4d1' }}>
+                                                <SubjectRenderer content={currentCard.prompt} />
+                                            </h2>
                                         </div>
-                                        <textarea
-                                            id="river-answer"
-                                            aria-label="Your answer"
-                                            value={answer}
-                                            onChange={(event) => setAnswer(event.target.value)}
-                                            onKeyDown={(e) => {
-                                                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitting) {
-                                                    e.preventDefault();
-                                                    handleSubmit();
-                                                }
-                                            }}
-                                            disabled={submitting}
-                                            className="mt-3 min-h-[260px] w-full rounded-[1.4rem] border px-5 py-4 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
-                                            style={{
-                                                color: '#f1e8d8',
-                                                backgroundColor: 'rgba(15, 35, 28, 0.34)',
-                                                borderColor: answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
-                                                boxShadow: 'inset 0 1px 8px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
-                                            }}
-                                            placeholder="Answer from memory first."
+
+                                        <MobileTeacherStrip
+                                            state={riverState}
+                                            caption={riverCaption}
+                                            roleLabel={guideData.session_meta.river_role}
+                                            stageLabel="Answer from memory"
+                                            accent={poseAccent}
                                         />
 
-                                        <div
-                                            className="sticky bottom-0 z-10 -mx-5 mt-5 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
-                                            style={{ backgroundColor: 'rgba(22, 48, 36, 0.97)', backdropFilter: 'blur(8px)' }}
-                                        >
+                                        <div className="rounded-[1.55rem] border p-4" style={{ borderColor: `${poseAccent}42`, backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <label htmlFor="river-answer" className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
+                                                    Your answer
+                                                </label>
+                                                <span className="text-[10px] font-mono text-claude-secondary/60">
+                                                    Short and clear is fine
+                                                </span>
+                                            </div>
+                                            <textarea
+                                                id="river-answer"
+                                                aria-label="Your answer"
+                                                value={answer}
+                                                onChange={(event) => setAnswer(event.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitting) {
+                                                        e.preventDefault();
+                                                        handleSubmit();
+                                                    }
+                                                }}
+                                                disabled={submitting}
+                                                className="mt-3 min-h-[220px] w-full rounded-[1.25rem] border px-4 py-4 text-[15px] leading-7 outline-none transition-colors focus:border-claude-accent"
+                                                style={{
+                                                    color: '#f1e8d8',
+                                                    backgroundColor: 'rgba(15, 35, 28, 0.34)',
+                                                    borderColor: answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
+                                                    boxShadow: 'inset 0 1px 8px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
+                                                }}
+                                                placeholder="Answer from memory first."
+                                            />
+                                        </div>
+
+                                        <MobileSessionActionTray>
                                             <button
                                                 type="button"
                                                 onClick={handleSubmit}
                                                 disabled={submitting}
-                                                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                                                className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
                                             >
-                                                {submitting ? 'Checking...' : 'Submit Answer'}
+                                                {submitting ? 'Checking...' : 'Submit answer'}
                                             </button>
                                             <button
                                                 type="button"
@@ -1819,7 +2363,7 @@ export default function GuideView() {
                                                     backgroundColor: 'rgba(0,0,0,0.16)',
                                                 }}
                                             >
-                                                Show Answer
+                                                Show answer
                                             </button>
                                             <button
                                                 type="button"
@@ -1828,21 +2372,104 @@ export default function GuideView() {
                                                 className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60"
                                                 style={{ color: 'rgba(228,219,201,0.78)' }}
                                             >
-                                                Skip for now
+                                                Skip
                                             </button>
-                                            <span className="flex-1" aria-hidden="true" />
-                                            <button
-                                                type="button"
-                                                onClick={handleSaveAndLeave}
+                                        </MobileSessionActionTray>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                                        <RiverMascot state={riverState} caption={riverCaption} />
+
+                                        <div className="max-w-2xl">
+                                            <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                                Check understanding
+                                            </p>
+                                            <h2 className="mt-4 text-4xl sm:text-5xl font-serif italic font-bold leading-tight" style={{ color: '#efe4d1' }}>
+                                                <SubjectRenderer content={currentCard.prompt} />
+                                            </h2>
+                                            {riverCaption ? (
+                                                <p className="mt-3 max-w-prose text-sm italic leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                    {riverCaption}
+                                                </p>
+                                            ) : null}
+
+                                            <div className="mt-8 flex items-center justify-between">
+                                                <label htmlFor="river-answer" className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
+                                                    Your answer
+                                                </label>
+                                                <span className="hidden sm:block text-[10px] font-mono" style={{ color: 'rgba(222,185,106,0.3)' }}>
+                                                    Ctrl/⌘+↵ to submit
+                                                </span>
+                                            </div>
+                                            <textarea
+                                                id="river-answer"
+                                                aria-label="Your answer"
+                                                value={answer}
+                                                onChange={(event) => setAnswer(event.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitting) {
+                                                        e.preventDefault();
+                                                        handleSubmit();
+                                                    }
+                                                }}
                                                 disabled={submitting}
-                                                className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2 text-xs transition-colors disabled:opacity-60"
-                                                style={{ color: 'rgba(228,219,201,0.62)' }}
+                                                className="mt-3 min-h-[260px] w-full rounded-[1.4rem] border px-5 py-4 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                                style={{
+                                                    color: '#f1e8d8',
+                                                    backgroundColor: 'rgba(15, 35, 28, 0.34)',
+                                                    borderColor: answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
+                                                    boxShadow: 'inset 0 1px 8px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
+                                                }}
+                                                placeholder="Answer from memory first."
+                                            />
+
+                                            <div
+                                                className="sticky bottom-0 z-10 -mx-5 mt-5 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
+                                                style={{ backgroundColor: 'rgba(22, 48, 36, 0.97)', backdropFilter: 'blur(8px)' }}
                                             >
-                                                Save and leave
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSubmit}
+                                                    disabled={submitting}
+                                                    className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                                                >
+                                                    {submitting ? 'Checking...' : 'Submit Answer'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleShowAnswer}
+                                                    disabled={submitting}
+                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium text-claude-text transition-colors disabled:opacity-60"
+                                                    style={{
+                                                        borderColor: 'rgba(255,255,255,0.22)',
+                                                        backgroundColor: 'rgba(0,0,0,0.16)',
+                                                    }}
+                                                >
+                                                    Show Answer
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSkipForNow}
+                                                    disabled={submitting}
+                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60"
+                                                    style={{ color: 'rgba(228,219,201,0.78)' }}
+                                                >
+                                                    Skip for now
+                                                </button>
+                                                <span className="flex-1" aria-hidden="true" />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveAndLeave}
+                                                    disabled={submitting}
+                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-3 py-2 text-xs transition-colors disabled:opacity-60"
+                                                    style={{ color: 'rgba(228,219,201,0.62)' }}
+                                                >
+                                                    Save and leave
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </motion.section>
@@ -1891,19 +2518,25 @@ export default function GuideView() {
                                     }}
                                 />
 
-                                <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-                                    <RiverMascot state={riverState} caption={riverCaption} />
+                                {isMobileSession ? (
+                                    <div className="space-y-4 pb-[calc(8.75rem+env(safe-area-inset-bottom,0px))]">
+                                        <MobileTeacherStrip
+                                            state={riverState}
+                                            caption={riverCaption}
+                                            roleLabel={guideData.session_meta.river_role}
+                                            stageLabel={result.shouldAdvance ? 'River is confirming the idea' : 'River is coaching your next try'}
+                                            accent={poseAccent}
+                                        />
 
-                                    <div className="space-y-4">
                                         <div
-                                            className="rounded-[1.6rem] border p-5 transition-colors duration-500"
+                                            className="rounded-[1.55rem] border p-4 transition-colors duration-500"
                                             style={{
                                                 borderColor: `${poseAccent}48`,
                                                 backgroundColor: 'rgba(0,0,0,0.16)',
                                             }}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River's feedback</p>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River&apos;s response</p>
                                                 {result.outcome && result.outcome !== 'revealed' ? (
                                                     <span
                                                         className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
@@ -1921,22 +2554,16 @@ export default function GuideView() {
                                         </div>
 
                                         {(result.shouldAdvance || result.outcome === 'revealed') && (
-                                            <div className="rounded-[1.6rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Model answer</p>
+                                            <div className="rounded-[1.45rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Clean answer</p>
                                                 <p className="mt-3 text-base leading-7" style={{ color: 'rgba(228,219,201,0.9)' }}>{result.modelAnswer}</p>
                                             </div>
                                         )}
 
                                         {result.missingTags?.length ? (
-                                            <div
-                                                className="rounded-[1.4rem] border p-4"
-                                                style={{
-                                                    borderColor: 'rgba(255,255,255,0.16)',
-                                                    backgroundColor: 'rgba(0,0,0,0.16)',
-                                                }}
-                                            >
+                                            <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
                                                 <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>
-                                                    Concepts to revisit
+                                                    Hold onto these anchors
                                                 </p>
                                                 <div className="mt-3 flex flex-wrap gap-2">
                                                     {result.missingTags.map((tag) => (
@@ -1958,13 +2585,13 @@ export default function GuideView() {
 
                                         {result.followUpQuestion && !result.shouldAdvance ? (
                                             <motion.div
-                                                className="rounded-[1.6rem] border p-5"
+                                                className="rounded-[1.45rem] border p-4"
                                                 style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}
                                                 initial={{ opacity: 0, y: 8 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ duration: 0.35, delay: 0.12, ease: PANEL_EASE }}
                                             >
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River's hint</p>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Try this angle</p>
                                                 <p className="mt-3 text-base leading-7 italic" style={{ color: 'rgba(228,219,201,0.9)' }}>
                                                     {result.followUpQuestion}
                                                 </p>
@@ -2001,15 +2628,25 @@ export default function GuideView() {
                                             </motion.div>
                                         ) : null}
 
-                                        <div className="flex flex-wrap gap-3">
+                                        <MobileSessionActionTray>
                                             {result.shouldAdvance ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAdvance}
-                                                    className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
-                                                >
-                                                    Keep going
-                                                </button>
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAdvance}
+                                                        className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                    >
+                                                        Keep going
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleReturnToTeach}
+                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors"
+                                                        style={{ color: 'rgba(228,219,201,0.78)' }}
+                                                    >
+                                                        Review once more
+                                                    </button>
+                                                </>
                                             ) : (
                                                 <>
                                                     <button
@@ -2023,15 +2660,157 @@ export default function GuideView() {
                                                     <button
                                                         type="button"
                                                         onClick={handleAdvance}
-                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                        className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                                     >
                                                         Continue anyway
                                                     </button>
                                                 </>
                                             )}
+                                        </MobileSessionActionTray>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+                                        <RiverMascot state={riverState} caption={riverCaption} />
+
+                                        <div className="space-y-4">
+                                            <div
+                                                className="rounded-[1.6rem] border p-5 transition-colors duration-500"
+                                                style={{
+                                                    borderColor: `${poseAccent}48`,
+                                                    backgroundColor: 'rgba(0,0,0,0.16)',
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River&apos;s feedback</p>
+                                                    {result.outcome && result.outcome !== 'revealed' ? (
+                                                        <span
+                                                            className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
+                                                            style={{
+                                                                color: '#efe4d1',
+                                                                backgroundColor: `${poseAccent}26`,
+                                                                border: `1px solid ${poseAccent}4a`,
+                                                            }}
+                                                        >
+                                                            {result.outcome}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                <p className="mt-3 text-base leading-7" style={{ color: 'rgba(228,219,201,0.9)' }}>{result.feedback}</p>
+                                            </div>
+
+                                            {(result.shouldAdvance || result.outcome === 'revealed') && (
+                                                <div className="rounded-[1.6rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Model answer</p>
+                                                    <p className="mt-3 text-base leading-7" style={{ color: 'rgba(228,219,201,0.9)' }}>{result.modelAnswer}</p>
+                                                </div>
+                                            )}
+
+                                            {result.missingTags?.length ? (
+                                                <div
+                                                    className="rounded-[1.4rem] border p-4"
+                                                    style={{
+                                                        borderColor: 'rgba(255,255,255,0.16)',
+                                                        backgroundColor: 'rgba(0,0,0,0.16)',
+                                                    }}
+                                                >
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>
+                                                        Concepts to revisit
+                                                    </p>
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {result.missingTags.map((tag) => (
+                                                            <span
+                                                                key={tag}
+                                                                className="rounded-full px-3 py-1.5 text-xs"
+                                                                style={{
+                                                                    border: `1px solid ${poseAccent}40`,
+                                                                    backgroundColor: `${poseAccent}20`,
+                                                                    color: '#efe4d1',
+                                                                }}
+                                                            >
+                                                                {tag.replace(/-/g, ' ')}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
+                                            {result.followUpQuestion && !result.shouldAdvance ? (
+                                                <motion.div
+                                                    className="rounded-[1.6rem] border p-5"
+                                                    style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                                    initial={{ opacity: 0, y: 8 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.35, delay: 0.12, ease: PANEL_EASE }}
+                                                >
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River&apos;s hint</p>
+                                                    <p className="mt-3 text-base leading-7 italic" style={{ color: 'rgba(228,219,201,0.9)' }}>
+                                                        {result.followUpQuestion}
+                                                    </p>
+                                                    <label
+                                                        htmlFor="river-refined-answer"
+                                                        className="mt-4 block text-[10px] font-mono uppercase tracking-[0.16em]"
+                                                        style={{ color: 'rgba(222,185,106,0.62)' }}
+                                                    >
+                                                        Refine your answer
+                                                    </label>
+                                                    <textarea
+                                                        id="river-refined-answer"
+                                                        aria-label="Refine your answer"
+                                                        value={refinedAnswer}
+                                                        onChange={(event) => setRefinedAnswer(event.target.value)}
+                                                        disabled={submitting}
+                                                        className="mt-2 min-h-[120px] w-full rounded-[1.2rem] border px-4 py-3 text-sm leading-7 outline-none transition-colors focus:border-claude-accent"
+                                                        style={{
+                                                            color: '#f1e8d8',
+                                                            backgroundColor: 'rgba(15, 35, 28, 0.28)',
+                                                            borderColor: `${poseAccent}42`,
+                                                            boxShadow: 'inset 0 1px 6px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)',
+                                                        }}
+                                                        placeholder="Try again with River's hint in mind..."
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleRefinedSubmit}
+                                                        disabled={submitting || !refinedAnswer.trim()}
+                                                        className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                                                    >
+                                                        {submitting ? 'Checking...' : 'Submit refined answer'}
+                                                    </button>
+                                                </motion.div>
+                                            ) : null}
+
+                                            <div className="flex flex-wrap gap-3">
+                                                {result.shouldAdvance ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAdvance}
+                                                        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                    >
+                                                        Keep going
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleTryAgain}
+                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                            style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                                        >
+                                                            Try again
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleAdvance}
+                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                        >
+                                                            Continue anyway
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </motion.section>
@@ -2080,50 +2859,64 @@ export default function GuideView() {
                                     }}
                                 />
 
-                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-                                    <div>
-                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
-                                            {completionIsPartial ? 'Session saved' : 'Session complete'}
-                                        </p>
-                                        <h1 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold" style={{ color: '#efe4d1' }}>
-                                            {completionIsPartial ? 'Session saved' : (guideData.completion?.title || 'Session complete')}
-                                        </h1>
-                                        <p className="mt-4 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
-                                            {completionIsPartial
-                                                ? 'River has preserved this lecture exactly where you left it.'
-                                                : (guideData.completion?.mastery_message || 'You converted recall into structure.')}
-                                        </p>
-                                        <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
-                                            {getCompleteCaption(guideData, completionPayload)}
-                                        </p>
+                                {isMobileSession ? (
+                                    <div className="space-y-4 pb-[calc(8.75rem+env(safe-area-inset-bottom,0px))]">
+                                        <div>
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                                {completionIsPartial ? 'Session saved' : 'Session complete'}
+                                            </p>
+                                            <h1 className="mt-2 text-[2rem] font-serif italic font-bold leading-[1.02]" style={{ color: '#efe4d1' }}>
+                                                {completionIsPartial ? 'Session saved' : (guideData.completion?.title || 'Session complete')}
+                                            </h1>
+                                        </div>
+
+                                        <MobileTeacherStrip
+                                            state={riverState}
+                                            caption={riverCaption}
+                                            roleLabel={guideData.session_meta.river_role}
+                                            stageLabel={completionIsPartial ? 'River kept your place' : 'River is wrapping the lesson'}
+                                        />
+
+                                        <div className="rounded-[1.45rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                            <p className="text-sm leading-6" style={{ color: 'rgba(228,219,201,0.86)' }}>
+                                                {completionIsPartial
+                                                    ? 'River has preserved this lecture exactly where you left it.'
+                                                    : (guideData.completion?.mastery_message || 'You converted recall into structure.')}
+                                            </p>
+                                            <p className="mt-3 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                {getCompleteCaption(guideData, completionPayload)}
+                                            </p>
+                                        </div>
+
                                         {completionPayload ? (
-                                            <div className="mt-8 rounded-[1.4rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>XP earned</p>
-                                                <p className="mt-1 font-serif italic text-7xl font-bold tabular-nums leading-none" style={{ color: '#efe4d1' }}>
-                                                    {animatedXP}
-                                                </p>
-                                                <div className="mt-6 flex flex-wrap gap-8">
-                                                    <div>
-                                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Mastery</p>
-                                                        <p className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: '#efe4d1' }}>{animatedMastery}%</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Next review</p>
-                                                        <p className="mt-1 text-base font-medium" style={{ color: 'rgba(228,219,201,0.92)' }}>
-                                                            {completionPayload.nextReviewAt
-                                                                ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
-                                                                : 'When you are ready'}
-                                                        </p>
-                                                    </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>XP earned</p>
+                                                    <p className="mt-2 font-serif italic text-5xl font-bold leading-none" style={{ color: '#efe4d1' }}>
+                                                        {animatedXP}
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Mastery</p>
+                                                    <p className="mt-2 text-3xl font-semibold tabular-nums" style={{ color: '#efe4d1' }}>{animatedMastery}%</p>
+                                                </div>
+                                                <div className="col-span-2 rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Next review</p>
+                                                    <p className="mt-2 text-base font-medium" style={{ color: 'rgba(228,219,201,0.92)' }}>
+                                                        {completionPayload.nextReviewAt
+                                                            ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
+                                                            : 'When you are ready'}
+                                                    </p>
                                                 </div>
                                             </div>
                                         ) : null}
-                                        <div className="mt-6 flex flex-wrap gap-3">
+
+                                        <MobileSessionActionTray>
                                             {completionIsPartial ? (
                                                 <button
                                                     type="button"
                                                     onClick={handleResumeFromWrapUp}
-                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                    className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-4 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                                 >
                                                     Resume session
                                                 </button>
@@ -2134,13 +2927,73 @@ export default function GuideView() {
                                                 className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
                                                 style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
                                             >
-                                                Back to Tutor Sessions
+                                                Back to sessions
                                             </button>
-                                        </div>
+                                        </MobileSessionActionTray>
                                     </div>
+                                ) : (
+                                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                                        <div>
+                                            <p className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.78)' }}>
+                                                {completionIsPartial ? 'Session saved' : 'Session complete'}
+                                            </p>
+                                            <h1 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold" style={{ color: '#efe4d1' }}>
+                                                {completionIsPartial ? 'Session saved' : (guideData.completion?.title || 'Session complete')}
+                                            </h1>
+                                            <p className="mt-4 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                {completionIsPartial
+                                                    ? 'River has preserved this lecture exactly where you left it.'
+                                                    : (guideData.completion?.mastery_message || 'You converted recall into structure.')}
+                                            </p>
+                                            <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
+                                                {getCompleteCaption(guideData, completionPayload)}
+                                            </p>
+                                            {completionPayload ? (
+                                                <div className="mt-8 rounded-[1.4rem] border p-5" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>XP earned</p>
+                                                    <p className="mt-1 font-serif italic text-7xl font-bold tabular-nums leading-none" style={{ color: '#efe4d1' }}>
+                                                        {animatedXP}
+                                                    </p>
+                                                    <div className="mt-6 flex flex-wrap gap-8">
+                                                        <div>
+                                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Mastery</p>
+                                                            <p className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: '#efe4d1' }}>{animatedMastery}%</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Next review</p>
+                                                            <p className="mt-1 text-base font-medium" style={{ color: 'rgba(228,219,201,0.92)' }}>
+                                                                {completionPayload.nextReviewAt
+                                                                    ? new Date(completionPayload.nextReviewAt).toLocaleDateString()
+                                                                    : 'When you are ready'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                            <div className="mt-6 flex flex-wrap gap-3">
+                                                {completionIsPartial ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleResumeFromWrapUp}
+                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                    >
+                                                        Resume session
+                                                    </button>
+                                                ) : null}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleBackToGuides}
+                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                    style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
+                                                >
+                                                    Back to Tutor Sessions
+                                                </button>
+                                            </div>
+                                        </div>
 
-                                    <RiverMascot state={riverState} caption={riverCaption} />
-                                </div>
+                                        <RiverMascot state={riverState} caption={riverCaption} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </motion.section>
