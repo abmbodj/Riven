@@ -49,7 +49,7 @@ const MODULES = [
     },
 ];
 
-function ModuleCard({ mod, index }) {
+function ModuleCard({ mod, index, className = '' }) {
     const Icon = mod.icon;
 
     return (
@@ -59,7 +59,7 @@ function ModuleCard({ mod, index }) {
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3, ease: [0.33, 1, 0.68, 0.9] } }}
             transition={{ delay: index * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative tap-action"
+            className={`relative tap-action ${className}`}
         >
             {/* Specimen Tape */}
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 pointer-events-none" />
@@ -187,7 +187,12 @@ export default function StudyDashboard() {
             {/* Module Cards Grid */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6 px-1">
                 {MODULES.map((mod, index) => (
-                    <ModuleCard key={mod.title} mod={mod} index={index} />
+                    <ModuleCard
+                        key={mod.title}
+                        mod={mod}
+                        index={index}
+                        className={index === MODULES.length - 1 ? 'xl:col-span-2 xl:w-1/2 xl:mx-auto' : ''}
+                    />
                 ))}
             </div>
         </div>
