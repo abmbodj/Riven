@@ -27,6 +27,7 @@ import SafetySection from '../components/settings/sections/SafetySection';
 import HelpPoliciesSection from '../components/settings/sections/HelpPoliciesSection';
 import DangerZoneSection from '../components/settings/sections/DangerZoneSection';
 import { formatAiHistoryItem, shouldShowAiHistoryJob } from '../components/settings/sections/rivenAiHistory';
+import CanvasSemesterCleanupModal from '../components/canvas/CanvasSemesterCleanupModal';
 
 const mapAiHistoryItems = (jobs = []) => jobs
     .filter(shouldShowAiHistoryJob)
@@ -109,6 +110,7 @@ export default function Settings() {
     const [connectingCanvas, setConnectingCanvas] = useState(false);
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
     const [canvasNotice, setCanvasNotice] = useState(null);
+    const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
 
     // --- AI limits ---
     const [aiLimits, setAiLimits] = useState({
@@ -386,6 +388,14 @@ export default function Settings() {
         }
     };
 
+    const handleSemesterCleanupArchived = (result) => {
+        setCanvasNotice({
+            tone: 'success',
+            title: 'Semester cleaned up',
+            detail: `Archived ${result.classesArchived} classes and ${result.assignmentsArchived} unfinished assignments.`
+        });
+    };
+
     // --- Auth handlers ---
     const handleSignOut = async () => {
         haptics.medium();
@@ -560,6 +570,7 @@ export default function Settings() {
                         onDisconnectCanvas={handleDisconnectCanvas}
                         onSyncCanvas={handleSyncLms}
                         onToggleAutoSync={handleToggleCanvasAutoSync}
+                        onOpenSemesterCleanup={() => setSemesterCleanupOpen(true)}
                         openModal={openModal}
                         haptics={haptics}
                     />
@@ -671,6 +682,11 @@ export default function Settings() {
             <DeleteAccountModal isOpen={modals.delete} onClose={() => closeModal('delete')} />
             <FeedbackModal isOpen={modals.feedback} onClose={() => closeModal('feedback')} />
             <PricingModal isOpen={modals.pricing} onClose={() => closeModal('pricing')} currentTier={user?.subscription_tier || 'free'} />
+            <CanvasSemesterCleanupModal
+                isOpen={semesterCleanupOpen}
+                onClose={() => setSemesterCleanupOpen(false)}
+                onArchived={handleSemesterCleanupArchived}
+            />
         </div>
     );
 }

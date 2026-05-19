@@ -1749,6 +1749,17 @@ export const syncCanvas = (adGranted = false) => callCanvasLmsEndpoint({
     action: 'sync',
     payload: { adGranted },
 });
+export const previewCanvasSemesterCleanup = () => callCanvasLmsEndpoint({
+    action: 'preview-semester-cleanup',
+});
+export const archiveCanvasSemesterClasses = (classIds) => callCanvasLmsEndpoint({
+    action: 'archive-semester-classes',
+    payload: { classIds },
+});
+export const restoreArchivedClass = (classId) => callCanvasLmsEndpoint({
+    action: 'restore-class',
+    payload: { classId },
+});
 
 // --- AI Generation ---
 export const getAILimits = () => edgeFunctionFetch('ai-limits', { method: 'GET' });

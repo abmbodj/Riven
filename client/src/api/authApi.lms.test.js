@@ -171,6 +171,58 @@ describe('authApi Canvas LMS edge integration', () => {
     );
   });
 
+  it('sends Canvas semester cleanup archive requests through the edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      classesArchived: 1,
+      assignmentsArchived: 3,
+    }));
+
+    const classIds = ['11111111-1111-4111-8111-111111111111'];
+    const result = await authApi.archiveCanvasSemesterClasses(classIds);
+
+    expect(result).toEqual({
+      classesArchived: 1,
+      assignmentsArchived: 3,
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/canvas-lms',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ action: 'archive-semester-classes', classIds }),
+      }),
+    );
+  });
+
+  it('sends Canvas class restore requests through the edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      classRestored: true,
+      assignmentsRestored: 2,
+    }));
+
+    const result = await authApi.restoreArchivedClass('11111111-1111-4111-8111-111111111111');
+
+    expect(result).toEqual({
+      classRestored: true,
+      assignmentsRestored: 2,
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/canvas-lms',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'restore-class',
+          classId: '11111111-1111-4111-8111-111111111111',
+        }),
+      }),
+    );
+  });
+
   it('imports uploaded calendar files through the dedicated edge function', async () => {
     const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
     authApi.setToken(token);

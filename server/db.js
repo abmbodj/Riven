@@ -210,6 +210,10 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS edlink_course_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS edlink_assignment_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE`).catch(() => { });
+            await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`).catch(() => { });
+            await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS archive_source TEXT`).catch(() => { });
+            await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS canvas_last_seen_at TIMESTAMPTZ`).catch(() => { });
+            await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS canvas_last_assignment_due_at TIMESTAMPTZ`).catch(() => { });
 
             // Canvas direct integration columns
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_api_url TEXT`).catch(() => { });
@@ -218,6 +222,8 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS subject TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS canvas_assignment_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'homework'`).catch(() => { });
+            await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS class_cleanup_archived_at TIMESTAMPTZ`).catch(() => { });
+            await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS class_cleanup_previous_status TEXT`).catch(() => { });
 
             // Schedule slots table
             await client.query(`
@@ -784,6 +790,24 @@ if (global.__TEST_DB_MOCK__) {
                 ON assignments(user_id, canvas_assignment_id)
                 WHERE canvas_assignment_id IS NOT NULL
             `);
+            await client.query(`
+                DROP INDEX IF EXISTS classes_user_canvas_course_unique
+            `).catch(() => { });
+            await client.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS classes_user_active_canvas_course_unique
+                ON classes(user_id, canvas_course_id)
+                WHERE canvas_course_id IS NOT NULL
+                  AND COALESCE(is_archived, FALSE) = FALSE
+            `).catch(() => { });
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS classes_user_archive_state_idx
+                ON classes(user_id, is_archived, archived_at)
+            `).catch(() => { });
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS assignments_class_cleanup_restore_idx
+                ON assignments(user_id, class_id, class_cleanup_archived_at)
+                WHERE class_cleanup_archived_at IS NOT NULL
+            `).catch(() => { });
             await client.query(`
                 CREATE INDEX IF NOT EXISTS users_canvas_auto_sync_due_idx
                 ON users(canvas_auto_sync_enabled, last_canvas_sync_at)

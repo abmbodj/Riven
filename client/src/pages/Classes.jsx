@@ -17,6 +17,7 @@ import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { buildDefaultClassTimeRow, isValidTimeRange } from '../utils/classTime';
 import { inferSubject, SUBJECT_VALUES } from '../utils/subjectInference';
+import CanvasSemesterCleanupModal from '../components/canvas/CanvasSemesterCleanupModal';
 
 
 const CLASS_COLORS = [
@@ -119,6 +120,7 @@ export default function Classes() {
     const [creationMethod, setCreationMethod] = useState('manual'); // 'manual' | 'ai' | 'canvas'
     const [canvasStatus, setCanvasStatus] = useState({ isConnected: false, url: '', loading: true, syncing: false });
     const [canvasFormUrl, setCanvasFormUrl] = useState('');
+    const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
     const haptics = useHaptics();
 
     const fetchCanvasStatus = useCallback(async () => {
@@ -336,6 +338,11 @@ export default function Classes() {
         }
     };
 
+    const handleSemesterCleanupArchived = (result) => {
+        toast.success(`Archived ${result.classesArchived} classes for the semester.`);
+        loadData(true);
+    };
+
     const handleCloseModal = () => {
         setShowModal(false);
         setEditingClass(null);
@@ -503,6 +510,12 @@ export default function Classes() {
                 currentTier={user?.subscription_tier || 'free'}
             />
 
+            <CanvasSemesterCleanupModal
+                isOpen={semesterCleanupOpen}
+                onClose={() => setSemesterCleanupOpen(false)}
+                onArchived={handleSemesterCleanupArchived}
+            />
+
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
@@ -591,6 +604,14 @@ export default function Classes() {
                                                                 >
                                                                     {canvasStatus.syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                                                     {canvasStatus.syncing ? 'Syncing...' : 'Sync Now'}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { haptics.medium(); setSemesterCleanupOpen(true); }}
+                                                                    className="w-full h-11 flex items-center justify-center gap-2 border border-claude-accent/30 bg-claude-accent/10 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
+                                                                >
+                                                                    <Layers className="w-4 h-4" />
+                                                                    End Semester
                                                                 </button>
                                                             </div>
                                                         ) : (

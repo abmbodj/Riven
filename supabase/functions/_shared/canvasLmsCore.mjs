@@ -1,6 +1,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const CANVAS_AUTO_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 export const CANVAS_AUTO_SYNC_ATTEMPT_COOLDOWN_MS = 60 * 60 * 1000;
+const CLEANUP_RESTORABLE_STATUSES = new Set(['Todo', 'Doing']);
 
 const toComparableText = (value) => {
   if (typeof value !== 'string') {
@@ -14,6 +15,26 @@ const toComparableText = (value) => {
 const toComparableDateValue = (value) => {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+};
+
+const toIsoDateOrNull = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const isArchivedClass = (klass) => (
+  klass?.is_archived === true
+  || klass?.is_archived === 'true'
+  || klass?.archived_at != null
+);
+
+export const isCanvasCleanupActiveAssignment = (assignment) => {
+  const status = typeof assignment?.status === 'string' ? assignment.status : 'Todo';
+  return !['Done', 'Archived'].includes(status);
 };
 
 const sortClassesForMatching = (classes = []) => [...classes].sort((leftClass, rightClass) => {
@@ -189,6 +210,7 @@ const deriveCanvasAssignment = (event, now) => {
  *   existingAssignmentIds?: string[],
  *   createClass: (userId: number | string, courseName: string, canvasCourseId: string | null) => Promise<Record<string, unknown>>,
  *   linkClassToCanvasCourse?: ((classId: number | string, canvasCourseId: string) => Promise<Record<string, unknown> | null>) | null,
+ *   updateClassCanvasMetadata?: ((classId: number | string, metadata: { canvasLastSeenAtIso: string, canvasLastAssignmentDueAtIso: string | null }) => Promise<unknown>) | null,
  *   createAssignment: (
  *     userId: number | string,
  *     classId: number | string,
@@ -205,25 +227,27 @@ export const syncCanvasCalendar = async ({
   existingAssignmentIds = [],
   createClass,
   linkClassToCanvasCourse = null,
+  updateClassCanvasMetadata = null,
   createAssignment,
   now = new Date(),
 }) => {
   let syncedClassesCount = 0;
   let syncedAssignmentsCount = 0;
   const classById = new Map();
-  const classByCanvasCourseId = new Map();
-  const legacyClassByName = new Map();
+  const activeClassByCanvasCourseId = new Map();
+  const activeLegacyClassByName = new Map();
+  const classMetadataById = new Map();
 
   const removeClassFromIndexes = (classId) => {
-    for (const [courseId, klass] of classByCanvasCourseId.entries()) {
+    for (const [courseId, klass] of activeClassByCanvasCourseId.entries()) {
       if (String(klass?.id) === String(classId)) {
-        classByCanvasCourseId.delete(courseId);
+        activeClassByCanvasCourseId.delete(courseId);
       }
     }
 
-    for (const [className, klass] of legacyClassByName.entries()) {
+    for (const [className, klass] of activeLegacyClassByName.entries()) {
       if (String(klass?.id) === String(classId)) {
-        legacyClassByName.delete(className);
+        activeLegacyClassByName.delete(className);
       }
     }
   };
@@ -237,23 +261,48 @@ export const syncCanvasCalendar = async ({
     const mergedClass = { ...previous, ...klass };
     const normalizedCourseId = toComparableText(mergedClass.canvas_course_id);
     const normalizedName = toComparableText(mergedClass.name);
+    const archived = isArchivedClass(mergedClass);
 
     removeClassFromIndexes(mergedClass.id);
     classById.set(mergedClass.id, {
       ...mergedClass,
       canvas_course_id: normalizedCourseId,
       name: normalizedName ?? mergedClass.name,
+      is_archived: archived,
     });
 
     const cachedClass = classById.get(mergedClass.id);
 
-    if (normalizedCourseId) {
-      classByCanvasCourseId.set(normalizedCourseId, cachedClass);
-    } else if (normalizedName) {
-      legacyClassByName.set(normalizedName, cachedClass);
+    if (!archived && normalizedCourseId) {
+      activeClassByCanvasCourseId.set(normalizedCourseId, cachedClass);
+    } else if (!archived && normalizedName) {
+      activeLegacyClassByName.set(normalizedName, cachedClass);
     }
 
     return cachedClass;
+  };
+
+  const markClassSeen = (classId, assignment) => {
+    if (!classId) {
+      return;
+    }
+
+    const previous = classMetadataById.get(classId) || {
+      classId,
+      canvasLastSeenAtIso: now.toISOString(),
+      canvasLastAssignmentDueAtIso: null,
+    };
+    const dueDateIso = toIsoDateOrNull(assignment?.dueDateIso);
+    const previousDueValue = toComparableDateValue(previous.canvasLastAssignmentDueAtIso);
+    const nextDueValue = toComparableDateValue(dueDateIso);
+
+    classMetadataById.set(classId, {
+      classId,
+      canvasLastSeenAtIso: now.toISOString(),
+      canvasLastAssignmentDueAtIso: nextDueValue > previousDueValue
+        ? dueDateIso
+        : previous.canvasLastAssignmentDueAtIso,
+    });
   };
 
   for (const klass of sortClassesForMatching(existingClasses || [])) {
@@ -291,7 +340,7 @@ export const syncCanvasCalendar = async ({
     const inferredClassId = assignmentClassByUid.get(assignment.uid);
     const inferredClass = inferredClassId ? classById.get(inferredClassId) : null;
     const canvasCourseId = toComparableText(assignment.canvasCourseId);
-    if (canvasCourseId && inferredClass && !inferredClassByCanvasCourseId.has(canvasCourseId)) {
+    if (canvasCourseId && inferredClass && !isArchivedClass(inferredClass) && !inferredClassByCanvasCourseId.has(canvasCourseId)) {
       inferredClassByCanvasCourseId.set(canvasCourseId, inferredClass);
     }
   }
@@ -302,7 +351,7 @@ export const syncCanvasCalendar = async ({
       return cacheClass(klass);
     }
 
-    const existingExactMatch = classByCanvasCourseId.get(normalizedCourseId);
+    const existingExactMatch = activeClassByCanvasCourseId.get(normalizedCourseId);
     if (existingExactMatch) {
       return existingExactMatch;
     }
@@ -329,7 +378,7 @@ export const syncCanvasCalendar = async ({
     const canvasCourseId = toComparableText(assignment.canvasCourseId);
     const courseName = toComparableText(assignment.courseName);
 
-    const exactMatch = canvasCourseId ? classByCanvasCourseId.get(canvasCourseId) : null;
+    const exactMatch = canvasCourseId ? activeClassByCanvasCourseId.get(canvasCourseId) : null;
     if (exactMatch) {
       return exactMatch;
     }
@@ -343,7 +392,7 @@ export const syncCanvasCalendar = async ({
       return linkedClass;
     }
 
-    const legacyMatch = courseName ? legacyClassByName.get(courseName) : null;
+    const legacyMatch = courseName ? activeLegacyClassByName.get(courseName) : null;
     if (legacyMatch) {
       return await ensureCanvasCourseLink(legacyMatch, canvasCourseId);
     }
@@ -352,6 +401,7 @@ export const syncCanvasCalendar = async ({
     const cachedCreatedClass = cacheClass({
       name: assignment.courseName,
       canvas_course_id: canvasCourseId,
+      is_archived: false,
       ...createdClass,
     });
     if (createdClass?.created !== false) {
@@ -362,6 +412,11 @@ export const syncCanvasCalendar = async ({
 
   for (const assignment of parsedAssignments) {
     if (assignmentIds.has(assignment.uid)) {
+      const existingClassId = assignmentClassByUid.get(assignment.uid);
+      const existingClass = existingClassId ? classById.get(existingClassId) : null;
+      if (existingClass && !isArchivedClass(existingClass)) {
+        markClassSeen(existingClass.id, assignment);
+      }
       continue;
     }
 
@@ -374,8 +429,18 @@ export const syncCanvasCalendar = async ({
       : createAssignmentResult?.inserted !== false;
 
     assignmentIds.add(assignment.uid);
+    markClassSeen(classId, assignment);
     if (inserted) {
       syncedAssignmentsCount += 1;
+    }
+  }
+
+  if (updateClassCanvasMetadata) {
+    for (const metadata of classMetadataById.values()) {
+      await updateClassCanvasMetadata(metadata.classId, {
+        canvasLastSeenAtIso: metadata.canvasLastSeenAtIso,
+        canvasLastAssignmentDueAtIso: metadata.canvasLastAssignmentDueAtIso,
+      });
     }
   }
 
@@ -385,3 +450,103 @@ export const syncCanvasCalendar = async ({
     assignmentsAdded: syncedAssignmentsCount,
   };
 };
+
+export const buildCanvasSemesterCleanupPreview = ({
+  classes = [],
+  assignments = [],
+} = {}) => {
+  const assignmentStatsByClassId = new Map();
+
+  for (const assignment of assignments || []) {
+    if (!assignment?.class_id) {
+      continue;
+    }
+
+    const classId = String(assignment.class_id);
+    const current = assignmentStatsByClassId.get(classId) || {
+      totalAssignmentCount: 0,
+      activeAssignmentCount: 0,
+      lastAssignmentDueAt: null,
+    };
+    const dueDateIso = toIsoDateOrNull(assignment.due_date || assignment.dueDateIso);
+    const previousDueValue = toComparableDateValue(current.lastAssignmentDueAt);
+    const nextDueValue = toComparableDateValue(dueDateIso);
+
+    assignmentStatsByClassId.set(classId, {
+      totalAssignmentCount: current.totalAssignmentCount + 1,
+      activeAssignmentCount: current.activeAssignmentCount + (isCanvasCleanupActiveAssignment(assignment) ? 1 : 0),
+      lastAssignmentDueAt: nextDueValue > previousDueValue
+        ? dueDateIso
+        : current.lastAssignmentDueAt,
+    });
+  }
+
+  const cleanupClasses = (classes || [])
+    .filter((klass) => !isArchivedClass(klass))
+    .filter((klass) => toComparableText(klass?.canvas_course_id))
+    .map((klass) => {
+      const stats = assignmentStatsByClassId.get(String(klass.id)) || {
+        totalAssignmentCount: 0,
+        activeAssignmentCount: 0,
+        lastAssignmentDueAt: null,
+      };
+
+      return {
+        id: klass.id,
+        name: klass.name,
+        color: klass.color || null,
+        canvasCourseId: klass.canvas_course_id,
+        createdAt: klass.created_at || null,
+        lastSeenAt: klass.canvas_last_seen_at || null,
+        lastAssignmentDueAt: klass.canvas_last_assignment_due_at || stats.lastAssignmentDueAt,
+        totalAssignmentCount: stats.totalAssignmentCount,
+        activeAssignmentCount: stats.activeAssignmentCount,
+        suggested: true,
+        selected: true,
+      };
+    })
+    .sort((left, right) => {
+      const leftSeen = toComparableDateValue(left.lastSeenAt || left.lastAssignmentDueAt || left.createdAt);
+      const rightSeen = toComparableDateValue(right.lastSeenAt || right.lastAssignmentDueAt || right.createdAt);
+      if (rightSeen !== leftSeen) {
+        return rightSeen - leftSeen;
+      }
+      return String(left.name || '').localeCompare(String(right.name || ''));
+    });
+
+  return {
+    classes: cleanupClasses,
+    suggestedClassIds: cleanupClasses.map((klass) => klass.id),
+  };
+};
+
+export const buildCanvasSemesterArchiveAssignmentUpdates = ({
+  assignments = [],
+  now = new Date(),
+} = {}) => {
+  const archivedAt = now.toISOString();
+
+  return (assignments || [])
+    .filter(isCanvasCleanupActiveAssignment)
+    .map((assignment) => ({
+      id: assignment.id,
+      status: 'Archived',
+      class_cleanup_archived_at: archivedAt,
+      class_cleanup_previous_status: typeof assignment.status === 'string' && assignment.status.trim()
+        ? assignment.status
+        : 'Todo',
+    }));
+};
+
+export const buildCanvasSemesterRestoreAssignmentUpdates = ({
+  assignments = [],
+} = {}) => (assignments || [])
+  .filter((assignment) => assignment?.status === 'Archived')
+  .filter((assignment) => assignment?.class_cleanup_archived_at)
+  .filter((assignment) => CLEANUP_RESTORABLE_STATUSES.has(assignment?.class_cleanup_previous_status))
+  .map((assignment) => ({
+    id: assignment.id,
+    status: assignment.class_cleanup_previous_status,
+    class_cleanup_archived_at: null,
+    class_cleanup_previous_status: null,
+  }));

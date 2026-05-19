@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   applyCanvasSyncQuota,
+  buildCanvasSemesterArchiveAssignmentUpdates,
+  buildCanvasSemesterCleanupPreview,
+  buildCanvasSemesterRestoreAssignmentUpdates,
   selectCanvasAutoSyncUsers,
   syncCanvasCalendar,
   validateCanvasFeedUrl,
@@ -420,6 +423,171 @@ describe('canvasLmsCore', () => {
           dueDateIso: '2026-03-21T17:00:00.000Z',
           status: 'Todo',
         },
+      },
+    ]);
+  });
+
+  it('creates a new active class when the only Canvas course match is archived', async () => {
+    const createClass = vi.fn(async (_userId, courseName, canvasCourseId) => ({
+      id: 'class-new-semester',
+      name: courseName,
+      canvas_course_id: canvasCourseId,
+      is_archived: false,
+    }));
+    const createdAssignments = [];
+
+    const result = await syncCanvasCalendar({
+      userId: 42,
+      now: new Date('2026-09-01T12:00:00.000Z'),
+      events: {
+        a: {
+          type: 'VEVENT',
+          summary: 'Welcome Quiz [Biology]',
+          description: 'New term kickoff',
+          uid: 'bio-fall-quiz',
+          end: new Date('2026-09-03T17:00:00.000Z'),
+        },
+      },
+      existingClasses: [
+        {
+          id: 'class-spring',
+          name: 'Biology',
+          canvas_course_id: 'Biology',
+          is_archived: true,
+          archived_at: '2026-05-10T12:00:00.000Z',
+          created_at: '2026-01-05T12:00:00.000Z',
+        },
+      ],
+      existingAssignments: [],
+      createClass,
+      linkClassToCanvasCourse: async () => {
+        throw new Error('should not relink archived class');
+      },
+      createAssignment: async (userId, classId, assignment) => {
+        createdAssignments.push({ userId, classId, assignment });
+        return { inserted: true };
+      },
+    });
+
+    expect(result).toEqual({
+      message: 'Canvas sync complete!',
+      classesAdded: 1,
+      assignmentsAdded: 1,
+    });
+    expect(createClass).toHaveBeenCalledWith(42, 'Biology', 'Biology');
+    expect(createdAssignments[0]).toMatchObject({
+      userId: 42,
+      classId: 'class-new-semester',
+      assignment: {
+        uid: 'bio-fall-quiz',
+        courseName: 'Biology',
+      },
+    });
+  });
+
+  it('builds a semester cleanup preview for active Canvas classes only', () => {
+    const preview = buildCanvasSemesterCleanupPreview({
+      classes: [
+        {
+          id: 'class-active',
+          name: 'Biology',
+          color: '#22c55e',
+          canvas_course_id: 'Biology',
+          is_archived: false,
+          created_at: '2026-01-05T12:00:00.000Z',
+        },
+        {
+          id: 'class-archived',
+          name: 'Chemistry',
+          canvas_course_id: 'Chemistry',
+          is_archived: true,
+          archived_at: '2026-05-10T12:00:00.000Z',
+        },
+        {
+          id: 'class-manual',
+          name: 'Study Hall',
+          canvas_course_id: null,
+          is_archived: false,
+        },
+      ],
+      assignments: [
+        { id: 'a1', class_id: 'class-active', status: 'Todo', due_date: '2026-04-01T12:00:00.000Z' },
+        { id: 'a2', class_id: 'class-active', status: 'Doing', due_date: '2026-04-02T12:00:00.000Z' },
+        { id: 'a3', class_id: 'class-active', status: 'Done', due_date: '2026-03-15T12:00:00.000Z' },
+        { id: 'a4', class_id: 'class-active', status: 'Archived', due_date: '2026-03-01T12:00:00.000Z' },
+      ],
+    });
+
+    expect(preview.suggestedClassIds).toEqual(['class-active']);
+    expect(preview.classes).toEqual([
+      expect.objectContaining({
+        id: 'class-active',
+        name: 'Biology',
+        activeAssignmentCount: 2,
+        totalAssignmentCount: 4,
+        selected: true,
+        suggested: true,
+      }),
+    ]);
+  });
+
+  it('archives only unfinished assignments and stores their previous statuses', () => {
+    const updates = buildCanvasSemesterArchiveAssignmentUpdates({
+      now: new Date('2026-05-19T12:00:00.000Z'),
+      assignments: [
+        { id: 'todo', status: 'Todo' },
+        { id: 'doing', status: 'Doing' },
+        { id: 'done', status: 'Done' },
+        { id: 'archived', status: 'Archived' },
+      ],
+    });
+
+    expect(updates).toEqual([
+      {
+        id: 'todo',
+        status: 'Archived',
+        class_cleanup_archived_at: '2026-05-19T12:00:00.000Z',
+        class_cleanup_previous_status: 'Todo',
+      },
+      {
+        id: 'doing',
+        status: 'Archived',
+        class_cleanup_archived_at: '2026-05-19T12:00:00.000Z',
+        class_cleanup_previous_status: 'Doing',
+      },
+    ]);
+  });
+
+  it('restores only assignments archived by semester cleanup', () => {
+    const updates = buildCanvasSemesterRestoreAssignmentUpdates({
+      assignments: [
+        {
+          id: 'cleanup-todo',
+          status: 'Archived',
+          class_cleanup_archived_at: '2026-05-19T12:00:00.000Z',
+          class_cleanup_previous_status: 'Todo',
+        },
+        {
+          id: 'manual-archived',
+          status: 'Archived',
+          class_cleanup_archived_at: null,
+          class_cleanup_previous_status: null,
+        },
+        {
+          id: 'cleanup-done',
+          status: 'Archived',
+          class_cleanup_archived_at: '2026-05-19T12:00:00.000Z',
+          class_cleanup_previous_status: 'Done',
+        },
+      ],
+    });
+
+    expect(updates).toEqual([
+      {
+        id: 'cleanup-todo',
+        status: 'Todo',
+        class_cleanup_archived_at: null,
+        class_cleanup_previous_status: null,
       },
     ]);
   });

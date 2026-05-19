@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import ClassView from './ClassView.jsx';
@@ -6,11 +6,13 @@ import ClassView from './ClassView.jsx';
 vi.mock('../api', () => ({
   api: {
     getClasses: vi.fn(),
-    getAssignments: vi.fn(),
-    getDecks: vi.fn(),
-    getSchedule: vi.fn(),
-  },
-}));
+	    getAssignments: vi.fn(),
+	    getDecks: vi.fn(),
+	    getNotes: vi.fn(),
+	    getSchedule: vi.fn(),
+	    restoreArchivedClass: vi.fn(),
+	  },
+	}));
 
 vi.mock('../hooks/useToast', () => ({
   useToast: () => ({
@@ -58,6 +60,7 @@ describe('ClassView workspace', () => {
         cardCount: 24,
       },
     ]);
+    api.getNotes.mockResolvedValue([]);
     api.getSchedule.mockResolvedValue([
       {
         id: 'slot-1',
@@ -87,5 +90,49 @@ describe('ClassView workspace', () => {
     expect(screen.getByText('Lab write-up')).toBeInTheDocument();
     expect(screen.getByText('Cell Respiration')).toBeInTheDocument();
     expect(screen.getByText('Next on deck')).toBeInTheDocument();
+  });
+
+  it('restores an archived class from the class detail page', async () => {
+    api.getClasses.mockResolvedValue([
+      {
+        id: 'class-42',
+        name: 'Biology',
+        color: '#7a9e72',
+        is_archived: true,
+      },
+    ]);
+    api.getAssignments.mockResolvedValue([
+      {
+        id: 'assign-1',
+        title: 'Cleanup archived work',
+        due_date: '2026-03-12T13:00:00.000Z',
+        status: 'Archived',
+      },
+    ]);
+    api.getDecks.mockResolvedValue([]);
+    api.getNotes.mockResolvedValue([]);
+    api.getSchedule.mockResolvedValue([]);
+    api.restoreArchivedClass.mockResolvedValue({
+      classRestored: true,
+      assignmentsRestored: 1,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/class/class-42']}>
+        <Routes>
+          <Route path="/class/:id" element={<ClassView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Past Course')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /restore/i }));
+
+    await waitFor(() => {
+      expect(api.restoreArchivedClass).toHaveBeenCalledWith('class-42');
+    });
   });
 });

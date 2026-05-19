@@ -543,9 +543,17 @@ function DashboardHome() {
                     api.getStudyCoach().catch(() => null),
                     api.getMockExams().catch(() => []),
                 ]);
-                setAssignments(assignData || []);
+                const activeClassIds = new Set((classesData || [])
+                    .filter((classItem) => !classItem.is_archived)
+                    .map((classItem) => classItem.id));
+                const visibleAssignments = (assignData || []).filter((assignment) => (
+                    assignment.status !== 'Archived'
+                    && (!assignment.class_id || activeClassIds.has(assignment.class_id))
+                ));
+
+                setAssignments(visibleAssignments);
                 setDecks(decksData || []);
-                setClasses(classesData || []);
+                setClasses((classesData || []).filter((classItem) => !classItem.is_archived));
                 setNotes(notesData || []);
                 setGuides(guidesData || []);
                 setStudyCoach(coachData || null);

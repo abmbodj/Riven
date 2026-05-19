@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, Lock, RefreshCw, Crown } from 'lucide-react';
+import { Archive, Network, Lock, RefreshCw, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SectionHeader from '../SectionHeader';
 import SectionCard from '../SectionCard';
@@ -47,6 +47,7 @@ export default function IntegrationsSection({
     onDisconnectCanvas,
     onSyncCanvas,
     onToggleAutoSync,
+    onOpenSemesterCleanup,
     openModal,
     haptics,
 }) {
@@ -243,6 +244,14 @@ export default function IntegrationsSection({
                                     >
                                         <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
                                         {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Canvas Now'}
+                                    </button>
+
+                                    <button
+                                        onClick={onOpenSemesterCleanup}
+                                        className="tap-action w-full border border-claude-accent/25 bg-claude-accent/10 text-claude-accent font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-[1.1rem] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98]"
+                                    >
+                                        <Archive className="w-4 h-4" />
+                                        End Semester
                                     </button>
 
                                     <button

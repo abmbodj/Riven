@@ -110,11 +110,22 @@ export default function Calendar() {
         );
     }, []);
 
+    const activeClasses = useMemo(() => classes.filter((classItem) => !classItem.is_archived), [classes]);
+    const activeClassIds = useMemo(() => new Set(activeClasses.map((classItem) => classItem.id)), [activeClasses]);
+    const visibleAssignments = useMemo(() => assignments.filter((assignment) => {
+        if (assignment.status === 'Archived') return false;
+        return !assignment.class_id || activeClassIds.has(assignment.class_id);
+    }), [assignments, activeClassIds]);
+    const visibleScheduleSlots = useMemo(
+        () => scheduleSlots.filter((slot) => activeClassIds.has(slot.class_id)),
+        [scheduleSlots, activeClassIds]
+    );
+
     // Filtered assignments for the grid/agenda
     const filteredAssignments = useMemo(() => {
-        if (activeFilters.length === 0) return assignments;
-        return assignments.filter(a => activeFilters.includes(a.class_id));
-    }, [assignments, activeFilters]);
+        if (activeFilters.length === 0) return visibleAssignments;
+        return visibleAssignments.filter(a => activeFilters.includes(a.class_id));
+    }, [visibleAssignments, activeFilters]);
 
     if (loading) {
         return (
@@ -149,7 +160,7 @@ export default function Calendar() {
                     onViewChange={handleViewChange}
                     contentMode={contentMode}
                     onContentModeChange={setContentMode}
-                    classes={classes}
+                    classes={activeClasses}
                     activeFilters={activeFilters}
                     onFilterToggle={handleFilterToggle}
                 />
@@ -158,8 +169,8 @@ export default function Calendar() {
                     <CalendarGrid
                         anchorDate={anchorDate}
                         assignments={filteredAssignments}
-                        scheduleSlots={scheduleSlots}
-                        classes={classes}
+                        scheduleSlots={visibleScheduleSlots}
+                        classes={activeClasses}
                         activeFilters={activeFilters}
                         contentMode={contentMode}
                         selectedDay={selectedDay}
@@ -172,8 +183,8 @@ export default function Calendar() {
                         anchorDate={anchorDate}
                         view={view}
                         assignments={filteredAssignments}
-                        scheduleSlots={scheduleSlots}
-                        classes={classes}
+                        scheduleSlots={visibleScheduleSlots}
+                        classes={activeClasses}
                         activeFilters={activeFilters}
                         contentMode={contentMode}
                         onDaySelect={handleDaySelect}
@@ -188,9 +199,9 @@ export default function Calendar() {
             <DaySheet
                 selectedDay={selectedDay}
                 onClose={() => setSelectedDay(null)}
-                assignments={assignments}
-                scheduleSlots={scheduleSlots}
-                classes={classes}
+                assignments={visibleAssignments}
+                scheduleSlots={visibleScheduleSlots}
+                classes={activeClasses}
                 contentMode={contentMode}
                 activeFilters={activeFilters}
             />

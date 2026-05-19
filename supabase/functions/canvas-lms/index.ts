@@ -2,6 +2,9 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import {
   applyCanvasSyncQuota,
+  buildCanvasSemesterArchiveAssignmentUpdates,
+  buildCanvasSemesterCleanupPreview,
+  buildCanvasSemesterRestoreAssignmentUpdates,
   validateCanvasFeedUrl,
 } from '../_shared/canvasLmsCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
@@ -10,7 +13,12 @@ import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { syncCanvasCalendarForUser, parseCanvasCalendar } from '../_shared/canvasLmsSync.ts';
-import { canvasAutoSyncSchema, canvasConnectSchema } from '../_shared/validation.ts';
+import {
+  canvasAutoSyncSchema,
+  canvasConnectSchema,
+  canvasSemesterArchiveSchema,
+  canvasSemesterRestoreSchema,
+} from '../_shared/validation.ts';
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -119,6 +127,182 @@ serve(async (request) => {
           ? 'Canvas auto-sync enabled.'
           : 'Canvas auto-sync disabled.',
         autoSyncEnabled: parsed.data.enabled,
+      }, {}, request);
+    }
+
+    if (action === 'preview-semester-cleanup') {
+      const { data: classes, error: classesError } = await admin
+        .from('classes')
+        .select('id, name, color, created_at, canvas_course_id, is_archived, archived_at, canvas_last_seen_at, canvas_last_assignment_due_at')
+        .eq('user_id', authUser.id)
+        .eq('is_archived', false)
+        .not('canvas_course_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (classesError) throw classesError;
+
+      const classIds = (classes || []).map((klass: { id: string }) => klass.id);
+      let assignments: Array<Record<string, unknown>> = [];
+
+      if (classIds.length > 0) {
+        const { data: assignmentRows, error: assignmentsError } = await admin
+          .from('assignments')
+          .select('id, class_id, status, due_date')
+          .eq('user_id', authUser.id)
+          .in('class_id', classIds);
+
+        if (assignmentsError) throw assignmentsError;
+        assignments = assignmentRows || [];
+      }
+
+      return jsonResponse(buildCanvasSemesterCleanupPreview({
+        classes: classes || [],
+        assignments,
+      }), {}, request);
+    }
+
+    if (action === 'archive-semester-classes') {
+      const parsed = canvasSemesterArchiveSchema.safeParse(body);
+      if (!parsed.success) {
+        return jsonResponse(
+          { error: parsed.error.errors[0]?.message ?? 'Select at least one class to archive.' },
+          { status: 400 },
+          request,
+        );
+      }
+
+      const { data: classesToArchive, error: classesError } = await admin
+        .from('classes')
+        .select('id')
+        .eq('user_id', authUser.id)
+        .eq('is_archived', false)
+        .not('canvas_course_id', 'is', null)
+        .in('id', parsed.data.classIds);
+
+      if (classesError) throw classesError;
+
+      const classIds = (classesToArchive || []).map((klass: { id: string }) => klass.id);
+      if (classIds.length === 0) {
+        return jsonResponse({
+          classesArchived: 0,
+          assignmentsArchived: 0,
+        }, {}, request);
+      }
+
+      const archivedAt = new Date().toISOString();
+      const { error: archiveClassError } = await admin
+        .from('classes')
+        .update({
+          is_archived: true,
+          archived_at: archivedAt,
+          archive_source: 'canvas_semester_cleanup',
+        })
+        .eq('user_id', authUser.id)
+        .in('id', classIds);
+
+      if (archiveClassError) throw archiveClassError;
+
+      const { data: assignments, error: assignmentsError } = await admin
+        .from('assignments')
+        .select('id, status')
+        .eq('user_id', authUser.id)
+        .in('class_id', classIds);
+
+      if (assignmentsError) throw assignmentsError;
+
+      const assignmentUpdates = buildCanvasSemesterArchiveAssignmentUpdates({
+        assignments: assignments || [],
+        now: new Date(archivedAt),
+      });
+
+      for (const assignment of assignmentUpdates) {
+        const { error: updateAssignmentError } = await admin
+          .from('assignments')
+          .update({
+            status: assignment.status,
+            class_cleanup_archived_at: assignment.class_cleanup_archived_at,
+            class_cleanup_previous_status: assignment.class_cleanup_previous_status,
+          })
+          .eq('user_id', authUser.id)
+          .eq('id', assignment.id);
+
+        if (updateAssignmentError) throw updateAssignmentError;
+      }
+
+      return jsonResponse({
+        classesArchived: classIds.length,
+        assignmentsArchived: assignmentUpdates.length,
+      }, {}, request);
+    }
+
+    if (action === 'restore-class') {
+      const parsed = canvasSemesterRestoreSchema.safeParse(body);
+      if (!parsed.success) {
+        return jsonResponse(
+          { error: parsed.error.errors[0]?.message ?? 'Invalid class id.' },
+          { status: 400 },
+          request,
+        );
+      }
+
+      const { data: restoredClass, error: restoreClassError } = await admin
+        .from('classes')
+        .update({
+          is_archived: false,
+          archived_at: null,
+          archive_source: null,
+        })
+        .eq('user_id', authUser.id)
+        .eq('id', parsed.data.classId)
+        .select('id')
+        .maybeSingle();
+
+      if (restoreClassError) {
+        if (typeof restoreClassError === 'object' && restoreClassError && 'code' in restoreClassError && restoreClassError.code === '23505') {
+          return jsonResponse(
+            { error: 'A current Canvas class already uses this course. Archive that class before restoring this one.' },
+            { status: 409 },
+            request,
+          );
+        }
+        throw restoreClassError;
+      }
+
+      if (!restoredClass) {
+        return jsonResponse({ error: 'Class not found.' }, { status: 404 }, request);
+      }
+
+      const { data: assignments, error: assignmentsError } = await admin
+        .from('assignments')
+        .select('id, status, class_cleanup_archived_at, class_cleanup_previous_status')
+        .eq('user_id', authUser.id)
+        .eq('class_id', parsed.data.classId)
+        .eq('status', 'Archived')
+        .not('class_cleanup_archived_at', 'is', null);
+
+      if (assignmentsError) throw assignmentsError;
+
+      const restoreUpdates = buildCanvasSemesterRestoreAssignmentUpdates({
+        assignments: assignments || [],
+      });
+
+      for (const assignment of restoreUpdates) {
+        const { error: updateAssignmentError } = await admin
+          .from('assignments')
+          .update({
+            status: assignment.status,
+            class_cleanup_archived_at: assignment.class_cleanup_archived_at,
+            class_cleanup_previous_status: assignment.class_cleanup_previous_status,
+          })
+          .eq('user_id', authUser.id)
+          .eq('id', assignment.id);
+
+        if (updateAssignmentError) throw updateAssignmentError;
+      }
+
+      return jsonResponse({
+        classRestored: true,
+        assignmentsRestored: restoreUpdates.length,
       }, {}, request);
     }
 

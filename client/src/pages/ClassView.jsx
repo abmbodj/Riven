@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
 import {
-    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2, Upload
+    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2, Upload, RotateCcw
 } from 'lucide-react';
 import { api } from '../api';
 import ClassTimeInput from '../components/schedule/ClassTimeInput';
@@ -34,6 +34,7 @@ export default function ClassView() {
     const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [restoringClass, setRestoringClass] = useState(false);
 
     // Modal state for editing Class
     const [showEditClassModal, setShowEditClassModal] = useState(false);
@@ -123,6 +124,21 @@ export default function ClassView() {
             navigate('/classes');
         } catch {
             toast.error('Failed to delete class');
+        }
+    };
+
+    const handleRestoreClass = async () => {
+        if (restoringClass) return;
+
+        setRestoringClass(true);
+        try {
+            const result = await api.restoreArchivedClass(id);
+            toast.success(`Class restored with ${result.assignmentsRestored} assignments.`);
+            await loadData();
+        } catch (err) {
+            toast.error(err.message || 'Failed to restore class');
+        } finally {
+            setRestoringClass(false);
         }
     };
 
@@ -317,6 +333,16 @@ export default function ClassView() {
                     <ChevronLeft className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-3">
+                    {cls.is_archived && (
+                        <button
+                            onClick={handleRestoreClass}
+                            disabled={restoringClass}
+                            className="h-10 px-4 bg-claude-accent/15 border border-claude-accent/35 rounded-xl text-claude-accent font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center gap-2 disabled:opacity-60"
+                        >
+                            {restoringClass ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                            <span className="hidden xs:inline">Restore</span>
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowEditClassModal(true)}
                         className="w-10 h-10 bg-white/[0.05] border border-white/[0.08] rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
@@ -348,6 +374,11 @@ export default function ClassView() {
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color || 'var(--accent-color)' }} />
                             <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary opacity-80">{cls.id.slice(-6)}</span>
+                            {cls.is_archived && (
+                                <span className="rounded-full border border-claude-accent/25 bg-claude-accent/10 px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                    Past Course
+                                </span>
+                            )}
                         </div>
                         <h1 className="text-3xl sm:text-4xl font-serif font-bold italic text-claude-text tracking-tight">{cls.name}</h1>
                         {(cls.professor || cls.room || cls.zoom_link) && (

@@ -111,7 +111,7 @@ module.exports = function ({ app, db, authMiddleware }) {
 
             // Batch-load existing classes and assignments to avoid N+1 queries
             const existingClasses = await db.query(
-                'SELECT id, name FROM classes WHERE user_id = $1', [req.user.id]
+                'SELECT id, name FROM classes WHERE user_id = $1 AND COALESCE(is_archived, FALSE) = FALSE', [req.user.id]
             );
             const classMap = {};
             for (const c of existingClasses) classMap[c.name] = c.id;

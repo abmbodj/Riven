@@ -63,16 +63,16 @@ export const api = {
     getClasses: () => isLoggedIn()
         ? cache.wrap(cacheKey('classes'), () => serverApi.getClasses(), CACHE_TTL.medium)
         : Promise.resolve([]),
-    createClass: (name, color, professor, room, zoom_link) => {
+    createClass: (name, color, professor, room, zoom_link, subject) => {
         cache.delete(cacheKey('classes'));
         return isLoggedIn()
-            ? serverApi.createClass(name, color, professor, room, zoom_link)
+            ? serverApi.createClass(name, color, professor, room, zoom_link, subject)
             : Promise.reject(new Error('Must be logged in to manage classes'));
     },
-    updateClass: (id, name, color, professor, room, zoom_link) => {
+    updateClass: (id, name, color, professor, room, zoom_link, subject) => {
         cache.delete(cacheKey('classes'));
         return isLoggedIn()
-            ? serverApi.updateClass(id, name, color, professor, room, zoom_link)
+            ? serverApi.updateClass(id, name, color, professor, room, zoom_link, subject)
             : Promise.reject(new Error('Must be logged in to manage classes'));
     },
     deleteClass: (id) => {
@@ -109,6 +109,23 @@ export const api = {
     syncCanvas: (adGranted) => {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to sync LMS'));
         return serverApi.syncCanvas(adGranted).then(res => {
+            cache.delete(cacheKey('classes'));
+            return res;
+        });
+    },
+    previewCanvasSemesterCleanup: () => isLoggedIn()
+        ? serverApi.previewCanvasSemesterCleanup()
+        : Promise.reject(new Error('Must be logged in to manage Canvas classes')),
+    archiveCanvasSemesterClasses: (classIds) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to manage Canvas classes'));
+        return serverApi.archiveCanvasSemesterClasses(classIds).then(res => {
+            cache.delete(cacheKey('classes'));
+            return res;
+        });
+    },
+    restoreArchivedClass: (classId) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to manage Canvas classes'));
+        return serverApi.restoreArchivedClass(classId).then(res => {
             cache.delete(cacheKey('classes'));
             return res;
         });

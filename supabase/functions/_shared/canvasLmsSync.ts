@@ -20,6 +20,10 @@ type CanvasClassRow = {
   name: string;
   created_at?: string | null;
   canvas_course_id?: string | null;
+  is_archived?: boolean | null;
+  archived_at?: string | null;
+  canvas_last_seen_at?: string | null;
+  canvas_last_assignment_due_at?: string | null;
   created?: boolean;
 };
 
@@ -59,13 +63,14 @@ export const syncCanvasCalendarForUser = async ({
     throw feedError;
   }
 
-  const classSelect = 'id, name, created_at, canvas_course_id';
+  const classSelect = 'id, name, created_at, canvas_course_id, is_archived, archived_at, canvas_last_seen_at, canvas_last_assignment_due_at';
   const fetchClassByCanvasCourseId = async (canvasCourseId: string): Promise<CanvasClassRow | null> => {
     const { data, error } = await admin
       .from('classes')
       .select(classSelect)
       .eq('user_id', userId)
       .eq('canvas_course_id', canvasCourseId)
+      .eq('is_archived', false)
       .order('created_at', { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -111,6 +116,7 @@ export const syncCanvasCalendarForUser = async ({
           name: courseName,
           color: '#4f46e5',
           canvas_course_id: canvasCourseId,
+          is_archived: false,
         })
         .select(classSelect)
         .single();
@@ -139,6 +145,7 @@ export const syncCanvasCalendarForUser = async ({
         .from('classes')
         .update({ canvas_course_id: canvasCourseId })
         .eq('id', classId)
+        .eq('is_archived', false)
         .is('canvas_course_id', null)
         .select(classSelect)
         .maybeSingle();
@@ -160,10 +167,27 @@ export const syncCanvasCalendarForUser = async ({
         .from('classes')
         .select(classSelect)
         .eq('id', classId)
+        .eq('is_archived', false)
         .maybeSingle();
 
       if (existingClassByIdError) throw existingClassByIdError;
       return existingClassById || null;
+    },
+    updateClassCanvasMetadata: async (
+      classId: number | string,
+      metadata: { canvasLastSeenAtIso: string; canvasLastAssignmentDueAtIso: string | null },
+    ) => {
+      const { error } = await admin
+        .from('classes')
+        .update({
+          canvas_last_seen_at: metadata.canvasLastSeenAtIso,
+          canvas_last_assignment_due_at: metadata.canvasLastAssignmentDueAtIso,
+        })
+        .eq('id', classId)
+        .eq('user_id', userId)
+        .eq('is_archived', false);
+
+      if (error) throw error;
     },
     createAssignment: async (
       typedUserId: number | string,

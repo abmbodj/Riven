@@ -37,6 +37,9 @@ vi.mock('../api', () => ({
     disconnectCanvas: vi.fn(),
     setCanvasAutoSync: vi.fn(),
     syncCanvas: vi.fn(),
+    previewCanvasSemesterCleanup: vi.fn(),
+    archiveCanvasSemesterClasses: vi.fn(),
+    getAssignments: vi.fn(),
     getReferralInfo: vi.fn(),
     applyReferralCode: vi.fn(),
     submitFeedback: vi.fn(),
@@ -157,12 +160,21 @@ beforeEach(() => {
     targetCount: 3,
     rewardEarned: false,
   });
-  api.submitFeedback.mockResolvedValue({
-    id: 1,
-    content: 'Test feedback',
-    createdAt: '2026-03-21T00:00:00.000Z',
-  });
-});
+	  api.submitFeedback.mockResolvedValue({
+	    id: 1,
+	    content: 'Test feedback',
+	    createdAt: '2026-03-21T00:00:00.000Z',
+	  });
+	  api.previewCanvasSemesterCleanup.mockResolvedValue({
+	    classes: [],
+	    suggestedClassIds: [],
+	  });
+	  api.archiveCanvasSemesterClasses.mockResolvedValue({
+	    classesArchived: 0,
+	    assignmentsArchived: 0,
+	  });
+	  api.getAssignments.mockResolvedValue([]);
+	});
 
 describe('Settings navigation', () => {
   it('renders tab navigation and defaults to Security section', async () => {
@@ -422,6 +434,50 @@ describe('Settings LMS sync', () => {
     });
 
     expect(await screen.findByText(/canvas will stay connected, but new imports will wait for a manual sync/i)).toBeInTheDocument();
+  });
+
+  it('archives selected Canvas classes from the semester cleanup flow', async () => {
+    api.getCanvasSettings.mockResolvedValue({
+      isConnected: true,
+      canvasUrl: 'https://canvas.example.edu/feeds/calendars/user_1.ics',
+      autoSyncEnabled: true,
+      lastSyncAt: '2026-03-20T12:00:00.000Z',
+      lastAutoSyncError: '',
+    });
+    api.previewCanvasSemesterCleanup.mockResolvedValue({
+      classes: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'Spring Biology',
+          activeAssignmentCount: 3,
+          totalAssignmentCount: 8,
+          selected: true,
+          suggested: true,
+        },
+      ],
+      suggestedClassIds: ['11111111-1111-4111-8111-111111111111'],
+    });
+    api.archiveCanvasSemesterClasses.mockResolvedValue({
+      classesArchived: 1,
+      assignmentsArchived: 3,
+    });
+
+    renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Integrations');
+
+    fireEvent.click(await screen.findByRole('button', { name: /end semester/i }));
+
+    expect(await screen.findByRole('heading', { name: /end semester/i })).toBeInTheDocument();
+    expect(await screen.findByText('Spring Biology')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /archive 1 class/i }));
+
+    await waitFor(() => {
+      expect(api.archiveCanvasSemesterClasses).toHaveBeenCalledWith(['11111111-1111-4111-8111-111111111111']);
+    });
+    expect(await screen.findByText(/archived 1 classes and 3 unfinished assignments/i)).toBeInTheDocument();
   });
 
   it('requests iPhone push permission before enabling message pushes', async () => {
