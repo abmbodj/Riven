@@ -241,8 +241,25 @@ describe('DashboardHome analytics repositioning', () => {
     expect(within(coachCard).getByText(/study coach/i)).toBeInTheDocument();
     expect(within(coachCard).getByText('Biology Midterm')).toBeInTheDocument();
     expect(within(coachCard).getByText('Review Weak Topics')).toBeInTheDocument();
-    expect(within(coachCard).getByText(/240 xp/i)).toBeInTheDocument();
+    expect(within(coachCard).getAllByText(/240 xp/i).length).toBeGreaterThan(0);
     expect(within(coachCard).getByText(/generate study coach/i)).toBeInTheDocument();
+  });
+
+  it('renders XP and level progress even without an active recommendation', async () => {
+    api.getStudyCoach.mockResolvedValue({
+      recommendation: null,
+      weakTopics: [],
+      upcomingExam: null,
+      stats: { xpTotal: 240, level: 3, sessionsCompleted: 2 },
+      suggestedGuide: null,
+    });
+
+    await renderDashboard();
+
+    const coachCard = screen.getByTestId('study-coach-card');
+    expect(within(coachCard).getByText(/240 xp/i)).toBeInTheDocument();
+    expect(within(coachCard).getByText(/level 3/i)).toBeInTheDocument();
+    expect(within(coachCard).getByText(/xp to next level/i)).toBeInTheDocument();
   });
 
   it('expands the strict priority list inline and orders urgency correctly', async () => {

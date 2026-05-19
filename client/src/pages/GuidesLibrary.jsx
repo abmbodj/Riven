@@ -17,6 +17,8 @@ import {
     getGuideProgress,
     isActiveRecallGuide,
     normalizeGuideData,
+    normalizeGuideStudyState,
+    STUDY_SESSION_STATUSES,
 } from '../utils/studyGuides';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
@@ -39,19 +41,33 @@ const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelecte
     const cls = guide.class_id ? classes.find(c => c.id === guide.class_id) : null;
     const activeRecall = isActiveRecallGuide(guide);
     const normalizedGuideData = activeRecall ? normalizeGuideData(guide.guide_data) : null;
-    const progress = getGuideProgress(guide.guide_data, guide.study_state);
+    const normalizedStudyState = normalizedGuideData
+        ? normalizeGuideStudyState(normalizedGuideData, guide.study_state)
+        : guide.study_state;
+    const progress = getGuideProgress(normalizedGuideData || guide.guide_data, normalizedStudyState);
     const masterySnapshot = activeRecall
-        ? getGuideMasterySnapshot(guide.guide_data, guide.study_state)
+        ? getGuideMasterySnapshot(normalizedGuideData, normalizedStudyState)
         : null;
-    const lastReviewed = guide.study_state?.last_reviewed_at
-        ? new Date(guide.study_state.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    const lastReviewed = normalizedStudyState?.last_reviewed_at
+        ? new Date(normalizedStudyState.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Not started';
     const updatedAt = guide.updated_at
         ? new Date(guide.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Recently updated';
     const nextSection = normalizedGuideData?.sections?.find((section) => section.id === progress.nextSectionId) || normalizedGuideData?.sections?.[0] || null;
-    const sessionStarted = Boolean(guide.study_state?.last_reviewed_at) || progress.revealedCount > 0 || progress.completedCount > 0;
-    const sessionCta = sessionStarted ? 'Resume Session' : 'Start Session';
+    const sessionStatus = normalizedStudyState?.session_status || STUDY_SESSION_STATUSES.NOT_STARTED;
+    const sessionIsResumable = [STUDY_SESSION_STATUSES.ACTIVE, STUDY_SESSION_STATUSES.PAUSED].includes(sessionStatus);
+    const sessionIsComplete = sessionStatus === STUDY_SESSION_STATUSES.COMPLETE || Boolean(normalizedStudyState?.completed_at);
+    const sessionCta = sessionIsComplete
+        ? 'Review Again'
+        : sessionIsResumable
+            ? 'Resume Session'
+            : 'Start Session';
+    const sessionPanelLabel = sessionIsComplete
+        ? 'Review River Session'
+        : sessionIsResumable
+            ? 'Resume River Session'
+            : 'Best next move';
     const nextStepMinutes = nextSection ? estimateSessionEffortMinutes([nextSection]) : 0;
     const weakConceptCount = masterySnapshot?.masteryBands?.support?.length || 0;
     const nextReviewLabel = masterySnapshot?.nextReviewAt
@@ -125,7 +141,7 @@ const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelecte
 
                             <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
                                 <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-accent">
-                                    <span>{sessionStarted ? 'Resume River Session' : 'Best next move'}</span>
+                                    <span>{sessionPanelLabel}</span>
                                     {nextStepMinutes > 0 ? (
                                         <span className="inline-flex items-center gap-1 text-claude-secondary">
                                             <Clock3 className="w-3.5 h-3.5" />
@@ -137,9 +153,11 @@ const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelecte
                                     {nextSection?.title || 'Start your first checkpoint'}.
                                 </p>
                                 <p className="mt-1 text-[11px] leading-5 text-claude-secondary">
-                                    {sessionStarted
-                                        ? `Pick up where you left off and keep the recall rhythm going.`
-                                        : 'River opens with one low-pressure prompt and adapts from your answer.'}
+                                    {sessionIsComplete
+                                        ? 'Start a fresh pass through weak or due concepts while keeping your mastery history.'
+                                        : sessionIsResumable
+                                            ? 'Pick up where you left off and keep the recall rhythm going.'
+                                            : 'River opens with one low-pressure prompt and adapts from your answer.'}
                                 </p>
                             </div>
 

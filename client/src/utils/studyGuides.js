@@ -3,6 +3,12 @@ import { extractTextFromDoc } from './sharedResources.js';
 export const STUDY_GUIDE_FORMAT_VERSION = 4;
 export const ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION = 4;
 export const STUDY_GUIDE_CONFIDENCE_OPTIONS = [];
+export const STUDY_SESSION_STATUSES = Object.freeze({
+    NOT_STARTED: 'not_started',
+    ACTIVE: 'active',
+    PAUSED: 'paused',
+    COMPLETE: 'complete',
+});
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_ESTIMATED_MINUTES = 12;
@@ -671,6 +677,16 @@ const normalizeOutcome = (value) => {
     return allowed.has(value) ? value : null;
 };
 
+const normalizeSessionStatus = (value, fallback = STUDY_SESSION_STATUSES.NOT_STARTED) => {
+    const allowed = new Set(Object.values(STUDY_SESSION_STATUSES));
+    return allowed.has(value) ? value : fallback;
+};
+
+const normalizeActiveStage = (value, fallback = 'intro') => {
+    const allowed = new Set(['intro', 'teach', 'check', 'feedback', 'complete']);
+    return allowed.has(value) ? value : fallback;
+};
+
 const getPerformanceBand = (score) => {
     if (score < 45) return 'struggling';
     if (score < 80) return 'steady';
@@ -700,9 +716,14 @@ export const normalizeGuideStudyState = (guideData, studyState) => {
         return {
             current_card_id: null,
             session_phase: null,
+            session_status: STUDY_SESSION_STATUSES.NOT_STARTED,
+            active_stage: 'intro',
+            teach_section_index: 0,
+            explain_revealed_count: 1,
             card_states: {},
             concept_mastery: {},
             last_interaction_at: null,
+            paused_at: null,
             completed_at: null,
             last_reviewed_at: null,
         };
@@ -751,14 +772,43 @@ export const normalizeGuideStudyState = (guideData, studyState) => {
         ? requestedCardId
         : getNextIncompleteCardId(normalizedGuideData.cards, cardStates) ?? normalizedGuideData.cards[0]?.id ?? null;
     const currentCard = normalizedGuideData.cards.find((card) => card.id === currentCardId) || null;
+    const completedAt = normalizeOptionalText(raw.completed_at ?? raw.completedAt);
+    const pausedAt = normalizeOptionalText(raw.paused_at ?? raw.pausedAt);
+    const fallbackSessionStatus = completedAt
+        ? STUDY_SESSION_STATUSES.COMPLETE
+        : pausedAt
+            ? STUDY_SESSION_STATUSES.PAUSED
+            : (raw.last_interaction_at || raw.lastInteractionAt || raw.last_reviewed_at || raw.lastReviewedAt)
+                ? STUDY_SESSION_STATUSES.ACTIVE
+                : STUDY_SESSION_STATUSES.NOT_STARTED;
+    const sessionStatus = normalizeSessionStatus(
+        raw.session_status ?? raw.sessionStatus,
+        fallbackSessionStatus,
+    );
+    const fallbackStage = sessionStatus === STUDY_SESSION_STATUSES.COMPLETE
+        ? 'complete'
+        : sessionStatus === STUDY_SESSION_STATUSES.NOT_STARTED
+            ? 'intro'
+            : 'teach';
 
     return {
         current_card_id: currentCardId,
         session_phase: normalizeOptionalText(raw.session_phase ?? raw.sessionPhase) || currentCard?.phase || null,
+        session_status: sessionStatus,
+        active_stage: normalizeActiveStage(raw.active_stage ?? raw.activeStage, fallbackStage),
+        teach_section_index: clampNumber(
+            raw.teach_section_index ?? raw.teachSectionIndex,
+            { min: 0, max: 99, fallback: 0 },
+        ),
+        explain_revealed_count: clampNumber(
+            raw.explain_revealed_count ?? raw.explainRevealedCount,
+            { min: 1, max: 99, fallback: 1 },
+        ),
         card_states: cardStates,
         concept_mastery: conceptMastery,
         last_interaction_at: normalizeOptionalText(raw.last_interaction_at ?? raw.lastInteractionAt),
-        completed_at: normalizeOptionalText(raw.completed_at ?? raw.completedAt),
+        paused_at: pausedAt,
+        completed_at: completedAt,
         last_reviewed_at: normalizeOptionalText(raw.last_reviewed_at ?? raw.lastReviewedAt),
     };
 };

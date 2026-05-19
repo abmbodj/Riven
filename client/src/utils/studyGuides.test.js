@@ -351,6 +351,10 @@ describe('normalizeGuideStudyState', () => {
 
         expect(state.current_card_id).toBe('card-diagnose-mitosis');
         expect(state.session_phase).toBe('diagnostic');
+        expect(state.session_status).toBe('not_started');
+        expect(state.active_stage).toBe('intro');
+        expect(state.teach_section_index).toBe(0);
+        expect(state.explain_revealed_count).toBe(1);
         expect(state.card_states['card-diagnose-mitosis']).toEqual(expect.objectContaining({
             attempts: 0,
             hints_used: 0,
@@ -408,6 +412,25 @@ describe('normalizeGuideStudyState', () => {
             status: 'skipped',
             last_outcome: 'skipped',
             skipped: true,
+        }));
+    });
+
+    it('preserves tutor pause and resume cursor fields', () => {
+        const state = normalizeGuideStudyState(makeGuideData(), {
+            current_card_id: 'card-diagnose-mitosis',
+            session_status: 'paused',
+            active_stage: 'check',
+            teach_section_index: 2,
+            explain_revealed_count: 4,
+            paused_at: '2026-04-05T11:45:00.000Z',
+        });
+
+        expect(state).toEqual(expect.objectContaining({
+            session_status: 'paused',
+            active_stage: 'check',
+            teach_section_index: 2,
+            explain_revealed_count: 4,
+            paused_at: '2026-04-05T11:45:00.000Z',
         }));
     });
 });

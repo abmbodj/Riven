@@ -287,6 +287,54 @@ describe('GuidesLibrary', () => {
     expect(screen.getByText(/next checkpoint: chemical bonding/i)).toBeInTheDocument();
   });
 
+  it('uses resume copy for paused or active tutor sessions', async () => {
+    api.getStudyGuides.mockResolvedValue([
+      makeGuide({
+        study_state: {
+          ...makeGuide().study_state,
+          session_status: 'paused',
+          active_stage: 'check',
+          paused_at: '2026-04-03T10:30:00.000Z',
+        },
+      }),
+    ]);
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Biology River Session')).toBeInTheDocument();
+    expect(screen.getByText(/resume river session/i)).toBeInTheDocument();
+    expect(screen.getByText(/resume session/i)).toBeInTheDocument();
+    expect(screen.queryByText(/review again/i)).not.toBeInTheDocument();
+  });
+
+  it('uses review-again copy for completed tutor sessions', async () => {
+    api.getStudyGuides.mockResolvedValue([
+      makeGuide({
+        study_state: {
+          ...makeGuide().study_state,
+          session_status: 'complete',
+          active_stage: 'complete',
+          completed_at: '2026-04-03T11:00:00.000Z',
+        },
+      }),
+    ]);
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Biology River Session')).toBeInTheDocument();
+    expect(screen.getByText(/review river session/i)).toBeInTheDocument();
+    expect(screen.getByText(/review again/i)).toBeInTheDocument();
+    expect(screen.getByText(/fresh pass through weak or due concepts/i)).toBeInTheDocument();
+  });
+
   it('hides pre-v4 guides from the library surface', async () => {
     api.getStudyGuides.mockResolvedValue([
       {
@@ -357,6 +405,7 @@ describe('GuidesLibrary', () => {
           weakTopics: ['Mitosis'],
           preferredTone: 'focused',
         }),
+        null,
       );
     });
   });

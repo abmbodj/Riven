@@ -37,6 +37,7 @@ import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
 gsap.registerPlugin(ScrollTrigger);
 
 const REDUCED_MOTION_MQ = '(prefers-reduced-motion: reduce)';
+const XP_PER_LEVEL = 120;
 
 function subscribeReducedMotion(cb) {
     if (typeof window === 'undefined') return () => {};
@@ -47,6 +48,19 @@ function subscribeReducedMotion(cb) {
 function getReducedMotionSnapshot() {
     if (typeof window === 'undefined') return false;
     return window.matchMedia(REDUCED_MOTION_MQ).matches;
+}
+
+function getXpProgress(stats = {}) {
+    const xpTotal = Number(stats?.xpTotal) || 0;
+    const level = Math.max(1, Number(stats?.level) || Math.floor(xpTotal / XP_PER_LEVEL) + 1);
+    const currentLevelXp = xpTotal % XP_PER_LEVEL;
+
+    return {
+        xpTotal,
+        level,
+        remaining: XP_PER_LEVEL - currentLevelXp,
+        percent: Math.max(0, Math.min(100, Math.round((currentLevelXp / XP_PER_LEVEL) * 100))),
+    };
 }
 
 function getRelativeDueLabel(dueValue, now = new Date()) {
@@ -275,9 +289,11 @@ function StudyCoachCard({ coach }) {
     const weakTopics = Array.isArray(coach.weakTopics) ? coach.weakTopics.slice(0, 4) : [];
     const upcomingExam = coach.upcomingExam || null;
     const stats = coach.stats || { xpTotal: 0, level: 1 };
+    const xpProgress = getXpProgress(stats);
     const suggestedGuide = coach.suggestedGuide || null;
+    const hasVisibleProgress = xpProgress.xpTotal > 0 || xpProgress.level > 1 || Number(stats.sessionsCompleted || 0) > 0;
 
-    if (!recommendation && !upcomingExam && weakTopics.length === 0 && !suggestedGuide) {
+    if (!recommendation && !upcomingExam && weakTopics.length === 0 && !suggestedGuide && !hasVisibleProgress) {
         return null;
     }
 
@@ -303,8 +319,14 @@ function StudyCoachCard({ coach }) {
 
                 <div className="guide-shell rounded-[1.15rem] px-3 py-2 text-right">
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Progress</p>
-                    <p className="mt-1 font-mono text-base font-bold text-claude-text">{stats.xpTotal} XP</p>
-                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Level {stats.level || 1}</p>
+                    <p className="mt-1 font-mono text-base font-bold text-claude-text">{xpProgress.xpTotal} XP</p>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Level {xpProgress.level}</p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-claude-border/40" aria-label={`Level ${xpProgress.level} progress`}>
+                        <div className="h-full rounded-full bg-claude-accent" style={{ width: `${xpProgress.percent}%` }} />
+                    </div>
+                    <p className="mt-1 text-[9px] font-mono uppercase tracking-[0.12em] text-claude-secondary">
+                        {xpProgress.remaining} XP to next level
+                    </p>
                 </div>
             </div>
 

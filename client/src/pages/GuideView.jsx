@@ -11,8 +11,10 @@ import { UIContext } from '../context/UIContext.jsx';
 import {
     ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
     evaluateTutorCardResponse,
+    getGuideMasterySnapshot,
     normalizeGuideData,
     normalizeGuideStudyState,
+    STUDY_SESSION_STATUSES,
 } from '../utils/studyGuides.js';
 
 const PANEL_EASE = [0.22, 1, 0.36, 1];
@@ -104,12 +106,19 @@ const RIVER_POSE_ACCENT = {
 const EMPTY_STATE = {
     current_card_id: null,
     session_phase: null,
+    session_status: STUDY_SESSION_STATUSES.NOT_STARTED,
+    active_stage: 'intro',
+    teach_section_index: 0,
+    explain_revealed_count: 1,
     card_states: {},
     concept_mastery: {},
     last_interaction_at: null,
+    paused_at: null,
     completed_at: null,
     last_reviewed_at: null,
 };
+
+const XP_PER_LEVEL = 120;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -128,6 +137,34 @@ const getScoreDelta = (outcome, weight = 1) => {
     if (outcome === 'incorrect') return -6;
     if (outcome === 'empty') return -4;
     return 0;
+};
+
+const getResumeStage = (studyState) => {
+    if (studyState?.completed_at || studyState?.session_status === STUDY_SESSION_STATUSES.COMPLETE) {
+        return 'complete';
+    }
+
+    if (![STUDY_SESSION_STATUSES.ACTIVE, STUDY_SESSION_STATUSES.PAUSED].includes(studyState?.session_status)) {
+        return 'intro';
+    }
+
+    if (studyState.active_stage === 'feedback') return 'check';
+    if (['teach', 'check'].includes(studyState.active_stage)) return studyState.active_stage;
+    return 'teach';
+};
+
+const getPersistableStage = (stage) => (stage === 'feedback' ? 'check' : stage);
+
+const getXpProgress = (stats = {}) => {
+    const xpTotal = Number(stats?.xpTotal) || 0;
+    const level = Math.max(1, Number(stats?.level) || Math.floor(xpTotal / XP_PER_LEVEL) + 1);
+    const currentLevelXp = xpTotal % XP_PER_LEVEL;
+    return {
+        xpTotal,
+        level,
+        remaining: XP_PER_LEVEL - currentLevelXp,
+        percent: Math.max(0, Math.min(100, Math.round((currentLevelXp / XP_PER_LEVEL) * 100))),
+    };
 };
 
 const getNextCardId = (guideData, currentCardId, transitionCardId, cardStates) => {
@@ -365,19 +402,39 @@ export default function GuideView() {
                 ? normalizeGuideStudyState(normalizedGuideData, nextGuide.study_state)
                 : EMPTY_STATE;
             const nextFormatVersion = Number(nextGuide.format_version) || 0;
+            const restoredStage = getResumeStage(normalizedStudyState);
+            const restoredCard = normalizedGuideData?.cards.find(
+                (card) => card.id === normalizedStudyState.current_card_id,
+            ) || normalizedGuideData?.cards[0] || null;
 
             setGuide(nextGuide);
             setGuideData(normalizedGuideData);
             setStudyState(normalizedStudyState);
             setFormatVersion(nextFormatVersion);
-            setSessionStage(normalizedStudyState.completed_at ? 'complete' : 'intro');
+            setSessionStage(restoredStage);
             setAnswer('');
             setResult(null);
             setCompletionPayload(null);
             setActiveAssistOption(null);
             setRefinedAnswer('');
-            setRiverState(normalizedStudyState.completed_at ? 'celebrate' : 'idle');
-            setRiverCaption(normalizedGuideData ? getIntroCaption(normalizedGuideData) : 'River is ready to teach.');
+            setTeachSection(normalizedStudyState.teach_section_index || 0);
+            setExpandedSteps({});
+            setExplainRevealed(normalizedStudyState.explain_revealed_count || 1);
+            setFuzzyPeek(false);
+            setRiverState(restoredStage === 'complete'
+                ? 'celebrate'
+                : restoredStage === 'check'
+                    ? 'thinking'
+                    : restoredStage === 'teach'
+                        ? (restoredCard?.presentation?.pose || 'teach')
+                        : 'idle');
+            setRiverCaption(restoredStage === 'complete'
+                ? getCompleteCaption(normalizedGuideData, { sessionOutcome: 'complete' })
+                : restoredStage === 'check'
+                    ? getCheckCaption(restoredCard)
+                    : restoredStage === 'teach'
+                        ? getTeachCaption(restoredCard)
+                        : (normalizedGuideData ? getIntroCaption(normalizedGuideData) : 'River is ready to teach.'));
             sessionStartStateRef.current = normalizedStudyState;
             finalizingRef.current = false;
         } catch {
@@ -449,6 +506,11 @@ export default function GuideView() {
         && explainTotal > 4
     );
 
+    useEffect(() => {
+        if (teachSections.length === 0 || teachSection < teachSections.length) return;
+        setTeachSection(Math.max(0, teachSections.length - 1));
+    }, [teachSection, teachSections.length]);
+
     const persistStudyState = useCallback(async (nextState) => {
         const updatedGuide = await api.updateStudyGuide(id, { study_state: nextState });
         const normalizedGuideData = normalizeGuideData(updatedGuide?.guide_data ?? guideData);
@@ -470,13 +532,28 @@ export default function GuideView() {
     }) => {
         if (!guideData || finalizingRef.current) return;
         finalizingRef.current = true;
+        const nowIso = new Date().toISOString();
+        const finalState = normalizeGuideStudyState(guideData, {
+            ...(nextState || studyState),
+            session_status: sessionOutcome === 'complete'
+                ? STUDY_SESSION_STATUSES.COMPLETE
+                : STUDY_SESSION_STATUSES.PAUSED,
+            active_stage: sessionOutcome === 'complete' ? 'complete' : 'teach',
+            teach_section_index: sessionOutcome === 'complete' ? 0 : teachSection,
+            explain_revealed_count: sessionOutcome === 'complete' ? 1 : explainRevealed,
+            paused_at: sessionOutcome === 'complete' ? null : nowIso,
+            completed_at: sessionOutcome === 'complete'
+                ? ((nextState || studyState)?.completed_at || nowIso)
+                : (nextState || studyState)?.completed_at || null,
+            last_interaction_at: nowIso,
+        });
 
         try {
             const payload = await api.completeStudyCoachSession({
                 guideId: id,
                 guideData,
                 studyStateBefore: sessionStartStateRef.current || studyState,
-                studyStateAfter: nextState || studyState,
+                studyStateAfter: finalState,
                 mode: 'guided',
                 source: 'guide_view',
                 classId: guide?.class_id || null,
@@ -484,7 +561,7 @@ export default function GuideView() {
                 exitReason,
             });
 
-            const normalizedAfter = normalizeGuideStudyState(guideData, nextState || studyState);
+            const normalizedAfter = normalizeGuideStudyState(guideData, finalState);
             setStudyState(normalizedAfter);
             setCompletionPayload({
                 ...payload,
@@ -510,7 +587,7 @@ export default function GuideView() {
             toastRef.current.error(message);
             finalizingRef.current = false;
         }
-    }, [guide?.class_id, guideData, id, studyState]);
+    }, [explainRevealed, guide?.class_id, guideData, id, studyState, teachSection]);
 
     const moveToNextCard = useCallback(async (baseState, { allowIncompleteFinish = true } = {}) => {
         if (!guideData || !currentCard) return;
@@ -536,6 +613,11 @@ export default function GuideView() {
             ...baseState,
             current_card_id: nextCardId,
             session_phase: nextCard?.phase || baseState.session_phase,
+            session_status: STUDY_SESSION_STATUSES.ACTIVE,
+            active_stage: 'teach',
+            teach_section_index: 0,
+            explain_revealed_count: 1,
+            paused_at: null,
         });
 
         const persistedState = await persistStudyState(nextState);
@@ -560,10 +642,21 @@ export default function GuideView() {
         setExpandedSteps({});
         setExplainRevealed(1);
         setFuzzyPeek(false);
+        if (guideData) {
+            setStudyState((prev) => normalizeGuideStudyState(guideData, {
+                ...prev,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'teach',
+                teach_section_index: 0,
+                explain_revealed_count: 1,
+                paused_at: null,
+                completed_at: null,
+            }));
+        }
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
-    }, [currentCard]);
+    }, [currentCard, guideData]);
 
     const handleSelectAssist = useCallback((option) => {
         setActiveAssistOption(option);
@@ -573,10 +666,33 @@ export default function GuideView() {
 
     const handleBeginCheck = useCallback(() => {
         setActiveAssistOption(null);
+        if (guideData) {
+            setStudyState((prev) => normalizeGuideStudyState(guideData, {
+                ...prev,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'check',
+                teach_section_index: teachSection,
+                explain_revealed_count: explainRevealed,
+                paused_at: null,
+            }));
+        }
         setSessionStage('check');
         setRiverState('thinking');
         setRiverCaption(getCheckCaption(currentCard));
-    }, [currentCard]);
+    }, [currentCard, explainRevealed, guideData, teachSection]);
+
+    const handleRevealNext = useCallback(() => {
+        setFuzzyPeek(false);
+        setExplainRevealed((prev) => {
+            const next = Math.min(prev + 1, explainTotal);
+            const reachedEnd = next >= explainTotal;
+            setRiverState(reachedEnd ? 'point' : 'thinking');
+            setRiverCaption(reachedEnd
+                ? 'That’s the whole thought. Ready for the why?'
+                : 'Take a beat. Then keep going.');
+            return next;
+        });
+    }, [explainTotal]);
 
     const handleAdvanceTeach = useCallback(() => {
         // On the explain section, advance the progressive reveal first; only
@@ -624,19 +740,6 @@ export default function GuideView() {
             return { ...prev, ...next };
         });
     }, []);
-
-    const handleRevealNext = useCallback(() => {
-        setFuzzyPeek(false);
-        setExplainRevealed((prev) => {
-            const next = Math.min(prev + 1, explainTotal);
-            const reachedEnd = next >= explainTotal;
-            setRiverState(reachedEnd ? 'point' : 'thinking');
-            setRiverCaption(reachedEnd
-                ? 'That’s the whole thought. Ready for the why?'
-                : 'Take a beat. Then keep going.');
-            return next;
-        });
-    }, [explainTotal]);
 
     const handleFuzzy = useCallback(() => {
         setFuzzyPeek(true);
@@ -696,10 +799,20 @@ export default function GuideView() {
     const handleReturnToTeach = useCallback(() => {
         const section = teachSections[teachSection];
         const presentation = getTeachSectionPresentation(section, currentCard);
+        if (guideData) {
+            setStudyState((prev) => normalizeGuideStudyState(guideData, {
+                ...prev,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'teach',
+                teach_section_index: teachSection,
+                explain_revealed_count: explainRevealed,
+                paused_at: null,
+            }));
+        }
         setSessionStage('teach');
         setRiverState(presentation.state);
         setRiverCaption(section?.type === 'explain' ? getTeachCaption(currentCard) : presentation.caption);
-    }, [currentCard, teachSection, teachSections]);
+    }, [currentCard, explainRevealed, guideData, teachSection, teachSections]);
 
     const handleSubmit = async () => {
         if (!guideData || !currentCard || submitting) return;
@@ -768,6 +881,11 @@ export default function GuideView() {
                 },
                 last_interaction_at: nowIso,
                 last_reviewed_at: nowIso,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'feedback',
+                teach_section_index: teachSection,
+                explain_revealed_count: explainRevealed,
+                paused_at: null,
                 completed_at: sessionComplete ? nowIso : studyState.completed_at,
             });
 
@@ -811,6 +929,11 @@ export default function GuideView() {
                 },
                 last_interaction_at: nowIso,
                 last_reviewed_at: nowIso,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'feedback',
+                teach_section_index: teachSection,
+                explain_revealed_count: explainRevealed,
+                paused_at: null,
             });
 
             const persistedState = await persistStudyState(nextState);
@@ -858,6 +981,11 @@ export default function GuideView() {
                     : studyState.session_phase,
                 last_interaction_at: nowIso,
                 last_reviewed_at: nowIso,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: nextCardId ? 'teach' : 'check',
+                teach_section_index: nextCardId ? 0 : teachSection,
+                explain_revealed_count: nextCardId ? 1 : explainRevealed,
+                paused_at: null,
             });
 
             if (!nextCardId) {
@@ -874,6 +1002,10 @@ export default function GuideView() {
             setAnswer('');
             setResult(null);
             setActiveAssistOption(null);
+            setTeachSection(0);
+            setExpandedSteps({});
+            setExplainRevealed(1);
+            setFuzzyPeek(false);
             setRiverState('encourage');
             setRiverCaption('River has marked this for later so you can keep your momentum.');
             setSessionStage('teach');
@@ -958,6 +1090,11 @@ export default function GuideView() {
                 },
                 last_interaction_at: nowIso,
                 last_reviewed_at: nowIso,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'feedback',
+                teach_section_index: teachSection,
+                explain_revealed_count: explainRevealed,
+                paused_at: null,
                 completed_at: sessionComplete ? nowIso : studyState.completed_at,
             });
 
@@ -1000,16 +1137,45 @@ export default function GuideView() {
         });
     }, [finalizeSession, guideData, moveToNextCard, result, studyState]);
 
-    const handleSaveAndLeave = useCallback(() => {
-        toast.warn('Leave now? Your spot is saved — River can resume exactly here.', {
-            label: 'Leave session',
-            onClick: () => finalizeSession({
-                nextState: studyState,
-                sessionOutcome: 'stopped_early',
-                exitReason: 'user_left',
-            }),
+    const pauseSession = useCallback(async () => {
+        if (!guideData || !currentCard || submitting) return;
+
+        const nowIso = new Date().toISOString();
+        const nextState = normalizeGuideStudyState(guideData, {
+            ...studyState,
+            current_card_id: currentCard.id,
+            session_phase: currentCard.phase || studyState.session_phase,
+            session_status: STUDY_SESSION_STATUSES.PAUSED,
+            active_stage: getPersistableStage(sessionStage),
+            teach_section_index: teachSection,
+            explain_revealed_count: explainRevealed,
+            paused_at: nowIso,
+            completed_at: null,
+            last_interaction_at: nowIso,
         });
-    }, [finalizeSession, studyState, toast]);
+
+        try {
+            await persistStudyState(nextState);
+            toastRef.current.success('Session paused. Your place is saved.');
+            navigate('/guides');
+        } catch {
+            toastRef.current.error('Failed to pause tutor session');
+        }
+    }, [
+        currentCard,
+        explainRevealed,
+        guideData,
+        navigate,
+        persistStudyState,
+        sessionStage,
+        studyState,
+        submitting,
+        teachSection,
+    ]);
+
+    const handleSaveAndLeave = useCallback(() => {
+        pauseSession();
+    }, [pauseSession]);
 
     const handleResumeFromWrapUp = useCallback(() => {
         finalizingRef.current = false;
@@ -1018,12 +1184,75 @@ export default function GuideView() {
         setActiveAssistOption(null);
         setTeachSection(0);
         setExpandedSteps({});
+        setExplainRevealed(1);
+        setFuzzyPeek(false);
+        if (guideData) {
+            setStudyState((prev) => normalizeGuideStudyState(guideData, {
+                ...prev,
+                session_status: STUDY_SESSION_STATUSES.ACTIVE,
+                active_stage: 'teach',
+                teach_section_index: 0,
+                explain_revealed_count: 1,
+                paused_at: null,
+                completed_at: null,
+            }));
+        }
         setSessionStage('teach');
         setRiverState(currentCard?.presentation?.pose || 'teach');
         setRiverCaption(getTeachCaption(currentCard));
-    }, [currentCard]);
+    }, [currentCard, guideData]);
 
-    const handleBackToGuides = useCallback(() => navigate('/guides'), [navigate]);
+    const handleStartReviewPass = useCallback(async () => {
+        if (!guideData || !currentCard || submitting) return;
+
+        const snapshot = getGuideMasterySnapshot(guideData, studyState);
+        const targetSection = snapshot.recommendedSections[0] || guideData.sections?.[0] || null;
+        const targetCard = guideData.cards.find((card) => card.concept_id === targetSection?.id)
+            || guideData.cards[0]
+            || currentCard;
+        const nowIso = new Date().toISOString();
+        const nextState = normalizeGuideStudyState(guideData, {
+            ...studyState,
+            current_card_id: targetCard.id,
+            session_phase: targetCard.phase || studyState.session_phase,
+            session_status: STUDY_SESSION_STATUSES.ACTIVE,
+            active_stage: 'teach',
+            teach_section_index: 0,
+            explain_revealed_count: 1,
+            paused_at: null,
+            completed_at: null,
+            last_interaction_at: nowIso,
+        });
+
+        try {
+            sessionStartStateRef.current = studyState;
+            const persistedState = await persistStudyState(nextState);
+            setAnswer('');
+            setResult(null);
+            setCompletionPayload(null);
+            setActiveAssistOption(null);
+            setRefinedAnswer('');
+            setTeachSection(0);
+            setExpandedSteps({});
+            setExplainRevealed(1);
+            setFuzzyPeek(false);
+            setSessionStage('teach');
+            setRiverState(targetCard?.presentation?.pose || 'teach');
+            setRiverCaption(getTeachCaption(targetCard));
+            finalizingRef.current = false;
+            return persistedState;
+        } catch {
+            toastRef.current.error('Failed to start review pass');
+        }
+    }, [currentCard, guideData, persistStudyState, studyState, submitting]);
+
+    const handleBackToGuides = useCallback(() => {
+        if (['teach', 'check', 'feedback'].includes(sessionStage)) {
+            pauseSession();
+            return;
+        }
+        navigate('/guides');
+    }, [navigate, pauseSession, sessionStage]);
 
     const visibleParagraphs = useMemo(
         () => explainParagraphs.slice(0, explainRevealed),
@@ -1040,6 +1269,7 @@ export default function GuideView() {
     const totalCards = guideData?.cards?.length ?? 0;
     const animatedXP = useCountUp(completionPayload?.xpEarned ?? 0, 700);
     const animatedMastery = useCountUp(completionPayload?.masteryDelta ?? 0, 600);
+    const xpProgress = getXpProgress(completionPayload?.stats);
     const currentTeachSectionMeta = teachSections[teachSection] || null;
 
     useEffect(() => {
@@ -1101,7 +1331,7 @@ export default function GuideView() {
                 totalSections: Math.max(totalCards, 1),
                 progressLabel: result.shouldAdvance ? 'River response' : 'Try the next angle',
                 prevLabel: result.shouldAdvance ? 'Review' : 'Retry',
-                nextLabel: result.shouldAdvance ? 'Next card' : 'Continue',
+                nextLabel: result.shouldAdvance ? 'Next card' : 'Mark later',
                 onPrev: result.shouldAdvance ? handleReturnToTeach : handleTryAgain,
                 onNext: handleAdvance,
                 canPrev: true,
@@ -1198,6 +1428,9 @@ export default function GuideView() {
     const title = guide?.title || 'Tutor Session';
     const completionIsPartial = completionPayload?.sessionOutcome === 'stopped_early';
     const assistOptions = currentCard?.assist_options || [];
+    const reviewPassLabel = completionPayload?.weakTopicsRemaining?.length
+        ? 'Review weak concepts'
+        : 'Start review pass';
 
     // Current River pose accent color — drives surface tinting on feedback stage
     const poseAccent = RIVER_POSE_ACCENT[riverState] ?? '#8fb27c';
@@ -2652,17 +2885,17 @@ export default function GuideView() {
                                                     <button
                                                         type="button"
                                                         onClick={handleTryAgain}
-                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
-                                                        style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                                        className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                                     >
                                                         Try again
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={handleAdvance}
-                                                        className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                        style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)', backgroundColor: 'rgba(0,0,0,0.16)' }}
                                                     >
-                                                        Continue anyway
+                                                        Mark for later
                                                     </button>
                                                 </>
                                             )}
@@ -2793,17 +3026,17 @@ export default function GuideView() {
                                                         <button
                                                             type="button"
                                                             onClick={handleTryAgain}
-                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
-                                                            style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)', backgroundColor: 'rgba(0,0,0,0.16)' }}
+                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                                         >
                                                             Try again
                                                         </button>
                                                         <button
                                                             type="button"
                                                             onClick={handleAdvance}
-                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                            style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)', backgroundColor: 'rgba(0,0,0,0.16)' }}
                                                         >
-                                                            Continue anyway
+                                                            Mark for later
                                                         </button>
                                                     </>
                                                 )}
@@ -2908,6 +3141,21 @@ export default function GuideView() {
                                                             : 'When you are ready'}
                                                     </p>
                                                 </div>
+                                                <div className="col-span-2 rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Level progress</p>
+                                                            <p className="mt-2 text-base font-semibold" style={{ color: '#efe4d1' }}>Level {xpProgress.level}</p>
+                                                        </div>
+                                                        <p className="text-sm font-mono tabular-nums" style={{ color: 'rgba(228,219,201,0.88)' }}>{xpProgress.xpTotal} total XP</p>
+                                                    </div>
+                                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/25">
+                                                        <div className="h-full rounded-full bg-claude-accent transition-all duration-500" style={{ width: `${xpProgress.percent}%` }} />
+                                                    </div>
+                                                    <p className="mt-2 text-xs leading-5" style={{ color: 'rgba(228,219,201,0.76)' }}>
+                                                        {xpProgress.remaining} XP to Level {xpProgress.level + 1}
+                                                    </p>
+                                                </div>
                                             </div>
                                         ) : null}
 
@@ -2920,7 +3168,15 @@ export default function GuideView() {
                                                 >
                                                     Resume session
                                                 </button>
-                                            ) : null}
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleStartReviewPass}
+                                                    className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-4 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                >
+                                                    {reviewPassLabel}
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={handleBackToGuides}
@@ -2967,6 +3223,14 @@ export default function GuideView() {
                                                                     : 'When you are ready'}
                                                             </p>
                                                         </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>Level progress</p>
+                                                            <p className="mt-1 text-base font-semibold" style={{ color: '#efe4d1' }}>Level {xpProgress.level} · {xpProgress.xpTotal} total XP</p>
+                                                            <p className="mt-1 text-xs" style={{ color: 'rgba(228,219,201,0.76)' }}>{xpProgress.remaining} XP to Level {xpProgress.level + 1}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/25">
+                                                        <div className="h-full rounded-full bg-claude-accent transition-all duration-500" style={{ width: `${xpProgress.percent}%` }} />
                                                     </div>
                                                 </div>
                                             ) : null}
@@ -2979,7 +3243,15 @@ export default function GuideView() {
                                                     >
                                                         Resume session
                                                     </button>
-                                                ) : null}
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleStartReviewPass}
+                                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                                    >
+                                                        {reviewPassLabel}
+                                                    </button>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={handleBackToGuides}

@@ -247,6 +247,7 @@ describe('GuideView', () => {
       masteryDelta: 18,
       weakTopicsRemaining: [],
       nextReviewAt: '2026-04-06T12:00:00.000Z',
+      stats: { xpTotal: 240, level: 3 },
       sessionOutcome: 'complete',
     });
     api.assistStudyCoach.mockResolvedValue({
@@ -311,6 +312,8 @@ describe('GuideView', () => {
       exitReason: 'finished',
       studyStateAfter: expect.objectContaining({
         completed_at: expect.any(String),
+        session_status: 'complete',
+        active_stage: 'complete',
       }),
     }));
 
@@ -376,23 +379,17 @@ describe('GuideView', () => {
     const feedback = await screen.findByTestId('river-session-feedback');
     expect(within(feedback).getByText(/That describes meiosis, not mitosis/i)).toBeInTheDocument();
     expect(within(feedback).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'gentle-correct');
-    expect(within(feedback).getByRole('button', { name: /continue anyway/i })).toBeInTheDocument();
+    expect(within(feedback).getByRole('button', { name: /mark for later/i })).toBeInTheDocument();
   });
 
-  it('shows a partial wrap-up when the learner saves and leaves early', async () => {
+  it('pauses and returns to the library when the learner saves and leaves early', async () => {
     api.getStudyGuide.mockResolvedValue(makeGuide());
-    api.completeStudyCoachSession.mockResolvedValue({
-      xpEarned: 10,
-      masteryDelta: 2,
-      weakTopicsRemaining: [{ id: 'concept-mitosis', title: 'Mitosis' }],
-      nextReviewAt: '2026-04-06T12:00:00.000Z',
-      sessionOutcome: 'stopped_early',
-    });
 
     render(
       <MemoryRouter initialEntries={['/guide/guide-river-1']}>
         <Routes>
           <Route path="/guide/:id" element={<GuideView />} />
+          <Route path="/guides" element={<div data-testid="guides-route">Guides</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -402,24 +399,33 @@ describe('GuideView', () => {
     const teach = await screen.findByTestId('river-session-teach');
     fireEvent.click(within(teach).getByRole('button', { name: /save and leave/i }));
 
-    const finish = await screen.findByTestId('river-session-complete');
-    expect(within(finish).getByRole('heading', { name: /session saved/i })).toBeInTheDocument();
-    expect(api.completeStudyCoachSession).toHaveBeenCalledWith(expect.objectContaining({
-      guideId: 'guide-river-1',
-      sessionOutcome: 'stopped_early',
-      exitReason: 'user_left',
+    expect(await screen.findByTestId('guides-route')).toBeInTheDocument();
+    expect(api.completeStudyCoachSession).not.toHaveBeenCalled();
+    expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
+      study_state: expect.objectContaining({
+        current_card_id: 'card-1',
+        session_status: 'paused',
+        active_stage: 'teach',
+        teach_section_index: 0,
+        explain_revealed_count: 1,
+        paused_at: expect.any(String),
+        completed_at: null,
+      }),
     }));
   });
 
-  it('can resume the current card after an early save', async () => {
-    api.getStudyGuide.mockResolvedValue(makeGuide());
-    api.completeStudyCoachSession.mockResolvedValue({
-      xpEarned: 10,
-      masteryDelta: 2,
-      weakTopicsRemaining: [{ id: 'concept-mitosis', title: 'Mitosis' }],
-      nextReviewAt: '2026-04-06T12:00:00.000Z',
-      sessionOutcome: 'stopped_early',
-    });
+  it('restores directly into the saved stage on re-entry', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide({
+      study_state: {
+        ...makeGuide().study_state,
+        session_status: 'paused',
+        active_stage: 'check',
+        teach_section_index: 0,
+        explain_revealed_count: 1,
+        paused_at: '2026-04-05T12:00:00.000Z',
+        last_interaction_at: '2026-04-05T12:00:00.000Z',
+      },
+    }));
 
     render(
       <MemoryRouter initialEntries={['/guide/guide-river-1']}>
@@ -429,17 +435,81 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
+    const check = await screen.findByTestId('river-session-check');
+    expect(within(check).getByText(/What is the main outcome of mitosis/i)).toBeInTheDocument();
+    expect(within(check).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'thinking');
+    expect(screen.queryByTestId('river-session-intro')).not.toBeInTheDocument();
+  });
+
+  it('pauses instead of completing when the learner uses the back control mid-session', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+          <Route path="/guides" element={<div data-testid="guides-route">Guides</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
     fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
     const teach = await screen.findByTestId('river-session-teach');
-    fireEvent.click(within(teach).getByRole('button', { name: /save and leave/i }));
+    expect(within(teach).getAllByText(/Mitosis is the division step/i).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: /back to tutor sessions/i }));
 
-    const finish = await screen.findByTestId('river-session-complete');
-    fireEvent.click(within(finish).getByRole('button', { name: /resume session/i }));
+    expect(await screen.findByTestId('guides-route')).toBeInTheDocument();
+    expect(api.completeStudyCoachSession).not.toHaveBeenCalled();
+    expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
+      study_state: expect.objectContaining({
+        session_status: 'paused',
+        active_stage: 'teach',
+        paused_at: expect.any(String),
+      }),
+    }));
+  });
 
-    const resumedTeach = await screen.findByTestId('river-session-teach');
-    expect(within(resumedTeach).getAllByText(/Mitosis is the division step/i).length).toBeGreaterThan(0);
-    expect(within(resumedTeach).getByRole('button', { name: /save and leave/i })).toBeInTheDocument();
+  it('starts a repeat review pass from a completed session without clearing mastery history', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide({
+      study_state: {
+        ...makeGuide().study_state,
+        session_status: 'complete',
+        active_stage: 'complete',
+        completed_at: '2026-04-05T12:00:00.000Z',
+        last_reviewed_at: '2026-04-05T12:00:00.000Z',
+        concept_mastery: {
+          'concept-mitosis': { score: 34, status: 'struggling', attempts: 2, correct_attempts: 0, last_outcome: 'incorrect' },
+        },
+      },
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const complete = await screen.findByTestId('river-session-complete');
+    fireEvent.click(within(complete).getByRole('button', { name: /start review pass/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    expect(within(teach).getAllByText(/Mitosis is the division step/i).length).toBeGreaterThan(0);
+    expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
+      study_state: expect.objectContaining({
+        session_status: 'active',
+        active_stage: 'teach',
+        completed_at: null,
+        concept_mastery: expect.objectContaining({
+          'concept-mitosis': expect.objectContaining({
+            score: 34,
+            status: 'struggling',
+          }),
+        }),
+      }),
+    }));
   });
 
   it('shows the unsupported hard-cutover state for pre-v4 guides', async () => {
