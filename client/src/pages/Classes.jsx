@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import {
     Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Upload, Loader2, Layers, CheckCircle2,
-    Lock, Network, Link, Crown
+    Lock, Network, Link, Crown, CheckSquare
 } from 'lucide-react';
 import InlineCalendar from '../components/calendar/InlineCalendar';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,8 @@ import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { buildDefaultClassTimeRow, isValidTimeRange } from '../utils/classTime';
 import { inferSubject, SUBJECT_VALUES } from '../utils/subjectInference';
 import CanvasSemesterCleanupModal from '../components/canvas/CanvasSemesterCleanupModal';
+import { useSelection } from '../hooks/useSelection';
+import BulkActionBar from '../components/BulkActionBar';
 
 
 const CLASS_COLORS = [
@@ -26,19 +28,39 @@ const CLASS_COLORS = [
     '#7a9e72', '#b8a379', '#c47c7c', '#5e7b8f'
 ];
 
-const ClassCard = memo(({ cls, index, onClick }) => {
+const ClassCard = memo(({ cls, index, onClick, isSelectMode = false, isSelected = false, onToggle }) => {
+    const handleActivate = () => {
+        if (isSelectMode) {
+            onToggle?.(cls.id);
+            return;
+        }
+        onClick?.();
+    };
+
+    const handleKeyDown = (event) => {
+        if (!isSelectMode) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onToggle?.(cls.id);
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20, rotate: index % 2 === 0 ? -0.5 : 0.5 }}
             whileInView={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -0.8 : 0.8 }}
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3 } }}
-            onClick={onClick}
+            onClick={handleActivate}
+            onKeyDown={handleKeyDown}
+            role={isSelectMode ? 'button' : undefined}
+            aria-pressed={isSelectMode ? isSelected : undefined}
+            tabIndex={isSelectMode ? 0 : undefined}
             className="relative tap-action group cursor-pointer"
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
 
-            <div className="relative block bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97]">
+            <div className={`relative block bg-claude-surface border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] ${isSelected ? 'border-claude-accent ring-2 ring-claude-accent/60 bg-claude-accent/5' : 'border-claude-border'}`}>
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
 
                 <div className="relative z-10">
@@ -83,6 +105,16 @@ const ClassCard = memo(({ cls, index, onClick }) => {
                 <div className="absolute -bottom-4 -right-4 opacity-[0.03] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] transform scale-150">
                     <BookOpen className="w-32 h-32" />
                 </div>
+
+                {isSelectMode && (
+                    <div className={`absolute top-3 right-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border bg-claude-bg/80 backdrop-blur-sm'}`}>
+                        {isSelected && (
+                            <svg className="w-3.5 h-3.5 text-[#162a31]" viewBox="0 0 14 14" fill="none">
+                                <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        )}
+                    </div>
+                )}
             </div>
         </motion.div>
     );
@@ -104,6 +136,7 @@ export default function Classes() {
     const [showModal, setShowModal] = useState(false);
     const [editingClass, setEditingClass] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
     const [pricingOpen, setPricingOpen] = useState(false);
 
     // Form
@@ -122,6 +155,17 @@ export default function Classes() {
     const [canvasFormUrl, setCanvasFormUrl] = useState('');
     const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
     const haptics = useHaptics();
+    const selectableClasses = useMemo(() => classes, [classes]);
+    const {
+        isSelectMode,
+        selectedIds,
+        selectedCount,
+        isAllSelected,
+        enterSelectMode,
+        exitSelectMode,
+        toggleSelect,
+        toggleSelectAll,
+    } = useSelection(selectableClasses);
 
     const fetchCanvasStatus = useCallback(async () => {
         try {
@@ -367,6 +411,25 @@ export default function Classes() {
         }
     };
 
+    const handleBulkDelete = async () => {
+        const ids = [...selectedIds];
+        if (ids.length === 0) return;
+        const idSet = new Set(ids);
+
+        setClasses(prev => prev.filter(cls => !idSet.has(cls.id)));
+        exitSelectMode();
+
+        try {
+            await Promise.all(ids.map(id => api.deleteClass(id)));
+            toast.success(`${ids.length} class${ids.length === 1 ? '' : 'es'} deleted`);
+            loadData();
+        } catch (err) {
+            console.error(err);
+            toast.error(err?.message || 'Failed to delete some classes');
+            loadData();
+        }
+    };
+
     const openCreateModal = () => {
         setEditingClass(null);
         setSubjectManuallySet(false);
@@ -396,23 +459,57 @@ export default function Classes() {
     return (
         <div className="relative min-h-screen pb-24">
             {/* Header Area */}
-            <div className="mb-6 pt-4 px-4 sm:px-6 flex items-end justify-between">
-                <div>
+            <div className="mb-6 pt-4 px-4 sm:px-6 flex flex-wrap items-end justify-between gap-4">
+                <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
                         <span className="px-1.5 py-0.5 bg-claude-accent text-claude-text text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Education</span>
                     </div>
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Classes</h1>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                         onClick={openCreateModal}
+                        aria-label="Add class"
                         className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent/20 border border-claude-accent/40 rounded-xl sm:rounded-2xl text-claude-accent hover:text-white hover:bg-claude-accent/40 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
+                    {canvasStatus.isConnected && (
+                        <button
+                            onClick={() => setSemesterCleanupOpen(true)}
+                            disabled={canvasStatus.loading}
+                            aria-label="End semester"
+                            title="End Semester"
+                            className="h-[3.25rem] sm:h-[3.75rem] inline-flex items-center justify-center gap-2 px-3 sm:px-4 border border-claude-accent/30 bg-claude-accent/10 text-claude-accent rounded-xl sm:rounded-2xl hover:bg-claude-accent/20 hover:text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        >
+                            <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
+                            <span className="hidden md:inline font-mono text-[10px] font-bold uppercase tracking-[0.18em] whitespace-nowrap">End Semester</span>
+                        </button>
+                    )}
+                    {!isSelectMode ? (
+                        <button
+                            onClick={() => {
+                                setViewMode('Roster');
+                                enterSelectMode();
+                            }}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                            aria-label="Enter selection mode"
+                        >
+                            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={exitSelectMode}
+                            className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-accent border border-claude-accent/40 tap-action flex items-center justify-center active:scale-95"
+                            aria-label="Exit selection mode"
+                        >
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </button>
+                    )}
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
+                        aria-label="Refresh classes"
                         className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
@@ -427,7 +524,10 @@ export default function Classes() {
                     {['Calendar', 'Roster'].map(mode => (
                         <button
                             key={mode}
-                            onClick={() => setViewMode(mode)}
+                            onClick={() => {
+                                setViewMode(mode);
+                                if (mode === 'Calendar') exitSelectMode();
+                            }}
                             className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${viewMode === mode ? 'bg-claude-accent text-claude-text shadow-sm' : 'text-claude-secondary hover:text-claude-text'}`}
                         >
                             {mode}
@@ -464,6 +564,9 @@ export default function Classes() {
                                                 cls={cls}
                                                 index={i}
                                                 onClick={() => navigate(`/class/${cls.id}`)}
+                                                isSelectMode={isSelectMode}
+                                                isSelected={selectedIds.has(cls.id)}
+                                                onToggle={toggleSelect}
                                             />
                                         ))}
                                     </div>
@@ -483,6 +586,9 @@ export default function Classes() {
                                                         cls={cls}
                                                         index={i}
                                                         onClick={() => navigate(`/class/${cls.id}`)}
+                                                        isSelectMode={isSelectMode}
+                                                        isSelected={selectedIds.has(cls.id)}
+                                                        onToggle={toggleSelect}
                                                     />
                                                 ))}
                                             </div>
@@ -502,6 +608,28 @@ export default function Classes() {
                 message="Are you sure you want to remove this class from your schedule? Associated data might be affected."
                 onConfirm={handleDelete}
                 onCancel={() => setDeleteConfirm({ show: false, item: null })}
+            />
+
+            <ConfirmModal
+                isOpen={bulkDeleteConfirm}
+                title={`Delete ${selectedCount} class${selectedCount === 1 ? '' : 'es'}?`}
+                message={`This will permanently delete ${selectedCount} selected class${selectedCount === 1 ? '' : 'es'}. This cannot be undone.`}
+                confirmText="Delete All"
+                onConfirm={() => {
+                    setBulkDeleteConfirm(false);
+                    handleBulkDelete();
+                }}
+                onCancel={() => setBulkDeleteConfirm(false)}
+                destructive
+            />
+
+            <BulkActionBar
+                isVisible={isSelectMode && selectedCount > 0}
+                selectedCount={selectedCount}
+                isAllSelected={isAllSelected}
+                onSelectAll={toggleSelectAll}
+                onDelete={() => setBulkDeleteConfirm(true)}
+                onExit={exitSelectMode}
             />
 
             <PricingModal
