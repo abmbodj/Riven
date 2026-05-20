@@ -75,6 +75,7 @@ export default function CalendarTimeline({
     const compactHeaders = view === 'week';
     const gridHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
     const columnWidth = 320;
+    const railWidth = view === 'week' ? 92 : 72;
 
     const classMap = useMemo(() => {
         const next = {};
@@ -201,13 +202,13 @@ export default function CalendarTimeline({
             >
                 <div
                     className="grid min-w-full"
-                    style={{ gridTemplateColumns: `72px repeat(${visibleDates.length}, ${view === 'day' ? `minmax(${columnWidth}px, 1fr)` : 'minmax(0, 1fr)'})` }}
+                    style={{ gridTemplateColumns: `${railWidth}px repeat(${visibleDates.length}, ${view === 'day' ? `minmax(${columnWidth}px, 1fr)` : 'minmax(0, 1fr)'})` }}
                 >
-                    <div className="sticky top-0 left-0 z-40 border-b border-r border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl px-3 py-3">
+                    <div className={`sticky top-0 left-0 z-40 border-b border-r border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl ${compactHeaders ? 'px-3 py-2.5' : 'px-3 py-3'}`}>
                         <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-claude-secondary">
                             {view === 'day' ? 'Focus' : 'Week'}
                         </div>
-                        <div className="mt-1 font-serif text-sm italic font-bold text-claude-text">
+                        <div className={`mt-1 font-serif italic font-bold text-claude-text ${compactHeaders ? 'text-[0.95rem] leading-tight' : 'text-sm'}`}>
                             Schedule
                         </div>
                     </div>
@@ -222,7 +223,7 @@ export default function CalendarTimeline({
                                 key={date.toISOString()}
                                 onClick={() => onDaySelect(date)}
                                 className={[
-                                    'sticky top-0 z-30 min-w-0 border-b border-claude-border/20 px-3 py-3 text-left transition-colors cursor-pointer',
+                                    `sticky top-0 z-30 min-w-0 border-b border-claude-border/20 text-left transition-colors cursor-pointer ${compactHeaders ? 'px-2 py-2.5' : 'px-3 py-3'}`,
                                     'bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl',
                                     isToday ? 'shadow-[inset_0_-2px_0_var(--accent-color)]' : '',
                                 ].join(' ')}
@@ -231,25 +232,25 @@ export default function CalendarTimeline({
                             >
                                 <div className="flex min-w-0 items-start justify-between gap-2">
                                     <div className="min-w-0">
-                                        <div className="truncate font-mono text-[9px] uppercase tracking-[0.22em] text-claude-secondary">
+                                        <div className={`truncate font-mono uppercase text-claude-secondary ${compactHeaders ? 'text-[8px] tracking-[0.18em]' : 'text-[9px] tracking-[0.22em]'}`}>
                                             {compactHeaders ? formatDateHeader(date, true) : formatDateHeader(date, false)}
                                         </div>
-                                        <div className="mt-1 flex items-center gap-2">
+                                        <div className={`mt-1 flex items-center ${compactHeaders ? 'gap-1.5' : 'gap-2'}`}>
                                             <span className={[
-                                                'font-serif text-lg italic font-bold leading-none',
+                                                compactHeaders ? 'font-serif text-[1.05rem] italic font-bold leading-none' : 'font-serif text-lg italic font-bold leading-none',
                                                 isToday ? 'text-claude-accent' : 'text-claude-text',
                                             ].join(' ')}>
                                                 {date.getDate()}
                                             </span>
                                             {isToday && (
-                                                <span className="rounded-full border border-claude-accent/40 bg-claude-accent/12 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.22em] text-claude-accent">
+                                                <span className={`rounded-full border border-claude-accent/40 bg-claude-accent/12 font-mono uppercase text-claude-accent ${compactHeaders ? 'px-1.5 py-0.5 text-[7px] tracking-[0.16em]' : 'px-2 py-1 text-[8px] tracking-[0.22em]'}`}>
                                                     Today
                                                 </span>
                                             )}
                                         </div>
                                     </div>
                                     <div className="min-w-0 text-right">
-                                        <div className="truncate font-mono text-[9px] uppercase tracking-[0.2em] text-claude-secondary">
+                                        <div className={`truncate font-mono uppercase text-claude-secondary ${compactHeaders ? 'text-[8px] tracking-[0.16em]' : 'text-[9px] tracking-[0.2em]'}`}>
                                             {allDayItems.length} all day
                                         </div>
                                     </div>

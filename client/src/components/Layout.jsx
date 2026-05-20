@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext } from 'react';
+import { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import Layers from 'lucide-react/dist/esm/icons/layers';
@@ -28,6 +28,7 @@ import TopBar from './TopBar.jsx';
 import CreateSheet from './CreateSheet.jsx';
 import { useNotificationSync } from '../hooks/useNotificationSync';
 import FloatingRecordingWidget from './audio/FloatingRecordingWidget.jsx';
+import { COLLAPSED_NAV_WIDTH, DEFAULT_NAV_WIDTH, MAX_NAV_WIDTH, MIN_NAV_WIDTH } from '../context/UIContext.jsx';
 
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
@@ -80,6 +81,8 @@ export default function Layout({ children }) {
         hideBottomNav: hideNavFromContext,
         navCollapsed,
         toggleNav,
+        navWidth = DEFAULT_NAV_WIDTH,
+        setNavWidth,
         studyMode,
         contextToolbar,
     } = useContext(UIContext) || {};
@@ -100,7 +103,9 @@ export default function Layout({ children }) {
     const [isOffline, setIsOffline] = useState(getInitialOfflineState);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [createSheetOpen, setCreateSheetOpen] = useState(false);
+    const [isSidebarResizing, setIsSidebarResizing] = useState(false);
     const pageContentRef = useRef(null);
+    const sidebarResizeFrameRef = useRef(0);
 
     // GSAP page enter animation on route change
     useEffect(() => {
@@ -164,9 +169,52 @@ export default function Layout({ children }) {
     // Show top bar when logged in and not on fullscreen pages
     const showTopBar = isLoggedIn && !isFullscreenPage && !isStudyOrTest;
 
-    // Sidebar width classes
-    const sidebarWidth = navCollapsed ? 'w-16' : 'w-[220px]';
-    const contentOffset = navCollapsed ? 'md:ml-16' : 'md:ml-[220px]';
+    const desktopSidebarWidth = navCollapsed ? COLLAPSED_NAV_WIDTH : navWidth;
+
+    const handleSidebarResize = useCallback((clientX) => {
+        if (typeof clientX !== 'number' || !setNavWidth) return;
+        const nextWidth = Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, clientX + 8));
+        setNavWidth(nextWidth);
+    }, [setNavWidth]);
+
+    const startSidebarResize = useCallback((event) => {
+        if (navCollapsed || !showDesktopSidebar || !setNavWidth) return;
+        event.preventDefault();
+        setIsSidebarResizing(true);
+    }, [navCollapsed, setNavWidth, showDesktopSidebar]);
+
+    useEffect(() => {
+        if (!isSidebarResizing) return undefined;
+
+        const handlePointerMove = (event) => {
+            const clientX = event.clientX;
+            cancelAnimationFrame(sidebarResizeFrameRef.current);
+            sidebarResizeFrameRef.current = window.requestAnimationFrame(() => {
+                handleSidebarResize(clientX);
+            });
+        };
+
+        const stopSidebarResize = () => {
+            cancelAnimationFrame(sidebarResizeFrameRef.current);
+            setIsSidebarResizing(false);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', stopSidebarResize);
+        window.addEventListener('pointercancel', stopSidebarResize);
+
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+
+        return () => {
+            cancelAnimationFrame(sidebarResizeFrameRef.current);
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', stopSidebarResize);
+            window.removeEventListener('pointercancel', stopSidebarResize);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        };
+    }, [handleSidebarResize, isSidebarResizing]);
 
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
@@ -191,8 +239,8 @@ export default function Layout({ children }) {
                             fixed inset-y-0 left-0 z-30
                             motion-safe:transition-[width] motion-safe:duration-[250ms] motion-safe:ease-out
                             overflow-hidden
-                            ${sidebarWidth}
                         `}
+                        style={{ width: `${desktopSidebarWidth}px` }}
                     >
                         <div className="desktop-sidebar-shell relative flex h-full flex-col overflow-hidden rounded-[2rem] mx-2 my-2">
                             <div className="relative flex h-full flex-col">
@@ -350,6 +398,18 @@ export default function Layout({ children }) {
                                 <div className="pb-safe" />
                             </div>
                         </div>
+
+                        {!navCollapsed && (
+                            <button
+                                type="button"
+                                aria-label="Resize sidebar"
+                                title="Drag to resize sidebar"
+                                onPointerDown={startSidebarResize}
+                                className={`absolute inset-y-6 right-0 hidden w-3 -translate-x-1/2 cursor-col-resize md:block ${isSidebarResizing ? 'opacity-100' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
+                            >
+                                <span className="mx-auto block h-full w-px rounded-full bg-claude-accent/45 shadow-[0_0_12px_rgba(222,185,106,0.22)]" />
+                            </button>
+                        )}
                     </aside>
                 )}
 
@@ -357,8 +417,9 @@ export default function Layout({ children }) {
                 <div
                     className={`
                         flex-1 min-h-dvh overflow-x-hidden
-                        ${showDesktopSidebar ? `${contentOffset} motion-safe:transition-[margin] motion-safe:duration-[250ms] motion-safe:ease-out` : ''}
+                        ${showDesktopSidebar ? 'motion-safe:transition-[margin] motion-safe:duration-[250ms] motion-safe:ease-out' : ''}
                     `}
+                    style={showDesktopSidebar ? { marginLeft: `${desktopSidebarWidth}px` } : undefined}
                 >
                     <AnimatePresence>
                         {isUpdateAvailable && (

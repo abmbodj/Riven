@@ -50,7 +50,9 @@ function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
           showBottomNav: vi.fn(),
           hideNav: vi.fn(),
           navCollapsed: false,
+          navWidth: 220,
           toggleNav: vi.fn(),
+          setNavWidth: vi.fn(),
           drawerOpen: false,
           toggleDrawer: vi.fn(),
           closeDrawer: vi.fn(),
@@ -152,6 +154,39 @@ describe('Layout primary navigation', () => {
 
     expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-5xl');
     expect(getMainContentWidthWrapper()).not.toHaveClass('lg:max-w-none');
+  });
+
+  it('applies the desktop sidebar width as the main content offset', () => {
+    render(
+      <MemoryRouter initialEntries={['/classes']}>
+        <AuthContext.Provider value={{ isLoggedIn: true }}>
+          <UIContext.Provider value={{
+            hideBottomNav: false,
+            showBottomNav: vi.fn(),
+            hideNav: vi.fn(),
+            navCollapsed: false,
+            navWidth: 280,
+            toggleNav: vi.fn(),
+            setNavWidth: vi.fn(),
+            drawerOpen: false,
+            toggleDrawer: vi.fn(),
+            closeDrawer: vi.fn(),
+            notifPanelOpen: false,
+            toggleNotifPanel: vi.fn(),
+            closeNotifPanel: vi.fn(),
+            studyMode: null,
+            setStudyMode: vi.fn(),
+            clearStudyMode: vi.fn(),
+          }}>
+            <Layout>
+              <div>Page Body</div>
+            </Layout>
+          </UIContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '280px' });
   });
 
   it('shows the floating recording widget away from the active note route', () => {

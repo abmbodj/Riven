@@ -1,11 +1,27 @@
 import { createContext, useState, useCallback, useMemo } from 'react';
 export const UIContext = createContext(null);
 
+const NAV_COLLAPSED_STORAGE_KEY = 'riven:nav-collapsed';
+const NAV_WIDTH_STORAGE_KEY = 'riven:nav-width';
+export const COLLAPSED_NAV_WIDTH = 64;
+export const DEFAULT_NAV_WIDTH = 220;
+export const MIN_NAV_WIDTH = 220;
+export const MAX_NAV_WIDTH = 340;
+
+function clampNavWidth(value) {
+    if (!Number.isFinite(value)) return DEFAULT_NAV_WIDTH;
+    return Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, value));
+}
+
 export function UIProvider({ children }) {
     const [hideBottomNav, setHideBottomNav] = useState(false);
     const [navCollapsed, setNavCollapsed] = useState(
-        () => localStorage.getItem('riven:nav-collapsed') === 'true'
+        () => localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === 'true'
     );
+    const [navWidth, setNavWidthState] = useState(() => {
+        const storedValue = Number(localStorage.getItem(NAV_WIDTH_STORAGE_KEY));
+        return clampNavWidth(storedValue);
+    });
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [notifPanelOpen, setNotifPanelOpen] = useState(false);
 
@@ -32,9 +48,15 @@ export function UIProvider({ children }) {
     const toggleNav = useCallback(() => {
         setNavCollapsed(prev => {
             const next = !prev;
-            localStorage.setItem('riven:nav-collapsed', String(next));
+            localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(next));
             return next;
         });
+    }, []);
+
+    const setNavWidth = useCallback((nextWidth) => {
+        const clampedWidth = clampNavWidth(nextWidth);
+        setNavWidthState(clampedWidth);
+        localStorage.setItem(NAV_WIDTH_STORAGE_KEY, String(clampedWidth));
     }, []);
 
     const toggleDrawer = useCallback(() => setDrawerOpen(p => !p), []);
@@ -51,6 +73,7 @@ export function UIProvider({ children }) {
     const value = useMemo(() => ({
         hideBottomNav, showBottomNav, hideNav,
         navCollapsed, toggleNav,
+        navWidth, setNavWidth,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
         studyMode, setStudyMode, clearStudyMode,
@@ -58,6 +81,7 @@ export function UIProvider({ children }) {
     }), [
         hideBottomNav, showBottomNav, hideNav,
         navCollapsed, toggleNav,
+        navWidth, setNavWidth,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
         studyMode, setStudyMode, clearStudyMode,
