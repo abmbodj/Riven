@@ -527,7 +527,18 @@ export function RecordingSessionProvider({ children }) {
 
         try {
             const status = await VoiceRecorder.getCurrentStatus();
-            const isStillRecording = status?.status === 'RECORDING' || status?.status === 'PAUSED';
+            let statusName = status?.status;
+
+            if (statusName === 'PAUSED') {
+                try {
+                    await VoiceRecorder.resumeRecording();
+                    statusName = 'RECORDING';
+                } catch {
+                    statusName = 'NONE';
+                }
+            }
+
+            const isStillRecording = statusName === 'RECORDING';
 
             if (!isStillRecording) {
                 // Attempt to recover partial audio before giving up — the native

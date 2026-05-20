@@ -26,6 +26,7 @@ const {
       hasAudioRecordingPermission: vi.fn(async () => ({ value: true })),
       requestAudioRecordingPermission: vi.fn(async () => ({ value: true })),
       startRecording: vi.fn(async () => ({ value: true })),
+      resumeRecording: vi.fn(async () => ({ value: true })),
       stopRecording: vi.fn(async () => ({ value: { recordDataBase64: 'dGVzdA==', mimeType: 'audio/aac' } })),
       getCurrentStatus: vi.fn(async () => ({ status: 'NONE' })),
     },
@@ -171,6 +172,7 @@ describe('RecordingSessionProvider', () => {
     voiceRecorderMock.hasAudioRecordingPermission.mockClear();
     voiceRecorderMock.requestAudioRecordingPermission.mockClear();
     voiceRecorderMock.startRecording.mockClear();
+    voiceRecorderMock.resumeRecording.mockClear();
     voiceRecorderMock.stopRecording.mockClear();
     voiceRecorderMock.getCurrentStatus.mockReset();
     voiceRecorderMock.getCurrentStatus.mockResolvedValue({ status: 'NONE' });
@@ -223,6 +225,43 @@ describe('RecordingSessionProvider', () => {
     });
   });
 
+  it('resumes a paused native recording session before restoring it as active', async () => {
+    capacitorState.native = true;
+    localStorage.setItem('riven-active-recording-session', JSON.stringify({
+      activeNoteId: 'note-42',
+      activeNoteTitle: 'Biology Lecture',
+      startedAt: Date.now() - 20_000,
+    }));
+    voiceRecorderMock.getCurrentStatus.mockResolvedValue({ status: 'PAUSED' });
+
+    renderHarness(['/classes']);
+
+    await waitFor(() => {
+      expect(voiceRecorderMock.resumeRecording).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByTestId('global-session')).toHaveTextContent('recording:note-42');
+  });
+
+  it('salvages partial audio when a paused native recording cannot resume', async () => {
+    capacitorState.native = true;
+    localStorage.setItem('riven-active-recording-session', JSON.stringify({
+      activeNoteId: 'note-42',
+      activeNoteTitle: 'Biology Lecture',
+      startedAt: Date.now() - 20_000,
+    }));
+    voiceRecorderMock.getCurrentStatus.mockResolvedValue({ status: 'PAUSED' });
+    voiceRecorderMock.resumeRecording.mockRejectedValueOnce(new Error('resume failed'));
+
+    renderHarness(['/classes']);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('global-session')).toHaveTextContent('stopped:note-42');
+    });
+
+    expect(voiceRecorderMock.stopRecording).toHaveBeenCalledTimes(1);
+  });
+
   it('clears stale persisted native session metadata when no recording is active', async () => {
     capacitorState.native = true;
     localStorage.setItem('riven-active-recording-session', JSON.stringify({
@@ -231,6 +270,7 @@ describe('RecordingSessionProvider', () => {
       startedAt: Date.now() - 20_000,
     }));
     voiceRecorderMock.getCurrentStatus.mockResolvedValue({ status: 'NONE' });
+    voiceRecorderMock.stopRecording.mockRejectedValueOnce(new Error('no active recording'));
 
     renderHarness(['/classes']);
 
