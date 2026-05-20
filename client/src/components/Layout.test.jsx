@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import Layout from './Layout.jsx';
+import Layout, { resolveSidebarDragState } from './Layout.jsx';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { UIContext } from '../context/UIContext.jsx';
+import { COLLAPSED_NAV_WIDTH, COMPACT_NAV_WIDTH } from '../context/UIContext.jsx';
 
 const { recordingSessionMock, mobileBudgetMock } = vi.hoisted(() => ({
   recordingSessionMock: {
@@ -52,6 +54,7 @@ function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
           navCollapsed: false,
           navWidth: 220,
           toggleNav: vi.fn(),
+          setNavCollapsed: vi.fn(),
           setNavWidth: vi.fn(),
           drawerOpen: false,
           toggleDrawer: vi.fn(),
@@ -74,6 +77,41 @@ function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
 
 function getMainContentWidthWrapper() {
   return screen.getByText('Page Body').parentElement?.parentElement;
+}
+
+function StatefulLayoutHarness({ initialCollapsed = false, initialWidth = 220, pathname = '/classes' }) {
+  const [navCollapsed, setNavCollapsed] = useState(initialCollapsed);
+  const [navWidth, setNavWidth] = useState(initialWidth);
+
+  return (
+    <MemoryRouter initialEntries={[pathname]}>
+      <AuthContext.Provider value={{ isLoggedIn: true }}>
+        <UIContext.Provider value={{
+          hideBottomNav: false,
+          showBottomNav: vi.fn(),
+          hideNav: vi.fn(),
+          navCollapsed,
+          navWidth,
+          toggleNav: () => setNavCollapsed((previous) => !previous),
+          setNavCollapsed,
+          setNavWidth,
+          drawerOpen: false,
+          toggleDrawer: vi.fn(),
+          closeDrawer: vi.fn(),
+          notifPanelOpen: false,
+          toggleNotifPanel: vi.fn(),
+          closeNotifPanel: vi.fn(),
+          studyMode: null,
+          setStudyMode: vi.fn(),
+          clearStudyMode: vi.fn(),
+        }}>
+          <Layout>
+            <div>Page Body</div>
+          </Layout>
+        </UIContext.Provider>
+      </AuthContext.Provider>
+    </MemoryRouter>
+  );
 }
 
 describe('Layout primary navigation', () => {
@@ -167,6 +205,7 @@ describe('Layout primary navigation', () => {
             navCollapsed: false,
             navWidth: 280,
             toggleNav: vi.fn(),
+            setNavCollapsed: vi.fn(),
             setNavWidth: vi.fn(),
             drawerOpen: false,
             toggleDrawer: vi.fn(),
@@ -187,6 +226,46 @@ describe('Layout primary navigation', () => {
     );
 
     expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '280px' });
+  });
+
+  it('uses the compact expanded width as the main content offset', () => {
+    render(
+      <StatefulLayoutHarness initialWidth={COMPACT_NAV_WIDTH} />
+    );
+
+    expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: `${COMPACT_NAV_WIDTH}px` });
+  });
+
+  it('uses the collapsed width as the main content offset', () => {
+    render(
+      <StatefulLayoutHarness initialCollapsed initialWidth={280} />
+    );
+
+    expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: `${COLLAPSED_NAV_WIDTH}px` });
+  });
+
+  it('restores the remembered expanded width when re-expanding with the button', () => {
+    render(
+      <StatefulLayoutHarness initialCollapsed initialWidth={286} />
+    );
+
+    fireEvent.click(screen.getByLabelText('Expand sidebar'));
+
+    expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '286px' });
+  });
+
+  it('resolves a drag below the collapse threshold to the collapsed state', () => {
+    expect(resolveSidebarDragState(120)).toEqual({
+      collapsed: true,
+      width: COMPACT_NAV_WIDTH,
+    });
+  });
+
+  it('resolves a drag outward from collapsed to the compact expanded width', () => {
+    expect(resolveSidebarDragState(140)).toEqual({
+      collapsed: false,
+      width: COMPACT_NAV_WIDTH,
+    });
   });
 
   it('shows the floating recording widget away from the active note route', () => {

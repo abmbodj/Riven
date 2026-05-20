@@ -5,7 +5,11 @@ const NAV_COLLAPSED_STORAGE_KEY = 'riven:nav-collapsed';
 const NAV_WIDTH_STORAGE_KEY = 'riven:nav-width';
 export const COLLAPSED_NAV_WIDTH = 64;
 export const DEFAULT_NAV_WIDTH = 220;
-export const MIN_NAV_WIDTH = 220;
+export const COMPACT_NAV_WIDTH = 168;
+export const COMPACT_VISUAL_THRESHOLD = 208;
+export const SIDEBAR_COLLAPSE_THRESHOLD = 144;
+export const SIDEBAR_EXPAND_THRESHOLD = 132;
+export const MIN_NAV_WIDTH = COMPACT_NAV_WIDTH;
 export const MAX_NAV_WIDTH = 340;
 
 function clampNavWidth(value) {
@@ -15,7 +19,7 @@ function clampNavWidth(value) {
 
 export function UIProvider({ children }) {
     const [hideBottomNav, setHideBottomNav] = useState(false);
-    const [navCollapsed, setNavCollapsed] = useState(
+    const [navCollapsed, setNavCollapsedState] = useState(
         () => localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === 'true'
     );
     const [navWidth, setNavWidthState] = useState(() => {
@@ -45,8 +49,13 @@ export function UIProvider({ children }) {
     const showBottomNav = useCallback(() => setHideBottomNav(false), []);
     const hideNav = useCallback(() => setHideBottomNav(true), []);
 
+    const setNavCollapsed = useCallback((nextValue) => {
+        setNavCollapsedState(Boolean(nextValue));
+        localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(Boolean(nextValue)));
+    }, []);
+
     const toggleNav = useCallback(() => {
-        setNavCollapsed(prev => {
+        setNavCollapsedState(prev => {
             const next = !prev;
             localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(next));
             return next;
@@ -72,7 +81,7 @@ export function UIProvider({ children }) {
 
     const value = useMemo(() => ({
         hideBottomNav, showBottomNav, hideNav,
-        navCollapsed, toggleNav,
+        navCollapsed, toggleNav, setNavCollapsed,
         navWidth, setNavWidth,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
@@ -80,7 +89,7 @@ export function UIProvider({ children }) {
         contextToolbar, setContextToolbar, clearContextToolbar,
     }), [
         hideBottomNav, showBottomNav, hideNav,
-        navCollapsed, toggleNav,
+        navCollapsed, toggleNav, setNavCollapsed,
         navWidth, setNavWidth,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,

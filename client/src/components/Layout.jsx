@@ -28,7 +28,16 @@ import TopBar from './TopBar.jsx';
 import CreateSheet from './CreateSheet.jsx';
 import { useNotificationSync } from '../hooks/useNotificationSync';
 import FloatingRecordingWidget from './audio/FloatingRecordingWidget.jsx';
-import { COLLAPSED_NAV_WIDTH, DEFAULT_NAV_WIDTH, MAX_NAV_WIDTH, MIN_NAV_WIDTH } from '../context/UIContext.jsx';
+import {
+    COLLAPSED_NAV_WIDTH,
+    COMPACT_NAV_WIDTH,
+    COMPACT_VISUAL_THRESHOLD,
+    DEFAULT_NAV_WIDTH,
+    MAX_NAV_WIDTH,
+    MIN_NAV_WIDTH,
+    SIDEBAR_COLLAPSE_THRESHOLD,
+    SIDEBAR_EXPAND_THRESHOLD,
+} from '../context/UIContext.jsx';
 
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
@@ -75,12 +84,28 @@ const getInitialOfflineState = () => {
     return navigator.onLine === false;
 };
 
+export function resolveSidebarDragState(clientX) {
+    const proposedWidth = clientX + 8;
+    if (proposedWidth <= SIDEBAR_COLLAPSE_THRESHOLD) {
+        return {
+            collapsed: true,
+            width: COMPACT_NAV_WIDTH,
+        };
+    }
+
+    return {
+        collapsed: false,
+        width: Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, proposedWidth)),
+    };
+}
+
 export default function Layout({ children }) {
     const location = useLocation();
     const {
         hideBottomNav: hideNavFromContext,
         navCollapsed,
         toggleNav,
+        setNavCollapsed,
         navWidth = DEFAULT_NAV_WIDTH,
         setNavWidth,
         studyMode,
@@ -170,18 +195,24 @@ export default function Layout({ children }) {
     const showTopBar = isLoggedIn && !isFullscreenPage && !isStudyOrTest;
 
     const desktopSidebarWidth = navCollapsed ? COLLAPSED_NAV_WIDTH : navWidth;
+    const isCompactSidebar = !navCollapsed && navWidth <= COMPACT_VISUAL_THRESHOLD;
 
     const handleSidebarResize = useCallback((clientX) => {
-        if (typeof clientX !== 'number' || !setNavWidth) return;
-        const nextWidth = Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, clientX + 8));
-        setNavWidth(nextWidth);
-    }, [setNavWidth]);
+        if (typeof clientX !== 'number' || !setNavWidth || !setNavCollapsed) return;
+        const nextState = resolveSidebarDragState(clientX);
+        setNavCollapsed(nextState.collapsed);
+        setNavWidth(nextState.width);
+    }, [setNavCollapsed, setNavWidth]);
 
     const startSidebarResize = useCallback((event) => {
-        if (navCollapsed || !showDesktopSidebar || !setNavWidth) return;
+        if (!showDesktopSidebar || !setNavWidth || !setNavCollapsed) return;
         event.preventDefault();
         setIsSidebarResizing(true);
-    }, [navCollapsed, setNavWidth, showDesktopSidebar]);
+        if (navCollapsed && event.clientX + 8 >= SIDEBAR_EXPAND_THRESHOLD) {
+            setNavCollapsed(false);
+            setNavWidth(COMPACT_NAV_WIDTH);
+        }
+    }, [navCollapsed, setNavCollapsed, setNavWidth, showDesktopSidebar]);
 
     useEffect(() => {
         if (!isSidebarResizing) return undefined;
@@ -247,14 +278,18 @@ export default function Layout({ children }) {
                                 {/* Logo — only visible when expanded */}
                                 <Link
                                     to="/"
-                                    className={`flex items-center gap-3 px-4 pt-6 pb-4 group transition-opacity duration-150 ${navCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                                    className={`flex items-center group transition-opacity duration-150 ${
+                                        isCompactSidebar ? 'gap-2 px-3 pt-5 pb-3' : 'gap-3 px-4 pt-6 pb-4'
+                                    } ${navCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                                     aria-hidden={navCollapsed}
                                     tabIndex={navCollapsed ? -1 : 0}
                                 >
                                     <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-white/[0.1] group-hover:border-claude-accent/20">
                                         <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
                                     </div>
-                                    <span className="font-display text-xl text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white whitespace-nowrap">Riven</span>
+                                    <span className={`font-display text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white whitespace-nowrap ${
+                                        isCompactSidebar ? 'text-lg' : 'text-xl'
+                                    }`}>Riven</span>
                                 </Link>
 
                                 {/* Collapsed logo icon */}
@@ -281,8 +316,8 @@ export default function Layout({ children }) {
                                                 to={item.to}
                                                 title={navCollapsed ? item.label : undefined}
                                                 onMouseEnter={() => prefetchRoute(item.to)}
-                                                className={`group relative overflow-hidden rounded-xl px-3 py-2.5 flex items-center gap-3.5 transition-all duration-300 cursor-pointer ${
-                                                    navCollapsed ? 'justify-center px-2' : ''
+                                                className={`group relative overflow-hidden rounded-xl flex items-center transition-all duration-300 cursor-pointer ${
+                                                    navCollapsed ? 'justify-center px-2 py-2.5 gap-3.5' : isCompactSidebar ? 'px-2.5 py-2.5 gap-2.5' : 'px-3 py-2.5 gap-3.5'
                                                 } ${isActive
                                                     ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                                                     : 'text-claude-secondary/70 hover:bg-white/[0.05] hover:text-white hover:translate-x-1'
@@ -299,7 +334,9 @@ export default function Layout({ children }) {
                                                 </div>
                                                 <span
                                                     aria-hidden={navCollapsed}
-                                                    className={`font-mono text-[11px] tracking-[0.1em] uppercase whitespace-nowrap overflow-hidden transition-[opacity,width] duration-150 ${
+                                                    className={`font-mono uppercase whitespace-nowrap overflow-hidden transition-[opacity,width] duration-150 ${
+                                                        isCompactSidebar ? 'text-[10px] tracking-[0.08em]' : 'text-[11px] tracking-[0.1em]'
+                                                    } ${
                                                         isActive ? 'font-semibold' : 'font-medium'
                                                     } ${navCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}
                                                 >
@@ -313,8 +350,10 @@ export default function Layout({ children }) {
                                 {/* Utility Links — hidden when collapsed */}
                                 {!navCollapsed && (
                                     <nav className="px-2 py-3 space-y-1">
-                                        <div className="mb-2 px-3">
-                                            <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.25em] text-claude-secondary/50 selection:bg-transparent">Utilities</h3>
+                                        <div className={`mb-2 ${isCompactSidebar ? 'px-2.5' : 'px-3'}`}>
+                                            <h3 className={`font-mono font-semibold uppercase text-claude-secondary/50 selection:bg-transparent ${
+                                                isCompactSidebar ? 'text-[9px] tracking-[0.18em]' : 'text-[10px] tracking-[0.25em]'
+                                            }`}>Utilities</h3>
                                         </div>
                                         {utilityLinks.map((item) => {
                                             const isActive = routeMatches(location.pathname, [item.to]);
@@ -323,7 +362,9 @@ export default function Layout({ children }) {
                                                     key={item.to}
                                                     to={item.to}
                                                     onMouseEnter={() => prefetchRoute(item.to)}
-                                                    className={`group flex items-center gap-3.5 px-3 py-2 rounded-xl transition-all duration-300 cursor-pointer ${
+                                                    className={`group flex items-center rounded-xl transition-all duration-300 cursor-pointer ${
+                                                        isCompactSidebar ? 'gap-2.5 px-2.5 py-2' : 'gap-3.5 px-3 py-2'
+                                                    } ${
                                                         isActive
                                                             ? `bg-white/[0.08] ${item.color}`
                                                             : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.05] hover:translate-x-1'
@@ -332,7 +373,9 @@ export default function Layout({ children }) {
                                                     <div className={`relative flex items-center justify-center w-6 h-6 shrink-0 transition-colors duration-300 ${isActive ? item.color : 'text-claude-secondary/40 group-hover:text-claude-secondary'}`}>
                                                         <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[16px] h-[16px]" />
                                                     </div>
-                                                    <span className={`font-mono text-[10px] tracking-[0.1em] uppercase whitespace-nowrap ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                                                    <span className={`font-mono uppercase whitespace-nowrap ${isActive ? 'font-semibold' : 'font-medium'} ${
+                                                        isCompactSidebar ? 'text-[9px] tracking-[0.08em]' : 'text-[10px] tracking-[0.1em]'
+                                                    }`}>{item.label}</span>
                                                 </Link>
                                             );
                                         })}
@@ -369,10 +412,12 @@ export default function Layout({ children }) {
 
                                 {/* Create Deck CTA — hidden when collapsed */}
                                 {!navCollapsed && (
-                                    <div className="mt-auto px-3 py-4">
+                                    <div className={`mt-auto ${isCompactSidebar ? 'px-2.5 py-3' : 'px-3 py-4'}`}>
                                         <Link
                                             to="/create"
-                                            className="group relative flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-claude-accent font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-500 hover:bg-claude-accent hover:border-claude-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 overflow-hidden cursor-pointer"
+                                            className={`group relative flex items-center justify-center w-full rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-claude-accent font-mono font-bold uppercase transition-all duration-500 hover:bg-claude-accent hover:border-claude-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 overflow-hidden cursor-pointer ${
+                                                isCompactSidebar ? 'gap-2 py-3 text-[10px] tracking-[0.1em]' : 'gap-2.5 py-3.5 text-[11px] tracking-[0.15em]'
+                                            }`}
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                                             <Plus className="w-[18px] h-[18px] transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
@@ -399,17 +444,15 @@ export default function Layout({ children }) {
                             </div>
                         </div>
 
-                        {!navCollapsed && (
-                            <button
-                                type="button"
-                                aria-label="Resize sidebar"
-                                title="Drag to resize sidebar"
-                                onPointerDown={startSidebarResize}
-                                className={`absolute inset-y-6 right-0 hidden w-3 -translate-x-1/2 cursor-col-resize md:block ${isSidebarResizing ? 'opacity-100' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
-                            >
-                                <span className="mx-auto block h-full w-px rounded-full bg-claude-accent/45 shadow-[0_0_12px_rgba(222,185,106,0.22)]" />
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            aria-label={navCollapsed ? 'Drag to expand sidebar' : 'Resize sidebar'}
+                            title={navCollapsed ? 'Drag to expand sidebar' : 'Drag to resize sidebar'}
+                            onPointerDown={startSidebarResize}
+                            className={`absolute inset-y-6 right-0 hidden w-4 -translate-x-1/2 cursor-col-resize md:block transition-opacity ${isSidebarResizing ? 'opacity-100' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
+                        >
+                            <span className="mx-auto block h-full w-px rounded-full bg-claude-accent/45 shadow-[0_0_12px_rgba(222,185,106,0.22)]" />
+                        </button>
                     </aside>
                 )}
 
