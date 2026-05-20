@@ -135,8 +135,7 @@ serve(async (request) => {
         .from('classes')
         .select('id, name, color, created_at, canvas_course_id, is_archived, archived_at, canvas_last_seen_at, canvas_last_assignment_due_at')
         .eq('user_id', authUser.id)
-        .eq('is_archived', false)
-        .not('canvas_course_id', 'is', null)
+        .or('is_archived.is.false,is_archived.is.null')
         .order('created_at', { ascending: false });
 
       if (classesError) throw classesError;
@@ -175,8 +174,7 @@ serve(async (request) => {
         .from('classes')
         .select('id')
         .eq('user_id', authUser.id)
-        .eq('is_archived', false)
-        .not('canvas_course_id', 'is', null)
+        .or('is_archived.is.false,is_archived.is.null')
         .in('id', parsed.data.classIds);
 
       if (classesError) throw classesError;

@@ -483,7 +483,6 @@ export const buildCanvasSemesterCleanupPreview = ({
 
   const cleanupClasses = (classes || [])
     .filter((klass) => !isArchivedClass(klass))
-    .filter((klass) => toComparableText(klass?.canvas_course_id))
     .map((klass) => {
       const stats = assignmentStatsByClassId.get(String(klass.id)) || {
         totalAssignmentCount: 0,

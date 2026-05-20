@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Classes from './Classes.jsx';
@@ -100,14 +100,7 @@ beforeEach(() => {
 });
 
 describe('Classes page actions', () => {
-  it('shows the End Semester action when Canvas is connected and opens cleanup preview', async () => {
-    api.getCanvasSettings.mockResolvedValue({
-      isConnected: true,
-      canvasUrl: 'Canvas Feed Active',
-      autoSyncEnabled: true,
-      lastSyncAt: null,
-      lastAutoSyncError: '',
-    });
+  it('shows the End Semester action when active classes exist and opens cleanup preview for manual classes', async () => {
     api.previewCanvasSemesterCleanup.mockResolvedValue({
       classes: [
         {
@@ -116,8 +109,14 @@ describe('Classes page actions', () => {
           activeAssignmentCount: 2,
           totalAssignmentCount: 3,
         },
+        {
+          id: 'class-2',
+          name: 'Literature',
+          activeAssignmentCount: 1,
+          totalAssignmentCount: 1,
+        },
       ],
-      suggestedClassIds: ['class-1'],
+      suggestedClassIds: ['class-1', 'class-2'],
     });
 
     renderClasses();
@@ -128,7 +127,26 @@ describe('Classes page actions', () => {
     await waitFor(() => {
       expect(api.previewCanvasSemesterCleanup).toHaveBeenCalled();
     });
-    expect(await screen.findByRole('dialog', { name: /end semester/i })).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /end semester/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('Literature')).toBeInTheDocument();
+  });
+
+  it('hides the End Semester action when there are no active classes', async () => {
+    api.getClasses.mockResolvedValue([
+      {
+        id: 'archived-class',
+        name: 'History',
+        color: '#7a9e72',
+        created_at: '2026-04-13T12:00:00.000Z',
+        is_archived: true,
+      },
+    ]);
+
+    renderClasses();
+
+    expect(await screen.findByText('History')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /end semester/i })).not.toBeInTheDocument();
   });
 
   it('bulk-selects classes and deletes the selected classes', async () => {

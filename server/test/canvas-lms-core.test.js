@@ -485,7 +485,7 @@ describe('canvasLmsCore', () => {
     });
   });
 
-  it('builds a semester cleanup preview for active Canvas classes only', () => {
+  it('builds a semester cleanup preview for all active classes', () => {
     const preview = buildCanvasSemesterCleanupPreview({
       classes: [
         {
@@ -506,8 +506,10 @@ describe('canvasLmsCore', () => {
         {
           id: 'class-manual',
           name: 'Study Hall',
+          color: '#8b5cf6',
           canvas_course_id: null,
           is_archived: false,
+          created_at: '2026-01-02T12:00:00.000Z',
         },
       ],
       assignments: [
@@ -515,10 +517,11 @@ describe('canvasLmsCore', () => {
         { id: 'a2', class_id: 'class-active', status: 'Doing', due_date: '2026-04-02T12:00:00.000Z' },
         { id: 'a3', class_id: 'class-active', status: 'Done', due_date: '2026-03-15T12:00:00.000Z' },
         { id: 'a4', class_id: 'class-active', status: 'Archived', due_date: '2026-03-01T12:00:00.000Z' },
+        { id: 'a5', class_id: 'class-manual', status: 'Todo', due_date: '2026-03-10T12:00:00.000Z' },
       ],
     });
 
-    expect(preview.suggestedClassIds).toEqual(['class-active']);
+    expect(preview.suggestedClassIds).toEqual(['class-active', 'class-manual']);
     expect(preview.classes).toEqual([
       expect.objectContaining({
         id: 'class-active',
@@ -527,6 +530,16 @@ describe('canvasLmsCore', () => {
         totalAssignmentCount: 4,
         selected: true,
         suggested: true,
+        canvasCourseId: 'Biology',
+      }),
+      expect.objectContaining({
+        id: 'class-manual',
+        name: 'Study Hall',
+        activeAssignmentCount: 1,
+        totalAssignmentCount: 1,
+        selected: true,
+        suggested: true,
+        canvasCourseId: null,
       }),
     ]);
   });

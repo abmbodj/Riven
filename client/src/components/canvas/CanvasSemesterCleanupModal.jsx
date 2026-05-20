@@ -109,9 +109,9 @@ export default function CanvasSemesterCleanupModal({ isOpen, onClose, onArchived
                     >
                         <div className="mb-5 flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">Canvas Cleanup</p>
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">Semester Cleanup</p>
                                 <h2 id="semester-cleanup-title" className="mt-2 font-serif text-2xl font-bold italic text-claude-text">End Semester</h2>
-                                <p className="mt-2 text-sm leading-6 text-claude-secondary">Archive past Canvas classes now. You can restore them from Past Courses later.</p>
+                                <p className="mt-2 text-sm leading-6 text-claude-secondary">Archive past classes now. You can restore them from Past Courses later.</p>
                             </div>
                             <button
                                 type="button"
@@ -126,13 +126,13 @@ export default function CanvasSemesterCleanupModal({ isOpen, onClose, onArchived
                         {loading ? (
                             <div className="flex items-center justify-center gap-3 rounded-2xl border border-claude-border bg-claude-surface/30 px-4 py-10 text-sm text-claude-secondary">
                                 <Loader2 className="h-5 w-5 animate-spin" />
-                                Loading Canvas classes
+                                Loading classes
                             </div>
                         ) : classes.length === 0 ? (
                             <div className="rounded-2xl border border-dashed border-claude-border px-4 py-10 text-center">
                                 <Archive className="mx-auto mb-3 h-8 w-8 text-claude-secondary/60" />
-                                <p className="font-serif text-lg font-bold italic text-claude-text">No active Canvas classes</p>
-                                <p className="mt-2 text-sm text-claude-secondary">There are no current Canvas-linked classes to archive.</p>
+                                <p className="font-serif text-lg font-bold italic text-claude-text">No active classes</p>
+                                <p className="mt-2 text-sm text-claude-secondary">There are no current classes to archive.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">

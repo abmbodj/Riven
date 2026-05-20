@@ -155,6 +155,7 @@ export default function Classes() {
     const [canvasFormUrl, setCanvasFormUrl] = useState('');
     const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
     const haptics = useHaptics();
+    const activeClasses = classes.filter(cls => !cls.is_archived);
     const selectableClasses = useMemo(() => classes, [classes]);
     const {
         isSelectMode,
@@ -474,10 +475,9 @@ export default function Classes() {
                     >
                         <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
-                    {canvasStatus.isConnected && (
+                    {activeClasses.length > 0 && (
                         <button
                             onClick={() => setSemesterCleanupOpen(true)}
-                            disabled={canvasStatus.loading}
                             aria-label="End semester"
                             title="End Semester"
                             className="h-[3.25rem] sm:h-[3.75rem] inline-flex items-center justify-center gap-2 px-3 sm:px-4 border border-claude-accent/30 bg-claude-accent/10 text-claude-accent rounded-xl sm:rounded-2xl hover:bg-claude-accent/20 hover:text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
@@ -540,7 +540,7 @@ export default function Classes() {
                 )}
 
                 {viewMode === 'Roster' && (() => {
-                    const currentClasses = classes.filter(c => !c.is_archived);
+                    const currentClasses = activeClasses;
                     const archivedClasses = classes.filter(c => c.is_archived);
 
                     return (
