@@ -434,18 +434,18 @@ export default function Layout({ children }) {
                                     </nav>
                                 )}
 
-                                {/* Create Deck CTA — hidden when collapsed */}
+                                {/* Create Note CTA — hidden when collapsed */}
                                 {!navCollapsed && (
                                     <div className={`mt-auto ${isCompactSidebar ? 'px-2.5 py-3' : 'px-3 py-4'}`}>
                                         <Link
-                                            to="/create"
+                                            to="/note/new"
                                             className={`group relative flex items-center justify-center w-full rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-claude-accent font-mono font-bold uppercase transition-all duration-500 hover:bg-claude-accent hover:border-claude-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 overflow-hidden cursor-pointer ${
                                                 isCompactSidebar ? 'gap-2 py-3 text-[10px] tracking-[0.1em]' : 'gap-2.5 py-3.5 text-[11px] tracking-[0.15em]'
                                             }`}
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                                             <Plus className="w-[18px] h-[18px] transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
-                                            <span>Create Deck</span>
+                                            <span>Create Note</span>
                                         </Link>
                                     </div>
                                 )}

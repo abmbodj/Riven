@@ -40,7 +40,7 @@ describe('GlobalCommandPalette', () => {
     });
 
     expect(screen.getByText('Today')).toBeInTheDocument();
-    expect(screen.getByText('Create Deck')).toBeInTheDocument();
+    expect(screen.getByText('Create Note')).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Search current Riven...'), {
       target: { value: 'bianca' },

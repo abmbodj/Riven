@@ -45,13 +45,13 @@ const getBaseActions = (isLoggedIn) => [
         keywords: 'decks flashcards review learn'
     },
     {
-        id: 'create-deck',
-        label: 'Create Deck',
-        description: 'Capture a new study set',
-        to: '/create',
+        id: 'create-note',
+        label: 'Create Note',
+        description: 'Start a new note',
+        to: '/note/new',
         icon: Plus,
         category: 'Action',
-        keywords: 'new deck create add'
+        keywords: 'new note create add writing'
     },
     {
         id: 'youtube-import',
@@ -406,7 +406,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
                                     </div>
                                     <p className="font-serif text-lg text-white">No matching results</p>
                                     <p className="mt-2 max-w-sm text-sm text-claude-secondary">
-                                        Try a deck title, class name, friend, or product action like &ldquo;Create Deck&rdquo;.
+                                        Try a deck title, class name, friend, or product action like &ldquo;Create Note&rdquo;.
                                     </p>
                                 </div>
                             )}

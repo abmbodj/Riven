@@ -134,6 +134,13 @@ describe('Layout primary navigation', () => {
     expect(screen.getAllByText('Groups').length).toBeGreaterThan(0);
   });
 
+  it('routes the desktop sidebar create note CTA to the note creation flow', () => {
+    renderLayout('/account');
+
+    const cta = screen.getByRole('link', { name: /create note/i });
+    expect(cta.getAttribute('href')).toBe('/note/new');
+  });
+
   it('hides the mobile bottom nav on the edit profile route', () => {
     renderLayout('/edit-profile');
 
