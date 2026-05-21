@@ -82,6 +82,10 @@ const getInitialOfflineState = () => {
     return navigator.onLine === false;
 };
 
+const COLLAPSED_SIDEBAR_ICON_FRAME_CLASS = 'mx-auto flex h-14 w-10 items-center justify-center rounded-xl';
+const COLLAPSED_SIDEBAR_ROW_CLASS = 'mx-auto flex h-14 w-full items-center justify-center';
+const COLLAPSED_SIDEBAR_ICON_SURFACE_CLASS = 'relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300';
+
 const SIDEBAR_COMMIT_COLLAPSE_THRESHOLD = Math.min(SIDEBAR_COLLAPSE_THRESHOLD, SIDEBAR_EXPAND_THRESHOLD);
 const SIDEBAR_COMMIT_EXPAND_THRESHOLD = Math.max(SIDEBAR_COLLAPSE_THRESHOLD, SIDEBAR_EXPAND_THRESHOLD);
 
@@ -417,7 +421,7 @@ export default function Layout({ children }) {
 
                                 {/* Collapsed logo icon */}
                                 {renderedNavCollapsed && (
-                                    <div className="flex items-center justify-center pt-6 pb-4">
+                                    <div className={`pt-6 pb-4 ${COLLAPSED_SIDEBAR_ICON_FRAME_CLASS}`}>
                                         <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 overflow-hidden">
                                             <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
                                         </div>
@@ -433,6 +437,39 @@ export default function Layout({ children }) {
                                     {primaryNavItems.filter(item => !item.isFab).map((item) => {
                                         const isActive = routeMatches(location.pathname, item.matchers);
 
+                                        if (renderedNavCollapsed) {
+                                            return (
+                                                <Link
+                                                    key={item.to}
+                                                    to={item.to}
+                                                    title={item.label}
+                                                    onMouseEnter={() => prefetchRoute(item.to)}
+                                                    className={`group ${COLLAPSED_SIDEBAR_ROW_CLASS} cursor-pointer`}
+                                                >
+                                                    <div
+                                                        className={`${COLLAPSED_SIDEBAR_ICON_SURFACE_CLASS} ${
+                                                            isActive
+                                                                ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                                                : 'text-claude-secondary/70 hover:bg-white/[0.05] hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {isActive && (
+                                                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-claude-accent" />
+                                                        )}
+                                                        <div className={`relative flex items-center justify-center w-6 h-6 shrink-0 transition-colors duration-300 ${isActive ? 'text-claude-accent' : 'text-claude-secondary/50 group-hover:text-claude-secondary'}`}>
+                                                            <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[18px] h-[18px]" />
+                                                        </div>
+                                                    </div>
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className="w-0 overflow-hidden opacity-0"
+                                                    >
+                                                        {item.label}
+                                                    </span>
+                                                </Link>
+                                            );
+                                        }
+
                                         return (
                                             <Link
                                                 key={item.to}
@@ -440,7 +477,7 @@ export default function Layout({ children }) {
                                                 title={renderedNavCollapsed ? item.label : undefined}
                                                 onMouseEnter={() => prefetchRoute(item.to)}
                                                 className={`group relative overflow-hidden rounded-xl flex items-center transition-all duration-300 cursor-pointer ${
-                                                    renderedNavCollapsed ? 'justify-center px-2 py-2.5 gap-3.5' : isCompactSidebar ? 'px-2.5 py-2.5 gap-2.5' : 'px-3 py-2.5 gap-3.5'
+                                                    isCompactSidebar ? 'px-2.5 py-2.5 gap-2.5' : 'px-3 py-2.5 gap-3.5'
                                                 } ${isActive
                                                     ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                                                     : 'text-claude-secondary/70 hover:bg-white/[0.05] hover:text-white hover:translate-x-1'
@@ -448,9 +485,6 @@ export default function Layout({ children }) {
                                             >
                                                 {isActive && !renderedNavCollapsed && (
                                                     <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-claude-accent shadow-[0_0_12px_rgba(var(--claude-accent-rgb),0.8)]" />
-                                                )}
-                                                {isActive && renderedNavCollapsed && (
-                                                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-claude-accent" />
                                                 )}
                                                 <div className={`relative flex items-center justify-center w-6 h-6 shrink-0 transition-colors duration-300 ${isActive ? 'text-claude-accent' : 'text-claude-secondary/50 group-hover:text-claude-secondary'}`}>
                                                     <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[18px] h-[18px]" />
@@ -520,13 +554,17 @@ export default function Layout({ children }) {
                                                     to={item.to}
                                                     title={item.label}
                                                     onMouseEnter={() => prefetchRoute(item.to)}
-                                                    className={`group flex items-center justify-center w-full py-2 rounded-xl transition-all duration-300 cursor-pointer ${
-                                                        isActive
-                                                            ? `bg-white/[0.08] ${item.color}`
-                                                            : 'text-claude-secondary/40 hover:text-claude-secondary hover:bg-white/[0.05]'
-                                                    }`}
+                                                    className={`group ${COLLAPSED_SIDEBAR_ROW_CLASS} cursor-pointer`}
                                                 >
-                                                    <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[16px] h-[16px]" />
+                                                    <div
+                                                        className={`${COLLAPSED_SIDEBAR_ICON_SURFACE_CLASS} ${
+                                                            isActive
+                                                                ? `bg-white/[0.08] ${item.color}`
+                                                                : 'text-claude-secondary/40 hover:bg-white/[0.05] hover:text-claude-secondary'
+                                                        }`}
+                                                    >
+                                                        <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[16px] h-[16px]" />
+                                                    </div>
                                                 </Link>
                                             );
                                         })}
@@ -556,7 +594,7 @@ export default function Layout({ children }) {
                                         onClick={toggleNav}
                                         title={renderedNavCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                                         aria-label={renderedNavCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                                        className="flex h-8 w-8 items-center justify-center rounded-xl text-claude-secondary/50 transition-colors hover:bg-white/[0.07] hover:text-claude-secondary cursor-pointer"
+                                        className={`${renderedNavCollapsed ? COLLAPSED_SIDEBAR_ICON_FRAME_CLASS : 'flex h-8 w-8 items-center justify-center'} rounded-xl text-claude-secondary/50 transition-colors hover:bg-white/[0.07] hover:text-claude-secondary cursor-pointer`}
                                     >
                                         <ChevronLeft className={`w-4 h-4 motion-safe:transition-transform motion-safe:duration-[250ms] ${renderedNavCollapsed ? 'rotate-180' : 'rotate-0'}`} />
                                     </button>

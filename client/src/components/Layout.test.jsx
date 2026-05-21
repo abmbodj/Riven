@@ -84,7 +84,10 @@ function getSidebarHandle(label = 'Resize sidebar') {
 }
 
 function getDesktopSidebar() {
-  return getSidebarHandle().closest('aside');
+  return (
+    screen.queryByLabelText('Resize sidebar')?.closest('aside')
+    || screen.queryByLabelText('Drag to expand sidebar')?.closest('aside')
+  );
 }
 
 function StatefulLayoutHarness({ initialCollapsed = false, initialWidth = 220, pathname = '/classes' }) {
@@ -281,6 +284,36 @@ describe('Layout primary navigation', () => {
     );
 
     expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: `${COLLAPSED_NAV_WIDTH}px` });
+  });
+
+  it('uses the shared collapsed frame classes for primary nav items', () => {
+    render(
+      <StatefulLayoutHarness initialCollapsed pathname="/classes" />
+    );
+
+    const classesLink = getDesktopSidebar()?.querySelector('a[href="/classes"][title="Classes"]');
+    expect(classesLink).toHaveClass('mx-auto', 'h-14', 'w-full', 'justify-center');
+    expect(classesLink).not.toHaveClass('hover:translate-x-1');
+    expect(classesLink?.querySelector('div')).toHaveClass('h-10', 'w-10', 'rounded-xl');
+  });
+
+  it('uses the shared collapsed frame classes for utility nav items', () => {
+    render(
+      <StatefulLayoutHarness initialCollapsed pathname="/classes" />
+    );
+
+    const gardenLink = screen.getByRole('link', { name: 'Garden' });
+    expect(gardenLink).toHaveClass('mx-auto', 'h-14', 'w-full', 'justify-center');
+    expect(gardenLink).not.toHaveClass('hover:translate-x-1');
+    expect(gardenLink.querySelector('div')).toHaveClass('h-10', 'w-10', 'rounded-xl');
+  });
+
+  it('keeps the collapsed expand button aligned on the shared frame', () => {
+    render(
+      <StatefulLayoutHarness initialCollapsed initialWidth={280} />
+    );
+
+    expect(screen.getByLabelText('Expand sidebar')).toHaveClass('mx-auto', 'h-14', 'w-10', 'justify-center');
   });
 
   it('restores the remembered expanded width when re-expanding with the button', () => {
