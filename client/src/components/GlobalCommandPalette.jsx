@@ -266,7 +266,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
     }, [isLoggedIn, resources]);
 
     const filteredResults = useMemo(() => {
-        const normalizedQuery = normalize(debouncedQuery);
+        const normalizedQuery = normalize(query);
         const matches = allResults.filter((item) => resultMatches(item, normalizedQuery));
 
         if (!normalizedQuery) {
@@ -274,7 +274,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
         }
 
         return matches.slice(0, 16);
-    }, [allResults, debouncedQuery]);
+    }, [allResults, query]);
 
     useEffect(() => {
         setSelectedIndex(0);
@@ -378,7 +378,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
                                             key={item.id}
                                             type="button"
                                             onClick={() => handleSelect(item)}
-                                            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] ${selectedIndex === index
+                                            className={`perf-card flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] ${selectedIndex === index
                                                 ? 'border-claude-accent/40 bg-claude-accent/10 text-white'
                                                 : 'border-white/8 bg-white/[0.02] text-claude-text hover:border-white/15 hover:bg-white/[0.04]'
                                                 }`}

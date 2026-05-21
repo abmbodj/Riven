@@ -1,12 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { AuthContext } from './AuthContext';
+import { createContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useAuthStatus } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
 export const GardenContext = createContext(null);
 
 
 
 export function GardenProvider({ children }) {
-    const { isLoggedIn } = useContext(AuthContext);
+    const { isLoggedIn } = useAuthStatus();
     const [customization, setCustomization] = useState({ stageOverride: null });
     const syncedRef = useRef(false);
     const prevLoggedInRef = useRef(isLoggedIn);

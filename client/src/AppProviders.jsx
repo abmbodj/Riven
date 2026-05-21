@@ -1,20 +1,16 @@
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './ThemeContext.jsx';
-import { StreakProvider } from './context/StreakContext.jsx';
-import { GardenProvider } from './context/GardenContext';
 import { UIProvider } from './context/UIContext';
+import { VisualBudgetRuntime } from './hooks/useVisualBudget';
 
 export function AppProviders({ children }) {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <StreakProvider>
-          <GardenProvider>
-            <UIProvider>
-              {children}
-            </UIProvider>
-          </GardenProvider>
-        </StreakProvider>
+        <VisualBudgetRuntime />
+        <UIProvider>
+          {children}
+        </UIProvider>
       </ThemeProvider>
     </AuthProvider>
   );

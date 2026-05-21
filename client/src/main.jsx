@@ -1,6 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { PostHogProvider } from '@posthog/react'
 import './index.css'
 import App from './App.jsx'
 import { initPosthog } from './analytics/posthogBootstrap.js'
@@ -11,10 +10,23 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { initDevFpsMeter } from './utils/devFpsMeter.js'
 import { loadAdsForWeb } from './utils/loadAdsForWeb.js'
 
-const posthogClient = initPosthog()
+function afterFirstPaint(callback) {
+  if (typeof window === 'undefined') {
+    callback()
+    return
+  }
 
-initClientSentry()
+  const scheduleIdle = window.requestIdleCallback || ((cb) => window.setTimeout(cb, 1))
+  window.requestAnimationFrame(() => {
+    scheduleIdle(callback, { timeout: 2000 })
+  })
+}
+
 loadAdsForWeb()
+afterFirstPaint(() => {
+  void initPosthog()
+  void initClientSentry()
+})
 
 const disposeFps = initDevFpsMeter()
 if (import.meta.hot) {
@@ -24,11 +36,9 @@ if (import.meta.hot) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <PostHogProvider client={posthogClient}>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </PostHogProvider>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

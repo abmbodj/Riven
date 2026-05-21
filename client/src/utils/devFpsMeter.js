@@ -56,6 +56,9 @@ export function initDevFpsMeter() {
         if (dt >= 500) {
             const fps = Math.round((frames * 1000) / dt);
             el.textContent = `${fps} fps`;
+            window.dispatchEvent(new CustomEvent('riven:fps-sample', {
+                detail: { fps, route: window.location.pathname },
+            }));
             frames = 0;
             last = now;
         }

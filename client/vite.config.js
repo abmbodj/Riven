@@ -8,6 +8,29 @@ const sentrySourceMapsEnabled = Boolean(
   process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
 )
 
+function manualChunks(id) {
+  if (!id.includes('/node_modules/')) return undefined
+
+  if (
+    id.includes('/node_modules/react/')
+    || id.includes('/node_modules/react-dom/')
+    || id.includes('/node_modules/react-router-dom/')
+    || id.includes('/node_modules/@remix-run/')
+    || id.includes('/node_modules/scheduler/')
+  ) {
+    return 'vendor-react'
+  }
+
+  if (id.includes('/node_modules/idb/')) return 'vendor-db'
+  if (id.includes('/node_modules/gsap/')) return 'vendor-gsap'
+  if (id.includes('/node_modules/motion/')) return 'vendor-motion'
+  if (id.includes('/node_modules/@tiptap/') || id.includes('/node_modules/prosemirror-')) return 'vendor-tiptap'
+  if (id.includes('/node_modules/react-pdf/') || id.includes('/node_modules/pdfjs-dist/')) return 'vendor-pdf'
+  if (id.includes('/node_modules/@sentry/')) return 'vendor-sentry'
+  if (id.includes('/node_modules/@supabase/')) return 'vendor-supabase'
+  return undefined
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -37,21 +60,7 @@ export default defineConfig({
     // esbuild minify (default, ~10x faster than terser)
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-db': ['idb'],
-          'vendor-gsap': ['gsap'],
-          'vendor-motion': ['motion'],
-          'vendor-tiptap': [
-            '@tiptap/react', '@tiptap/starter-kit',
-            '@tiptap/extension-horizontal-rule', '@tiptap/extension-placeholder',
-            '@tiptap/suggestion'
-          ],
-          'vendor-pdf': ['react-pdf'],
-          'vendor-sentry': ['@sentry/react'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-analytics': ['posthog-js'],
-        }
+        manualChunks
       }
     },
     // Increase chunk size warning limit since we're code splitting

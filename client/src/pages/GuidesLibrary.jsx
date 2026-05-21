@@ -11,6 +11,7 @@ import PricingModal from '../components/ui/PricingModal';
 import OnboardingArt from '../components/OnboardingArt.jsx';
 import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
+import { useIsVisualBudgetConstrained } from '../hooks/useVisualBudget';
 import {
     estimateSessionEffortMinutes,
     getGuideMasterySnapshot,
@@ -36,7 +37,7 @@ const getGuideDisplayLabel = (guide) => (
     isActiveRecallGuide(guide) ? 'tutor session' : 'unsupported guide'
 );
 
-const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelected = false, onToggle }) => {
+const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelected = false, onToggle, visualConstrained = false }) => {
     const navigate = useNavigate();
     const cls = guide.class_id ? classes.find(c => c.id === guide.class_id) : null;
     const activeRecall = isActiveRecallGuide(guide);
@@ -81,8 +82,8 @@ const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelecte
             whileInView={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -0.8 : 0.8 }}
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3, ease: [0.33, 1, 0.68, 0.9] } }}
-            transition={{ delay: (index % 10) * 0.05, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative tap-action"
+            transition={{ delay: visualConstrained ? 0 : (index % 10) * 0.05, duration: visualConstrained ? 0.28 : 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="perf-card relative tap-action"
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 pointer-events-none" />
 
@@ -232,6 +233,7 @@ const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelecte
 GuideCard.displayName = 'GuideCard';
 
 export default function GuidesLibrary() {
+    const visualConstrained = useIsVisualBudgetConstrained();
     const navigate = useNavigate();
     const toast = useToast();
     const [guides, setGuides] = useState([]);
@@ -729,6 +731,7 @@ export default function GuidesLibrary() {
                                 isSelectMode={isSelectMode}
                                 isSelected={selectedIds.has(guide.id)}
                                 onToggle={toggleSelect}
+                                visualConstrained={visualConstrained}
                             />
                         ))}
                     </div>

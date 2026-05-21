@@ -1187,7 +1187,7 @@ export default function Messages() {
                                     key={msg.id}
                                     ref={virtualRows.length > 0 ? virtualizer.measureElement : undefined}
                                     data-index={i}
-                                    className={`pb-4 ${isDeleting ? 'animate-msg-out' : isSentAnimating ? 'animate-msg-in-sent' : isNew ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
+                                    className={`message-row pb-4 ${isDeleting ? 'animate-msg-out' : isSentAnimating ? 'animate-msg-in-sent' : isNew ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
                                     style={{
                                         position: 'absolute',
                                         top: 0,

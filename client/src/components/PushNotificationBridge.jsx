@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { App } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthStatus } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
 import {
     extractPushRouteFromNotification,
@@ -16,7 +16,7 @@ import {
 
 export default function PushNotificationBridge() {
     const navigate = useNavigate();
-    const { isLoggedIn, loading } = useAuth();
+    const { isLoggedIn, loading } = useAuthStatus();
     const authStateRef = useRef({ isLoggedIn, loading });
     const latestTokenRef = useRef(null);
     const syncPromiseRef = useRef(null);

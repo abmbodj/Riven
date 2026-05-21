@@ -1491,7 +1491,7 @@ export default function GuideView() {
                 {sessionStage === 'intro' ? (
                     <motion.section
                         data-testid="river-session-intro"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.42, ease: PANEL_EASE }}
@@ -1671,7 +1671,7 @@ export default function GuideView() {
                     isMobileSession ? (
                     <motion.section
                         data-testid="river-session-teach"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, ease: PANEL_EASE }}
@@ -1914,7 +1914,7 @@ export default function GuideView() {
                     /* ── Blackboard Lecture (TOCT-style cards) ── */
                     <motion.section
                         data-testid="river-session-teach"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, ease: PANEL_EASE }}
@@ -2341,7 +2341,7 @@ export default function GuideView() {
                     /* ── Legacy teach layout (old v4 cards without TOCT fields) ── */
                     <motion.section
                         data-testid="river-session-teach"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.32, ease: PANEL_EASE }}
@@ -2486,7 +2486,7 @@ export default function GuideView() {
                 {sessionStage === 'check' && currentCard ? (
                     <motion.section
                         data-testid="river-session-check"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.28, ease: PANEL_EASE }}
@@ -2711,7 +2711,7 @@ export default function GuideView() {
                 {sessionStage === 'feedback' && currentCard && result ? (
                     <motion.section
                         data-testid="river-session-feedback"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.28, ease: PANEL_EASE }}
@@ -3052,7 +3052,7 @@ export default function GuideView() {
                 {sessionStage === 'complete' ? (
                     <motion.section
                         data-testid="river-session-complete"
-                        className="mt-8"
+                        className="guide-perf-section mt-8"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.34, ease: PANEL_EASE }}

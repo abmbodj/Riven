@@ -40,6 +40,20 @@ const ExamView = lazy(() => import('../pages/ExamView.jsx'));
 const YouTubeImport = lazy(() => import('../pages/YouTubeImport.jsx'));
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'));
 const Calendar = lazy(() => import('../pages/Calendar.jsx'));
+const GardenRouteProvider = lazy(() => import('../context/GardenRouteProvider.jsx'));
+const StreakRouteProvider = lazy(() => import('../context/StreakRouteProvider.jsx'));
+
+const withGardenProvider = (element) => (
+  <GardenRouteProvider>
+    {element}
+  </GardenRouteProvider>
+);
+
+const withStreakProvider = (element) => (
+  <StreakRouteProvider>
+    {element}
+  </StreakRouteProvider>
+);
 
 // Route prefetch map — call prefetchRoute(path) on hover/touchstart for instant navigation
 const routeImportMap = {
@@ -96,10 +110,10 @@ export const routesConfig = [
       { path: '/class/:id', element: <ClassView /> },
       { path: '/create', element: <CreateDeck /> },
       { path: '/deck/:id', element: <DeckView /> },
-      { path: '/deck/:id/study', element: <StudyMode /> },
-      { path: '/deck/:id/test', element: <TestMode /> },
+      { path: '/deck/:id/study', element: withStreakProvider(<StudyMode />) },
+      { path: '/deck/:id/test', element: withStreakProvider(<TestMode />) },
       { path: '/themes', element: <ThemeSettings /> },
-      { path: '/garden', element: <GardenSettings /> },
+      { path: '/garden', element: withGardenProvider(<GardenSettings />) },
       { path: '/edit-profile', element: <EditProfile /> },
       { path: '/settings', element: <Settings /> },
       { path: '/admin', element: <AdminPanel /> },

@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import gsap from 'gsap';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 
 const FLOATING_MOTES = Array.from({ length: 7 }, (_, index) => {
@@ -31,33 +30,43 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         if (motionQuery.matches || lightBudget) return;
 
-        const ctx = gsap.context(() => {
+        let ctx;
+        let cancelled = false;
+
+        import('gsap').then(({ default: gsap }) => {
+            if (cancelled) return;
+
+            ctx = gsap.context(() => {
             // Inner glow breathing
-            if (glowRef.current) {
-                gsap.to(glowRef.current, {
-                    scale: 1.15,
-                    opacity: 0.4,
-                    duration: 4,
-                    ease: 'power1.inOut',
-                    yoyo: true,
-                    repeat: -1,
-                });
-            }
+                if (glowRef.current) {
+                    gsap.to(glowRef.current, {
+                        scale: 1.15,
+                        opacity: 0.4,
+                        duration: 4,
+                        ease: 'power1.inOut',
+                        yoyo: true,
+                        repeat: -1,
+                    });
+                }
 
             // Central bloom breathing
-            if (bloomRef.current) {
-                gsap.to(bloomRef.current, {
-                    scale: 1.02,
-                    duration: 4,
-                    ease: 'power1.inOut',
-                    yoyo: true,
-                    repeat: -1,
-                });
-            }
+                if (bloomRef.current) {
+                    gsap.to(bloomRef.current, {
+                        scale: 1.02,
+                        duration: 4,
+                        ease: 'power1.inOut',
+                        yoyo: true,
+                        repeat: -1,
+                    });
+                }
+            });
         });
 
-        return () => ctx.revert();
-    }, []);
+        return () => {
+            cancelled = true;
+            ctx?.revert();
+        };
+    }, [lightBudget]);
 
     return (
         <div className={`relative aspect-square mx-auto flex items-center justify-center ${className}`}>

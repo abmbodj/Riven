@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import Layers from 'lucide-react/dist/esm/icons/layers';
@@ -16,18 +16,10 @@ import OnboardingArt from './OnboardingArt';
 import { motion, AnimatePresence } from 'motion/react';
 import { prefetchRoute } from '../routes/config.jsx';
 import { UIContext } from '../context/UIContext';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext, AuthStatusContext } from '../context/AuthContext';
 import { useAppUpdate } from '../context/AppUpdateContext.jsx';
-import gsap from 'gsap';
-import { EASE, DURATION } from '../utils/animations';
-import GlobalCommandPalette from './GlobalCommandPalette.jsx';
-import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
-import MobileBottomNav from './MobileBottomNav.jsx';
-import MobileDrawer from './MobileDrawer.jsx';
 import TopBar from './TopBar.jsx';
-import CreateSheet from './CreateSheet.jsx';
 import { useNotificationSync } from '../hooks/useNotificationSync';
-import FloatingRecordingWidget from './audio/FloatingRecordingWidget.jsx';
 import {
     COLLAPSED_NAV_WIDTH,
     COMPACT_NAV_WIDTH,
@@ -39,6 +31,12 @@ import {
     SIDEBAR_EXPAND_THRESHOLD,
 } from '../context/UIContext.jsx';
 
+const GlobalCommandPalette = lazy(() => import('./GlobalCommandPalette.jsx'));
+const GlobalThemeOverlay = lazy(() => import('./GlobalThemeOverlay.jsx'));
+const MobileBottomNav = lazy(() => import('./MobileBottomNav.jsx'));
+const MobileDrawer = lazy(() => import('./MobileDrawer.jsx'));
+const CreateSheet = lazy(() => import('./CreateSheet.jsx'));
+const FloatingRecordingWidget = lazy(() => import('./audio/FloatingRecordingWidget.jsx'));
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
     pathname === matcher || pathname.startsWith(`${matcher}/`)
@@ -110,8 +108,11 @@ export default function Layout({ children }) {
         setNavWidth,
         studyMode,
         contextToolbar,
+        drawerOpen,
     } = useContext(UIContext) || {};
-    const { isLoggedIn } = useContext(AuthContext) || {};
+    const authStatus = useContext(AuthStatusContext);
+    const legacyAuthState = useContext(AuthContext);
+    const { isLoggedIn } = authStatus || legacyAuthState || {};
     const {
         isUpdateAvailable,
         isRefreshingUpdate,
@@ -128,20 +129,41 @@ export default function Layout({ children }) {
     const [isOffline, setIsOffline] = useState(getInitialOfflineState);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [createSheetOpen, setCreateSheetOpen] = useState(false);
+    const [hasOpenedCommandPalette, setHasOpenedCommandPalette] = useState(false);
+    const [hasOpenedCreateSheet, setHasOpenedCreateSheet] = useState(false);
+    const [hasOpenedDrawer, setHasOpenedDrawer] = useState(false);
     const [isSidebarResizing, setIsSidebarResizing] = useState(false);
     const pageContentRef = useRef(null);
     const sidebarResizeFrameRef = useRef(0);
 
-    // GSAP page enter animation on route change
+    // Lightweight page enter animation on route change.
     useEffect(() => {
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         if (motionQuery.matches || !pageContentRef.current) return;
+        if (typeof pageContentRef.current.animate !== 'function') return;
 
-        gsap.fromTo(pageContentRef.current,
-            { opacity: 0, y: 10 },
-            { opacity: 1, y: 0, duration: DURATION.normal, ease: EASE.organic, clearProps: 'all' }
+        const animation = pageContentRef.current.animate(
+            [
+                { opacity: 0, transform: 'translate3d(0, 10px, 0)' },
+                { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+            ],
+            { duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
         );
+
+        return () => animation.cancel();
     }, [location.pathname]);
+
+    useEffect(() => {
+        if (isCommandPaletteOpen) setHasOpenedCommandPalette(true);
+    }, [isCommandPaletteOpen]);
+
+    useEffect(() => {
+        if (createSheetOpen) setHasOpenedCreateSheet(true);
+    }, [createSheetOpen]);
+
+    useEffect(() => {
+        if (drawerOpen) setHasOpenedDrawer(true);
+    }, [drawerOpen]);
 
     useEffect(() => {
         const handleOnline = () => setIsOffline(false);
@@ -249,7 +271,9 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
-            <GlobalThemeOverlay />
+            <Suspense fallback={null}>
+                <GlobalThemeOverlay />
+            </Suspense>
 
             {/* Skip to main content (accessibility) */}
             <a
@@ -558,32 +582,48 @@ export default function Layout({ children }) {
 
                     {/* Mobile bottom navigation */}
                     {!hideBottomNav && (
-                        <MobileBottomNav
-                            primaryNavItems={primaryNavItems}
-                            onFabPress={() => setCreateSheetOpen(true)}
-                            studyMode={studyMode}
-                            contextToolbar={contextToolbar}
-                        />
+                        <Suspense fallback={null}>
+                            <MobileBottomNav
+                                primaryNavItems={primaryNavItems}
+                                onFabPress={() => setCreateSheetOpen(true)}
+                                studyMode={studyMode}
+                                contextToolbar={contextToolbar}
+                            />
+                        </Suspense>
                     )}
 
-                    <FloatingRecordingWidget hideBottomNav={hideBottomNav} />
+                    <Suspense fallback={null}>
+                        <FloatingRecordingWidget hideBottomNav={hideBottomNav} />
+                    </Suspense>
                 </div>
             </div>
 
             {/* Mobile drawer (slides from left, mobile-only) */}
-            <MobileDrawer />
+            {hasOpenedDrawer && (
+                <Suspense fallback={null}>
+                    <MobileDrawer />
+                </Suspense>
+            )}
 
             {/* Create sheet (FAB bottom sheet) */}
-            <CreateSheet
-                open={createSheetOpen}
-                onClose={() => setCreateSheetOpen(false)}
-            />
+            {hasOpenedCreateSheet && (
+                <Suspense fallback={null}>
+                    <CreateSheet
+                        open={createSheetOpen}
+                        onClose={() => setCreateSheetOpen(false)}
+                    />
+                </Suspense>
+            )}
 
-            <GlobalCommandPalette
-                isOpen={isCommandPaletteOpen}
-                isLoggedIn={isLoggedIn}
-                onClose={() => setIsCommandPaletteOpen(false)}
-            />
+            {hasOpenedCommandPalette && (
+                <Suspense fallback={null}>
+                    <GlobalCommandPalette
+                        isOpen={isCommandPaletteOpen}
+                        isLoggedIn={isLoggedIn}
+                        onClose={() => setIsCommandPaletteOpen(false)}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 }

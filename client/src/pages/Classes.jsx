@@ -20,6 +20,7 @@ import { inferSubject, SUBJECT_VALUES } from '../utils/subjectInference';
 import CanvasSemesterCleanupModal from '../components/canvas/CanvasSemesterCleanupModal';
 import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
+import { useIsVisualBudgetConstrained } from '../hooks/useVisualBudget';
 
 
 const CLASS_COLORS = [
@@ -28,7 +29,7 @@ const CLASS_COLORS = [
     '#7a9e72', '#b8a379', '#c47c7c', '#5e7b8f'
 ];
 
-const ClassCard = memo(({ cls, index, onClick, isSelectMode = false, isSelected = false, onToggle }) => {
+const ClassCard = memo(({ cls, index, onClick, isSelectMode = false, isSelected = false, onToggle, visualConstrained = false }) => {
     const handleActivate = () => {
         if (isSelectMode) {
             onToggle?.(cls.id);
@@ -51,12 +52,13 @@ const ClassCard = memo(({ cls, index, onClick, isSelectMode = false, isSelected 
             whileInView={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -0.8 : 0.8 }}
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3 } }}
+            transition={{ delay: visualConstrained ? 0 : (index % 10) * 0.05, duration: visualConstrained ? 0.28 : 0.55, ease: [0.22, 1, 0.36, 1] }}
             onClick={handleActivate}
             onKeyDown={handleKeyDown}
             role={isSelectMode ? 'button' : undefined}
             aria-pressed={isSelectMode ? isSelected : undefined}
             tabIndex={isSelectMode ? 0 : undefined}
-            className="relative tap-action group cursor-pointer"
+            className="perf-card relative tap-action group cursor-pointer"
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
 
@@ -122,6 +124,7 @@ const ClassCard = memo(({ cls, index, onClick, isSelectMode = false, isSelected 
 ClassCard.displayName = 'ClassCard';
 
 export default function Classes() {
+    const visualConstrained = useIsVisualBudgetConstrained();
     const navigate = useNavigate();
     const toast = useToast();
     const { user } = useAuth();
@@ -567,6 +570,7 @@ export default function Classes() {
                                                 isSelectMode={isSelectMode}
                                                 isSelected={selectedIds.has(cls.id)}
                                                 onToggle={toggleSelect}
+                                                visualConstrained={visualConstrained}
                                             />
                                         ))}
                                     </div>
@@ -586,10 +590,11 @@ export default function Classes() {
                                                         cls={cls}
                                                         index={i}
                                                         onClick={() => navigate(`/class/${cls.id}`)}
-                                                        isSelectMode={isSelectMode}
-                                                        isSelected={selectedIds.has(cls.id)}
-                                                        onToggle={toggleSelect}
-                                                    />
+                                                    isSelectMode={isSelectMode}
+                                                    isSelected={selectedIds.has(cls.id)}
+                                                    onToggle={toggleSelect}
+                                                    visualConstrained={visualConstrained}
+                                                />
                                                 ))}
                                             </div>
                                         </div>

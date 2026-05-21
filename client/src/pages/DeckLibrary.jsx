@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, memo, useRef } from 'react';
+import React, { useDeferredValue, useEffect, useState, useCallback, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -14,6 +14,7 @@ import GlobalMessages from '../components/GlobalMessages';
 import { folderNameSchema, tagNameSchema } from '../schemas/forms';
 import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
+import { useIsVisualBudgetConstrained } from '../hooks/useVisualBudget';
 
 
 
@@ -31,7 +32,7 @@ const SORT_OPTIONS = [
 
 // Memoized deck card with botanical styling
 // Memoized deck card with Herbarium Specimen styling
-const DeckCard = memo(({ deck, folders, classes, index, isSelectMode = false, isSelected = false, onToggle }) => {
+const DeckCard = memo(({ deck, folders, classes, index, isSelectMode = false, isSelected = false, onToggle, visualConstrained = false }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
     const folderColor = folder?.color || 'var(--accent-color)';
 
@@ -52,8 +53,8 @@ const DeckCard = memo(({ deck, folders, classes, index, isSelectMode = false, is
             whileInView={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -0.8 : 0.8 }}
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3, ease: [0.33, 1, 0.68, 0.9] } }}
-            transition={{ delay: (index % 10) * 0.05, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative tap-action"
+            transition={{ delay: visualConstrained ? 0 : (index % 10) * 0.05, duration: visualConstrained ? 0.28 : 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="perf-card relative tap-action"
         >
             {/* Specimen Tape/Pin Accent */}
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
@@ -195,6 +196,7 @@ function DeckSearchVirtualList({ decks, scrollParentRef, onPick }) {
 const DECK_SEARCH_VIRTUAL_THRESHOLD = 14;
 
 export default function DeckLibrary() {
+    const visualConstrained = useIsVisualBudgetConstrained();
     const toast = useToast();
     const [decks, setDecks] = useState([]);
     const [folders, setFolders] = useState([]);
@@ -267,6 +269,8 @@ export default function DeckLibrary() {
     }, [isSearchOpen]);
 
     // Filter and sort decks
+    const deferredSearchQuery = useDeferredValue(searchQuery);
+
     const filteredDecks = useMemo(() => decks
         .filter(deck => {
             if (activeFolder !== null) {
@@ -276,8 +280,8 @@ export default function DeckLibrary() {
             if (activeTag !== null) {
                 if (!deck.tags?.some(t => t.id === activeTag)) return false;
             }
-            if (searchQuery) {
-                const q = searchQuery.toLowerCase();
+            if (deferredSearchQuery) {
+                const q = deferredSearchQuery.toLowerCase();
                 return deck.title.toLowerCase().includes(q) || deck.description?.toLowerCase().includes(q);
             }
             return true;
@@ -294,7 +298,7 @@ export default function DeckLibrary() {
                 default:
                     return new Date(b.created_at) - new Date(a.created_at);
             }
-        }), [decks, activeFolder, activeTag, searchQuery, sortBy]);
+        }), [decks, activeFolder, activeTag, deferredSearchQuery, sortBy]);
 
     const {
         isSelectMode, selectedIds, selectedCount, isAllSelected,
@@ -751,6 +755,7 @@ export default function DeckLibrary() {
                                 isSelectMode={isSelectMode}
                                 isSelected={selectedIds.has(deck.id)}
                                 onToggle={toggleSelect}
+                                visualConstrained={visualConstrained}
                             />
                         ))}
                     </div>

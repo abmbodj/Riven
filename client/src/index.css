@@ -1943,6 +1943,73 @@ body.rc-billing-active .fixed.inset-0.z-\[999\] {
   will-change: transform, opacity;
 }
 
+.perf-card,
+.perf-section,
+.gsap-section,
+.gsap-deck-card,
+.message-row,
+.guide-perf-section {
+  content-visibility: auto;
+  contain: layout style paint;
+  contain-intrinsic-size: auto 360px;
+}
+
+.perf-card {
+  contain-intrinsic-size: auto 220px;
+}
+
+.message-row {
+  contain-intrinsic-size: auto 104px;
+}
+
+html[data-visual-budget="constrained"] body::before {
+  mix-blend-mode: normal;
+  opacity: 0.02;
+}
+
+html[data-visual-budget="constrained"] body::after {
+  opacity: 0.72;
+}
+
+html[data-visual-budget="constrained"] .glass-panel,
+html[data-visual-budget="constrained"] .glass-panel-premium,
+html[data-visual-budget="constrained"] .botanical-card,
+html[data-visual-budget="constrained"] .guide-stage,
+html[data-visual-budget="constrained"] .guide-rail,
+html[data-visual-budget="constrained"] .guide-sheet,
+html[data-visual-budget="constrained"] .desktop-sidebar-shell,
+html[data-visual-budget="constrained"] .mobile-bottom-nav-shell {
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    0 10px 32px -22px rgba(0, 0, 0, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+}
+
+html[data-visual-budget="constrained"] .p-mote,
+html[data-visual-budget="constrained"] .p-ember,
+html[data-visual-budget="constrained"] .p-mist,
+html[data-visual-budget="constrained"] .p-firefly,
+html[data-visual-budget="constrained"] .p-star,
+html[data-visual-budget="constrained"] .p-rain,
+html[data-visual-budget="constrained"] .p-petal,
+html[data-visual-budget="constrained"] .p-pollen,
+html[data-visual-budget="constrained"] .mobile-particle {
+  animation-duration: 12s !important;
+  filter: none !important;
+}
+
+html[data-visual-budget="constrained"] .p-mote:nth-of-type(n + 14),
+html[data-visual-budget="constrained"] .p-ember:nth-of-type(n + 12),
+html[data-visual-budget="constrained"] .p-mist:nth-of-type(n + 10),
+html[data-visual-budget="constrained"] .p-firefly:nth-of-type(n + 10),
+html[data-visual-budget="constrained"] .p-star:nth-of-type(n + 12),
+html[data-visual-budget="constrained"] .p-rain:nth-of-type(n + 10),
+html[data-visual-budget="constrained"] .p-petal:nth-of-type(n + 10),
+html[data-visual-budget="constrained"] .p-pollen:nth-of-type(n + 10) {
+  display: none;
+}
+
 /* GPU-composited animation layers for garden / SVG scenes */
 .garden-sway,
 .garden-drift,
