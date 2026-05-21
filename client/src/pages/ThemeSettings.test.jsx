@@ -264,6 +264,8 @@ describe('ThemeSettings theme studio', () => {
     expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /core/i })).toBeInTheDocument();
     expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /advanced/i })).toBeInTheDocument();
     expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /review/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole('group', { name: /core control sections/i })).toBeInTheDocument();
+    expect(dialog.querySelectorAll('[aria-expanded="true"]')).toHaveLength(1);
     expect(within(dialog).queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
     expect(within(dialog).getByText(/live preview/i)).toBeInTheDocument();
     expect(dialog.querySelector('.modal-scroll-content')).not.toBeNull();
@@ -272,6 +274,8 @@ describe('ThemeSettings theme studio', () => {
     applyDraftThemeMock.mockClear();
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dark focus/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /atmosphere effects/i }));
+    expect(getDialog().querySelectorAll('[aria-expanded="true"]')).toHaveLength(1);
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
     await waitFor(() => {
@@ -295,7 +299,7 @@ describe('ThemeSettings theme studio', () => {
     expect(screen.queryByText('Pricing modal open')).not.toBeInTheDocument();
   });
 
-  it('keeps the desktop compact studio with persistent preview and top-level tabs', () => {
+  it('keeps the desktop compact studio with persistent preview and top-level tabs', async () => {
     mockUser.subscription_tier = 'supporter';
     setViewport(1280);
 
@@ -310,12 +314,18 @@ describe('ThemeSettings theme studio', () => {
     expect(screen.getByText(/compact controls stay on one side/i)).toBeInTheDocument();
     expect(screen.getAllByText(/choose the atmosphere/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/live preview/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/night lectures/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('group', { name: /core control sections/i })).toBeInTheDocument();
+    expect(dialog.querySelectorAll('[aria-expanded="true"]')).toHaveLength(1);
     expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /core/i })).toBeInTheDocument();
     expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /advanced/i })).toBeInTheDocument();
     expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /review/i })).toBeInTheDocument();
 
+    fireEvent.click(within(dialog).getByRole('button', { name: /typography type/i }));
+    expect(dialog.querySelectorAll('[aria-expanded="true"]')).toHaveLength(1);
+    expect(screen.getAllByText(/the semester is under control/i).length).toBeGreaterThan(0);
+
     fireEvent.click(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /^advanced$/i }));
-    expect(screen.getByText(/precise token overrides/i)).toBeInTheDocument();
   });
 
   it('creates a new mobile theme with saved effect fields', async () => {
@@ -330,8 +340,11 @@ describe('ThemeSettings theme studio', () => {
     const dialog = getDialog();
     fireEvent.click(within(dialog).getByRole('button', { name: /^light$/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /light warm/i }));
-    fireEvent.click(within(getDialog()).getByRole('button', { name: 'Rose' }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /signal accent/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /rose/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /typography type/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /studio sans/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /atmosphere effects/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
     await waitFor(() => {
       expect(within(getDialog()).getByRole('button', { name: /^rich$/i })).toBeInTheDocument();
@@ -391,6 +404,7 @@ describe('ThemeSettings theme studio', () => {
     expect(screen.getByRole('dialog', { name: /refine theme/i })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Custom Drift')).toBeInTheDocument();
     fireEvent.click(within(getThemeEditorTabs(screen.getByRole('dialog', { name: /refine theme/i }))).getByRole('button', { name: /^core$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /atmosphere effects/i }));
     fireEvent.click(screen.getByRole('button', { name: /grid/i }));
     fireEvent.click(screen.getByRole('button', { name: /^rich$/i }));
     fireEvent.click(within(getThemeEditorTabs(screen.getByRole('dialog', { name: /refine theme/i }))).getByRole('button', { name: /^advanced$/i }));
