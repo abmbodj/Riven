@@ -202,7 +202,7 @@ serve(async (request) => {
 
       const { data: assignments, error: assignmentsError } = await admin
         .from('assignments')
-        .select('id, status')
+        .select('id, status, canvas_assignment_id')
         .eq('user_id', authUser.id)
         .in('class_id', classIds);
 
@@ -213,11 +213,21 @@ serve(async (request) => {
         now: new Date(archivedAt),
       });
 
+      const { error: clearCanvasAssignmentIdsError } = await admin
+        .from('assignments')
+        .update({ canvas_assignment_id: null })
+        .eq('user_id', authUser.id)
+        .in('class_id', classIds)
+        .not('canvas_assignment_id', 'is', null);
+
+      if (clearCanvasAssignmentIdsError) throw clearCanvasAssignmentIdsError;
+
       for (const assignment of assignmentUpdates) {
         const { error: updateAssignmentError } = await admin
           .from('assignments')
           .update({
             status: assignment.status,
+            canvas_assignment_id: assignment.canvas_assignment_id,
             class_cleanup_archived_at: assignment.class_cleanup_archived_at,
             class_cleanup_previous_status: assignment.class_cleanup_previous_status,
           })

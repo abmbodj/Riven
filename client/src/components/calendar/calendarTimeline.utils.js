@@ -39,6 +39,15 @@ export function getMinutesSinceStart(timeValue) {
     return (Number(hours) * 60) + Number(minutes);
 }
 
+export function getMinutesFromDate(date) {
+    return (date.getHours() * 60) + date.getMinutes();
+}
+
+export function isAssignmentAllDayForTimeline(date) {
+    const minutes = getMinutesFromDate(date);
+    return minutes === 0 || minutes >= END_HOUR * 60;
+}
+
 export function formatHour(hour) {
     return new Date(2000, 0, 1, hour, 0).toLocaleTimeString([], {
         hour: 'numeric',

@@ -20,12 +20,15 @@ function mockMatchMedia({
     max1023 = false,
     pointerCoarse = false,
     anyPointerCoarse = false,
+    reducedMotion = false,
 } = {}) {
     window.matchMedia = vi.fn((query) => {
         const q = String(query);
         let matches = false;
         if (q.includes('any-pointer: coarse')) {
             matches = anyPointerCoarse;
+        } else if (q.includes('prefers-reduced-motion')) {
+            matches = reducedMotion;
         } else if (q.includes('max-width: 767px')) {
             matches = max767;
         } else if (q.includes('max-width: 1023px')) {
@@ -61,6 +64,11 @@ describe('isMobileOnboardingEligible', () => {
     });
 
     it('returns false when not native and not mobile viewport', () => {
+        expect(isMobileOnboardingEligible()).toBe(false);
+    });
+
+    it('does not treat desktop reduced-motion preference as mobile onboarding eligibility', () => {
+        mockMatchMedia({ reducedMotion: true });
         expect(isMobileOnboardingEligible()).toBe(false);
     });
 

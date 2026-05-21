@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core';
-import { getMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 
 const ONBOARDING_DONE_UID_KEY = 'riven_onboarding_done_uid';
+const MOBILE_MQ = '(max-width: 767px)';
+const COARSE_MQ = '(pointer: coarse)';
 
 export function markOnboardingDoneClient(userId) {
     if (userId == null || typeof window === 'undefined') return;
@@ -47,6 +48,11 @@ function isLikelyTouchPhoneOrTablet() {
     return (typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0);
 }
 
+function hasMobileViewportOrPointer() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(MOBILE_MQ).matches || window.matchMedia(COARSE_MQ).matches;
+}
+
 /**
  * True when this client should run the first-run onboarding flow: Capacitor shell or
  * mobile-class viewport (narrow width or coarse pointer). Desktop web sessions skip the
@@ -56,7 +62,7 @@ function isLikelyTouchPhoneOrTablet() {
 export function isMobileOnboardingEligible() {
     if (typeof window === 'undefined') return false;
     if (Capacitor.isNativePlatform()) return true;
-    if (getMobileVisualBudget()) return true;
+    if (hasMobileViewportOrPointer()) return true;
     return isLikelyTouchPhoneOrTablet();
 }
 

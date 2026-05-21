@@ -11,13 +11,15 @@ import {
     getCurrentTimeTop,
     getDateKey,
     getDefaultScrollTop,
+    getMinutesFromDate,
     getMinutesSinceStart,
+    isAssignmentAllDayForTimeline,
     isSameDay,
     layoutTimedEvents,
 } from './calendarTimeline.utils';
 
 function isAllDayAssignment(dueDate) {
-    return dueDate.getHours() === 0 && dueDate.getMinutes() === 0;
+    return isAssignmentAllDayForTimeline(dueDate);
 }
 
 function formatChipDate(date) {
@@ -169,8 +171,8 @@ export default function CalendarTimeline({
                     color: classMap[assignment.class_id]?.color || 'var(--accent-color)',
                     className: classMap[assignment.class_id]?.name || 'General',
                     date: dueDate,
-                    startMinutes: (dueDate.getHours() * 60) + dueDate.getMinutes(),
-                    endMinutes: (dueDate.getHours() * 60) + dueDate.getMinutes() + 45,
+                    startMinutes: getMinutesFromDate(dueDate),
+                    endMinutes: getMinutesFromDate(dueDate) + 45,
                 });
             }
         }

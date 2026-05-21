@@ -4,6 +4,7 @@ import {
     START_HOUR,
     buildVisibleDates,
     getDefaultScrollTop,
+    isAssignmentAllDayForTimeline,
     layoutTimedEvents,
 } from './calendarTimeline.utils';
 
@@ -38,5 +39,11 @@ describe('calendarTimeline utils', () => {
         ], 'week');
 
         expect(scrollTop).toBe(((8 * 60) - (START_HOUR * 60)) / 60 * HOUR_HEIGHT);
+    });
+
+    it('treats end-of-day assignment deadlines as all-day timeline chips', () => {
+        expect(isAssignmentAllDayForTimeline(new Date('2026-05-21T00:00:00'))).toBe(true);
+        expect(isAssignmentAllDayForTimeline(new Date('2026-05-21T21:59:00'))).toBe(false);
+        expect(isAssignmentAllDayForTimeline(new Date('2026-05-21T23:59:00'))).toBe(true);
     });
 });

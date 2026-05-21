@@ -530,6 +530,7 @@ export const buildCanvasSemesterArchiveAssignmentUpdates = ({
     .map((assignment) => ({
       id: assignment.id,
       status: 'Archived',
+      canvas_assignment_id: null,
       class_cleanup_archived_at: archivedAt,
       class_cleanup_previous_status: typeof assignment.status === 'string' && assignment.status.trim()
         ? assignment.status

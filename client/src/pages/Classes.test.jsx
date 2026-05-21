@@ -167,4 +167,37 @@ describe('Classes page actions', () => {
       expect(api.deleteClass).toHaveBeenCalledWith('class-2');
     });
   });
+
+  it('does not include archived classes in bulk select or bulk delete', async () => {
+    api.getClasses.mockResolvedValue([
+      ...classRows,
+      {
+        id: 'archived-class',
+        name: 'History',
+        color: '#7a9e72',
+        professor: 'Dr. Past',
+        created_at: '2026-01-13T12:00:00.000Z',
+        is_archived: true,
+      },
+    ]);
+
+    renderClasses();
+
+    expect(await screen.findByText('Biology')).toBeInTheDocument();
+    expect(screen.getByText('History')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /enter selection mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Biology/i }));
+    fireEvent.click(screen.getByRole('button', { name: /select all/i }));
+
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /delete all/i }));
+
+    await waitFor(() => {
+      expect(api.deleteClass).toHaveBeenCalledWith('class-1');
+      expect(api.deleteClass).toHaveBeenCalledWith('class-2');
+    });
+    expect(api.deleteClass).not.toHaveBeenCalledWith('archived-class');
+  });
 });

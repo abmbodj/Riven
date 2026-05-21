@@ -158,8 +158,9 @@ export default function Classes() {
     const [canvasFormUrl, setCanvasFormUrl] = useState('');
     const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
     const haptics = useHaptics();
-    const activeClasses = classes.filter(cls => !cls.is_archived);
-    const selectableClasses = useMemo(() => classes, [classes]);
+    const activeClasses = useMemo(() => classes.filter(cls => !cls.is_archived), [classes]);
+    const activeClassIdSet = useMemo(() => new Set(activeClasses.map(cls => cls.id)), [activeClasses]);
+    const selectableClasses = activeClasses;
     const {
         isSelectMode,
         selectedIds,
@@ -416,7 +417,7 @@ export default function Classes() {
     };
 
     const handleBulkDelete = async () => {
-        const ids = [...selectedIds];
+        const ids = [...selectedIds].filter(id => activeClassIdSet.has(id));
         if (ids.length === 0) return;
         const idSet = new Set(ids);
 
@@ -590,11 +591,8 @@ export default function Classes() {
                                                         cls={cls}
                                                         index={i}
                                                         onClick={() => navigate(`/class/${cls.id}`)}
-                                                    isSelectMode={isSelectMode}
-                                                    isSelected={selectedIds.has(cls.id)}
-                                                    onToggle={toggleSelect}
-                                                    visualConstrained={visualConstrained}
-                                                />
+                                                        visualConstrained={visualConstrained}
+                                                    />
                                                 ))}
                                             </div>
                                         </div>

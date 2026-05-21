@@ -559,12 +559,14 @@ describe('canvasLmsCore', () => {
       {
         id: 'todo',
         status: 'Archived',
+        canvas_assignment_id: null,
         class_cleanup_archived_at: '2026-05-19T12:00:00.000Z',
         class_cleanup_previous_status: 'Todo',
       },
       {
         id: 'doing',
         status: 'Archived',
+        canvas_assignment_id: null,
         class_cleanup_archived_at: '2026-05-19T12:00:00.000Z',
         class_cleanup_previous_status: 'Doing',
       },
