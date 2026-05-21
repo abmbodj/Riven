@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Layout, { resolveSidebarDragState } from './Layout.jsx';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { UIContext } from '../context/UIContext.jsx';
@@ -79,6 +79,14 @@ function getMainContentWidthWrapper() {
   return screen.getByText('Page Body').parentElement?.parentElement;
 }
 
+function getSidebarHandle(label = 'Resize sidebar') {
+  return screen.getByLabelText(label);
+}
+
+function getDesktopSidebar() {
+  return getSidebarHandle().closest('aside');
+}
+
 function StatefulLayoutHarness({ initialCollapsed = false, initialWidth = 220, pathname = '/classes' }) {
   const [navCollapsed, setNavCollapsed] = useState(initialCollapsed);
   const [navWidth, setNavWidth] = useState(initialWidth);
@@ -115,7 +123,26 @@ function StatefulLayoutHarness({ initialCollapsed = false, initialWidth = 220, p
 }
 
 describe('Layout primary navigation', () => {
+  let originalMatchMedia;
+
   beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    if (!Element.prototype.setPointerCapture) {
+      Element.prototype.setPointerCapture = vi.fn();
+    }
+    if (!Element.prototype.releasePointerCapture) {
+      Element.prototype.releasePointerCapture = vi.fn();
+    }
+
     recordingSessionMock.state = 'idle';
     recordingSessionMock.activeNoteId = null;
     recordingSessionMock.activeNoteTitle = '';
@@ -123,6 +150,11 @@ describe('Layout primary navigation', () => {
     recordingSessionMock.goToActiveNote.mockReset();
     mobileBudgetMock.mockReset();
     mobileBudgetMock.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
   });
 
   it('shows study groups as a primary navigation destination', () => {
@@ -261,18 +293,151 @@ describe('Layout primary navigation', () => {
     expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '286px' });
   });
 
+  it('updates the rendered sidebar width and content offset while dragging', async () => {
+    render(
+      <StatefulLayoutHarness initialWidth={220} />
+    );
+
+    fireEvent.pointerDown(getSidebarHandle(), { clientX: 212, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 280, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(getDesktopSidebar()).toHaveStyle({ width: '288px' });
+      expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '288px' });
+    });
+  });
+
+  it('commits the resized width once on pointer release', async () => {
+    const setNavCollapsed = vi.fn();
+    const setNavWidth = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={['/classes']}>
+        <AuthContext.Provider value={{ isLoggedIn: true }}>
+          <UIContext.Provider value={{
+            hideBottomNav: false,
+            showBottomNav: vi.fn(),
+            hideNav: vi.fn(),
+            navCollapsed: false,
+            navWidth: 220,
+            toggleNav: vi.fn(),
+            setNavCollapsed,
+            setNavWidth,
+            drawerOpen: false,
+            toggleDrawer: vi.fn(),
+            closeDrawer: vi.fn(),
+            notifPanelOpen: false,
+            toggleNotifPanel: vi.fn(),
+            closeNotifPanel: vi.fn(),
+            studyMode: null,
+            setStudyMode: vi.fn(),
+            clearStudyMode: vi.fn(),
+          }}>
+            <Layout>
+              <div>Page Body</div>
+            </Layout>
+          </UIContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+
+    fireEvent.pointerDown(getSidebarHandle(), { clientX: 212, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 280, pointerId: 1 });
+
+    expect(setNavCollapsed).not.toHaveBeenCalled();
+    expect(setNavWidth).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(window, { clientX: 280, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(setNavCollapsed).toHaveBeenCalledTimes(1);
+      expect(setNavCollapsed).toHaveBeenCalledWith(false);
+      expect(setNavWidth).toHaveBeenCalledTimes(1);
+      expect(setNavWidth).toHaveBeenCalledWith(288);
+    });
+  });
+
+  it('collapses cleanly after dragging inward past the collapse threshold', async () => {
+    render(
+      <StatefulLayoutHarness initialWidth={220} />
+    );
+
+    fireEvent.pointerDown(getSidebarHandle(), { clientX: 212, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 118, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '126px' });
+      expect(screen.getByLabelText('Drag to expand sidebar')).toBeInTheDocument();
+    });
+
+    fireEvent.pointerUp(window, { clientX: 118, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: `${COLLAPSED_NAV_WIDTH}px` });
+    });
+  });
+
+  it('expands from collapsed to the compact width when dragged back out', async () => {
+    render(
+      <StatefulLayoutHarness initialCollapsed initialWidth={286} />
+    );
+
+    fireEvent.pointerDown(screen.getByLabelText('Drag to expand sidebar'), { clientX: 56, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 160, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: `${COMPACT_NAV_WIDTH}px` });
+      expect(screen.getByLabelText('Resize sidebar')).toBeInTheDocument();
+    });
+
+    fireEvent.pointerUp(window, { clientX: 160, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: `${COMPACT_NAV_WIDTH}px` });
+    });
+  });
+
   it('resolves a drag below the collapse threshold to the collapsed state', () => {
-    expect(resolveSidebarDragState(120)).toEqual({
+    expect(resolveSidebarDragState(120, { wasCollapsed: false })).toEqual({
       collapsed: true,
       width: COMPACT_NAV_WIDTH,
     });
   });
 
   it('resolves a drag outward from collapsed to the compact expanded width', () => {
-    expect(resolveSidebarDragState(140)).toEqual({
+    expect(resolveSidebarDragState(140, { wasCollapsed: true })).toEqual({
       collapsed: false,
       width: COMPACT_NAV_WIDTH,
     });
+  });
+
+  it('uses hysteresis so the deadband keeps the prior collapsed state stable', () => {
+    expect(resolveSidebarDragState(128, { wasCollapsed: true })).toEqual({
+      collapsed: true,
+      width: COMPACT_NAV_WIDTH,
+    });
+
+    expect(resolveSidebarDragState(128, { wasCollapsed: false })).toEqual({
+      collapsed: false,
+      width: COMPACT_NAV_WIDTH,
+    });
+  });
+
+  it('skips sidebar settle transition classes when reduced motion is preferred', () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    renderLayout('/classes');
+
+    expect(getDesktopSidebar().className).not.toContain('transition-[width]');
+    expect(screen.getByRole('main').parentElement.className).not.toContain('transition-[margin]');
   });
 
   it('shows the floating recording widget away from the active note route', () => {

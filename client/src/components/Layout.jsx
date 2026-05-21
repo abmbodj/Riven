@@ -82,9 +82,32 @@ const getInitialOfflineState = () => {
     return navigator.onLine === false;
 };
 
-export function resolveSidebarDragState(clientX) {
+const SIDEBAR_COMMIT_COLLAPSE_THRESHOLD = Math.min(SIDEBAR_COLLAPSE_THRESHOLD, SIDEBAR_EXPAND_THRESHOLD);
+const SIDEBAR_COMMIT_EXPAND_THRESHOLD = Math.max(SIDEBAR_COLLAPSE_THRESHOLD, SIDEBAR_EXPAND_THRESHOLD);
+
+function clampSidebarVisualWidth(clientX) {
     const proposedWidth = clientX + 8;
-    if (proposedWidth <= SIDEBAR_COLLAPSE_THRESHOLD) {
+    return Math.min(MAX_NAV_WIDTH, Math.max(COLLAPSED_NAV_WIDTH, proposedWidth));
+}
+
+export function resolveSidebarDragState(clientX, { wasCollapsed = false } = {}) {
+    const proposedWidth = clientX + 8;
+
+    if (wasCollapsed) {
+        if (proposedWidth < SIDEBAR_COMMIT_EXPAND_THRESHOLD) {
+            return {
+                collapsed: true,
+                width: COMPACT_NAV_WIDTH,
+            };
+        }
+
+        return {
+            collapsed: false,
+            width: Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, proposedWidth)),
+        };
+    }
+
+    if (proposedWidth <= SIDEBAR_COMMIT_COLLAPSE_THRESHOLD) {
         return {
             collapsed: true,
             width: COMPACT_NAV_WIDTH,
@@ -133,13 +156,35 @@ export default function Layout({ children }) {
     const [hasOpenedCreateSheet, setHasOpenedCreateSheet] = useState(false);
     const [hasOpenedDrawer, setHasOpenedDrawer] = useState(false);
     const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => (
+        typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ));
+    const [visualSidebarWidth, setVisualSidebarWidth] = useState(null);
+    const [dragCollapsedState, setDragCollapsedState] = useState(null);
     const pageContentRef = useRef(null);
     const sidebarResizeFrameRef = useRef(0);
+    const sidebarResizeHandleRef = useRef(null);
+    const dragStartXRef = useRef(null);
+    const dragStartWidthRef = useRef(null);
+    const dragCollapsedStateRef = useRef(navCollapsed);
+    const lastSidebarClientXRef = useRef(null);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const handleChange = (event) => setPrefersReducedMotion(event.matches);
+
+        mediaQuery.addEventListener?.('change', handleChange);
+
+        return () => mediaQuery.removeEventListener?.('change', handleChange);
+    }, []);
 
     // Lightweight page enter animation on route change.
     useEffect(() => {
-        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        if (motionQuery.matches || !pageContentRef.current) return;
+        if (prefersReducedMotion || !pageContentRef.current) return;
         if (typeof pageContentRef.current.animate !== 'function') return;
 
         const animation = pageContentRef.current.animate(
@@ -151,7 +196,7 @@ export default function Layout({ children }) {
         );
 
         return () => animation.cancel();
-    }, [location.pathname]);
+    }, [location.pathname, prefersReducedMotion]);
 
     useEffect(() => {
         if (isCommandPaletteOpen) setHasOpenedCommandPalette(true);
@@ -217,24 +262,74 @@ export default function Layout({ children }) {
     const showTopBar = isLoggedIn && !isFullscreenPage && !isStudyOrTest;
 
     const desktopSidebarWidth = navCollapsed ? COLLAPSED_NAV_WIDTH : navWidth;
-    const isCompactSidebar = !navCollapsed && navWidth <= COMPACT_VISUAL_THRESHOLD;
+    const renderedSidebarWidth = isSidebarResizing && visualSidebarWidth !== null
+        ? visualSidebarWidth
+        : desktopSidebarWidth;
+    const renderedNavCollapsed = isSidebarResizing && dragCollapsedState !== null
+        ? dragCollapsedState
+        : navCollapsed;
+    const isCompactSidebar = !renderedNavCollapsed && renderedSidebarWidth <= COMPACT_VISUAL_THRESHOLD;
+    const sidebarTransitionClass = !isSidebarResizing && !prefersReducedMotion
+        ? 'transition-[width] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)]'
+        : '';
+    const contentTransitionClass = !isSidebarResizing && !prefersReducedMotion
+        ? 'transition-[margin] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)]'
+        : '';
 
     const handleSidebarResize = useCallback((clientX) => {
-        if (typeof clientX !== 'number' || !setNavWidth || !setNavCollapsed) return;
-        const nextState = resolveSidebarDragState(clientX);
-        setNavCollapsed(nextState.collapsed);
-        setNavWidth(nextState.width);
-    }, [setNavCollapsed, setNavWidth]);
+        if (typeof clientX !== 'number') return;
 
-    const startSidebarResize = useCallback((event) => {
+        const nextVisualWidth = clampSidebarVisualWidth(clientX);
+        const nextCollapsed = dragCollapsedStateRef.current
+            ? nextVisualWidth < SIDEBAR_COMMIT_EXPAND_THRESHOLD
+            : nextVisualWidth <= SIDEBAR_COMMIT_COLLAPSE_THRESHOLD;
+
+        dragCollapsedStateRef.current = nextCollapsed;
+        lastSidebarClientXRef.current = clientX;
+        setVisualSidebarWidth(nextVisualWidth);
+        setDragCollapsedState(nextCollapsed);
+    }, []);
+
+    const finishSidebarResize = useCallback((clientX) => {
+        cancelAnimationFrame(sidebarResizeFrameRef.current);
+
+        const finalClientX = typeof clientX === 'number'
+            ? clientX
+            : lastSidebarClientXRef.current;
+
+        setIsSidebarResizing(false);
+
+        if (typeof finalClientX === 'number' && setNavWidth && setNavCollapsed) {
+            const nextState = resolveSidebarDragState(finalClientX, {
+                wasCollapsed: dragStartWidthRef.current === COLLAPSED_NAV_WIDTH,
+            });
+            setNavCollapsed(nextState.collapsed);
+            setNavWidth(nextState.width);
+        }
+
+        setVisualSidebarWidth(null);
+        setDragCollapsedState(null);
+
+        lastSidebarClientXRef.current = null;
+        dragStartXRef.current = null;
+        dragStartWidthRef.current = null;
+        dragCollapsedStateRef.current = navCollapsed;
+    }, [navCollapsed, setNavCollapsed, setNavWidth]);
+
+    const startSidebarResize = (event) => {
         if (!showDesktopSidebar || !setNavWidth || !setNavCollapsed) return;
         event.preventDefault();
+
+        dragStartXRef.current = event.clientX;
+        dragStartWidthRef.current = desktopSidebarWidth;
+        dragCollapsedStateRef.current = navCollapsed;
+        lastSidebarClientXRef.current = event.clientX;
+        setVisualSidebarWidth(desktopSidebarWidth);
+        setDragCollapsedState(navCollapsed);
         setIsSidebarResizing(true);
-        if (navCollapsed && event.clientX + 8 >= SIDEBAR_EXPAND_THRESHOLD) {
-            setNavCollapsed(false);
-            setNavWidth(COMPACT_NAV_WIDTH);
-        }
-    }, [navCollapsed, setNavCollapsed, setNavWidth, showDesktopSidebar]);
+
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    };
 
     useEffect(() => {
         if (!isSidebarResizing) return undefined;
@@ -247,9 +342,9 @@ export default function Layout({ children }) {
             });
         };
 
-        const stopSidebarResize = () => {
-            cancelAnimationFrame(sidebarResizeFrameRef.current);
-            setIsSidebarResizing(false);
+        const stopSidebarResize = (event) => {
+            sidebarResizeHandleRef.current?.releasePointerCapture?.(event.pointerId);
+            finishSidebarResize(event.clientX);
         };
 
         window.addEventListener('pointermove', handlePointerMove);
@@ -267,7 +362,11 @@ export default function Layout({ children }) {
             document.body.style.userSelect = '';
             document.body.style.cursor = '';
         };
-    }, [handleSidebarResize, isSidebarResizing]);
+    }, [finishSidebarResize, handleSidebarResize, isSidebarResizing]);
+
+    useEffect(() => () => {
+        cancelAnimationFrame(sidebarResizeFrameRef.current);
+    }, []);
 
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
@@ -292,10 +391,10 @@ export default function Layout({ children }) {
                         className={`
                             hidden md:flex md:flex-col
                             fixed inset-y-0 left-0 z-30
-                            motion-safe:transition-[width] motion-safe:duration-[250ms] motion-safe:ease-out
                             overflow-hidden
+                            ${sidebarTransitionClass}
                         `}
-                        style={{ width: `${desktopSidebarWidth}px` }}
+                        style={{ width: `${renderedSidebarWidth}px` }}
                     >
                         <div className="desktop-sidebar-shell relative flex h-full flex-col overflow-hidden rounded-[2rem] mx-2 my-2">
                             <div className="relative flex h-full flex-col">
@@ -304,9 +403,9 @@ export default function Layout({ children }) {
                                     to="/"
                                     className={`flex items-center group transition-opacity duration-150 ${
                                         isCompactSidebar ? 'gap-2 px-3 pt-5 pb-3' : 'gap-3 px-4 pt-6 pb-4'
-                                    } ${navCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-                                    aria-hidden={navCollapsed}
-                                    tabIndex={navCollapsed ? -1 : 0}
+                                    } ${renderedNavCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                                    aria-hidden={renderedNavCollapsed}
+                                    tabIndex={renderedNavCollapsed ? -1 : 0}
                                 >
                                     <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-white/[0.1] group-hover:border-claude-accent/20">
                                         <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
@@ -317,7 +416,7 @@ export default function Layout({ children }) {
                                 </Link>
 
                                 {/* Collapsed logo icon */}
-                                {navCollapsed && (
+                                {renderedNavCollapsed && (
                                     <div className="flex items-center justify-center pt-6 pb-4">
                                         <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 overflow-hidden">
                                             <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
@@ -338,31 +437,31 @@ export default function Layout({ children }) {
                                             <Link
                                                 key={item.to}
                                                 to={item.to}
-                                                title={navCollapsed ? item.label : undefined}
+                                                title={renderedNavCollapsed ? item.label : undefined}
                                                 onMouseEnter={() => prefetchRoute(item.to)}
                                                 className={`group relative overflow-hidden rounded-xl flex items-center transition-all duration-300 cursor-pointer ${
-                                                    navCollapsed ? 'justify-center px-2 py-2.5 gap-3.5' : isCompactSidebar ? 'px-2.5 py-2.5 gap-2.5' : 'px-3 py-2.5 gap-3.5'
+                                                    renderedNavCollapsed ? 'justify-center px-2 py-2.5 gap-3.5' : isCompactSidebar ? 'px-2.5 py-2.5 gap-2.5' : 'px-3 py-2.5 gap-3.5'
                                                 } ${isActive
                                                     ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                                                     : 'text-claude-secondary/70 hover:bg-white/[0.05] hover:text-white hover:translate-x-1'
                                                 }`}
                                             >
-                                                {isActive && !navCollapsed && (
+                                                {isActive && !renderedNavCollapsed && (
                                                     <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-claude-accent shadow-[0_0_12px_rgba(var(--claude-accent-rgb),0.8)]" />
                                                 )}
-                                                {isActive && navCollapsed && (
+                                                {isActive && renderedNavCollapsed && (
                                                     <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-claude-accent" />
                                                 )}
                                                 <div className={`relative flex items-center justify-center w-6 h-6 shrink-0 transition-colors duration-300 ${isActive ? 'text-claude-accent' : 'text-claude-secondary/50 group-hover:text-claude-secondary'}`}>
                                                     <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[18px] h-[18px]" />
                                                 </div>
                                                 <span
-                                                    aria-hidden={navCollapsed}
+                                                    aria-hidden={renderedNavCollapsed}
                                                     className={`font-mono uppercase whitespace-nowrap overflow-hidden transition-[opacity,width] duration-150 ${
                                                         isCompactSidebar ? 'text-[10px] tracking-[0.08em]' : 'text-[11px] tracking-[0.1em]'
                                                     } ${
                                                         isActive ? 'font-semibold' : 'font-medium'
-                                                    } ${navCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}
+                                                    } ${renderedNavCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}
                                                 >
                                                     {item.label}
                                                 </span>
@@ -372,7 +471,7 @@ export default function Layout({ children }) {
                                 </nav>
 
                                 {/* Utility Links — hidden when collapsed */}
-                                {!navCollapsed && (
+                                {!renderedNavCollapsed && (
                                     <nav className="px-2 py-3 space-y-1">
                                         <div className={`mb-2 ${isCompactSidebar ? 'px-2.5' : 'px-3'}`}>
                                             <h3 className={`font-mono font-semibold uppercase text-claude-secondary/50 selection:bg-transparent ${
@@ -407,7 +506,7 @@ export default function Layout({ children }) {
                                 )}
 
                                 {/* Utility icon row when collapsed */}
-                                {navCollapsed && (
+                                {renderedNavCollapsed && (
                                     <nav
                                         role="navigation"
                                         aria-label="Utilities"
@@ -435,7 +534,7 @@ export default function Layout({ children }) {
                                 )}
 
                                 {/* Create Note CTA — hidden when collapsed */}
-                                {!navCollapsed && (
+                                {!renderedNavCollapsed && (
                                     <div className={`mt-auto ${isCompactSidebar ? 'px-2.5 py-3' : 'px-3 py-4'}`}>
                                         <Link
                                             to="/note/new"
@@ -451,15 +550,15 @@ export default function Layout({ children }) {
                                 )}
 
                                 {/* Collapse / expand toggle button */}
-                                <div className={`px-2 py-3 mt-auto border-t border-claude-border/20 flex ${navCollapsed ? 'justify-center' : 'justify-end'}`}>
+                                <div className={`px-2 py-3 mt-auto border-t border-claude-border/20 flex ${renderedNavCollapsed ? 'justify-center' : 'justify-end'}`}>
                                     <button
                                         type="button"
                                         onClick={toggleNav}
-                                        title={navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                                        aria-label={navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                                        title={renderedNavCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                                        aria-label={renderedNavCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                                         className="flex h-8 w-8 items-center justify-center rounded-xl text-claude-secondary/50 transition-colors hover:bg-white/[0.07] hover:text-claude-secondary cursor-pointer"
                                     >
-                                        <ChevronLeft className={`w-4 h-4 motion-safe:transition-transform motion-safe:duration-[250ms] ${navCollapsed ? 'rotate-180' : 'rotate-0'}`} />
+                                        <ChevronLeft className={`w-4 h-4 motion-safe:transition-transform motion-safe:duration-[250ms] ${renderedNavCollapsed ? 'rotate-180' : 'rotate-0'}`} />
                                     </button>
                                 </div>
 
@@ -469,13 +568,18 @@ export default function Layout({ children }) {
                         </div>
 
                         <button
+                            ref={sidebarResizeHandleRef}
                             type="button"
-                            aria-label={navCollapsed ? 'Drag to expand sidebar' : 'Resize sidebar'}
-                            title={navCollapsed ? 'Drag to expand sidebar' : 'Drag to resize sidebar'}
+                            aria-label={renderedNavCollapsed ? 'Drag to expand sidebar' : 'Resize sidebar'}
+                            title={renderedNavCollapsed ? 'Drag to expand sidebar' : 'Drag to resize sidebar'}
                             onPointerDown={startSidebarResize}
-                            className={`absolute inset-y-6 right-0 hidden w-4 -translate-x-1/2 cursor-col-resize md:block transition-opacity ${isSidebarResizing ? 'opacity-100' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
+                            className={`absolute inset-y-4 right-0 hidden w-6 -translate-x-1/2 cursor-col-resize md:block transition-[opacity,transform] duration-200 ${isSidebarResizing ? 'opacity-100 scale-x-110' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
                         >
-                            <span className="mx-auto block h-full w-px rounded-full bg-claude-accent/45 shadow-[0_0_12px_rgba(222,185,106,0.22)]" />
+                            <span className={`mx-auto block h-full w-[2px] rounded-full transition-[background-color,box-shadow,transform] duration-200 ${
+                                isSidebarResizing
+                                    ? 'bg-claude-accent shadow-[0_0_18px_rgba(222,185,106,0.45)]'
+                                    : 'bg-claude-accent/55 shadow-[0_0_12px_rgba(222,185,106,0.22)]'
+                            }`} />
                         </button>
                     </aside>
                 )}
@@ -484,9 +588,9 @@ export default function Layout({ children }) {
                 <div
                     className={`
                         flex-1 min-h-dvh overflow-x-hidden
-                        ${showDesktopSidebar ? 'motion-safe:transition-[margin] motion-safe:duration-[250ms] motion-safe:ease-out' : ''}
+                        ${showDesktopSidebar ? contentTransitionClass : ''}
                     `}
-                    style={showDesktopSidebar ? { marginLeft: `${desktopSidebarWidth}px` } : undefined}
+                    style={showDesktopSidebar ? { marginLeft: `${renderedSidebarWidth}px` } : undefined}
                 >
                     <AnimatePresence>
                         {isUpdateAvailable && (
