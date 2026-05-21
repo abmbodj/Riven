@@ -573,7 +573,7 @@ export default function Layout({ children }) {
                             aria-label={renderedNavCollapsed ? 'Drag to expand sidebar' : 'Resize sidebar'}
                             title={renderedNavCollapsed ? 'Drag to expand sidebar' : 'Drag to resize sidebar'}
                             onPointerDown={startSidebarResize}
-                            className={`absolute inset-y-4 right-0 hidden w-6 -translate-x-1/2 cursor-col-resize md:block transition-[opacity,transform] duration-200 ${isSidebarResizing ? 'opacity-100 scale-x-110' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
+                            className={`absolute inset-y-4 right-0 hidden w-6 translate-x-1/2 cursor-col-resize md:block transition-[opacity,transform] duration-200 ${isSidebarResizing ? 'opacity-100 scale-x-110' : 'opacity-0 hover:opacity-100 focus:opacity-100'}`}
                         >
                             <span className={`mx-auto block h-full w-[2px] rounded-full transition-[background-color,box-shadow,transform] duration-200 ${
                                 isSidebarResizing
