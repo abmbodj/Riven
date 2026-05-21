@@ -1,3 +1,4 @@
+/* @vitest-environment jsdom */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -81,6 +82,10 @@ function setViewport(width) {
   });
 
   window.matchMedia = vi.fn().mockImplementation(createMatchMedia(width));
+}
+
+function getThemeEditorTabs(dialog) {
+  return within(dialog).getByRole('group', { name: /theme editor sections/i });
 }
 
 function seedTheme(overrides = {}) {
@@ -254,15 +259,19 @@ describe('ThemeSettings theme studio', () => {
 
     const dialog = getDialog();
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText(/start from riven/i)).toBeInTheDocument();
-    expect(within(dialog).queryByRole('button', { name: /next step/i })).not.toBeInTheDocument();
+    expect(getThemeEditorTabs(dialog)).toBeInTheDocument();
+    expect(within(dialog).getByText(/choose the atmosphere/i)).toBeInTheDocument();
+    expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /core/i })).toBeInTheDocument();
+    expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /advanced/i })).toBeInTheDocument();
+    expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /review/i })).toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
-    expect(within(dialog).queryByText(/live preview/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/live preview/i)).toBeInTheDocument();
     expect(dialog.querySelector('.modal-scroll-content')).not.toBeNull();
+    expect(container.querySelectorAll('input[type="color"]')).toHaveLength(0);
 
     applyDraftThemeMock.mockClear();
 
-    fireEvent.click(within(getDialog()).getByRole('button', { name: /focus/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /dark focus/i }));
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
     await waitFor(() => {
@@ -279,14 +288,14 @@ describe('ThemeSettings theme studio', () => {
       );
     });
 
-    fireEvent.click(within(getDialog()).getByRole('button', { name: /^open$/i }));
+    fireEvent.click(within(getThemeEditorTabs(getDialog())).getByRole('button', { name: /advanced/i }));
 
     expect(screen.getByText('Canvas')).toBeInTheDocument();
     expect(container.querySelectorAll('input[type="color"]')).toHaveLength(6);
     expect(screen.queryByText('Pricing modal open')).not.toBeInTheDocument();
   });
 
-  it('keeps the desktop guided editor but removes dedicated preview controls', () => {
+  it('keeps the desktop compact studio with persistent preview and top-level tabs', () => {
     mockUser.subscription_tier = 'supporter';
     setViewport(1280);
 
@@ -294,13 +303,19 @@ describe('ThemeSettings theme studio', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
 
-    expect(screen.getByRole('dialog', { name: /theme studio/i })).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: /theme studio/i });
+    expect(dialog).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /phone preview/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/choose the starting atmosphere/i)).toBeInTheDocument();
+    expect(screen.getByText(/compact controls stay on one side/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/choose the atmosphere/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/live preview/i)).toBeInTheDocument();
+    expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /core/i })).toBeInTheDocument();
+    expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /advanced/i })).toBeInTheDocument();
+    expect(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /review/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(screen.getByText(/add curated motion/i)).toBeInTheDocument();
+    fireEvent.click(within(getThemeEditorTabs(dialog)).getByRole('button', { name: /^advanced$/i }));
+    expect(screen.getByText(/precise token overrides/i)).toBeInTheDocument();
   });
 
   it('creates a new mobile theme with saved effect fields', async () => {
@@ -313,9 +328,8 @@ describe('ThemeSettings theme studio', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
     const dialog = getDialog();
-
-    fireEvent.click(within(dialog).getByRole('button', { name: /riven light/i }));
-    fireEvent.click(within(getDialog()).getByRole('button', { name: /warm/i }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /^light$/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /light warm/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: 'Rose' }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /studio sans/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
@@ -324,8 +338,12 @@ describe('ThemeSettings theme studio', () => {
     });
     fireEvent.click(within(getDialog()).getByRole('button', { name: /^rich$/i }));
 
+    fireEvent.click(within(getThemeEditorTabs(getDialog())).getByRole('button', { name: /review/i }));
+    await waitFor(() => {
+      expect(within(getDialog()).getByPlaceholderText(/night lectures/i)).toBeInTheDocument();
+    });
     fireEvent.change(within(getDialog()).getByPlaceholderText(/night lectures/i), { target: { value: 'Focus Noir' } });
-    fireEvent.click(within(getDialog()).getByRole('button', { name: /^create$/i }));
+    fireEvent.click(within(getDialog()).getAllByRole('button', { name: /^create$/i }).at(-1));
 
     await waitFor(() => {
       expect(addThemeMock).toHaveBeenCalledWith(
@@ -372,17 +390,19 @@ describe('ThemeSettings theme studio', () => {
 
     expect(screen.getByRole('dialog', { name: /refine theme/i })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Custom Drift')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /style/i }));
+    fireEvent.click(within(getThemeEditorTabs(screen.getByRole('dialog', { name: /refine theme/i }))).getByRole('button', { name: /^core$/i }));
     fireEvent.click(screen.getByRole('button', { name: /grid/i }));
-    fireEvent.click(screen.getByRole('button', { name: /rich/i }));
-    fireEvent.click(screen.getByRole('button', { name: /advanced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^rich$/i }));
+    fireEvent.click(within(getThemeEditorTabs(screen.getByRole('dialog', { name: /refine theme/i }))).getByRole('button', { name: /^advanced$/i }));
 
+    await waitFor(() => {
+      expect(container.querySelector('input[type="color"]')).not.toBeNull();
+    });
     const firstColorInput = container.querySelector('input[type="color"]');
     expect(firstColorInput).not.toBeNull();
     fireEvent.change(firstColorInput, { target: { value: '#123456' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    fireEvent.click(within(getThemeEditorTabs(screen.getByRole('dialog', { name: /refine theme/i }))).getByRole('button', { name: /^review$/i }));
     fireEvent.click(screen.getByRole('button', { name: /save refinements/i }));
 
     await waitFor(() => {
@@ -409,7 +429,7 @@ describe('ThemeSettings theme studio', () => {
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
     applyDraftThemeMock.mockClear();
 
-    fireEvent.click(within(getDialog()).getByRole('button', { name: /riven light/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /^light$/i }));
 
     await waitFor(() => {
       expect(applyDraftThemeMock).toHaveBeenCalled();
