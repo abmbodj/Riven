@@ -341,7 +341,7 @@ export const generateDeckFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'llama-3.3-70b-versatile',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }),
   });
 
@@ -760,7 +760,7 @@ export const generateStudyGuideFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'llama-3.3-70b-versatile',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     contents: buildGuideContents({
       processedNotes,
       hasProcessedNotes,
@@ -965,7 +965,7 @@ export const generateExamFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'llama-3.3-70b-versatile',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }),
   });
 
@@ -1116,7 +1116,7 @@ export const generateClassPreview = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'llama-3.3-70b-versatile',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     contents: buildClassContents({ processedNotes, hasProcessedNotes, keepFile, file }),
   });
 

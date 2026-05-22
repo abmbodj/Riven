@@ -164,7 +164,7 @@ serve(async (request) => {
         try {
           const ai = createAiClient(apiKey);
           const streamResponse = ai.streamContent({
-            model: 'llama-3.3-70b-versatile',
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages,
             maxTokens: 6144,
           });

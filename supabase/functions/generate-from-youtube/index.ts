@@ -113,7 +113,7 @@ serve(async (request) => {
       className,
       generateText: (prompt, maxTokens) =>
         ai.generateContent({
-          model: 'llama-3.3-70b-versatile',
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
           messages: [{ role: 'user', content: prompt }],
           maxTokens,
         }),
@@ -136,7 +136,7 @@ serve(async (request) => {
         try {
           const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 6144, notes: 6144 };
           const streamResponse = ai.streamContent({
-            model: 'llama-3.3-70b-versatile',
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages,
             maxTokens: maxTokensByType[type] || 4096,
           });

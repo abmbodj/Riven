@@ -11,7 +11,7 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
 const RETRY_SEVERITY_THRESHOLD = 4;
-const NOTES_MODEL = 'moonshotai/kimi-k2-instruct-0905';
+const NOTES_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const NOTES_MAX_TOKENS = 8192;
 
 type PersistUsagePayload = {

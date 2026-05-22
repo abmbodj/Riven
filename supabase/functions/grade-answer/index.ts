@@ -65,7 +65,7 @@ Example:
 
     const ai = createAiClient(apiKey);
     const rawText = await ai.generateContent({
-      model: 'llama-3.3-70b-versatile',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [{ role: 'user', content: prompt }],
       maxTokens: 512,
       responseFormat: 'json_object',
