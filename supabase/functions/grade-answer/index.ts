@@ -18,7 +18,7 @@ serve(async (request) => {
     const body = await request.json().catch(() => ({}));
     // Parallel: rate limit + auth (no quota consumed — grading is part of the exam experience)
     const [rl] = await Promise.all([
-      checkRateLimit(request, 'default'),
+      checkRateLimit(request, 'grading'),
       resolveSupabaseUser(request),
     ]);
     if (rl) return rl;

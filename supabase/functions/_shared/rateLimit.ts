@@ -8,7 +8,7 @@ import { Redis } from 'npm:@upstash/redis@1.28.0';
 import { Ratelimit } from 'npm:@upstash/ratelimit@0.4.4';
 import { getCorsHeaders } from './http.ts';
 
-export type RateLimitPreset = 'default' | 'webhook' | 'admin';
+export type RateLimitPreset = 'default' | 'webhook' | 'admin' | 'grading';
 
 type RateLimitWindow = Parameters<typeof Ratelimit.slidingWindow>[1];
 
@@ -16,6 +16,8 @@ const PRESETS: Record<RateLimitPreset, { limit: number; window: RateLimitWindow 
   default: { limit: 60, window: '1 m' },
   webhook: { limit: 300, window: '1 m' },
   admin: { limit: 30, window: '1 m' },
+  // 100 grading calls per user per day — prevents unbounded Groq spend on unmetered grading
+  grading: { limit: 100, window: '24 h' },
 };
 
 function getIdentifier(request: Request): string {
@@ -64,6 +66,16 @@ function getLimiter(preset: RateLimitPreset): Ratelimit | null {
   return cachedLimiters.get(preset) ?? null;
 }
 
+const PRESET_ERRORS: Record<RateLimitPreset, { message: string; retryAfter: string }> = {
+  default: { message: 'Too many requests. Please try again later.', retryAfter: '60' },
+  webhook: { message: 'Too many requests. Please try again later.', retryAfter: '60' },
+  admin: { message: 'Too many requests. Please try again later.', retryAfter: '60' },
+  grading: {
+    message: 'You have reached the daily grading limit (100 answers per day). Please try again tomorrow.',
+    retryAfter: String(60 * 60 * 24), // 24 hours
+  },
+};
+
 /**
  * Check rate limit. Returns 429 Response if over limit, otherwise null.
  * Call at the start of your handler (after OPTIONS) and return early if non-null.
@@ -81,14 +93,15 @@ export async function checkRateLimit(
   const { success } = await limiter.limit(identifier);
 
   if (!success) {
+    const { message, retryAfter } = PRESET_ERRORS[preset];
     return new Response(
-      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+      JSON.stringify({ error: message }),
       {
         status: 429,
         headers: {
           ...getCorsHeaders(request),
           'Content-Type': 'application/json',
-          'Retry-After': '60',
+          'Retry-After': retryAfter,
         },
       }
     );
