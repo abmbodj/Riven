@@ -63,4 +63,42 @@ describe('authApi storage safety', () => {
         authApi.setToken(null);
         expect(authApi.getToken()).toBeNull();
     });
+
+    it('stores tokens durably when keep-signed-in is enabled', async () => {
+        const authApi = await import('./authApi');
+        const { setAuthPersistenceMode } = await import('../lib/authPersistence');
+
+        setAuthPersistenceMode(true);
+        authApi.setToken('durable-token');
+
+        expect(localStorage.getItem('riven_auth_token')).toBe('durable-token');
+        expect(sessionStorage.getItem('riven_auth_token')).toBeNull();
+    });
+
+    it('stores tokens in session storage when keep-signed-in is disabled', async () => {
+        const authApi = await import('./authApi');
+        const { setAuthPersistenceMode } = await import('../lib/authPersistence');
+
+        setAuthPersistenceMode(false);
+        authApi.setToken('session-token');
+
+        expect(sessionStorage.getItem('riven_auth_token')).toBe('session-token');
+        expect(localStorage.getItem('riven_auth_token')).toBeNull();
+    });
+
+    it('clears tokens from durable and session storage together', async () => {
+        const authApi = await import('./authApi');
+
+        localStorage.setItem('riven_auth_token', 'durable-token');
+        sessionStorage.setItem('riven_auth_token', 'session-token');
+        localStorage.setItem('riven_google_oauth_bridge_token', 'durable-google-token');
+        sessionStorage.setItem('riven_google_oauth_bridge_token', 'session-google-token');
+
+        authApi.setToken(null);
+
+        expect(localStorage.getItem('riven_auth_token')).toBeNull();
+        expect(sessionStorage.getItem('riven_auth_token')).toBeNull();
+        expect(localStorage.getItem('riven_google_oauth_bridge_token')).toBeNull();
+        expect(sessionStorage.getItem('riven_google_oauth_bridge_token')).toBeNull();
+    });
 });

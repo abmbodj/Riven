@@ -94,12 +94,15 @@ export function AuthProvider({ children }) {
 
     // ============ ACTION CALLBACKS (stable — no user in deps) ============
 
-    const signIn = useCallback(async (email, password) => {
+    const signIn = useCallback(async (email, password, options = {}) => {
         try {
-            const data = await authApi.login(email, password);
+            const data = await authApi.login(email, password, options);
 
             if (data.require2FA) {
-                setPendingTwoFactor(data);
+                setPendingTwoFactor({
+                    ...data,
+                    ...(typeof options.keepSignedIn === 'boolean' ? { keepSignedIn: options.keepSignedIn } : {}),
+                });
                 setUser(null);
                 return data;
             }
@@ -125,11 +128,14 @@ export function AuthProvider({ children }) {
         return next;
     }, []);
 
-    const signInWithGoogle = useCallback(async (credential) => {
+    const signInWithGoogle = useCallback(async (credential, options = {}) => {
         try {
-            const data = await authApi.loginWithGoogle(credential);
+            const data = await authApi.loginWithGoogle(credential, options);
             if (data.require2FA) {
-                setPendingTwoFactor(data);
+                setPendingTwoFactor({
+                    ...data,
+                    ...(typeof options.keepSignedIn === 'boolean' ? { keepSignedIn: options.keepSignedIn } : {}),
+                });
                 setUser(null);
                 return data;
             }
@@ -146,15 +152,18 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    const startGoogleOAuth = useCallback(async () => {
-        await authApi.startGoogleOAuth();
+    const startGoogleOAuth = useCallback(async (options = {}) => {
+        await authApi.startGoogleOAuth(options);
     }, []);
 
-    const signInWithApple = useCallback(async (identityToken, rawNonce, appleUser) => {
+    const signInWithApple = useCallback(async (identityToken, rawNonce, appleUser, options = {}) => {
         try {
-            const data = await authApi.loginWithApple(identityToken, rawNonce, appleUser);
+            const data = await authApi.loginWithApple(identityToken, rawNonce, appleUser, options);
             if (data.require2FA) {
-                setPendingTwoFactor(data);
+                setPendingTwoFactor({
+                    ...data,
+                    ...(typeof options.keepSignedIn === 'boolean' ? { keepSignedIn: options.keepSignedIn } : {}),
+                });
                 setUser(null);
                 return data;
             }
@@ -171,8 +180,11 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    const signInWith2FA = useCallback(async (challenge, code) => {
-        const userData = await authApi.login2FA(challenge, code);
+    const signInWith2FA = useCallback(async (challenge, code, options = {}) => {
+        const keepSignedIn = typeof options.keepSignedIn === 'boolean'
+            ? options.keepSignedIn
+            : challenge?.keepSignedIn;
+        const userData = await authApi.login2FA(challenge, code, { keepSignedIn });
         setPendingTwoFactor(null);
         const next = await authApi.hydrateUserIfOnboardingMissing(userData);
         setUser(next);

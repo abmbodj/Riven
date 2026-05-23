@@ -21,13 +21,14 @@ const AppleIcon = () => (
     </svg>
 );
 
-export default function OAuthButtons({ onError }) {
+export default function OAuthButtons({ onError, keepSignedIn }) {
     const { startGoogleOAuth, signInWithGoogle, signInWithApple } = useAuth();
     const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
     const [isLoadingApple, setIsLoadingApple] = useState(false);
     const isNativeClient = Capacitor.isNativePlatform();
     const isIosNativeClient = isNativeClient && Capacitor.getPlatform() === 'ios';
     const isAnyLoading = isLoadingGoogle || isLoadingApple;
+    const authOptions = typeof keepSignedIn === 'boolean' ? { keepSignedIn } : {};
 
     const handleGoogleClick = async () => {
         if (isAnyLoading) {
@@ -38,9 +39,9 @@ export default function OAuthButtons({ onError }) {
         try {
             if (isNativeClient) {
                 const idToken = await signInWithNativeGoogle();
-                await signInWithGoogle(idToken);
+                await signInWithGoogle(idToken, authOptions);
             } else {
-                await startGoogleOAuth();
+                await startGoogleOAuth(authOptions);
                 return;
             }
         } catch (error) {
@@ -60,7 +61,7 @@ export default function OAuthButtons({ onError }) {
         setIsLoadingApple(true);
         try {
             const { identityToken, rawNonce, user } = await signInWithNativeApple();
-            await signInWithApple(identityToken, rawNonce, user);
+            await signInWithApple(identityToken, rawNonce, user, authOptions);
         } catch (error) {
             onError?.(error);
         } finally {

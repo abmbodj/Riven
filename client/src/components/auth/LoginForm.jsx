@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
+import { isMobileOnboardingEligible } from '../../utils/onboardingGate';
 import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
 import AuthLayout from './AuthLayout';
@@ -15,9 +16,22 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
     const toast = useToast();
 
     const [form, setForm] = useState({ email: '', password: '' });
+    const [keepSignedIn, setKeepSignedIn] = useState(true);
+    const [showKeepSignedIn, setShowKeepSignedIn] = useState(() => isMobileOnboardingEligible());
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [alert, setAlert] = useState({ show: false, title: '', message: '', type: 'info' });
+
+    useEffect(() => {
+        const updateMobileState = () => setShowKeepSignedIn(isMobileOnboardingEligible());
+        updateMobileState();
+        window.addEventListener('resize', updateMobileState);
+        window.addEventListener('orientationchange', updateMobileState);
+        return () => {
+            window.removeEventListener('resize', updateMobileState);
+            window.removeEventListener('orientationchange', updateMobileState);
+        };
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,7 +45,8 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
 
         setLoading(true);
         try {
-            const result = await signIn(form.email, form.password);
+            const authOptions = showKeepSignedIn ? { keepSignedIn } : {};
+            const result = await signIn(form.email, form.password, authOptions);
 
             if (result?.require2FA) {
                 onLoginSuccess(result);
@@ -59,6 +74,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
         >
             <div className="w-full">
                 <OAuthButtons
+                    keepSignedIn={showKeepSignedIn ? keepSignedIn : undefined}
                     onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-in failed.', type: 'error' })}
                 />
             </div>
@@ -100,6 +116,21 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                         </button>
                     </div>
                 </div>
+
+                {showKeepSignedIn && (
+                    <label className="flex items-center justify-between gap-3 rounded-xl border border-[#2a3d46]/45 bg-[#0d141e]/35 px-4 py-3 text-[#e4ddd0]">
+                        <span className="flex flex-col gap-0.5">
+                            <span className="text-sm font-sans font-medium">Keep me signed in</span>
+                            <span className="text-[11px] font-mono uppercase tracking-widest text-[#8fa6a8]">This device only</span>
+                        </span>
+                        <input
+                            type="checkbox"
+                            checked={keepSignedIn}
+                            onChange={(event) => setKeepSignedIn(event.target.checked)}
+                            className="h-5 w-5 shrink-0 rounded border-[#8fa6a8]/60 bg-[#0d141e] text-[#deb96a] accent-[#deb96a] focus:ring-2 focus:ring-[#deb96a]/30"
+                        />
+                    </label>
+                )}
 
                 {onForgotPassword && (
                     <div className="flex justify-end -mt-2">

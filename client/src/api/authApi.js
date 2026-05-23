@@ -1,6 +1,12 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 import {
+    forEachAuthStorage,
+    getRivenTokenStorage,
+    getSafeStorage,
+    setAuthPersistenceMode,
+} from '../lib/authPersistence';
+import {
     DEPRECATED_DEFAULT_THEME_NAMES,
     getDefaultThemes,
     THEME_VISUAL_FIELDS,
@@ -53,13 +59,12 @@ const getApiBase = () => resolveApiBase();
 
 // SECURITY NOTE: Storing JWTs client-side is an XSS risk. We prefer httpOnly
 // cookies (set by the server), but Capacitor/iOS PWA environments have broken
-// cookie jars so we fall back to in-memory + sessionStorage. localStorage is
-// only used on native platforms where XSS surface is minimal.
+// cookie jars so we fall back to in-memory + Web Storage. The mobile
+// keep-signed-in option chooses durable vs session-only storage explicitly.
 const TOKEN_KEY = 'riven_auth_token';
 const GOOGLE_OAUTH_BRIDGE_TOKEN_KEY = 'riven_google_oauth_bridge_token';
 export const AUTH_SESSION_EXPIRED_CODE = 'AUTH_SESSION_EXPIRED';
 export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
-const useLocalStorage = Capacitor.isNativePlatform();
 const csrfTokenCache = new Map();
 const EDGE_FUNCTION_AUTH_HEADER = 'x-supabase-auth';
 const WEEKLY_SUMMARY_STORAGE_PREFIX = 'riven:weekly-summary';
@@ -69,39 +74,6 @@ const DEFAULT_PUSH_PREFERENCES = Object.freeze({
     streakEnabled: true,
     reengagementEnabled: true,
 });
-const memoryTokenStore = (() => {
-    const store = new Map();
-    return {
-        getItem(key) {
-            return store.has(key) ? store.get(key) : null;
-        },
-        setItem(key, value) {
-            store.set(key, String(value));
-        },
-        removeItem(key) {
-            store.delete(key);
-        },
-    };
-})();
-
-const getSafeStorage = (kind) => {
-    if (typeof window === 'undefined') return null;
-
-    try {
-        const storage = window[kind];
-        const probeKey = '__riven_storage_probe__';
-        storage.getItem(probeKey);
-        return storage;
-    } catch {
-        return null;
-    }
-};
-
-const getTokenStore = () => {
-    const preferred = useLocalStorage ? 'localStorage' : 'sessionStorage';
-    return getSafeStorage(preferred) || memoryTokenStore;
-};
-
 const getWeeklySummaryStorageKey = (timeZone = 'UTC') => `${WEEKLY_SUMMARY_STORAGE_PREFIX}:${timeZone}`;
 
 const clearWeeklySummaryCache = () => {
@@ -147,33 +119,23 @@ const writeWeeklySummaryCache = (timeZone, value) => {
     }));
 };
 
-const forEachTokenStorage = (callback) => {
-    const storages = [
-        getTokenStore(),
-        getSafeStorage('localStorage'),
-        getSafeStorage('sessionStorage'),
-        memoryTokenStore,
-    ].filter(Boolean);
-
-    const seen = new Set();
-    storages.forEach((storage) => {
-        if (seen.has(storage)) return;
-        seen.add(storage);
-        callback(storage);
-    });
-};
-
-export const getToken = () => getTokenStore().getItem(TOKEN_KEY);
+export const getToken = () => getRivenTokenStorage().getItem(TOKEN_KEY);
 let cachedAppUserId = null;
 let cachedAuthToken = null;
+
+const applyAuthPersistenceOption = (options = {}) => {
+    if (typeof options?.keepSignedIn === 'boolean') {
+        setAuthPersistenceMode(options.keepSignedIn);
+    }
+};
 
 export const setToken = (token) => {
     const normalizedToken = token || null;
 
     if (normalizedToken) {
-        getTokenStore().setItem(TOKEN_KEY, normalizedToken);
+        getRivenTokenStorage().setItem(TOKEN_KEY, normalizedToken);
     } else {
-        forEachTokenStorage((storage) => {
+        forEachAuthStorage((storage) => {
             storage.removeItem(TOKEN_KEY);
             storage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
         });
@@ -188,14 +150,14 @@ export const setToken = (token) => {
 const cacheGoogleOAuthBridgeToken = (token) => {
     const normalizedToken = typeof token === 'string' ? token.trim() : '';
     if (!normalizedToken) return null;
-    getTokenStore().setItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY, normalizedToken);
+    getRivenTokenStorage().setItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY, normalizedToken);
     return normalizedToken;
 };
 
 const getCachedGoogleOAuthBridgeToken = () => {
     let cachedToken = null;
 
-    forEachTokenStorage((storage) => {
+    forEachAuthStorage((storage) => {
         if (cachedToken != null) return;
         cachedToken = storage.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
     });
@@ -204,7 +166,7 @@ const getCachedGoogleOAuthBridgeToken = () => {
 };
 
 const clearGoogleOAuthBridgeToken = () => {
-    forEachTokenStorage((storage) => {
+    forEachAuthStorage((storage) => {
         storage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
     });
 };
@@ -821,7 +783,9 @@ export const register = async (username, email, password, captchaToken = null) =
     return legacyData.user;
 };
 
-export const login = async (email, password) => {
+export const login = async (email, password, options = {}) => {
+    applyAuthPersistenceOption(options);
+
     // Try Supabase Auth first (new users and migrated users)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -909,7 +873,9 @@ export const login = async (email, password) => {
     return legacyData;
 };
 
-export const loginWithGoogle = async (credential) => {
+export const loginWithGoogle = async (credential, options = {}) => {
+    applyAuthPersistenceOption(options);
+
     const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: credential,
@@ -955,7 +921,9 @@ export const loginWithGoogle = async (credential) => {
     return { user: mergeUserWithMfaState(result.user, mfaState) };
 };
 
-export const startGoogleOAuth = async () => {
+export const startGoogleOAuth = async (options = {}) => {
+    applyAuthPersistenceOption(options);
+
     if (Capacitor.isNativePlatform()) {
         throw new Error('Google sign-in is currently available only on web and PWA clients.');
     }
@@ -1016,7 +984,9 @@ const persistAppleIdentityMetadata = async (appleUser) => {
     }
 };
 
-export const loginWithApple = async (identityToken, rawNonce, appleUser) => {
+export const loginWithApple = async (identityToken, rawNonce, appleUser, options = {}) => {
+    applyAuthPersistenceOption(options);
+
     const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: identityToken,
@@ -4474,7 +4444,9 @@ export const disable2FA = async (input) => {
     });
 };
 
-export const login2FA = async (challengeOrTempToken, token) => {
+export const login2FA = async (challengeOrTempToken, token, options = {}) => {
+    applyAuthPersistenceOption(options);
+
     if (challengeOrTempToken?.provider === 'supabase' && challengeOrTempToken.factorId) {
         const { data, error } = await supabase.auth.mfa.challengeAndVerify({
             factorId: challengeOrTempToken.factorId,

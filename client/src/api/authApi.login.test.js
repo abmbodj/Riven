@@ -92,6 +92,50 @@ describe('authApi login migration bridge', () => {
     });
   });
 
+  it('stores the mobile Google OAuth persistence preference before redirect', async () => {
+    supabase.auth.signInWithOAuth.mockResolvedValue({
+      data: { url: 'https://accounts.google.com/o/oauth2/v2/auth' },
+      error: null,
+    });
+
+    await authApi.startGoogleOAuth({ keepSignedIn: false });
+
+    expect(sessionStorage.getItem('riven_auth_persistence')).toBe('session');
+    expect(localStorage.getItem('riven_auth_persistence')).toBeNull();
+  });
+
+  it('stores successful password login tokens durably when keep-signed-in is enabled', async () => {
+    supabase.auth.signInWithPassword.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse({
+      user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false },
+    }));
+
+    await authApi.login('test@example.com', 'password123', { keepSignedIn: true });
+
+    expect(localStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
+    expect(sessionStorage.getItem('riven_auth_token')).toBeNull();
+  });
+
+  it('stores successful password login tokens in session storage when keep-signed-in is disabled', async () => {
+    supabase.auth.signInWithPassword.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse({
+      user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false },
+    }));
+
+    await authApi.login('test@example.com', 'password123', { keepSignedIn: false });
+
+    expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
+    expect(localStorage.getItem('riven_auth_token')).toBeNull();
+  });
+
   it('bootstraps a Supabase session after a successful legacy login fallback', async () => {
     supabase.auth.signInWithPassword.mockResolvedValue({
       data: { session: null },
@@ -302,6 +346,22 @@ describe('authApi login migration bridge', () => {
     expect(supabase.auth.signOut).toHaveBeenCalled();
     expect(result).toBeNull();
     expect(sessionStorage.getItem('riven_auth_token')).toBeNull();
+  });
+
+  it('applies the persistence option when completing legacy 2FA', async () => {
+    document.cookie = 'riven_csrf=test-csrf-token; path=/';
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({
+      token: 'legacy-session-token',
+      user: { id: 7, email: 'test@example.com', username: 'tester' },
+    }));
+
+    const user = await authApi.login2FA({ provider: 'legacy', tempToken: 'temp-token' }, '123456', {
+      keepSignedIn: false,
+    });
+
+    expect(user).toEqual({ id: 7, email: 'test@example.com', username: 'tester' });
+    expect(sessionStorage.getItem('riven_auth_token')).toBe('legacy-session-token');
+    expect(localStorage.getItem('riven_auth_token')).toBeNull();
   });
 
   it('passes the Apple nonce into Supabase and persists first-time Apple name metadata', async () => {
