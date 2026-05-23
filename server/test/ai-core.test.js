@@ -15,7 +15,7 @@ describe('aiCore', () => {
   it('builds shared note-style instructions for natural notes without exam-question filler', () => {
     const instructions = buildNaturalNoteStyleInstructions({ includeKeyConcepts: true });
 
-    expect(instructions).toContain('college student');
+    expect(instructions).toContain('study material a student could actually learn from');
     expect(instructions).toContain('Key Concepts');
     expect(instructions).not.toContain('Potential Exam Questions');
     expect(instructions).not.toContain('takeaway');
@@ -25,7 +25,7 @@ describe('aiCore', () => {
     const contents = buildYoutubeNotesContents('ATP lecture transcript', 'Biology 101', 'Biology');
     const promptText = contents[0]?.text ?? '';
 
-    expect(promptText).toContain('college student');
+    expect(promptText).toContain('study material a student could actually learn from');
     expect(promptText).toContain('Key Concepts');
     expect(promptText).not.toContain('Potential Exam Questions');
     expect(promptText).not.toContain('takeaway');
@@ -97,7 +97,7 @@ describe('aiCore', () => {
       apiKey: 'gemini-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Lecture Notes/Text Content:') }),
         ]));
@@ -173,7 +173,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Output ONLY a valid JSON array.') }),
           expect.objectContaining({ text: expect.stringContaining('Source Material:') }),
@@ -233,7 +233,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('River-led AI tutor session') }),
         ]));
