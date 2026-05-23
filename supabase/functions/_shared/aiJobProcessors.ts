@@ -32,6 +32,7 @@ import {
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
 } from './studyGuideCore.mjs';
+import { assertUserOwnsNoteAudioPath } from './noteAudioAccess.ts';
 
 type JobProcessorArgs = {
   admin: any;
@@ -491,6 +492,20 @@ const processNoteEnhancementJob = async ({
     throw createHttpError('Note enhancement job is missing required audio context.', 400);
   }
 
+  assertUserOwnsNoteAudioPath(audioPath, job.user_id);
+
+  const { data: note, error: noteError } = await admin
+    .from('notes')
+    .select('id')
+    .eq('id', noteId)
+    .eq('user_id', job.user_id)
+    .maybeSingle();
+
+  if (noteError) throw noteError;
+  if (!note) {
+    throw createHttpError('Note not found.', 404);
+  }
+
   const modelMap = getAiModelMap();
   const ai = getApiKeyAndClient();
   const jobStartedAt = Date.now();
@@ -658,7 +673,9 @@ const processNoteEnhancementJob = async ({
       source_type: 'audio',
     })
     .eq('id', noteId)
-    .eq('user_id', job.user_id);
+    .eq('user_id', job.user_id)
+    .select('id')
+    .single();
 
   if (updateError) throw updateError;
 

@@ -7,6 +7,10 @@ import {
   buildSectionNotePrompt,
   buildYoutubeSourcePrompt,
 } from '../../supabase/functions/_shared/notePrompts.mjs';
+import {
+  assertUserOwnsNoteAudioPath,
+  isUserOwnedNoteAudioPath,
+} from '../../supabase/functions/_shared/noteAudioAccess.ts';
 
 describe('note prompts', () => {
   it('keeps the draft prompt natural and avoids exam-question or takeaway instructions', () => {
@@ -51,5 +55,19 @@ describe('note prompts', () => {
     expect(prompt).toContain('Key Concepts');
     expect(prompt).not.toContain('Potential Exam Questions');
     expect(prompt).not.toContain('takeaway');
+  });
+});
+
+describe('note audio access checks', () => {
+  it('allows audio objects only when the first storage path segment matches the user id', () => {
+    expect(isUserOwnedNoteAudioPath('user-1/note-1.webm', 'user-1')).toBe(true);
+    expect(isUserOwnedNoteAudioPath('user-2/note-1.webm', 'user-1')).toBe(false);
+    expect(isUserOwnedNoteAudioPath('user-1/../user-2/note-1.webm', 'user-1')).toBe(false);
+  });
+
+  it('throws a forbidden error for cross-user audio paths', () => {
+    expect(() => assertUserOwnsNoteAudioPath('user-2/note-1.webm', 'user-1')).toThrow(
+      'Audio file not found or access denied.',
+    );
   });
 });

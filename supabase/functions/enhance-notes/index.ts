@@ -6,6 +6,7 @@ import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { buildSinglePassNoteEnhancePrompt, buildSinglePassNoteGeneratePrompt } from '../_shared/notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from '../_shared/noteValidator.mjs';
+import { assertUserOwnsNoteAudioPath } from '../_shared/noteAudioAccess.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
@@ -53,21 +54,45 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
+    assertUserOwnsNoteAudioPath(audioPath, authUser.id);
 
-    // Parallel: user fetch + audio download
-    const [userResult, audioResult] = await Promise.all([
+    // Parallel: confirm the caller owns both the account and target note before using service-role IO.
+    const [userResult, noteResult] = await Promise.all([
       admin
         .from('users')
         .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
         .eq('id', authUser.id)
         .maybeSingle(),
-      admin.storage.from('note-audio').download(audioPath),
+      admin
+        .from('notes')
+        .select('id')
+        .eq('id', noteId)
+        .eq('user_id', authUser.id)
+        .maybeSingle(),
     ]);
 
     const { data: user, error: userError } = userResult;
     if (userError) throw userError;
     if (!user) {
       return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
+    }
+
+    const { data: note, error: noteError } = noteResult;
+    if (noteError) throw noteError;
+    if (!note) {
+      return jsonResponse({ error: 'Note not found' }, { status: 404 }, request);
+    }
+
+    const audioResult = await admin.storage.from('note-audio').download(audioPath);
+    const { data: audioData, error: storageError } = audioResult;
+
+    if (storageError || !audioData) {
+      throw createHttpError('Failed to retrieve audio file', 500);
+    }
+
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    if (!apiKey) {
+      throw createHttpError('AI integration is not configured on the server.', 500);
     }
 
     await consumeAiQuota({
@@ -83,17 +108,6 @@ serve(async (request) => {
         if (updateError) throw updateError;
       },
     });
-
-    const { data: audioData, error: storageError } = audioResult;
-
-    if (storageError || !audioData) {
-      throw createHttpError('Failed to retrieve audio file', 500);
-    }
-
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
-    if (!apiKey) {
-      throw createHttpError('AI integration is not configured on the server.', 500);
-    }
 
     const ai = createAiClient(apiKey);
 
@@ -210,7 +224,9 @@ serve(async (request) => {
               source_type: 'audio',
             })
             .eq('id', noteId)
-            .eq('user_id', authUser.id);
+            .eq('user_id', authUser.id)
+            .select('id')
+            .single();
 
           if (updateError) throw updateError;
 
@@ -287,7 +303,9 @@ serve(async (request) => {
         source_type: 'audio',
       })
       .eq('id', noteId)
-      .eq('user_id', authUser.id);
+      .eq('user_id', authUser.id)
+      .select('id')
+      .single();
 
     if (updateError) throw updateError;
 
