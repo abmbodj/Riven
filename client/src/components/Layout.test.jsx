@@ -90,6 +90,22 @@ function getDesktopSidebar() {
   );
 }
 
+function createMatchMediaMock({ reducedMotion = false, desktop = true } = {}) {
+  return vi.fn().mockImplementation((query) => ({
+    matches: query === '(prefers-reduced-motion: reduce)'
+      ? reducedMotion
+      : query === '(min-width: 768px)'
+        ? desktop
+        : false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
 function StatefulLayoutHarness({ initialCollapsed = false, initialWidth = 220, pathname = '/classes' }) {
   const [navCollapsed, setNavCollapsed] = useState(initialCollapsed);
   const [navWidth, setNavWidth] = useState(initialWidth);
@@ -130,15 +146,7 @@ describe('Layout primary navigation', () => {
 
   beforeEach(() => {
     originalMatchMedia = window.matchMedia;
-    window.matchMedia = vi.fn().mockImplementation((query) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
+    window.matchMedia = createMatchMediaMock();
     if (!Element.prototype.setPointerCapture) {
       Element.prototype.setPointerCapture = vi.fn();
     }
@@ -268,6 +276,16 @@ describe('Layout primary navigation', () => {
     );
 
     expect(screen.getByRole('main').parentElement).toHaveStyle({ marginLeft: '280px' });
+  });
+
+  it('does not apply the desktop sidebar offset on mobile viewports', () => {
+    window.matchMedia = createMatchMediaMock({ desktop: false });
+
+    renderLayout('/dashboard');
+
+    expect(getDesktopSidebar()).toBeUndefined();
+    expect(screen.getByRole('main').parentElement).not.toHaveStyle({ marginLeft: '220px' });
+    expect(screen.getByRole('main').parentElement.style.marginLeft).toBe('');
   });
 
   it('uses the compact expanded width as the main content offset', () => {
@@ -457,15 +475,7 @@ describe('Layout primary navigation', () => {
   });
 
   it('skips sidebar settle transition classes when reduced motion is preferred', () => {
-    window.matchMedia = vi.fn().mockImplementation((query) => ({
-      matches: query === '(prefers-reduced-motion: reduce)',
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
+    window.matchMedia = createMatchMediaMock({ reducedMotion: true });
 
     renderLayout('/classes');
 

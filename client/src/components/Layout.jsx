@@ -165,6 +165,11 @@ export default function Layout({ children }) {
             && typeof window.matchMedia === 'function'
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ));
+    const [isDesktopViewport, setIsDesktopViewport] = useState(() => (
+        typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && window.matchMedia('(min-width: 768px)').matches
+    ));
     const [visualSidebarWidth, setVisualSidebarWidth] = useState(null);
     const [dragCollapsedState, setDragCollapsedState] = useState(null);
     const pageContentRef = useRef(null);
@@ -181,6 +186,18 @@ export default function Layout({ children }) {
         const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         const handleChange = (event) => setPrefersReducedMotion(event.matches);
 
+        mediaQuery.addEventListener?.('change', handleChange);
+
+        return () => mediaQuery.removeEventListener?.('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+
+        const mediaQuery = window.matchMedia('(min-width: 768px)');
+        const handleChange = (event) => setIsDesktopViewport(event.matches);
+
+        setIsDesktopViewport(mediaQuery.matches);
         mediaQuery.addEventListener?.('change', handleChange);
 
         return () => mediaQuery.removeEventListener?.('change', handleChange);
@@ -261,7 +278,7 @@ export default function Layout({ children }) {
     // Fullscreen pages that need edge-to-edge backgrounds (no padding from Layout)
     const isFullscreenPage = isStudyOrTest || isOnboardingPage || (!isLoggedIn && (isAccountPage || isLandingPage));
     // Show sidebar on desktop only when logged in and not on a fullscreen page
-    const showDesktopSidebar = isLoggedIn && !isStudyOrTest && !isFullscreenPage;
+    const showDesktopSidebar = isDesktopViewport && isLoggedIn && !isStudyOrTest && !isFullscreenPage;
     // Show top bar when logged in and not on fullscreen pages
     const showTopBar = isLoggedIn && !isFullscreenPage && !isStudyOrTest;
 
