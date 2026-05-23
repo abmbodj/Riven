@@ -34,7 +34,7 @@ describe('note prompts', () => {
     const prompt = buildSectionNotePrompt(0, 3, 'Student note line', 'Biology 101', 'Biology');
 
     expect(prompt).toContain('study material a student could actually learn from');
-    expect(prompt).not.toContain('Key Concepts');
+    expect(prompt).toContain('Recap / "Key Concepts" / "Summary" / "Conclusion" sections');
     expect(prompt).not.toContain('Potential Exam Questions');
     expect(prompt).not.toContain('takeaway');
   });
