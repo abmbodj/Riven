@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared/aiCore.mjs';
 import { createAiClient } from '../_shared/aiClient.ts';
+import { assertOwnedNoteAudioPath } from '../_shared/audioStorage.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { buildSinglePassNoteEnhancePrompt, buildSinglePassNoteGeneratePrompt } from '../_shared/notePrompts.mjs';
@@ -53,6 +54,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
+    const ownedAudioPath = assertOwnedNoteAudioPath(audioPath, authUser.id);
 
     // Parallel: user fetch + audio download
     const [userResult, audioResult] = await Promise.all([
@@ -61,7 +63,7 @@ serve(async (request) => {
         .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
         .eq('id', authUser.id)
         .maybeSingle(),
-      admin.storage.from('note-audio').download(audioPath),
+      admin.storage.from('note-audio').download(ownedAudioPath),
     ]);
 
     const { data: user, error: userError } = userResult;
@@ -98,7 +100,7 @@ serve(async (request) => {
     const ai = createAiClient(apiKey);
 
     // Transcribe audio with Whisper
-    const ext = audioPath.split('.').pop()?.toLowerCase() ?? 'webm';
+    const ext = ownedAudioPath.split('.').pop()?.toLowerCase() ?? 'webm';
     const mimeMap: Record<string, string> = {
       webm: 'audio/webm',
       ogg: 'audio/ogg',
@@ -110,7 +112,7 @@ serve(async (request) => {
     };
     const audioMimeType = mimeMap[ext] || 'audio/webm';
     const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
-    const filename = audioPath.split('/').pop() || 'audio.webm';
+    const filename = ownedAudioPath.split('/').pop() || 'audio.webm';
 
     const transcription = await ai.transcribeAudio(audioBlob, filename);
 
@@ -215,7 +217,7 @@ serve(async (request) => {
           if (updateError) throw updateError;
 
           // Cleanup audio file
-          admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
+          admin.storage.from('note-audio').remove([ownedAudioPath]).catch(() => {});
 
           sendDone({
             enhanced_content: enhancedContent,
@@ -292,7 +294,7 @@ serve(async (request) => {
     if (updateError) throw updateError;
 
     // Cleanup audio file
-    admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
+    admin.storage.from('note-audio').remove([ownedAudioPath]).catch(() => {});
 
     return jsonResponse(
       {

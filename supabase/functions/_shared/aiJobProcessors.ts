@@ -7,6 +7,7 @@ import {
   parseAiJsonResponse,
 } from './aiCore.mjs';
 import { createAiClient, contentsToMessages, type AiClient, type AiMessage, type AiResponseFormat } from './aiClient.ts';
+import { assertOwnedNoteAudioPath } from './audioStorage.ts';
 import {
   buildMergePrompt,
   buildNoteDraftPrompt,
@@ -481,15 +482,16 @@ const processNoteEnhancementJob = async ({
   const reporter = createJobReporter(admin, job);
   const input = (job.input_payload || {}) as Record<string, unknown>;
   const noteId = String(input.noteId || '');
-  const audioPath = String(input.audioPath || '');
+  const rawAudioPath = input.audioPath;
   const userNotesSnapshot = typeof input.userNotesSnapshot === 'string' ? input.userNotesSnapshot : null;
   const titleSnapshot = typeof input.titleSnapshot === 'string' ? input.titleSnapshot : 'Enhanced Notes';
   const className = typeof input.className === 'string' ? input.className : null;
   const subject = typeof input.subject === 'string' ? input.subject : null;
 
-  if (!noteId || !audioPath) {
+  if (!noteId || !rawAudioPath) {
     throw createHttpError('Note enhancement job is missing required audio context.', 400);
   }
+  const audioPath = assertOwnedNoteAudioPath(rawAudioPath, job.user_id);
 
   const modelMap = getAiModelMap();
   const ai = getApiKeyAndClient();

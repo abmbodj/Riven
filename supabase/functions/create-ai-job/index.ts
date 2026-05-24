@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { consumeAiQuota } from '../_shared/aiCore.mjs';
 import { getYoutubeSourceKey, isAiJobKind } from '../_shared/aiJobs.ts';
+import { assertOwnedNoteAudioPath } from '../_shared/audioStorage.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -74,6 +75,7 @@ serve(async (request) => {
     if (rateLimitResponse) return rateLimitResponse;
 
     const admin = getSupabaseAdmin();
+    let inputPayload = payload;
     let sourceKey: string | null = null;
     let targetType: string | null = null;
     let targetId: string | null = null;
@@ -84,6 +86,8 @@ serve(async (request) => {
       }
       targetType = 'note';
       targetId = String(payload.noteId);
+      const ownedAudioPath = assertOwnedNoteAudioPath(payload.audioPath, authUser.id);
+      inputPayload = { ...payload, audioPath: ownedAudioPath };
 
       const { data: existingJob } = await admin
         .from('ai_jobs')
@@ -186,7 +190,7 @@ serve(async (request) => {
         phase: 'accepted',
         progress_percent: 0,
         progress_message: 'Accepted AI job',
-        input_payload: payload,
+        input_payload: inputPayload,
         source_key: sourceKey,
         target_type: targetType,
         target_id: targetId,
