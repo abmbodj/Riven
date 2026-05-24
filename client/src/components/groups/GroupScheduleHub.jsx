@@ -60,8 +60,8 @@ const MEETUP_COLOR = '#deb96a';
 const MEMBER_COLORS = ['#7a9e72', '#5e7b8f', '#c47c7c', '#8b5cf6', '#06b6d4', '#f59e0b', '#22c55e', '#ec4899'];
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-const schedulePanelClass = 'glass-panel-premium rounded-[2rem] border border-white/10 shadow-[0_28px_56px_rgba(3,7,11,0.24)]';
-const scheduleSoftPanelClass = 'guide-shell rounded-[1.4rem] border border-white/10 bg-white/[0.03]';
+const schedulePanelClass = 'glass-panel-premium rounded-[1.5rem] border border-white/10 shadow-[0_18px_42px_rgba(3,7,11,0.2)]';
+const scheduleSoftPanelClass = 'guide-shell rounded-[1.1rem] border border-white/10 bg-white/[0.03]';
 const scheduleChipClass = 'rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.14em]';
 
 function createDefaultComposerDate(selectedDate = new Date()) {
@@ -188,7 +188,7 @@ function ShareModeControl({ currentMode, onChange, busy }) {
                         type="button"
                         onClick={() => onChange(mode.value)}
                         disabled={busy}
-                        className={`relative overflow-hidden rounded-[1.15rem] border px-3 py-3 text-left transition-all ${
+                        className={`relative overflow-hidden rounded-[1rem] border px-2.5 py-2 text-left transition-all ${
                             isActive
                                 ? 'border-claude-accent/38 bg-[linear-gradient(150deg,rgba(222,185,106,0.18),rgba(40,29,10,0.5))] text-claude-text shadow-[0_18px_34px_rgba(28,20,7,0.2)]'
                                 : 'border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] text-claude-secondary hover:border-white/20 hover:text-claude-text'
@@ -196,12 +196,12 @@ function ShareModeControl({ currentMode, onChange, busy }) {
                     >
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(222,185,106,0.09),transparent_55%)]" />
                         <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.14em]">
+                            <Icon className="h-3.5 w-3.5" />
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.14em]">
                                 {mode.label}
                             </span>
                         </div>
-                        <p className="mt-1.5 line-clamp-1 text-[11px] font-medium text-inherit/75">
+                        <p className="mt-1 line-clamp-1 text-[10px] font-medium text-inherit/75">
                             {mode.description}
                         </p>
                     </button>
@@ -348,11 +348,11 @@ function DayDetailSurface({
     return (
         <section
             data-testid="group-schedule-day-surface"
-            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-4 md:p-5 ${className}`.trim()}
+            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-3 md:p-4 ${className}`.trim()}
         >
             {/* Header */}
             <div className="flex items-center justify-between gap-3">
-                <h3 className="font-display text-[1.6rem] font-bold italic leading-tight tracking-tight text-claude-text">
+                <h3 className="font-display text-[1.25rem] font-bold italic leading-tight tracking-tight text-claude-text md:text-[1.4rem]">
                     {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
                 </h3>
 
@@ -360,42 +360,42 @@ function DayDetailSurface({
                     <button
                         type="button"
                         onClick={onToday}
-                        className="rounded-full border border-emerald-400/20 bg-emerald-400/14 px-3 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/22"
+                        className="rounded-full border border-emerald-400/20 bg-emerald-400/14 px-2.5 py-1.5 text-xs font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/22"
                     >
                         Today
                     </button>
                     <button
                         type="button"
                         onClick={onPropose}
-                        className="inline-flex items-center gap-1.5 rounded-[1.1rem] border border-claude-accent/30 bg-claude-accent/16 px-3 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
+                        className="inline-flex items-center gap-1.5 rounded-[1rem] border border-claude-accent/30 bg-claude-accent/16 px-2.5 py-1.5 text-xs font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
                     >
-                        <CalendarPlus2 className="h-4 w-4 text-claude-accent" />
+                        <CalendarPlus2 className="h-3.5 w-3.5 text-claude-accent" />
                         <span className="hidden sm:inline">Propose</span>
                     </button>
                 </div>
             </div>
 
             {/* Best Times panel */}
-            <div className={`mt-4 ${scheduleSoftPanelClass} p-4`}>
+            <div className={`mt-3 ${scheduleSoftPanelClass} p-3`}>
                 <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-claude-accent" />
-                    <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                    <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
                         Best Times
                     </span>
                 </div>
 
                 {suggestions.length > 0 ? (
                     <>
-                        <p className="mt-1.5 text-xs leading-5 text-claude-secondary">
+                        <p className="mt-1 text-xs leading-5 text-claude-secondary">
                             {suggestionCopy}
                         </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-2 flex flex-wrap gap-1.5">
                             {suggestions.map((suggestion) => (
                                 <button
                                     key={suggestion.key}
                                     type="button"
                                     onClick={() => onSuggestionSelect(suggestion)}
-                                    className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
+                                    className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-3 py-1.5 text-xs font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
                                 >
                                     {formatSuggestionLabel(suggestion)}
                                 </button>
@@ -410,7 +410,7 @@ function DayDetailSurface({
             </div>
 
             {/* Agenda */}
-            <div className="mt-5">
+            <div className="mt-3">
                 {hasAgenda ? (
                     <AnimatePresence mode="popLayout" initial={false}>
                         {agendaItems.map((item) => (
@@ -428,12 +428,12 @@ function DayDetailSurface({
                         ))}
                     </AnimatePresence>
                 ) : (
-                    <div className="flex flex-col items-center gap-4 py-10 text-center">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
-                            <CalendarDays className="h-5 w-5 text-claude-secondary" />
+                    <div className="flex flex-col items-center gap-3 py-7 text-center">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
+                            <CalendarDays className="h-4 w-4 text-claude-secondary" />
                         </div>
                         <div>
-                                <p className="font-display text-xl font-bold italic tracking-tight text-claude-text">Nothing scheduled</p>
+                                <p className="font-display text-lg font-bold italic tracking-tight text-claude-text">Nothing scheduled</p>
                                 <p className="mt-1 text-xs leading-5 text-claude-secondary">
                                     Propose a session to get things going.
                                 </p>
@@ -441,7 +441,7 @@ function DayDetailSurface({
                         <button
                             type="button"
                             onClick={onPropose}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/30 bg-claude-accent/16 px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/30 bg-claude-accent/16 px-3 py-1.5 text-xs font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
                         >
                             <CalendarPlus2 className="h-3.5 w-3.5 text-claude-accent" />
                             Propose Session
@@ -512,6 +512,7 @@ export default function GroupScheduleHub({
         const visibleMemberSourceIds = new Set(calendarSources.map((source) => source.id));
 
         return scheduleSlots
+            .filter((slot) => slot.class_is_archived !== true)
             .map((slot) => ({
                 ...slot,
                 class_id: getMemberSourceId(slot.user_id),
@@ -816,31 +817,31 @@ export default function GroupScheduleHub({
     }
 
     return (
-        <div data-testid="group-schedule-hub" className="space-y-4 md:space-y-5">
+        <div data-testid="group-schedule-hub" className="space-y-3">
             {/* Shared Availability — text-reduced header */}
-            <section className={`${schedulePanelClass} p-4 md:p-5`}>
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <section className={`${schedulePanelClass} p-3 md:p-4`}>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <UsersRound className="h-4 w-4 text-claude-accent" />
-                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                            <UsersRound className="h-3.5 w-3.5 text-claude-accent" />
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
                                 Shared Availability
                             </span>
                         </div>
-                        <h2 className="mt-2 font-display text-2xl font-bold italic tracking-tight text-claude-text md:text-[2rem]">
+                        <h2 className="mt-1.5 font-display text-xl font-bold italic leading-tight tracking-tight text-claude-text md:text-2xl">
                             Keep your schedule visible to {group?.name || 'this group'} on your terms.
                         </h2>
                     </div>
 
-                    <div className="w-full max-w-xl">
+                    <div className="w-full max-w-md">
                         <ShareModeControl currentMode={myShareMode} onChange={handleShareChange} busy={shareBusy} />
                     </div>
                 </div>
             </section>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px] xl:grid-cols-[minmax(0,1.65fr)_380px]">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_320px] xl:grid-cols-[minmax(0,1.7fr)_340px]">
                 {/* Calendar section */}
-                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-4 md:p-5 lg:p-6`}>
+                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-3 md:p-4`}>
                     <CalendarHeader
                         anchorDate={anchorDate}
                         onPrev={() => handleNavigate(-1)}
@@ -859,6 +860,7 @@ export default function GroupScheduleHub({
                         activeFilters={activeFilters}
                         onFilterToggle={handleFilterToggle}
                         eyebrow="Group calendar"
+                        density="compact"
                     />
 
                     {view === 'month' && (
@@ -871,6 +873,7 @@ export default function GroupScheduleHub({
                             contentMode={contentMode}
                             selectedDay={selectedDate}
                             onDaySelect={handleDaySelect}
+                            density="compact"
                         />
                     )}
 

@@ -33,8 +33,10 @@ export default function CalendarGrid({
     contentMode,
     selectedDay,
     onDaySelect,
+    density = 'comfortable',
 }) {
     const today = new Date();
+    const compactDensity = density === 'compact';
     const viewMonth = useMemo(
         () => new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1),
         [anchorDate],
@@ -86,7 +88,7 @@ export default function CalendarGrid({
                 {WEEKDAY_LABELS.map((d) => (
                     <div
                         key={d}
-                        className="text-center font-mono text-[9px] uppercase tracking-widest font-bold text-claude-secondary py-1"
+                        className={`text-center font-mono uppercase tracking-widest font-bold text-claude-secondary ${compactDensity ? 'py-0.5 text-[8px]' : 'py-1 text-[9px]'}`}
                     >
                         {d}
                     </div>
@@ -118,6 +120,7 @@ export default function CalendarGrid({
                             overflow={overflow}
                             scheduleCount={scheduleCount}
                             classColorMap={classColorMap}
+                            compact={compactDensity}
                             onClick={() => onDaySelect(date)}
                         />
                     );
@@ -127,7 +130,7 @@ export default function CalendarGrid({
     );
 }
 
-function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots, overflow, scheduleCount, classColorMap, onClick }) {
+function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots, overflow, scheduleCount, classColorMap, compact, onClick }) {
     const dateNum = date.getDate();
     const ariaLabel = [
         date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
@@ -141,7 +144,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
             aria-label={ariaLabel}
             onClick={onClick}
             className={[
-                'relative flex flex-col items-center justify-start pt-1.5 pb-1 aspect-square',
+                `relative flex flex-col items-center justify-start aspect-square ${compact ? 'pt-1 pb-0.5' : 'pt-1.5 pb-1'}`,
                 'min-w-0 cursor-pointer tap-action transition-colors duration-150',
                 'bg-claude-surface',
                 isSelected ? 'bg-claude-accent/10' : '',
@@ -149,7 +152,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
                 !inMonth ? 'opacity-30' : '',
                 'hover:bg-claude-accent/[0.06] active:bg-claude-accent/15',
                 // Desktop: taller cells with title preview
-                'lg:aspect-auto lg:min-h-[90px] lg:items-start lg:px-1.5',
+                compact ? 'lg:aspect-auto lg:min-h-[64px] lg:items-start lg:px-1.5' : 'lg:aspect-auto lg:min-h-[90px] lg:items-start lg:px-1.5',
             ].filter(Boolean).join(' ')}
         >
             {/* Day number */}
@@ -195,7 +198,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
             {/* Desktop: first assignment title */}
             {assignments.length > 0 && (
                 <div className="hidden lg:block w-full mt-1 space-y-0.5">
-                    {assignments.slice(0, 2).map((a, i) => (
+                    {assignments.slice(0, compact ? 1 : 2).map((a, i) => (
                         <div
                             key={a.id ?? i}
                             className="w-full text-left truncate font-mono text-[9px] font-bold px-1 py-0.5 rounded"
@@ -207,9 +210,9 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
                             {a.title}
                         </div>
                     ))}
-                    {assignments.length > 2 && (
+                    {assignments.length > (compact ? 1 : 2) && (
                         <div className="font-mono text-[9px] text-claude-secondary px-1">
-                            +{assignments.length - 2} more
+                            +{assignments.length - (compact ? 1 : 2)} more
                         </div>
                     )}
                 </div>

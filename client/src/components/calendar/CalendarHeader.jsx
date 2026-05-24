@@ -70,10 +70,12 @@ export default function CalendarHeader({
     activeFilters,
     onFilterToggle,
     eyebrow,
+    density = 'comfortable',
 }) {
     const rangeLabel = formatRangeLabel(anchorDate, view);
     const inCurrentRange = isCurrentRange(anchorDate, view);
     const compactMode = view === 'week' || view === 'day';
+    const compactDensity = density === 'compact';
     const modeOptions = contentOptions || [
         { value: 'assignments', label: 'Assignments' },
         { value: 'classes', label: 'Classes' },
@@ -81,20 +83,20 @@ export default function CalendarHeader({
     ];
 
     return (
-        <div className={`mb-4 ${compactMode ? 'space-y-2.5' : 'space-y-3'}`}>
-            <div className={`flex flex-col gap-3 ${compactMode ? 'lg:flex-row lg:items-center lg:justify-between' : 'lg:flex-row lg:items-center lg:justify-between'}`}>
+        <div className={`${compactDensity ? 'mb-3 space-y-2' : `mb-4 ${compactMode ? 'space-y-2.5' : 'space-y-3'}`}`}>
+            <div className={`flex flex-col ${compactDensity ? 'gap-2' : 'gap-3'} ${compactMode ? 'lg:flex-row lg:items-center lg:justify-between' : 'lg:flex-row lg:items-center lg:justify-between'}`}>
                 <div className="flex items-center gap-2 min-w-0">
                     <div className="flex items-center gap-1 shrink-0">
-                        <NavButton onClick={onPrev} label={`Previous ${view}`}>
-                            <ChevronLeft className="h-4 w-4" />
+                        <NavButton onClick={onPrev} label={`Previous ${view}`} compact={compactDensity}>
+                            <ChevronLeft className={compactDensity ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
                         </NavButton>
-                        <NavButton onClick={onNext} label={`Next ${view}`}>
-                            <ChevronRight className="h-4 w-4" />
+                        <NavButton onClick={onNext} label={`Next ${view}`} compact={compactDensity}>
+                            <ChevronRight className={compactDensity ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
                         </NavButton>
                     </div>
 
                     <div className="min-w-0 flex-1">
-                        <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-claude-secondary">
+                        <div className={`font-mono uppercase text-claude-secondary ${compactDensity ? 'text-[8px] tracking-[0.2em]' : 'text-[9px] tracking-[0.22em]'}`}>
                             {eyebrow || (compactMode ? 'Schedule view' : 'Calendar view')}
                         </div>
                         <motion.div
@@ -102,7 +104,7 @@ export default function CalendarHeader({
                             initial={{ opacity: 0, y: -6 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.15 }}
-                            className={`font-serif italic font-bold text-claude-text truncate ${compactMode ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`}
+                            className={`font-serif italic font-bold text-claude-text truncate ${compactDensity ? 'text-lg sm:text-xl' : compactMode ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`}
                         >
                             {rangeLabel}
                         </motion.div>
@@ -113,7 +115,7 @@ export default function CalendarHeader({
                     {!inCurrentRange && (
                         <button
                             onClick={onToday}
-                            className="rounded-xl border border-claude-border/30 bg-claude-surface/65 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer"
+                            className={`rounded-xl border border-claude-border/30 bg-claude-surface/65 font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer ${compactDensity ? 'px-2.5 py-1.5 text-[9px]' : 'px-3 py-2 text-[10px]'}`}
                         >
                             Today
                         </button>
@@ -128,26 +130,29 @@ export default function CalendarHeader({
                             { value: 'day', label: 'Day' },
                         ]}
                         layoutId="calendar-view-pill"
+                        compactSize={compactDensity}
                     />
                 </div>
             </div>
 
-            <div className={`rounded-2xl border border-claude-border/20 bg-claude-surface/55 px-2.5 py-2 ${compactMode ? 'space-y-2' : 'space-y-3'}`}>
-                <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+            <div className={`border border-claude-border/20 bg-claude-surface/55 ${compactDensity ? 'rounded-xl px-2 py-1.5 space-y-1.5' : `rounded-2xl px-2.5 py-2 ${compactMode ? 'space-y-2' : 'space-y-3'}`}`}>
+                <div className={`flex flex-col ${compactDensity ? 'gap-1.5' : 'gap-2'} xl:flex-row xl:items-center xl:justify-between`}>
                     <SegmentedControl
                         value={contentMode}
                         onChange={onContentModeChange}
                         options={modeOptions}
                         layoutId="calendar-content-pill"
                         compact={false}
+                        compactSize={compactDensity}
                     />
 
                     <div className="min-w-0 flex-1">
-                        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+                        <div className={`flex overflow-x-auto hide-scrollbar ${compactDensity ? 'gap-1' : 'gap-1.5'}`}>
                             <FilterPill
                                 label="All"
                                 active={activeFilters.length === 0}
                                 onClick={() => onFilterToggle('all')}
+                                compact={compactDensity}
                             />
 
                             {classes.map((cls) => (
@@ -157,6 +162,7 @@ export default function CalendarHeader({
                                     color={cls.color}
                                     active={activeFilters.includes(cls.id)}
                                     onClick={() => onFilterToggle(cls.id)}
+                                    compact={compactDensity}
                                 />
                             ))}
                         </div>
@@ -167,19 +173,19 @@ export default function CalendarHeader({
     );
 }
 
-function NavButton({ onClick, label, children }) {
+function NavButton({ onClick, label, children, compact = false }) {
     return (
         <button
             onClick={onClick}
             aria-label={label}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-claude-border/25 bg-claude-surface/70 text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer"
+            className={`flex items-center justify-center rounded-xl border border-claude-border/25 bg-claude-surface/70 text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}
         >
             {children}
         </button>
     );
 }
 
-function SegmentedControl({ value, onChange, options, layoutId, compact = true }) {
+function SegmentedControl({ value, onChange, options, layoutId, compact = true, compactSize = false }) {
     return (
         <div
             className={[
@@ -195,7 +201,7 @@ function SegmentedControl({ value, onChange, options, layoutId, compact = true }
                     role="tab"
                     aria-selected={value === option.value}
                     className={[
-                        'relative z-10 rounded-lg px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] transition-colors tap-action cursor-pointer',
+                        `relative z-10 rounded-lg font-mono font-bold uppercase transition-colors tap-action cursor-pointer ${compactSize ? 'px-2.5 py-1 text-[9px] tracking-[0.18em]' : 'px-3 py-1.5 text-[10px] tracking-[0.2em]'}`,
                         compact ? '' : 'flex-1 sm:flex-none',
                     ].join(' ')}
                     style={{ color: value === option.value ? 'var(--text-color)' : 'var(--secondary-text-color)' }}
@@ -214,11 +220,11 @@ function SegmentedControl({ value, onChange, options, layoutId, compact = true }
     );
 }
 
-function FilterPill({ label, color, active, onClick }) {
+function FilterPill({ label, color, active, onClick, compact = false }) {
     return (
         <button
             onClick={onClick}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] transition-all duration-200 tap-action cursor-pointer"
+            className={`flex shrink-0 items-center gap-1.5 rounded-full border font-mono font-bold uppercase tracking-[0.18em] transition-all duration-200 tap-action cursor-pointer ${compact ? 'px-2.5 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px]'}`}
             style={
                 active && color
                     ? {

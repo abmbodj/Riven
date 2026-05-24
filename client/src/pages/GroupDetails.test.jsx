@@ -475,4 +475,53 @@ describe('GroupDetails upload flow', () => {
     expect(within(primaryHub).queryByText('Hidden Member')).not.toBeInTheDocument();
     expect(within(primaryHub).queryByText('Secret Class')).not.toBeInTheDocument();
   });
+
+  it('does not surface archived class-linked schedule slots in the shared calendar', async () => {
+    api.getGroupScheduleCalendar.mockResolvedValueOnce({
+      my_share_mode: 'full',
+      members: [
+        {
+          id: 'active-user',
+          username: 'active',
+          display_name: 'Active Member',
+          share_mode: 'full',
+        },
+      ],
+      schedule_slots: [
+        {
+          id: 'active-slot',
+          user_id: 'active-user',
+          member_name: 'Active Member',
+          day_of_week: new Date().getDay(),
+          start_time: '09:00',
+          end_time: '10:00',
+          visibility_mode: 'full',
+          class_name: 'Visible Class',
+          class_is_archived: false,
+        },
+        {
+          id: 'archived-slot',
+          user_id: 'active-user',
+          member_name: 'Active Member',
+          day_of_week: new Date().getDay(),
+          start_time: '11:00',
+          end_time: '12:00',
+          visibility_mode: 'full',
+          class_name: 'Archived Class',
+          class_is_archived: true,
+        },
+      ],
+      meetups: [],
+    });
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-schedule-hub').length).toBeGreaterThan(0);
+    });
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    expect(within(primaryHub).getByText('Visible Class')).toBeInTheDocument();
+    expect(within(primaryHub).queryByText('Archived Class')).not.toBeInTheDocument();
+  });
 });

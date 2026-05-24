@@ -277,7 +277,8 @@ BEGIN
           'start_time', to_char(s.start_time, 'HH24:MI'),
           'end_time', to_char(s.end_time, 'HH24:MI'),
           'visibility_mode', gss.visibility_mode,
-          'class_name', CASE WHEN gss.visibility_mode = 'full' THEN c.name ELSE NULL END
+          'class_name', CASE WHEN gss.visibility_mode = 'full' THEN c.name ELSE NULL END,
+          'class_is_archived', COALESCE(c.is_archived, FALSE)
         )
         ORDER BY s.day_of_week ASC, s.start_time ASC
       )
@@ -293,6 +294,7 @@ BEGIN
       LEFT JOIN public.classes c
         ON c.id = s.class_id
       WHERE gss.visibility_mode <> 'hidden'
+        AND COALESCE(c.is_archived, FALSE) = FALSE
     ), '[]'::jsonb),
     'meetups', COALESCE((
       SELECT jsonb_agg(
