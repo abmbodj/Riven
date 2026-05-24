@@ -72,9 +72,9 @@ const POSES = {
         forelimbLeftX: 0,
         forelimbLeftY: 3,
         forelimbLeftRotate: -1,
-        forelimbRightX: 28,
-        forelimbRightY: -20,
-        forelimbRightRotate: -34,
+        forelimbRightX: 46,
+        forelimbRightY: -34,
+        forelimbRightRotate: -66,
         hindlegLeftRotate: -6,
         hindlegRightRotate: 9,
         hindlegDrift: 2,
@@ -244,11 +244,13 @@ function RiverMascot({
     state = 'idle',
     caption = '',
     compact = false,
+    variant = 'card',
     className = '',
 }) {
+    const isBoardTeacher = variant === 'board-teacher';
     const mobileBudget = useMobileVisualBudget();
     const reduceMotion = mobileBudget || getMotionPreference();
-    const { normalizedState, pose } = getPose(state);
+    const { normalizedState, pose } = getPose(isBoardTeacher ? 'point' : state);
     const assetPrefix = useId().replace(/:/g, '');
     const ids = {
         body: `${assetPrefix}-river-body`,
@@ -275,26 +277,36 @@ function RiverMascot({
         ? { rotate: pose.hindlegRightRotate }
         : { rotate: [pose.hindlegRightRotate, pose.hindlegRightRotate - pose.hindlegDrift, pose.hindlegRightRotate] };
 
+    const frameClassName = isBoardTeacher
+        ? `relative overflow-visible p-0 ${className}`
+        : `relative overflow-hidden rounded-[2rem] border border-claude-border/80 p-4 pt-5 sm:p-5 sm:pt-6 ${className}`;
+    const maxWidthClassName = isBoardTeacher ? 'max-w-[210px]' : 'max-w-[320px]';
+
     return (
         <div
-            className={`relative overflow-hidden rounded-[2rem] border border-claude-border/80 p-4 pt-5 sm:p-5 sm:pt-6 ${className}`}
+            className={frameClassName}
             data-testid="river-mascot"
             data-river-state={normalizedState}
+            data-river-variant={variant}
             role="img"
             aria-label={`River is ${pose.label.toLowerCase()}`}
         >
-            <img
-                src="/river-background.svg"
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover object-bottom"
-                fetchPriority="high"
-            />
-            <div className="pointer-events-none absolute inset-0 opacity-80 [background:linear-gradient(180deg,rgba(250,232,193,0.14),transparent_18%),linear-gradient(180deg,transparent_72%,rgba(32,40,34,0.84)_100%)]" />
-            <div className="pointer-events-none absolute inset-x-8 bottom-6 h-20 rounded-full bg-[radial-gradient(circle,_rgba(0,0,0,0.42),transparent_72%)]" />
+            {!isBoardTeacher ? (
+                <>
+                    <img
+                        src="/river-background.svg"
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-bottom"
+                        fetchPriority="high"
+                    />
+                    <div className="pointer-events-none absolute inset-0 opacity-80 [background:linear-gradient(180deg,rgba(250,232,193,0.14),transparent_18%),linear-gradient(180deg,transparent_72%,rgba(32,40,34,0.84)_100%)]" />
+                    <div className="pointer-events-none absolute inset-x-8 bottom-6 h-20 rounded-full bg-[radial-gradient(circle,_rgba(0,0,0,0.42),transparent_72%)]" />
+                </>
+            ) : null}
 
             <div className="relative flex flex-col">
-                <div className="relative mx-auto flex w-full max-w-[320px] flex-col items-center">
-                    {caption && !compact ? (
+                <div className={`relative mx-auto flex w-full ${maxWidthClassName} flex-col items-center`}>
+                    {caption && !compact && !isBoardTeacher ? (
                         <motion.div
                             initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -324,7 +336,9 @@ function RiverMascot({
 
                     <div className="relative w-full">
                         <motion.div
-                            className="absolute inset-x-[14%] top-[11%] h-[56%] rounded-full blur-3xl"
+                            className={isBoardTeacher
+                                ? 'absolute inset-x-[2%] top-[12%] h-[52%] rounded-full blur-2xl'
+                                : 'absolute inset-x-[14%] top-[11%] h-[56%] rounded-full blur-3xl'}
                             style={{ background: `radial-gradient(circle, ${pose.accent}3e 0%, rgba(255,255,255,0.06) 44%, transparent 76%)` }}
                             animate={reduceMotion ? { opacity: 0.42, scale: 1 } : { opacity: [0.28, 0.5, 0.28], scale: [0.98, 1.03, 0.98] }}
                             transition={{ duration: 3.1, repeat: Infinity, ease: ENTER_EASE }}
@@ -576,5 +590,9 @@ function RiverMascot({
 }
 
 export default React.memo(RiverMascot, (prev, next) => (
-    prev.state === next.state && prev.caption === next.caption && prev.compact === next.compact && prev.className === next.className
+    prev.state === next.state
+    && prev.caption === next.caption
+    && prev.compact === next.compact
+    && prev.variant === next.variant
+    && prev.className === next.className
 ));

@@ -73,6 +73,20 @@ describe('RiverMascot', () => {
         expect(screen.getByText('You nailed it.')).toBeInTheDocument();
     });
 
+    it('renders a frameless board teacher variant with a pointing frog pose', () => {
+        const { container } = render(<RiverMascot state="teach" compact variant="board-teacher" />);
+        const mascot = screen.getByTestId('river-mascot');
+
+        expect(mascot).toHaveAttribute('data-river-state', 'point');
+        expect(mascot).toHaveAttribute('data-river-variant', 'board-teacher');
+        expect(mascot).toHaveAttribute('role', 'img');
+        expect(mascot).toHaveAttribute('aria-label', 'River is pointing something out');
+        expect(container.querySelector('img[src="/river-background.svg"]')).toBeNull();
+        expect(container.querySelector('[data-river-feature="speech-bubble"]')).toBeNull();
+        expect(container.querySelector('[data-river-feature="belly"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="forelimb-right"]')).toBeTruthy();
+    });
+
     it('keeps the head clean by removing the old hat layers entirely', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const head = container.querySelector('[data-river-feature="head"]');

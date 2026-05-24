@@ -218,6 +218,49 @@ const makeGuide = (overrides = {}) => ({
   ...overrides,
 });
 
+const makeToctGuide = () => makeGuide({
+  id: 'guide-toct-1',
+  title: 'Architecture Tutor Session',
+  guide_data: {
+    ...makeGuide().guide_data,
+    cards: [
+      {
+        ...makeGuide().guide_data.cards[0],
+        id: 'card-toct-1',
+        prompt: 'How should a system design describe a web app?',
+        target_answer: 'It should show components, data flow, APIs, and tradeoffs.',
+        teaching: {
+          explain: 'A system design is a map of the important parts of software and how those parts talk to each other.',
+          intuition: 'Think of it like a campus map: buildings matter, but the paths between them explain how people actually move.',
+          worked_examples: [
+            {
+              title: 'Checkout service',
+              problem: 'Design the checkout path for a small store.',
+              steps: [
+                { step: 'Identify the browser, API server, payment provider, and database.', detail: 'These are the components that must cooperate.' },
+                { step: 'Draw the payment request and confirmation flow.', detail: 'The arrows reveal the system behavior.' },
+              ],
+              result: 'The diagram explains both structure and flow.',
+              takeaway: 'Good architecture names the parts and the paths.',
+            },
+          ],
+          common_mistakes: ['Listing tools without showing how data moves.'],
+          example: 'A store might include a React UI, Node API, Stripe, and Postgres.',
+          steps: ['Name components.', 'Trace data flow.', 'Mark tradeoffs.'],
+          why_it_matters: 'Architecture helps teams make changes without breaking hidden dependencies.',
+        },
+      },
+    ],
+  },
+  study_state: {
+    ...makeGuide().study_state,
+    current_card_id: 'card-toct-1',
+    card_states: {
+      'card-toct-1': { attempts: 0, hints_used: 0, status: 'active', last_outcome: null, completed: false },
+    },
+  },
+});
+
 const legacyGuide = {
   id: 'guide-legacy',
   title: 'Old Exam Coach',
@@ -329,6 +372,37 @@ describe('GuideView', () => {
         }),
       }));
     });
+  });
+
+  it('places River as a pointing board teacher beside the active TOCT lecture text', async () => {
+    api.getStudyGuide.mockResolvedValue(makeToctGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    const boardTeacher = within(teach).getByTestId('desktop-board-teacher');
+    expect(boardTeacher).toBeInTheDocument();
+    expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
+    expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-variant', 'board-teacher');
+
+    let activeTarget = teach.querySelector('[data-current-teach-target="true"]');
+    expect(activeTarget).toHaveTextContent(/A system design is a map/i);
+
+    fireEvent.click(within(teach).getByRole('button', { name: /Continue.*The Why/i }));
+
+    await waitFor(() => {
+      activeTarget = teach.querySelector('[data-current-teach-target="true"]');
+      expect(activeTarget).toHaveTextContent(/campus map/i);
+    });
+    expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
   });
 
   it('reveals smart teaching chips without calling live assist', async () => {

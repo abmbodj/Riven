@@ -339,6 +339,182 @@ function MobileTeacherStrip({
     );
 }
 
+const getPrefersReducedMotion = () => (
+    typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+);
+
+const getBoardTeacherCaption = (caption, activeSection) => {
+    const sectionLabel = activeSection?.type === 'worked_example'
+        ? 'this example'
+        : activeSection?.label?.toLowerCase();
+    const fallback = sectionLabel ? `Pointing to ${sectionLabel}.` : 'Pointing to this part.';
+    const trimmed = typeof caption === 'string' ? caption.trim() : '';
+    if (!trimmed || trimmed.length > 86) return fallback;
+    return trimmed;
+};
+
+function DesktopBoardTeacher({
+    state,
+    caption,
+    boardRef,
+    targetRef,
+    activeSection,
+    sectionIndex,
+    revealIndex,
+}) {
+    const visualBudgetConstrained = useMobileVisualBudget();
+    const reduceMotion = visualBudgetConstrained || getPrefersReducedMotion();
+    const side = activeSection?.type === 'explain'
+        ? 'left'
+        : (sectionIndex % 2 === 0 ? 'left' : 'right');
+    const [placement, setPlacement] = useState(() => ({
+        boardWidth: 900,
+        boardHeight: 540,
+        teacherWidth: 178,
+        left: 18,
+        top: 172,
+        path: 'M158 308 C232 286 286 244 348 220',
+    }));
+    const teacherCaption = getBoardTeacherCaption(caption, activeSection);
+
+    useEffect(() => {
+        let raf = 0;
+
+        const measure = () => {
+            const board = boardRef.current;
+            const target = targetRef.current;
+            const boardRect = board?.getBoundingClientRect?.();
+            const targetRect = target?.getBoundingClientRect?.();
+            const boardWidth = Math.max(boardRect?.width || 900, 480);
+            const boardHeight = Math.max(boardRect?.height || 540, 420);
+            const teacherWidth = Math.min(190, Math.max(158, boardWidth * 0.18));
+            const teacherHeight = teacherWidth * 1.35;
+            const gutter = Math.max(14, Math.min(26, boardWidth * 0.02));
+            const targetCenterY = targetRect?.height
+                ? targetRect.top - (boardRect?.top || 0) + (targetRect.height / 2)
+                : 170 + (sectionIndex * 92);
+            const top = clamp(targetCenterY - (teacherHeight * 0.44), 96, Math.max(96, boardHeight - teacherHeight - 64));
+            const left = side === 'left'
+                ? gutter
+                : boardWidth - teacherWidth - gutter;
+            const targetLeft = targetRect?.width
+                ? targetRect.left - (boardRect?.left || 0)
+                : boardWidth * 0.38;
+            const targetRight = targetRect?.width
+                ? targetRect.right - (boardRect?.left || 0)
+                : boardWidth * 0.64;
+            const targetY = targetRect?.height ? targetCenterY : top + (teacherHeight * 0.42);
+            const startX = side === 'left'
+                ? left + (teacherWidth * 0.82)
+                : left + (teacherWidth * 0.18);
+            const startY = top + (teacherHeight * 0.42);
+            const endX = side === 'left'
+                ? Math.max(startX + 56, targetLeft + 4)
+                : Math.min(startX - 56, targetRight - 4);
+            const endY = clamp(targetY, 78, boardHeight - 74);
+            const controlX = side === 'left'
+                ? startX + Math.max(72, (endX - startX) * 0.5)
+                : startX - Math.max(72, (startX - endX) * 0.5);
+            const path = `M${startX.toFixed(1)} ${startY.toFixed(1)} C${controlX.toFixed(1)} ${startY.toFixed(1)} ${controlX.toFixed(1)} ${endY.toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+
+            setPlacement({
+                boardWidth,
+                boardHeight,
+                teacherWidth,
+                left,
+                top,
+                path,
+            });
+        };
+
+        const scheduleMeasure = () => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(measure);
+        };
+
+        scheduleMeasure();
+        window.addEventListener('resize', scheduleMeasure);
+        return () => {
+            cancelAnimationFrame(raf);
+            window.removeEventListener('resize', scheduleMeasure);
+        };
+    }, [activeSection?.key, activeSection?.type, boardRef, revealIndex, sectionIndex, side, targetRef]);
+
+    return (
+        <div
+            className="pointer-events-none absolute inset-0 z-20 hidden lg:block"
+            data-testid="desktop-board-teacher"
+        >
+            <svg
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full overflow-visible"
+                viewBox={`0 0 ${placement.boardWidth} ${placement.boardHeight}`}
+                preserveAspectRatio="none"
+            >
+                <motion.path
+                    key={`${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                    d={placement.path}
+                    fill="none"
+                    stroke="rgba(238,225,190,0.74)"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeDasharray="6 8"
+                    initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.48, ease: PANEL_EASE }}
+                    style={{
+                        filter: 'drop-shadow(0 0 6px rgba(222,185,106,0.28))',
+                    }}
+                />
+            </svg>
+
+            <motion.div
+                className="absolute left-0 top-0"
+                style={{ width: placement.teacherWidth }}
+                initial={reduceMotion ? false : { opacity: 0, x: placement.left, y: placement.top + 10 }}
+                animate={{ opacity: 1, x: placement.left, y: placement.top }}
+                transition={{ duration: reduceMotion ? 0 : 0.5, ease: PANEL_EASE }}
+            >
+                {teacherCaption ? (
+                    <motion.div
+                        className="mb-1 max-h-[74px] overflow-hidden rounded-xl border px-3 py-2 text-left"
+                        initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.28, ease: PANEL_EASE }}
+                        style={{
+                            borderColor: 'rgba(222,185,106,0.24)',
+                            background: 'linear-gradient(180deg,rgba(238,225,190,0.16),rgba(29,52,42,0.64))',
+                            boxShadow: '0 12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08)',
+                        }}
+                    >
+                        <p className="font-mono text-[9px] uppercase tracking-[0.2em]" style={{ color: 'rgba(222,185,106,0.82)' }}>
+                            River
+                        </p>
+                        <p className="mt-1 text-[12px] leading-5" style={{ color: '#e8dcc8' }}>
+                            {teacherCaption}
+                        </p>
+                    </motion.div>
+                ) : null}
+                <div
+                    style={{
+                        transform: side === 'right' ? 'scaleX(-1)' : undefined,
+                        transformOrigin: 'center',
+                    }}
+                >
+                    <RiverMascot
+                        state={state}
+                        compact
+                        variant="board-teacher"
+                        className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.34)]"
+                    />
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
 function MobileSessionActionTray({ children }) {
     return (
         <div
@@ -386,6 +562,8 @@ export default function GuideView() {
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
     const sectionRefs = useRef({});
+    const boardSurfaceRef = useRef(null);
+    const activeTeachTargetRef = useRef(null);
     const scrollRafRef = useRef(null);
     const hasSeenRevealHint = useRef(localStorage.getItem('riven_reveal_hint_seen') === '1');
 
@@ -1932,6 +2110,7 @@ export default function GuideView() {
 
                             {/* Chalkboard surface */}
                             <div
+                                ref={boardSurfaceRef}
                                 className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-5 py-6 sm:px-8 sm:py-8"
                                 style={BOARD_SURFACE_STYLE}
                             >
@@ -1947,56 +2126,73 @@ export default function GuideView() {
                                     style={BOARD_TRAY_STYLE}
                                 />
 
-                                {/* River + section progress header */}
-                                <div className="flex items-start gap-4 sm:gap-6 mb-6 sm:mb-8">
-                                    <div className="shrink-0 w-[100px] sm:w-[140px]">
-                                        <RiverMascot state={riverState} caption={teachRevealCaption} compact />
+                                <DesktopBoardTeacher
+                                    state={riverState}
+                                    caption={teachRevealCaption}
+                                    boardRef={boardSurfaceRef}
+                                    targetRef={activeTeachTargetRef}
+                                    activeSection={currentTeachSectionMeta}
+                                    sectionIndex={teachSection}
+                                    revealIndex={explainRevealed}
+                                />
+
+                                {/* Section progress header */}
+                                <div className="relative z-10 mb-6 sm:mb-8 lg:px-[10rem] xl:px-[12rem]">
+                                    <div className="min-w-0 pt-1">
+                                    <p
+                                        className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.2em]"
+                                        style={{ color: 'rgba(222,185,106,0.7)' }}
+                                    >
+                                        {guideData.session_meta.river_role} &middot; {teachSection + 1}/{teachSections.length}
+                                    </p>
+                                    <h2
+                                        className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-serif italic font-bold leading-tight"
+                                        style={{ color: '#e8dcc8' }}
+                                    >
+                                        <SubjectRenderer content={currentConcept?.title || currentCard.prompt} />
+                                    </h2>
+                                    {/* Chalk progress dots */}
+                                    <div className="mt-3 flex items-center gap-1.5">
+                                        {teachSections.map((section, i) => (
+                                            <div
+                                                key={section.key}
+                                                className="transition-all duration-500"
+                                                style={{
+                                                    width: i <= teachSection ? 20 : 6,
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: i <= teachSection
+                                                        ? 'rgba(222,185,106,0.65)'
+                                                        : 'rgba(255,255,255,0.12)',
+                                                }}
+                                            />
+                                        ))}
                                     </div>
-                                    <div className="flex-1 min-w-0 pt-1">
-                                        <p
-                                            className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.2em]"
-                                            style={{ color: 'rgba(222,185,106,0.7)' }}
-                                        >
-                                            {guideData.session_meta.river_role} &middot; {teachSection + 1}/{teachSections.length}
-                                        </p>
-                                        <h2
-                                            className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-serif italic font-bold leading-tight"
-                                            style={{ color: '#e8dcc8' }}
-                                        >
-                                            <SubjectRenderer content={currentConcept?.title || currentCard.prompt} />
-                                        </h2>
-                                        {/* Chalk progress dots */}
-                                        <div className="mt-3 flex items-center gap-1.5">
-                                            {teachSections.map((section, i) => (
-                                                <div
-                                                    key={section.key}
-                                                    className="transition-all duration-500"
-                                                    style={{
-                                                        width: i <= teachSection ? 20 : 6,
-                                                        height: 4,
-                                                        borderRadius: 2,
-                                                        backgroundColor: i <= teachSection
-                                                            ? 'rgba(222,185,106,0.65)'
-                                                            : 'rgba(255,255,255,0.12)',
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
                                     </div>
                                 </div>
 
                                 {/* ── Lecture sections ── */}
-                                <div className="space-y-6">
+                                <div className="relative z-10 space-y-6 lg:px-[10rem] xl:px-[12rem]">
                                     {teachSections.map((section, sectionIndex) => {
                                         if (sectionIndex > teachSection) return null;
+                                        const isActiveSectionTarget = sectionIndex === teachSection && section.type !== 'explain';
 
                                         return (
                                             <motion.div
                                                 key={section.key}
-                                                ref={(el) => { sectionRefs.current[section.key] = el; }}
+                                                ref={(el) => {
+                                                    sectionRefs.current[section.key] = el;
+                                                    if (isActiveSectionTarget) activeTeachTargetRef.current = el;
+                                                }}
+                                                data-current-teach-target={isActiveSectionTarget ? 'true' : undefined}
+                                                className={isActiveSectionTarget ? 'relative -m-3 rounded-2xl p-3' : undefined}
                                                 initial={{ opacity: 0, y: 12 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ duration: 0.5, ease: PANEL_EASE }}
+                                                style={isActiveSectionTarget ? {
+                                                    background: 'linear-gradient(90deg,rgba(238,225,190,0.055),rgba(222,185,106,0.025),transparent)',
+                                                    boxShadow: 'inset 4px 0 0 rgba(238,225,190,0.18), 0 0 28px rgba(222,185,106,0.08)',
+                                                } : undefined}
                                             >
                                                 {/* Section label */}
                                                 <div className="flex items-center gap-3 mb-3">
@@ -2013,11 +2209,15 @@ export default function GuideView() {
                                                 {section.type === 'explain' && (
                                                     <div className="space-y-3">
                                                         {visibleParagraphs.map((paragraph, pi) => {
-                                                            const isCurrent = pi === explainRevealed - 1;
+                                                            const isCurrent = sectionIndex === teachSection && pi === explainRevealed - 1;
                                                             return (
                                                                 <motion.p
                                                                     key={pi}
-                                                                    className="text-[15px] sm:text-base leading-[1.8] max-w-[72ch] transition-[color,opacity] duration-500 ease-out"
+                                                                    ref={(el) => {
+                                                                        if (isCurrent) activeTeachTargetRef.current = el;
+                                                                    }}
+                                                                    data-current-teach-target={isCurrent ? 'true' : undefined}
+                                                                    className={`text-[15px] sm:text-base leading-[1.8] max-w-[72ch] transition-[color,opacity,background,box-shadow] duration-500 ease-out ${isCurrent ? '-mx-3 rounded-xl px-3 py-2' : ''}`}
                                                                     initial={{ opacity: 0, y: 8 }}
                                                                     animate={{ opacity: 1, y: 0 }}
                                                                     transition={{ duration: 0.45, ease: PANEL_EASE }}
@@ -2025,6 +2225,12 @@ export default function GuideView() {
                                                                         color: isCurrent
                                                                             ? '#e8dcc8'
                                                                             : 'color-mix(in oklab, #d4ccb8 55%, transparent)',
+                                                                        background: isCurrent
+                                                                            ? 'linear-gradient(90deg,rgba(238,225,190,0.08),rgba(222,185,106,0.035),transparent)'
+                                                                            : undefined,
+                                                                        boxShadow: isCurrent
+                                                                            ? 'inset 0 -2px 0 rgba(238,225,190,0.24), 0 0 24px rgba(222,185,106,0.08)'
+                                                                            : undefined,
                                                                     }}
                                                                 >
                                                                     <SubjectRenderer content={paragraph} inline />
@@ -2293,7 +2499,7 @@ export default function GuideView() {
 
                                 {/* ── Bottom actions ── */}
                                 <div
-                                    className="sticky bottom-0 z-10 -mx-5 mt-8 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
+                                    className="sticky bottom-0 z-30 -mx-5 mt-8 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0 lg:mx-[10rem] lg:px-0 xl:mx-[12rem]"
                                     style={{ backgroundColor: 'rgba(22, 48, 36, 0.97)', backdropFilter: 'blur(8px)' }}
                                 >
                                     <button
