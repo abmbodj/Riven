@@ -1,6 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
+import {
+    ArrowRight,
+    BookOpen,
+    Calendar,
+    CheckCircle2,
+    ClipboardList,
+    Crown,
+    Layers,
+    Mic,
+    Sparkles,
+    Upload,
+    WandSparkles,
+} from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../../hooks/useGSAP';
@@ -23,6 +36,109 @@ const generateFireflies = () => {
 };
 
 const initialFireflies = generateFireflies();
+
+const productScreenshotSlots = [
+    {
+        eyebrow: 'Class-aware notes',
+        title: 'Lecture capture turns into notes that keep the class attached.',
+        body: 'Bring in audio, files, or written notes and keep the result tied to the course it came from, so study tools start with the right context.',
+        placeholder: 'Notes screenshot placeholder',
+        assetPath: '/landing/riven-notes.png',
+        accent: '#deb96a',
+        Icon: Mic,
+        bullets: ['Audio and imports become structured notes', 'Source material stays linked to the class', 'Definitions, examples, and recall hooks stay visible'],
+    },
+    {
+        eyebrow: 'Review rhythm',
+        title: 'Decks and weak topics feed the next focused session.',
+        body: 'Riven keeps flashcards, recall, and review queues connected so the next small study pass is already shaped when you return.',
+        placeholder: 'Review screenshot placeholder',
+        assetPath: '/landing/riven-review.png',
+        accent: '#8fc4c7',
+        Icon: Layers,
+        bullets: ['Spaced repetition stays central', 'Weak topics surface before they drift', 'Guides, exams, and decks share momentum'],
+    },
+    {
+        eyebrow: 'Course command center',
+        title: 'Classes, assignments, and study material live in one course view.',
+        body: 'Calendar context, due dates, and linked materials sit beside the work, so Riven is organized around school as it actually happens.',
+        placeholder: 'Classes screenshot placeholder',
+        assetPath: '/landing/riven-classes.png',
+        accent: '#b0d9b1',
+        Icon: Calendar,
+        bullets: ['Class pages hold the learning context', 'Assignments and materials stay close', 'Canvas import can reduce manual setup'],
+    },
+    {
+        eyebrow: 'AI study material',
+        title: 'Generate guides and practice from material that already knows the subject.',
+        body: 'The AI layer is strongest when it starts from the class, note, deck, or source you selected instead of from a blank prompt.',
+        placeholder: 'AI study screenshot placeholder',
+        assetPath: '/landing/riven-ai.png',
+        accent: '#d89a76',
+        Icon: WandSparkles,
+        bullets: ['Guides, exams, and decks start from your material', 'Prompts inherit class and subject context', 'Outputs point back to what you are studying'],
+    },
+];
+
+const workflowSteps = [
+    {
+        Icon: Upload,
+        title: 'Bring in material',
+        body: 'Create a class, record a lecture, import notes, or connect the source material you already have.',
+    },
+    {
+        Icon: ClipboardList,
+        title: 'Riven shapes the study surface',
+        body: 'Notes, decks, guides, and mock exams keep the class identity attached instead of becoming separate piles.',
+    },
+    {
+        Icon: BookOpen,
+        title: 'Return to the next right thing',
+        body: 'Review queues, deadlines, and weak topics make the next session specific enough to start quickly.',
+    },
+];
+
+const outcomeStats = [
+    { value: '5', label: 'Study surfaces', detail: 'Notes, decks, guides, mock exams, and classes work together.' },
+    { value: '1', label: 'Course context', detail: 'Class identity stays attached as material becomes practice.' },
+    { value: 'Daily', label: 'Review rhythm', detail: 'Short sessions help keep progress visible without rebuilding a plan.' },
+];
+
+const pricingPlans = [
+    {
+        name: 'Seedling',
+        eyebrow: 'Free',
+        price: '$0',
+        cadence: '/mo',
+        body: 'Start with the calm foundation and build your study routine first.',
+        features: ['Decks, cards, notes, and class tracking', 'Spaced repetition and daily study sessions', 'Enough structure to test the workflow'],
+        cta: 'Begin Journey',
+        accent: '#8fc4c7',
+        featured: false,
+    },
+    {
+        name: 'Supporter',
+        eyebrow: 'Most Popular',
+        price: '$5.99',
+        cadence: '/mo',
+        body: 'Open up the deeper AI and theme experience for regular weekly studying.',
+        features: ['Riven AI across notes, decks, guides, exams, and YouTube tools', 'Unlimited hearts and the full theme library', 'Ad-free study flow with fewer interruptions', 'Better fit for students using Riven every week'],
+        cta: 'Support Riven',
+        accent: '#deb96a',
+        featured: true,
+    },
+    {
+        name: 'Annual',
+        eyebrow: 'Best for semesters',
+        price: '$74.99',
+        cadence: '/yr',
+        body: 'Everything in Supporter, billed once for long-term study seasons.',
+        features: ['Everything in Supporter, billed once for the year', 'Predictable yearly billing for long semesters', 'Best fit if Riven becomes part of your weekly loop', 'Ongoing premium updates as the product grows'],
+        cta: 'Go Annual',
+        accent: '#d89a76',
+        featured: false,
+    },
+];
 
 export default function GardenLanding() {
     const lightBudget = useMobileVisualBudget();
@@ -398,149 +514,273 @@ export default function GardenLanding() {
                 <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-[#0d141e] to-transparent pointer-events-none z-10" />
             </section>
 
-            {/* About / Philosophy Section */}
-            <section className="relative w-full max-w-7xl mx-auto px-6 lg:px-12 py-32 lg:py-48 z-20">
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="max-w-3xl mx-auto text-center"
-                >
-                    <h2 className="text-4xl lg:text-6xl font-serif text-[#deb96a] tracking-tight mb-8">
-                        Quiet your mind. <br className="hidden md:block" /> Focus your intent.
-                    </h2>
-                    <p className="text-lg lg:text-2xl text-[#b8d0d2] leading-relaxed font-serif font-light">
-                        Riven is not just a tool; it is a sanctuary for your thoughts. In a world of infinite distraction, finding a space to cultivate knowledge is rare. Here, you plant the seeds of your understanding and return daily to see them grow.
-                    </p>
-                </motion.div>
-
-                {/* Features Bento / List */}
-                <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-                    {[
-                        { title: "Rooted Retention", desc: "Spaced repetition algorithms that adapt to your memory, helping knowledge last." },
-                        { title: "Branching Thoughts", desc: "Organize the sprawl of your ideas into focused, interconnected flashcard decks." },
-                        { title: "Peaceful Progression", desc: "A minimal, anxiety-free learning experience. Measure growth in quiet mastery." }
-                    ].map((feature, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-100px" }}
-                            transition={{ duration: 0.8, delay: idx * 0.2, ease: "easeOut" }}
-                            className="p-8 lg:p-10 rounded-2xl bg-[#1e3840]/20 border border-[#8fa6a8]/10 hover:border-[#deb96a]/30 hover:bg-[#1e3840]/40 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 flex flex-col"
-                        >
-                            <div className="w-12 h-12 mb-6 rounded-full bg-[#1b4044] border border-[#2a5a5d]/50 shadow-inner flex items-center justify-center text-[#deb96a]">
-                                <span className="font-sans text-xs tracking-widest uppercase opacity-80">{idx + 1}</span>
-                            </div>
-                            <h3 className="text-2xl font-serif text-[#fcfaf2] mb-4">{feature.title}</h3>
-                            <p className="text-[#8fa6a8] leading-relaxed font-sans text-sm tracking-wide">
-                                {feature.desc}
-                            </p>
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
-
-            {/* Pricing Section */}
-            <section className="relative w-full bg-[#0a1017] border-y border-[#1e3840]/50 py-16 sm:py-24 lg:py-48 shadow-[inset_0_20px_40px_rgba(0,0,0,0.5)]">
-                <div className="max-w-7xl mx-auto px-4 lg:px-12 flex flex-col items-center">
+            <section className="relative z-20 w-full overflow-hidden border-y border-white/[0.05] bg-[linear-gradient(180deg,rgba(13,20,30,0.96)_0%,rgba(16,28,38,1)_48%,rgba(18,31,40,1)_100%)]">
+                <div className="mx-auto max-w-7xl px-6 py-24 sm:py-28 lg:px-12 lg:py-32">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, margin: "-100px" }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="text-center mb-10 lg:mb-20"
+                        transition={{ duration: 0.9, ease: "easeOut" }}
+                        className="grid gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-end"
                     >
-                        <h2 className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-6">Simple transparent growth</h2>
-                        <p className="text-[#8fa6a8] font-sans tracking-wide uppercase text-sm">No hidden limits. Cultivate endlessly.</p>
+                        <div className="max-w-3xl">
+                            <p className="mb-5 font-sans text-[11px] uppercase tracking-[0.22em] text-[#8fc4c7]">
+                                After the garden opens
+                            </p>
+                            <h2 className="text-4xl leading-tight text-[#fcfaf2] sm:text-5xl lg:text-6xl">
+                                Turn scattered class material into one study rhythm.
+                            </h2>
+                        </div>
+                        <div className="grid gap-6 font-sans text-sm leading-7 text-[#c7dcdd] sm:text-[15px]">
+                            <p>
+                                Riven keeps the calm atmosphere, then makes the work concrete: notes, decks, guides,
+                                exams, assignments, and class context stay connected instead of becoming another tab maze.
+                            </p>
+                            <Link
+                                to="/account?mode=signup"
+                                className="inline-flex w-fit items-center gap-3 rounded-lg border border-[#deb96a]/35 bg-[#deb96a]/10 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#deb96a] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-[#deb96a]/60 hover:bg-[#deb96a]/16"
+                            >
+                                Start with Riven
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            </Link>
+                        </div>
                     </motion.div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 w-full max-w-6xl">
-                        {/* Free Tier */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-100px" }}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
-                            className="p-5 sm:p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-[#1e3840] flex flex-col hover:border-[#3d7276]/50 transition-colors duration-500"
-                        >
-                            <h3 className="text-lg uppercase tracking-widest font-sans text-[#8fa6a8] mb-2">Seedling (Free)</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-4 lg:mb-6">$0<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
-                            <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Create flashcards & decks
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Spaced repetition learning
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Peaceful ad-supported interface
-                                </li>
-                            </ul>
-                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-[#3d7276]/50 text-[#b8d0d2] font-sans uppercase tracking-widest text-xs hover:bg-[#1e3840]/30 hover:text-[#deb96a] transition-[transform,opacity,color,background-color,border-color,box-shadow]">
-                                Begin Journey
-                            </Link>
-                        </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 24 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8, delay: 0.08, ease: "easeOut" }}
+                        className="mt-16 grid gap-3 sm:grid-cols-3"
+                    >
+                        {outcomeStats.map((stat) => (
+                            <div key={stat.label} className="rounded-lg border border-white/[0.08] bg-white/[0.035] p-5">
+                                <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-[#8fa6a8]">{stat.label}</p>
+                                <p className="mt-3 text-4xl leading-none text-[#fcfaf2]">{stat.value}</p>
+                                <p className="mt-4 font-sans text-sm leading-6 text-[#a6bec0]">{stat.detail}</p>
+                            </div>
+                        ))}
+                    </motion.div>
+                </div>
+            </section>
 
-                        {/* Supporter Tier */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-100px" }}
-                            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-                            className="relative p-5 sm:p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 scale-100 lg:scale-105 z-10"
-                        >
-                            <span className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#deb96a] text-[#0d141e] text-[9px] font-sans font-bold px-3 py-1 rounded-b-lg uppercase tracking-widest">Most Popular</span>
-                            <h3 className="text-lg uppercase tracking-widest font-sans text-[#deb96a] mb-2 mt-2">Supporter</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#deb96a] mb-4 lg:mb-6">$5.99<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
-                            <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Unlimited Hearts & AI Gen
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> All PRO Themes
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Ad-free Experience
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Advanced Study Groups
-                                </li>
-                            </ul>
-                            <Link to="/account?mode=signup" className="w-full py-4 relative z-10 text-center rounded-xl bg-[#deb96a] text-[#0d141e] font-sans font-bold uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(222,185,106,0.2)] hover:bg-[#ebc97e] hover:-translate-y-0.5 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
-                                Support Riven
-                            </Link>
-                        </motion.div>
+            <section className="relative z-20 w-full bg-[linear-gradient(180deg,rgba(18,31,40,1)_0%,rgba(11,23,32,1)_100%)] py-24 sm:py-28 lg:py-32">
+                <div className="mx-auto max-w-7xl px-6 lg:px-12">
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.9, ease: "easeOut" }}
+                        className="mx-auto max-w-3xl text-center"
+                    >
+                        <p className="font-sans text-[11px] uppercase tracking-[0.22em] text-[#8fc4c7]">
+                            Product proof
+                        </p>
+                        <h2 className="mt-5 text-3xl leading-tight text-[#fcfaf2] sm:text-4xl lg:text-5xl">
+                            Screenshot slots for the real study flow.
+                        </h2>
+                        <p className="mx-auto mt-6 max-w-2xl font-sans text-sm leading-7 text-[#b7ccce] sm:text-[15px]">
+                            These placeholders mark where real Riven screenshots can drop in once the final product captures are ready.
+                        </p>
+                    </motion.div>
 
-                        {/* Annual Tier */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-100px" }}
-                            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                            className="relative p-5 sm:p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-amber-500/20 flex flex-col hover:border-amber-500/40 transition-colors duration-500"
-                        >
-                            <h3 className="text-lg uppercase tracking-widest font-sans text-amber-500/80 mb-2">Annual</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-4 lg:mb-6">$74.99<span className="text-lg text-[#8fa6a8] font-sans">/yr</span></div>
-                            <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> All Supporter Benefits
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Predictable yearly billing
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Renews yearly—cancel anytime
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Future Premium Features
-                                </li>
-                            </ul>
-                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-amber-500/30 text-amber-500/90 font-sans uppercase tracking-widest text-xs hover:bg-amber-500/10 hover:text-amber-400 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
-                                Go Annual
-                            </Link>
-                        </motion.div>
+                    <div className="mt-14 grid gap-8 lg:gap-10">
+                        {productScreenshotSlots.map((item, idx) => {
+                            const Icon = item.Icon;
+
+                            return (
+                                <motion.article
+                                    key={item.title}
+                                    initial={{ opacity: 0, y: 34 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-100px" }}
+                                    transition={{ duration: 0.85, delay: idx * 0.06, ease: "easeOut" }}
+                                    className="grid gap-8 rounded-lg border border-white/[0.08] bg-[#10202a]/76 p-4 shadow-[0_28px_80px_rgba(0,0,0,0.28)] sm:p-5 lg:grid-cols-2 lg:items-center lg:p-6"
+                                >
+                                    <figure
+                                        className={`grid aspect-[1120/760] place-items-center overflow-hidden rounded-lg border border-dashed border-[#8fa6a8]/24 bg-[linear-gradient(135deg,rgba(7,16,25,0.94),rgba(16,32,42,0.9))] p-6 ${idx % 2 === 1 ? 'lg:order-2' : ''}`}
+                                        role="img"
+                                        aria-label={`${item.placeholder} for ${item.assetPath}`}
+                                    >
+                                        <div className="grid max-w-sm justify-items-center text-center">
+                                            <div
+                                                className="mb-5 flex h-14 w-14 items-center justify-center rounded-lg border"
+                                                style={{ borderColor: `${item.accent}55`, backgroundColor: `${item.accent}16`, color: item.accent }}
+                                            >
+                                                <Icon className="h-6 w-6" aria-hidden="true" />
+                                            </div>
+                                            <figcaption>
+                                                <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-[#8fa6a8]">
+                                                    {item.placeholder}
+                                                </p>
+                                                <p className="mt-4 font-sans text-sm leading-6 text-[#d4e2e3]">
+                                                    Add the real capture at <span className="font-mono text-[#deb96a]">{item.assetPath}</span>
+                                                </p>
+                                            </figcaption>
+                                        </div>
+                                    </figure>
+
+                                    <div className="px-1 py-2 sm:px-3 lg:px-6">
+                                        <div className="mb-6 flex items-center gap-3">
+                                            <div
+                                                className="flex h-11 w-11 items-center justify-center rounded-lg border"
+                                                style={{ borderColor: `${item.accent}55`, backgroundColor: `${item.accent}18`, color: item.accent }}
+                                            >
+                                                <Icon className="h-5 w-5" aria-hidden="true" />
+                                            </div>
+                                            <p className="font-sans text-[11px] uppercase tracking-[0.22em] text-[#8fa6a8]">
+                                                {item.eyebrow}
+                                            </p>
+                                        </div>
+                                        <h3 className="text-3xl leading-tight text-[#fcfaf2] sm:text-4xl">
+                                            {item.title}
+                                        </h3>
+                                        <p className="mt-5 font-sans text-sm leading-7 text-[#b7ccce] sm:text-[15px]">
+                                            {item.body}
+                                        </p>
+                                        <ul className="mt-7 grid gap-3 font-sans text-sm leading-6 text-[#d4e2e3]">
+                                            {item.bullets.map((bullet) => (
+                                                <li key={bullet} className="flex gap-3">
+                                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#deb96a]" aria-hidden="true" />
+                                                    <span>{bullet}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </motion.article>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            <section className="relative z-20 w-full border-y border-white/[0.05] bg-[#0a1017] py-24 sm:py-28 lg:py-32">
+                <div className="mx-auto grid max-w-7xl gap-12 px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-12">
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.9, ease: "easeOut" }}
+                    >
+                        <p className="mb-5 font-sans text-[11px] uppercase tracking-[0.22em] text-[#8fc4c7]">
+                            How it works
+                        </p>
+                        <h2 className="max-w-xl text-3xl leading-tight text-[#fcfaf2] sm:text-4xl lg:text-5xl">
+                            From raw material to the next session in three moves.
+                        </h2>
+                        <p className="mt-6 max-w-xl font-sans text-sm leading-7 text-[#b7ccce] sm:text-[15px]">
+                            Riven keeps the path from material to context to review short enough to repeat, so every return starts
+                            closer to the next useful action.
+                        </p>
+                    </motion.div>
+
+                    <div className="grid gap-4">
+                        {workflowSteps.map((step, idx) => {
+                            const Icon = step.Icon;
+
+                            return (
+                                <motion.div
+                                    key={step.title}
+                                    initial={{ opacity: 0, y: 22 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-100px" }}
+                                    transition={{ duration: 0.75, delay: idx * 0.08, ease: "easeOut" }}
+                                    className="grid gap-5 rounded-lg border border-white/[0.08] bg-white/[0.035] p-5 sm:grid-cols-[auto_1fr] sm:p-6"
+                                >
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-[#deb96a]/30 bg-[#deb96a]/10 text-[#deb96a]">
+                                        <Icon className="h-5 w-5" aria-hidden="true" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-3">
+                                            <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-[#8fa6a8]">
+                                                Step {idx + 1}
+                                            </p>
+                                            {idx < workflowSteps.length - 1 ? <ArrowRight className="h-4 w-4 text-[#8fa6a8]/60" aria-hidden="true" /> : null}
+                                        </div>
+                                        <h3 className="mt-2 text-2xl leading-tight text-[#fcfaf2]">{step.title}</h3>
+                                        <p className="mt-3 font-sans text-sm leading-7 text-[#a6bec0] sm:text-[15px]">{step.body}</p>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            <section className="relative z-20 w-full bg-[radial-gradient(circle_at_top,rgba(222,185,106,0.11),transparent_34%),linear-gradient(180deg,rgba(10,16,23,1)_0%,rgba(13,20,30,1)_100%)] py-24 sm:py-28 lg:py-32">
+                <div className="mx-auto max-w-7xl px-6 lg:px-12">
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.9, ease: "easeOut" }}
+                        className="mx-auto max-w-3xl text-center"
+                    >
+                        <p className="font-sans text-[11px] uppercase tracking-[0.22em] text-[#8fc4c7]">
+                            Choose the pace that fits
+                        </p>
+                        <h2 className="mt-5 text-3xl leading-tight text-[#fcfaf2] sm:text-4xl lg:text-5xl">
+                            Start free, then stay when the rhythm clicks.
+                        </h2>
+                        <p className="mx-auto mt-6 max-w-2xl font-sans text-sm leading-7 text-[#b7ccce] sm:text-[15px]">
+                            Every plan keeps the same foundation. Paid tiers remove friction, open up the deeper AI and theme experience,
+                            and make Riven easier to live in every day.
+                        </p>
+                    </motion.div>
+
+                    <div className="mt-14 grid gap-5 lg:grid-cols-3">
+                        {pricingPlans.map((plan, idx) => (
+                            <motion.article
+                                key={plan.name}
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: "-100px" }}
+                                transition={{ duration: 0.8, delay: idx * 0.08, ease: "easeOut" }}
+                                className={`relative flex h-full flex-col rounded-lg border bg-[#0d141e]/88 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.24)] sm:p-7 ${plan.featured ? 'lg:-mt-5 lg:mb-5' : ''}`}
+                                style={{ borderColor: plan.featured ? `${plan.accent}70` : 'rgba(255,255,255,0.09)' }}
+                            >
+                                {plan.featured ? (
+                                    <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-lg bg-[#deb96a] px-3 py-1.5 font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[#0d141e]">
+                                        <Crown className="h-3.5 w-3.5" aria-hidden="true" />
+                                        {plan.eyebrow}
+                                    </div>
+                                ) : (
+                                    <p className="mb-5 font-sans text-[10px] uppercase tracking-[0.2em] text-[#8fa6a8]">
+                                        {plan.eyebrow}
+                                    </p>
+                                )}
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-3xl leading-tight text-[#fcfaf2]">{plan.name}</h3>
+                                        <p className="mt-4 font-sans text-sm leading-7 text-[#a6bec0]">{plan.body}</p>
+                                    </div>
+                                    <Sparkles className="h-5 w-5 shrink-0" style={{ color: plan.accent }} aria-hidden="true" />
+                                </div>
+
+                                <div className="mt-8 flex items-end gap-1">
+                                    <span className="text-5xl leading-none" style={{ color: plan.featured ? plan.accent : '#fcfaf2' }}>{plan.price}</span>
+                                    <span className="pb-1 font-sans text-base text-[#8fa6a8]">{plan.cadence}</span>
+                                </div>
+
+                                <ul className="mt-8 grid flex-1 gap-3 font-sans text-sm leading-6 text-[#d4e2e3]">
+                                    {plan.features.map((feature) => (
+                                        <li key={feature} className="flex gap-3">
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: plan.accent }} aria-hidden="true" />
+                                            <span>{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                <Link
+                                    to="/account?mode=signup"
+                                    className={`mt-8 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg px-5 py-3 text-center font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 ${plan.featured ? 'bg-[#deb96a] text-[#0d141e] hover:bg-[#ebc97e]' : 'border border-white/[0.12] text-[#fcfaf2] hover:border-[#deb96a]/40 hover:bg-white/[0.04]'}`}
+                                >
+                                    {plan.cta}
+                                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                                </Link>
+                            </motion.article>
+                        ))}
                     </div>
                 </div>
             </section>
