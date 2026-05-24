@@ -25,6 +25,11 @@ import {
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const COACH_TONES = ['calm review', 'focused', 'challenge'];
+const COACH_TONE_DETAILS = {
+    'calm review': 'Steady pacing, extra reassurance, and low-pressure recovery prompts.',
+    focused: 'Direct checkpoints, tighter feedback, and fewer detours.',
+    challenge: 'Harder first prompts, less hand-holding, and faster escalation.',
+};
 
 const parseListInput = (value) => (
     String(value || '')
@@ -257,7 +262,7 @@ export default function GuidesLibrary() {
     const [genTopics, setGenTopics] = useState('');
     const [genWeakTopics, setGenWeakTopics] = useState('');
     const [genTone, setGenTone] = useState('calm review');
-    const [showSetupQuestions, setShowSetupQuestions] = useState(true);
+    const [showSetupQuestions, setShowSetupQuestions] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
@@ -283,6 +288,15 @@ export default function GuidesLibrary() {
         isSelectMode, selectedIds, selectedCount, isAllSelected,
         enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
     } = useSelection(guides);
+    const sessionTitlePreview = genTitle.trim() || (genExamLabel.trim() ? `${genExamLabel.trim()} Tutor Session` : 'Tutor Session');
+    const sourceSummary = genSource === 'note'
+        ? selectedNotes.length
+            ? `${selectedNotes.length} note${selectedNotes.length === 1 ? '' : 's'} selected`
+            : 'Choose notes to attach'
+        : genSource === 'file'
+            ? genFile?.name || 'Upload pending'
+            : 'Setup answers only';
+    const setupSummary = showSetupQuestions ? 'Guided setup open' : 'Using defaults';
 
     const handleBulkDelete = async () => {
         const ids = [...selectedIds];
@@ -448,206 +462,338 @@ export default function GuidesLibrary() {
             {/* Generate Guide Modal */}
             <AnimatePresence>
                 {showGenerateModal && (
-                    <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowGenerateModal(false)} className="absolute inset-0 bg-claude-bg/60 md:backdrop-blur-md" />
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-3 py-[max(env(safe-area-inset-top,0px),0.75rem)] sm:p-6">
                         <motion.div
-                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[80dvh] overflow-y-auto"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowGenerateModal(false)}
+                            className="absolute inset-0 bg-claude-bg/70 md:backdrop-blur-md"
+                        />
+                        <motion.div
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="create-tutor-session-title"
+                            aria-describedby="create-tutor-session-description"
+                            initial={{ opacity: 0, y: 22, scale: 0.96 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 16, scale: 0.97 }}
+                            transition={{ type: 'spring', damping: 24, stiffness: 220 }}
+                            onClick={(event) => event.stopPropagation()}
+                            className="relative flex max-h-[88dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-claude-border bg-claude-bg shadow-[0_30px_90px_rgba(0,0,0,0.36)]"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Create Tutor Session</h3>
-                                <button onClick={() => setShowGenerateModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(222,185,106,0.14),transparent_34%),radial-gradient(circle_at_85%_8%,rgba(122,158,114,0.14),transparent_30%)]" />
+
+                            <div className="relative flex items-start justify-between gap-4 border-b border-claude-border px-4 py-4 sm:px-6 sm:py-5">
+                                <div className="min-w-0">
+                                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/30 px-3 py-1">
+                                        <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
+                                        <span className="text-[9px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary">Session composer</span>
+                                    </div>
+                                    <h2 id="create-tutor-session-title" className="font-serif text-2xl font-bold italic leading-tight tracking-tight text-claude-text sm:text-3xl">
+                                        Create Tutor Session
+                                    </h2>
+                                    <p id="create-tutor-session-description" className="mt-1 max-w-2xl text-sm leading-6 text-claude-secondary">
+                                        Set the goal, choose the pressure points, and add source material only if it helps River build a sharper first pass.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowGenerateModal(false)}
+                                    aria-label="Close create tutor session"
+                                    className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/25 text-claude-secondary transition-colors hover:border-claude-accent/40 hover:text-claude-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
 
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="mb-4 rounded-[2rem] border border-claude-border/70 bg-claude-surface/70 p-4 sm:p-5">
-                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">River-led active recall</p>
-                                                <p className="mt-2 text-sm leading-6 text-claude-text">
-                                                    Start with the exam, weak spots, and preferred tone. Notes or a file can sharpen the first topic map, but they are optional.
-                                                </p>
+                            <div className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(21rem,0.85fr)] lg:gap-5">
+                                    <section className="rounded-2xl border border-claude-border/80 bg-claude-surface/55 p-4">
+                                        <div className="mb-4 flex items-start gap-3">
+                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-accent/10 text-claude-accent">
+                                                <Target className="h-4 w-4" />
                                             </div>
-                                            <OnboardingArt className="w-full max-w-[160px] sm:max-w-[150px]" />
+                                            <div>
+                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">Study brief</p>
+                                                <h3 className="mt-0.5 font-serif text-xl font-bold italic leading-tight text-claude-text">Goal and focus</h3>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
 
-                                <div>
-                                    <label htmlFor="coach-exam-label" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                                        What are you studying for
-                                    </label>
-                                    <input
-                                        id="coach-exam-label"
-                                        type="text"
-                                        value={genExamLabel}
-                                        onChange={e => setGenExamLabel(e.target.value)}
-                                        placeholder="AP Biology midterm, Organic Chemistry quiz, Civics final..."
-                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
-                                    />
-                                </div>
-
-                                <div className="rounded-[2rem] border border-claude-border/70 bg-claude-bg/55 p-4 sm:p-5">
-                                    <div className="mb-4 flex items-center justify-between gap-3">
                                         <div>
-                                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">4-question setup</p>
-                                            <p className="mt-1 text-sm text-claude-secondary">Skip it in one tap if you just want the defaults.</p>
+                                            <label htmlFor="coach-exam-label" className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                                What are you studying for
+                                            </label>
+                                            <input
+                                                id="coach-exam-label"
+                                                type="text"
+                                                value={genExamLabel}
+                                                onChange={e => setGenExamLabel(e.target.value)}
+                                                placeholder="AP Biology midterm, Organic Chemistry quiz, Civics final..."
+                                                className="w-full rounded-2xl border-2 border-claude-border bg-claude-bg/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
+                                            />
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowSetupQuestions((value) => !value)}
-                                            className="rounded-full border border-claude-border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:border-claude-accent/40 hover:text-claude-accent"
-                                        >
-                                            {showSetupQuestions ? 'Skip for now' : 'Show setup'}
-                                        </button>
-                                    </div>
 
-                                    {showSetupQuestions ? (
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label htmlFor="coach-exam-date" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                                                    What test or goal is this for, and when is it
-                                                </label>
-                                                <input
-                                                    id="coach-exam-date"
-                                                    type="date"
-                                                    value={genExamDate}
-                                                    onChange={(event) => setGenExamDate(event.target.value)}
-                                                    className="w-full glass-panel border border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
-                                                />
+                                        <div className="mt-4 rounded-2xl border border-claude-border/70 bg-claude-bg/45 p-4">
+                                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Focus map</p>
+                                                    <p className="mt-1 text-sm leading-5 text-claude-secondary">Optional details for a sharper first pass.</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowSetupQuestions((value) => !value)}
+                                                    className="tap-action inline-flex min-h-10 items-center justify-center rounded-full border border-claude-border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:border-claude-accent/40 hover:text-claude-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50"
+                                                >
+                                                    {showSetupQuestions ? 'Skip for now' : 'Show setup'}
+                                                </button>
                                             </div>
 
-                                            <div>
-                                                <label htmlFor="coach-topics" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                                                    What topics should we cover
-                                                </label>
-                                                <textarea
-                                                    id="coach-topics"
-                                                    value={genTopics}
-                                                    onChange={(event) => setGenTopics(event.target.value)}
-                                                    placeholder="Cells, mitosis, membrane transport"
-                                                    className="min-h-[110px] w-full glass-panel border border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none"
-                                                />
-                                            </div>
+                                            {showSetupQuestions ? (
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label htmlFor="coach-exam-date" className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                                            What test or goal is this for, and when is it
+                                                        </label>
+                                                        <input
+                                                            id="coach-exam-date"
+                                                            type="date"
+                                                            value={genExamDate}
+                                                            onChange={(event) => setGenExamDate(event.target.value)}
+                                                            className="w-full rounded-2xl border border-claude-border bg-claude-surface/40 p-4 font-mono text-botanical-parchment outline-none transition-colors focus:border-claude-accent"
+                                                        />
+                                                    </div>
 
-                                            <div>
-                                                <label htmlFor="coach-weak-topics" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                                                    Which topics feel weakest right now
-                                                </label>
-                                                <textarea
-                                                    id="coach-weak-topics"
-                                                    value={genWeakTopics}
-                                                    onChange={(event) => setGenWeakTopics(event.target.value)}
-                                                    placeholder="Mitosis, meiosis"
-                                                    className="min-h-[96px] w-full glass-panel border border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none"
-                                                />
-                                            </div>
+                                                    <div className="grid gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <label htmlFor="coach-topics" className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                                                What topics should we cover
+                                                            </label>
+                                                            <textarea
+                                                                id="coach-topics"
+                                                                value={genTopics}
+                                                                onChange={(event) => setGenTopics(event.target.value)}
+                                                                placeholder="Cells, mitosis, membrane transport"
+                                                                className="min-h-[88px] w-full resize-none rounded-2xl border border-claude-border bg-claude-surface/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
+                                                            />
+                                                        </div>
 
-                                            <div>
-                                                <span className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                                                    What tutor tone do you want
-                                                </span>
-                                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                                    {COACH_TONES.map((tone) => (
-                                                        <button
-                                                            key={tone}
-                                                            type="button"
-                                                            onClick={() => setGenTone(tone)}
-                                                            className={`min-h-[48px] rounded-2xl border px-4 py-3 text-sm font-mono font-bold capitalize transition-all ${
-                                                                genTone === tone
-                                                                    ? 'border-claude-accent bg-claude-accent/10 text-claude-accent'
-                                                                    : 'border-claude-border bg-claude-surface/50 text-claude-secondary'
-                                                            }`}
-                                                        >
-                                                            {tone}
-                                                        </button>
-                                                    ))}
+                                                        <div>
+                                                            <label htmlFor="coach-weak-topics" className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                                                Which topics feel weakest right now
+                                                            </label>
+                                                            <textarea
+                                                                id="coach-weak-topics"
+                                                                value={genWeakTopics}
+                                                                onChange={(event) => setGenWeakTopics(event.target.value)}
+                                                                placeholder="Mitosis, meiosis"
+                                                                className="min-h-[88px] w-full resize-none rounded-2xl border border-claude-border bg-claude-surface/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <span className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                                            What tutor tone do you want
+                                                        </span>
+                                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                                            {COACH_TONES.map((tone) => (
+                                                                <button
+                                                                    key={tone}
+                                                                    type="button"
+                                                                    aria-pressed={genTone === tone}
+                                                                    onClick={() => setGenTone(tone)}
+                                                                    className={`tap-action min-h-[58px] rounded-2xl border px-3 py-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50 ${
+                                                                        genTone === tone
+                                                                            ? 'border-claude-accent bg-claude-accent/15 text-claude-accent shadow-[0_0_0_1px_rgba(222,185,106,0.08)]'
+                                                                            : 'border-claude-border bg-claude-surface/40 text-claude-secondary hover:border-claude-accent/30 hover:text-claude-text'
+                                                                    }`}
+                                                                >
+                                                                    <span className="block font-mono text-xs font-bold capitalize">{tone}</span>
+                                                                    <span className="mt-0.5 block truncate text-[11px] normal-case leading-4 text-claude-secondary">{COACH_TONE_DETAILS[tone]}</span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="rounded-xl border border-claude-border bg-claude-surface/30 px-4 py-3 text-sm leading-6 text-claude-secondary">
+                                                    Fast mode is on. River will use the goal, current tone, and any source you attach.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    <aside className="space-y-4">
+                                        <section className="rounded-2xl border border-claude-border/80 bg-claude-surface/50 p-4 sm:p-5">
+                                            <div className="mb-4 flex items-start gap-3">
+                                                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-claude-border bg-claude-bg/35 text-claude-accent">
+                                                    <BookOpen className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Source and output</p>
+                                                    <h3 className="mt-1 font-serif text-xl font-bold italic leading-tight text-claude-text">Choose what River can see</h3>
+                                                    <p className="mt-1 text-sm leading-6 text-claude-secondary">Keep it brief-only, or ground the session in existing material.</p>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ) : null}
-                                </div>
 
-                                <div>
-                                    <label htmlFor="coach-title" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                                        Coach title
-                                    </label>
-                                    <input
-                                        id="coach-title"
-                                        type="text"
-                                        value={genTitle}
-                                        onChange={e => setGenTitle(e.target.value)}
-                                        placeholder={genExamLabel ? `${genExamLabel} Tutor Session` : 'Final Tutor Session'}
-                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Optional source material</label>
-                                    <div className="grid gap-2 sm:grid-cols-3">
-                                        <button type="button" onClick={() => setGenSource('none')} className={`p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'none' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
-                                            No source yet
-                                        </button>
-                                        <button type="button" onClick={() => setGenSource('note')} className={`p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'note' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
-                                            Add notes
-                                        </button>
-                                        <button type="button" onClick={() => setGenSource('file')} className={`p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'file' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
-                                            Upload file
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {genSource === 'note' ? (
-                                    <div>
-                                        {selectedNotes.length > 1 && (
-                                            <p className="text-[10px] font-mono text-claude-accent mb-2 tracking-wider">{selectedNotes.length} notes selected — will be combined</p>
-                                        )}
-                                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                                            {notes.length === 0 ? (
-                                                <p className="text-claude-secondary italic font-serif text-sm text-center py-4">No notes yet</p>
-                                            ) : notes.map(note => {
-                                                const isSelected = selectedNotes.includes(note.id);
-                                                return (
-                                                    <button
-                                                        key={note.id}
-                                                        onClick={() => toggleNoteSelection(note.id)}
-                                                        className={`w-full p-3 rounded-xl text-left border transition-all flex items-center gap-3 ${isSelected ? 'bg-claude-accent/10 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-text'}`}
-                                                    >
-                                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border'}`}>
-                                                            {isSelected && <Check className="w-3 h-3 text-white" />}
-                                                        </div>
-                                                        <span className="font-serif italic text-sm truncate">{note.title || 'Untitled'}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        {genFile ? (
-                                            <div className="flex items-center gap-3 p-3 glass-panel rounded-xl border border-claude-border">
-                                                <Upload className="w-4 h-4 text-claude-accent" />
-                                                <span className="font-mono text-xs text-claude-text truncate flex-1">{genFile.name}</span>
-                                                <button onClick={() => setGenFile(null)} className="text-claude-secondary hover:text-red-400"><X className="w-4 h-4" /></button>
+                                            <div>
+                                                <label htmlFor="coach-title" className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                                    Coach title
+                                                </label>
+                                                <input
+                                                    id="coach-title"
+                                                    type="text"
+                                                    value={genTitle}
+                                                    onChange={e => setGenTitle(e.target.value)}
+                                                    placeholder={genExamLabel ? `${genExamLabel} Tutor Session` : 'Final Tutor Session'}
+                                                    className="w-full rounded-2xl border-2 border-claude-border bg-claude-bg/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
+                                                />
                                             </div>
-                                        ) : (
-                                            <label className="block p-8 border-2 border-dashed border-claude-border rounded-2xl text-center cursor-pointer hover:border-claude-accent/30 transition-colors">
-                                                <Upload className="w-8 h-8 text-claude-secondary mx-auto mb-2" />
-                                                <p className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Tap to upload (PDF, DOCX, TXT, Image)</p>
-                                                <input type="file" accept={ACCEPTED_FILES} onChange={handleFileChange} className="hidden" />
-                                            </label>
-                                        )}
-                                    </div>
-                                )}
 
+                                            <div className="mt-5">
+                                                <p className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Optional source material</p>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {[
+                                                        {
+                                                            id: 'none',
+                                                            title: 'Brief only',
+                                                            description: 'No file',
+                                                            icon: Target,
+                                                        },
+                                                        {
+                                                            id: 'note',
+                                                            title: 'Notes',
+                                                            description: 'Saved notes',
+                                                            icon: BookOpen,
+                                                        },
+                                                        {
+                                                            id: 'file',
+                                                            title: 'File',
+                                                            description: 'Upload',
+                                                            icon: Upload,
+                                                        },
+                                                    ].map((option) => {
+                                                        const SourceIcon = option.icon;
+                                                        const isActive = genSource === option.id;
+                                                        return (
+                                                            <button
+                                                                key={option.id}
+                                                                type="button"
+                                                                aria-pressed={isActive}
+                                                                onClick={() => setGenSource(option.id)}
+                                                                className={`tap-action flex min-h-[62px] flex-col items-start justify-center gap-1 rounded-2xl border p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50 ${
+                                                                    isActive
+                                                                        ? 'border-claude-accent bg-claude-accent/15 text-claude-accent'
+                                                                        : 'border-claude-border bg-claude-bg/25 text-claude-secondary hover:border-claude-accent/30 hover:text-claude-text'
+                                                                }`}
+                                                            >
+                                                                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${isActive ? 'border-claude-accent/30 bg-claude-accent/15' : 'border-claude-border bg-claude-bg/30'}`}>
+                                                                    <SourceIcon className="h-3.5 w-3.5" />
+                                                                </span>
+                                                                <span className="min-w-0">
+                                                                    <span className="block truncate font-mono text-[9px] font-bold uppercase tracking-[0.14em]">{option.title}</span>
+                                                                    <span className="block truncate text-[10px] leading-4 text-claude-secondary">{option.description}</span>
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4">
+                                                {genSource === 'note' ? (
+                                                    <div>
+                                                        {selectedNotes.length > 1 && (
+                                                            <p className="mb-2 text-[10px] font-mono tracking-wider text-claude-accent">{selectedNotes.length} notes selected - will be combined</p>
+                                                        )}
+                                                        <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                                                            {notes.length === 0 ? (
+                                                                <p className="rounded-xl border border-dashed border-claude-border px-4 py-6 text-center font-serif text-sm italic text-claude-secondary">No notes yet</p>
+                                                            ) : notes.map(note => {
+                                                                const isSelected = selectedNotes.includes(note.id);
+                                                                return (
+                                                                    <button
+                                                                        key={note.id}
+                                                                        type="button"
+                                                                        onClick={() => toggleNoteSelection(note.id)}
+                                                                        className={`tap-action flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${isSelected ? 'border-claude-accent/40 bg-claude-accent/10 text-claude-accent' : 'border-claude-border bg-claude-bg/25 text-claude-text hover:border-claude-accent/30'}`}
+                                                                    >
+                                                                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all ${isSelected ? 'border-claude-accent bg-claude-accent' : 'border-claude-border'}`}>
+                                                                            {isSelected && <Check className="h-3 w-3 text-[#162a31]" />}
+                                                                        </div>
+                                                                        <span className="truncate font-serif text-sm italic">{note.title || 'Untitled'}</span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ) : genSource === 'file' ? (
+                                                    <div>
+                                                        {genFile ? (
+                                                            <div className="flex items-center gap-3 rounded-xl border border-claude-border bg-claude-bg/25 p-3">
+                                                                <Upload className="h-4 w-4 shrink-0 text-claude-accent" />
+                                                                <span className="min-w-0 flex-1 truncate font-mono text-xs text-claude-text">{genFile.name}</span>
+                                                                <button type="button" onClick={() => setGenFile(null)} aria-label="Remove uploaded file" className="text-claude-secondary transition-colors hover:text-red-400">
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-claude-border p-6 text-center transition-colors hover:border-claude-accent/30">
+                                                                <Upload className="mx-auto mb-2 h-8 w-8 text-claude-secondary" />
+                                                                <p className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Tap to upload (PDF, DOCX, TXT, Image)</p>
+                                                                <input type="file" accept={ACCEPTED_FILES} onChange={handleFileChange} className="hidden" />
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="rounded-2xl border border-dashed border-claude-border bg-claude-bg/20 px-4 py-5 text-sm leading-6 text-claude-secondary">
+                                                        Build from the setup answers now. You can attach notes or upload a file before starting if you want River to use source material.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </section>
+
+                                        <section className="rounded-2xl border border-claude-border/80 bg-claude-bg/35 p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Output brief</p>
+                                                    <h3 className="mt-1 truncate font-serif text-xl font-bold italic leading-tight text-claude-text">{sessionTitlePreview}</h3>
+                                                </div>
+                                                <div className="shrink-0 rounded-full border border-claude-accent/25 bg-claude-accent/10 px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                                                    Ready
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 grid gap-2 text-sm">
+                                                <div className="flex items-center justify-between gap-3 rounded-xl border border-claude-border bg-claude-bg/45 px-3 py-2">
+                                                    <p className="flex items-center gap-2 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"><Upload className="h-3.5 w-3.5" /> Source</p>
+                                                    <p className="min-w-0 truncate text-right text-claude-text">{sourceSummary}</p>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3 rounded-xl border border-claude-border bg-claude-bg/45 px-3 py-2">
+                                                    <p className="flex items-center gap-2 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"><Calendar className="h-3.5 w-3.5" /> Setup</p>
+                                                    <p className="min-w-0 truncate text-right text-claude-text">{setupSummary}</p>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3 rounded-xl border border-claude-border bg-claude-bg/45 px-3 py-2">
+                                                    <p className="flex items-center gap-2 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"><Clock3 className="h-3.5 w-3.5" /> Tone</p>
+                                                    <p className="min-w-0 truncate text-right capitalize text-claude-text">{genTone}</p>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </aside>
+                                </div>
+                            </div>
+
+                            <div className="relative flex flex-col gap-3 border-t border-claude-border bg-claude-bg/90 px-4 py-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                <p className="text-xs leading-5 text-claude-secondary sm:max-w-md">
+                                    Required: what you are studying for. Source material is optional.
+                                </p>
                                 <button
+                                    type="button"
                                     onClick={handleGenerate}
                                     disabled={generating}
-                                    className="claude-button-primary w-full py-5 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                                    className="claude-button-primary w-full gap-2 py-4 text-base disabled:opacity-50 sm:w-auto sm:min-w-[15rem]"
                                 >
-                                    {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                    {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
                                     {generating ? 'Building...' : 'Build Tutor Session'}
                                 </button>
                             </div>
@@ -699,7 +845,7 @@ export default function GuidesLibrary() {
                             setGenTopics('');
                             setGenWeakTopics('');
                             setGenTone('calm review');
-                            setShowSetupQuestions(true);
+                            setShowSetupQuestions(false);
                         }}
                         className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
                         aria-label="Create tutor session"

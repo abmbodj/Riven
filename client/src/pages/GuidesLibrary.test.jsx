@@ -362,6 +362,36 @@ describe('GuidesLibrary', () => {
     expect(screen.queryByText('Legacy History Guide')).not.toBeInTheDocument();
   });
 
+  it('opens the create tutor session flow as a centered accessible composer', async () => {
+    api.getStudyGuides.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/no tutor sessions yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /create tutor session/i });
+    expect(dialog).toHaveClass('max-w-5xl');
+    expect(dialog.parentElement).toHaveClass('items-center');
+    expect(dialog.parentElement).toHaveClass('justify-center');
+    expect(screen.getByText(/session composer/i)).toBeInTheDocument();
+    expect(screen.getByText(/study brief/i)).toBeInTheDocument();
+    expect(screen.getByText(/focus map/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show setup/i })).toBeInTheDocument();
+    expect(screen.getByText(/optional source material/i)).toBeInTheDocument();
+    expect(screen.getByText(/output brief/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /close create tutor session/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /create tutor session/i })).not.toBeInTheDocument();
+    });
+  });
+
   it('can create a tutor session from setup answers without separate source material', async () => {
     api.getStudyGuides.mockResolvedValue([]);
     api.generateAiGuide.mockResolvedValue({ guide_id: 'guide-setup' });
@@ -375,11 +405,15 @@ describe('GuidesLibrary', () => {
     await screen.findByText(/no tutor sessions yet/i);
     fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
 
-    expect(await screen.findByText(/create tutor session/i)).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /create tutor session/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/what are you studying for/i), {
       target: { value: 'Biology Midterm' },
     });
+    const showSetupButton = screen.queryByRole('button', { name: /show setup/i });
+    if (showSetupButton) {
+      fireEvent.click(showSetupButton);
+    }
     fireEvent.change(screen.getByLabelText(/what topics should we cover/i), {
       target: { value: 'Cells, Mitosis' },
     });
