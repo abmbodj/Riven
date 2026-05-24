@@ -167,8 +167,8 @@ export const api = {
     generateFromYoutubeStream: (youtubeUrl, type, options) => isLoggedIn()
         ? serverApi.generateFromYoutubeStream(youtubeUrl, type, options)
         : Promise.reject(new Error('Must be logged in to generate from YouTube')),
-    enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
-        ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title, className)
+    enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title, className, subject) => isLoggedIn()
+        ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title, className, subject)
         : Promise.reject(new Error('Must be logged in to enhance notes')),
     createAiJob: (kind, payload) => isLoggedIn()
         ? serverApi.createAiJob(kind, payload)
@@ -216,8 +216,8 @@ export const api = {
     deleteNoteAudio: (audioPath) => isLoggedIn()
         ? serverApi.deleteNoteAudio(audioPath)
         : Promise.reject(new Error('Must be logged in to delete note audio')),
-    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
-        ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className)
+    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className, subject) => isLoggedIn()
+        ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className, subject)
         : Promise.reject(new Error('Must be logged in to enhance notes')),
 
     // ============ STUDY GUIDES ============

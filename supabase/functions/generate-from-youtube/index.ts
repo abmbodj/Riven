@@ -121,7 +121,7 @@ serve(async (request) => {
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
-      const contentBuilders: Record<string, (t: string, cn?: string) => Array<Record<string, unknown>>> = {
+      const contentBuilders: Record<string, (t: string, cn?: string, subject?: string) => Array<Record<string, unknown>>> = {
         deck: buildYoutubeDeckContents,
         guide: buildYoutubeGuideContents,
         exam: buildYoutubeExamContents,

@@ -97,7 +97,7 @@ describe('aiCore', () => {
       apiKey: 'gemini-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Lecture Notes/Text Content:') }),
         ]));
@@ -173,7 +173,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Output ONLY a valid JSON array.') }),
           expect.objectContaining({ text: expect.stringContaining('Source Material:') }),
@@ -233,7 +233,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('River-led AI tutor session') }),
         ]));

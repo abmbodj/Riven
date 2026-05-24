@@ -85,7 +85,7 @@ export const createAiClient = (apiKey: string) => {
         file,
         response_format: 'verbose_json',
         timestamp_granularities: ['segment'],
-      });
+      }) as { text: string; segments?: Array<{ id: number; start: number; end: number; text: string }> };
       return {
         text: transcription.text,
         segments: (transcription.segments ?? []).map((s: any) => ({

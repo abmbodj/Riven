@@ -1864,8 +1864,8 @@ export const generateAiExamStream = (notes, file, title, sourceType, sourceId, c
 export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, deckName, className, subject } = {}) =>
     edgeFunctionStreamFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className, subject } });
 
-export const enhanceNoteWithAudioStream = (noteId, audioPath, userNotes, title, className) =>
-    edgeFunctionStreamFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className } });
+export const enhanceNoteWithAudioStream = (noteId, audioPath, userNotes, title, className, subject) =>
+    edgeFunctionStreamFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className, subject } });
 
 export const createAiJob = (kind, payload = {}) =>
     edgeFunctionFetch('create-ai-job', { body: { kind, payload } });
@@ -2064,8 +2064,8 @@ export const deleteNoteAudio = async (audioPath) => {
     return { path: normalizedPath };
 };
 
-export const enhanceNoteWithAudio = (noteId, audioPath, userNotes, title, className) =>
-    edgeFunctionFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className } });
+export const enhanceNoteWithAudio = (noteId, audioPath, userNotes, title, className, subject) =>
+    edgeFunctionFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className, subject } });
 
 // --- Study Guides (PostgREST) ---
 

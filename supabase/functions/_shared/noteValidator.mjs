@@ -1,9 +1,13 @@
+import { resolveNoteStrategy } from './subjectStrategies.mjs';
+
 const DEFINITION_MARKERS = [
   ' is ', ' are ', ' means ', ' refers to ', ' denotes ', ' describes ',
   ': ', ' — ', ' – ', ' - ',
 ];
 
 const RECAP_HEADING_PATTERN = /^\s*(key concepts?|summary|conclusion|recap|in summary|takeaways?|wrap[- ]?up|key takeaways?)\s*$/i;
+const REVIEW_SUMMARY_HEADING_PATTERN = /^\s*review summary\s*$/i;
+const METHOD_CHECK_MIN_BLOCKS = 4;
 
 const collectPlainText = (node) => {
   if (!node) return '';
@@ -109,24 +113,95 @@ const countStructure = (doc) => {
   return { topParagraphs, bulletItems, headings };
 };
 
-const findRecapHeadings = (doc) => {
+const findRecapHeadings = (doc, allowsSummary) => {
   const recaps = [];
   const nodes = Array.isArray(doc?.content) ? doc.content : [];
   for (const node of nodes) {
     if (node?.type !== 'heading') continue;
     const text = collectPlainText(node).trim();
-    if (RECAP_HEADING_PATTERN.test(text)) recaps.push(text);
+    if (!RECAP_HEADING_PATTERN.test(text)) continue;
+    if (allowsSummary && REVIEW_SUMMARY_HEADING_PATTERN.test(text)) continue;
+    recaps.push(text);
   }
   return recaps;
 };
 
-export const validateNoteDoc = (doc) => {
+const hasHeading = (doc, pattern) => {
+  const nodes = Array.isArray(doc?.content) ? doc.content : [];
+  return nodes.some((node) => node?.type === 'heading' && pattern.test(collectPlainText(node).trim()));
+};
+
+const collectDocPlainText = (doc) =>
+  collectPlainText(doc).replace(/\s+/g, ' ').trim();
+
+const resolveValidationStrategy = (options = {}) => {
+  if (options.noteMethod) {
+    return {
+      noteMethod: options.noteMethod,
+      allowsSummary: options.allowsSummary ?? options.noteMethod === 'cornell',
+    };
+  }
+  return resolveNoteStrategy({
+    className: options.className,
+    subject: options.subject,
+    sourceText: options.sourceText,
+  });
+};
+
+const validateMethodShape = ({ doc, noteMethod, allowsSummary, totalContentBlocks }) => {
+  if (totalContentBlocks < METHOD_CHECK_MIN_BLOCKS) return [];
+
+  const text = collectDocPlainText(doc);
+  const issues = [];
+
+  if (noteMethod === 'worked_examples' && !/\b(worked example|example|for instance|solve|step|given|substitute|therefore|formula|theorem)\b/i.test(text)) {
+    issues.push({
+      severity: 2,
+      message: 'Worked-example notes need at least one example, formula/theorem application, or step-by-step solution pattern.',
+    });
+  }
+
+  if (noteMethod === 'process_diagram' && !/\b(process map|diagram labels|cycle flow|phase|mechanism|pathway|step|cause|effect)\b|->|→/i.test(text)) {
+    issues.push({
+      severity: 2,
+      message: 'Process notes need a text-first process map, diagram labels, cycle flow, or ordered mechanism/phase structure.',
+    });
+  }
+
+  if (noteMethod === 'cornell') {
+    if (!/\bcue questions?\b|\breview questions?\b|\bquestions to ask\b/i.test(text)) {
+      issues.push({
+        severity: 2,
+        message: 'Cornell notes need cue questions tied to the material.',
+      });
+    }
+    if (allowsSummary && !hasHeading(doc, REVIEW_SUMMARY_HEADING_PATTERN)) {
+      issues.push({
+        severity: 1,
+        message: 'Cornell notes need one H2 heading named "Review Summary" with a 1-2 sentence summary.',
+      });
+    }
+  }
+
+  if (noteMethod === 'concept_map' && !/\b(central idea|branch|relationship|connects to|depends on|contrasts with|leads to)\b|->|→/i.test(text)) {
+    issues.push({
+      severity: 2,
+      message: 'Concept-map notes need a central idea, labeled branches, and explicit relationships between concepts.',
+    });
+  }
+
+  return issues;
+};
+
+export const validateNoteDoc = (doc, options = {}) => {
   const issues = [];
   let severity = 0;
 
   if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) {
     return { ok: false, severity: 10, issues: ['Document is not a valid Tiptap doc'] };
   }
+
+  const noteStrategy = resolveValidationStrategy(options);
 
   const boldFindings = getBoldFirstUses(doc);
   const missingDefinitions = boldFindings.filter((f) => !f.defined).map((f) => f.term);
@@ -153,12 +228,23 @@ export const validateNoteDoc = (doc) => {
     severity += 2;
   }
 
-  const recapHeadings = findRecapHeadings(doc);
+  const recapHeadings = findRecapHeadings(doc, noteStrategy.allowsSummary);
   if (recapHeadings.length > 0) {
     issues.push(
       `Remove the recap/summary section(s): ${recapHeadings.map((t) => `"${t}"`).join(', ')}. The notes should stand on their own.`,
     );
     severity += 2;
+  }
+
+  const methodIssues = validateMethodShape({
+    doc,
+    noteMethod: noteStrategy.noteMethod,
+    allowsSummary: noteStrategy.allowsSummary,
+    totalContentBlocks,
+  });
+  for (const issue of methodIssues) {
+    issues.push(issue.message);
+    severity += issue.severity;
   }
 
   return { ok: severity === 0, severity, issues };
@@ -171,7 +257,7 @@ export const buildRetryInstruction = (findings) => {
     '',
     ...findings.issues.map((issue, idx) => `${idx + 1}. ${issue}`),
     '',
-    'Rules remain the same: every bolded term needs a plain-language definition immediately after; every concept needs a concrete example; no recap/summary sections; use H2 headings for major topics.',
+    'Rules remain the same: every bolded term needs a plain-language definition immediately after; every concept needs a concrete example; only include a Review Summary when the selected note method requires it; use H2 headings for major topics.',
   ];
   return lines.join('\n');
 };

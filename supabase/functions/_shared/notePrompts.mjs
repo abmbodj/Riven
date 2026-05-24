@@ -1,18 +1,45 @@
 import { buildNaturalNoteStyleInstructions, buildSubjectContext } from './aiCore.mjs';
+import { resolveNoteStrategy } from './subjectStrategies.mjs';
 
 const NOTE_TIPTAP_FORMAT = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
 Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
 Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
 
-export const buildNoteDraftPrompt = (userNotes, className, subject) => `You are a lecture notes assistant producing a fast first draft as a Tiptap JSON document.
+const buildNotePromptContext = ({
+  className,
+  subject,
+  sourceText,
+  includeKeyConcepts = false,
+  preserveStudentPhrasing = true,
+  allowMethodSummary = true,
+} = {}) => {
+  const noteStrategy = resolveNoteStrategy({ className, subject, sourceText });
+  const sectionSummaryRule = noteStrategy.allowsSummary && !allowMethodSummary
+    ? '\n- For this section draft, omit the final Review Summary; the merged complete note handles it.'
+    : '';
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
+  return `${buildSubjectContext(className ?? undefined, subject ?? undefined)}
 
-Goal: produce a usable first pass quickly.
 ${buildNaturalNoteStyleInstructions({
+  includeKeyConcepts,
+  preserveStudentPhrasing,
+  allowReviewSummary: noteStrategy.allowsSummary && allowMethodSummary,
+})}
+
+${noteStrategy.promptInstructions}${sectionSummaryRule}`;
+};
+
+export const buildNoteDraftPrompt = (userNotes, className, subject, sourceText) => `You are a lecture notes assistant producing a fast first draft as a Tiptap JSON document.
+
+${buildNotePromptContext({
+  className,
+  subject,
+  sourceText,
   includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}
+
+Goal: produce a usable first pass quickly.
 - Fill only the highest-confidence gaps from the lecture audio.
 - Capture the main ideas in a way the student could realistically have written after class.
 - Keep the structure selective and practical rather than exhaustive.
@@ -22,11 +49,12 @@ ${NOTE_TIPTAP_FORMAT}
 Student notes:
 ${userNotes || 'No student notes were provided.'}`;
 
-export const buildNoteEnrichPrompt = (userNotes, className, draftDoc, subject) => `You are a lecture notes assistant refining an existing draft into a complete set of natural, study-ready notes as Tiptap JSON.
+export const buildNoteEnrichPrompt = (userNotes, className, draftDoc, subject, sourceText) => `You are a lecture notes assistant refining an existing draft into a complete set of natural, study-ready notes as Tiptap JSON.
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-${buildNaturalNoteStyleInstructions({
+${buildNotePromptContext({
+  className,
+  subject,
+  sourceText,
   includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}
@@ -48,15 +76,19 @@ export const buildSectionNotePrompt = (
   userNotes,
   className,
   subject,
+  sourceText,
 ) => `You are a lecture notes assistant. Given a transcript excerpt from a lecture, produce notes as a Tiptap JSON document for this section only.
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-This is section ${sectionIndex + 1} of ${totalSections} from a longer lecture.
-${buildNaturalNoteStyleInstructions({
+${buildNotePromptContext({
+  className,
+  subject,
+  sourceText,
   includeKeyConcepts: false,
   preserveStudentPhrasing: true,
+  allowMethodSummary: false,
 })}
+
+This is section ${sectionIndex + 1} of ${totalSections} from a longer lecture.
 - Keep this section self-contained and focused on the material covered here.
 - Use H2 or H3 headings only when they help organize the section.
 - Capture concrete ideas, definitions, and examples without adding filler.
@@ -73,9 +105,9 @@ export const buildMergePrompt = (
   subject,
 ) => `You are a lecture notes assistant. You have notes for each section of a lecture. Merge them into one complete, polished Tiptap JSON document.
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-${buildNaturalNoteStyleInstructions({
+${buildNotePromptContext({
+  className,
+  subject,
   includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}
@@ -92,12 +124,13 @@ ${userNotes || 'No student notes were provided.'}
 Section notes JSON array:
 ${JSON.stringify(sectionDocs)}`;
 
-export const buildYoutubeSourcePrompt = (className, subject) => `You are an expert academic note taker watching an educational YouTube video.
+export const buildYoutubeSourcePrompt = (className, subject, sourceText) => `You are an expert academic note taker watching an educational YouTube video.
 Produce natural, complete notes as a Tiptap JSON document that can be reused to generate other study materials.
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-${buildNaturalNoteStyleInstructions({
+${buildNotePromptContext({
+  className,
+  subject,
+  sourceText,
   includeKeyConcepts: true,
   preserveStudentPhrasing: false,
 })}
@@ -105,11 +138,12 @@ ${buildNaturalNoteStyleInstructions({
 
 ${NOTE_TIPTAP_FORMAT}`;
 
-export const buildSinglePassNoteGeneratePrompt = (className, subject) => `You are a lecture notes assistant. Given the lecture transcription, produce study-ready notes as a Tiptap JSON document that satisfies the content contract below.
+export const buildSinglePassNoteGeneratePrompt = (className, subject, sourceText) => `You are a lecture notes assistant. Given the lecture transcription, produce study-ready notes as a Tiptap JSON document that satisfies the content contract below.
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-${buildNaturalNoteStyleInstructions({
+${buildNotePromptContext({
+  className,
+  subject,
+  sourceText,
   includeKeyConcepts: false,
   preserveStudentPhrasing: false,
 })}
@@ -118,11 +152,12 @@ ${buildNaturalNoteStyleInstructions({
 
 ${NOTE_TIPTAP_FORMAT}`;
 
-export const buildSinglePassNoteEnhancePrompt = (userNotes, className, subject) => `You are a lecture notes assistant. Expand the student's notes using the lecture transcription as context, so the result satisfies the content contract below.
+export const buildSinglePassNoteEnhancePrompt = (userNotes, className, subject, sourceText) => `You are a lecture notes assistant. Expand the student's notes using the lecture transcription as context, so the result satisfies the content contract below.
 
-${buildSubjectContext(className ?? undefined, subject ?? undefined)}
-
-${buildNaturalNoteStyleInstructions({
+${buildNotePromptContext({
+  className,
+  subject,
+  sourceText,
   includeKeyConcepts: false,
   preserveStudentPhrasing: true,
 })}

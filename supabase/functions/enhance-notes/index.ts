@@ -35,7 +35,7 @@ serve(async (request) => {
     const body = await request.json().catch(() => ({}));
     const reqUrl = new URL(request.url);
     const useStreaming = reqUrl.searchParams.get('stream') === '1' || body.stream === true;
-    const { noteId, audioPath, userNotes, title, className } = body;
+    const { noteId, audioPath, userNotes, title, className, subject } = body;
 
     if (!noteId || !audioPath) {
       return jsonResponse(
@@ -117,8 +117,8 @@ serve(async (request) => {
     // Determine mode and build prompt
     const isEnhanceMode = userNotes && userNotes.trim().length > 0;
     const systemPrompt = isEnhanceMode
-      ? buildSinglePassNoteEnhancePrompt(userNotes, className)
-      : buildSinglePassNoteGeneratePrompt(className);
+      ? buildSinglePassNoteEnhancePrompt(userNotes, className, subject, transcription)
+      : buildSinglePassNoteGeneratePrompt(className, subject, transcription);
 
     const aiMessages = [
       { role: 'user' as const, content: `${systemPrompt}\n\nLecture Audio Transcription:\n${transcription}` },
@@ -159,7 +159,7 @@ serve(async (request) => {
             throw createHttpError('AI failed to generate valid enhanced notes.', 500);
           }
 
-          const validation = validateNoteDoc(enhancedContent);
+          const validation = validateNoteDoc(enhancedContent, { className, subject });
           if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD && deadline - Date.now() > 5_000) {
             try {
               // Signal client to discard streamed chunks; a fresh corrected stream follows.
@@ -191,7 +191,7 @@ serve(async (request) => {
 
               const retried = parseAiJsonResponse(retryFullText, 'Retry produced invalid JSON');
               if (retried && typeof retried === 'object' && retried.type === 'doc') {
-                const retriedValidation = validateNoteDoc(retried);
+                const retriedValidation = validateNoteDoc(retried, { className, subject });
                 if (retriedValidation.severity < validation.severity) {
                   enhancedContent = retried;
                 }
@@ -253,7 +253,7 @@ serve(async (request) => {
       throw createHttpError('AI failed to generate valid enhanced notes.', 500);
     }
 
-    const validation = validateNoteDoc(enhancedContent);
+    const validation = validateNoteDoc(enhancedContent, { className, subject });
     if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD) {
       try {
         const retryText = await ai.generateContent({
@@ -268,7 +268,7 @@ serve(async (request) => {
         });
         const retried = parseAiJsonResponse(retryText, 'Retry produced invalid JSON');
         if (retried && typeof retried === 'object' && retried.type === 'doc') {
-          const retriedValidation = validateNoteDoc(retried);
+          const retriedValidation = validateNoteDoc(retried, { className, subject });
           if (retriedValidation.severity < validation.severity) {
             enhancedContent = retried;
           }

@@ -5,8 +5,7 @@ import {
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
 } from './studyGuideCore.mjs';
-import { getSubjectStrategy } from './subjectStrategies.mjs';
-import { inferSubject } from './subjectInference.mjs';
+import { getSubjectStrategy, resolveNoteStrategy } from './subjectStrategies.mjs';
 
 const FREE_LIMIT = 10;
 const PREMIUM_LIMIT = 50;
@@ -44,7 +43,7 @@ const appendText = (currentText, nextText) => {
 };
 
 const resolveSubject = (className, subject) =>
-  subject || inferSubject(className) || 'General';
+  resolveNoteStrategy({ className, subject }).subject;
 
 const buildSubjectContext = (className, subject) => {
   const resolved = resolveSubject(className, subject);
@@ -65,10 +64,11 @@ export { buildSubjectContext };
 export const buildNaturalNoteStyleInstructions = ({
   includeKeyConcepts = false,
   preserveStudentPhrasing = true,
+  allowReviewSummary = false,
 } = {}) => {
   const lines = [
     'Voice and structure:',
-    '- Write as study material a student could actually learn from: clear, human, academically solid, and organized for later review.',
+    '- Write as study material a college student could actually learn from: clear, human, academically solid, and organized for later review.',
     preserveStudentPhrasing
       ? '- Preserve the student\'s original wording when it is already clear and accurate.'
       : '- Use a natural explanatory voice rather than an executive-summary voice.',
@@ -89,7 +89,9 @@ export const buildNaturalNoteStyleInstructions = ({
     '- Motivational or meta commentary about learning.',
     '- Restating the introduction at the end.',
     '- Exam-question sections.',
-    includeKeyConcepts
+    allowReviewSummary
+      ? '- Generic recap / summary / conclusion sections longer than 1-2 sentences. A method-specific "Review Summary" is allowed only when the note method requests it.'
+      : includeKeyConcepts
       ? '- Do not add a redundant "Key Concepts" recap unless the lecture itself explicitly summarizes at the end; the notes should stand on their own without a restated summary.'
       : '- Recap / "Key Concepts" / "Summary" / "Conclusion" sections.',
   ];
@@ -1077,7 +1079,10 @@ export const buildYoutubeExamContents = (youtubeUrl, className, subject) => [
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-const buildNotesFromVideoPrompt = (className, subject) => `You are an expert note-taker watching an educational YouTube video.
+const buildNotesFromVideoPrompt = (className, subject, sourceText) => {
+  const noteStrategy = resolveNoteStrategy({ className, subject, sourceText });
+
+  return `You are an expert note-taker watching an educational YouTube video.
 Produce natural, study-ready notes as a Tiptap JSON document.
 
 ${buildSubjectContext(className, subject)}
@@ -1085,12 +1090,17 @@ ${buildSubjectContext(className, subject)}
 ${buildNaturalNoteStyleInstructions({
   includeKeyConcepts: true,
   preserveStudentPhrasing: false,
+  allowReviewSummary: noteStrategy.allowsSummary,
 })}
 
+${noteStrategy.promptInstructions}
+- Be detailed enough that the saved notes can support later flashcards, guides, or exams.
+
 ${NOTE_TIPTAP_FORMAT}`;
+};
 
 export const buildYoutubeNotesContents = (youtubeUrl, className, subject) => [
-  { text: buildNotesFromVideoPrompt(className, subject) },
+  { text: buildNotesFromVideoPrompt(className, subject, youtubeUrl) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 

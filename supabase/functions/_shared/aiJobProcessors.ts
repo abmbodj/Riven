@@ -64,13 +64,13 @@ const generateNotesForSection = async ({
   };
 
   try {
-    const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className, subject);
+    const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className, subject, section.text);
     const rawText = await generateWithFallback({
       ai,
       primaryModel: modelMap.draft,
       fallbackModel: modelMap.final,
       messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
-      jsonMode: true,
+      responseFormat: 'json_object',
       maxTokens: 3072,
     });
     return parseAiJsonResponse(rawText, 'Invalid section notes format');
@@ -522,7 +522,7 @@ const processNoteEnhancementJob = async ({
   if (sections.length <= 1) {
     const draftMessages: AiMessage[] = [{
       role: 'user',
-      content: `${buildNoteDraftPrompt(userNotesSnapshot, className, subject)}\n\nLecture Audio Transcription:\n${transcription}`,
+      content: `${buildNoteDraftPrompt(userNotesSnapshot, className, subject, transcription)}\n\nLecture Audio Transcription:\n${transcription}`,
     }];
 
     const draftResult = await streamDocPreview({
@@ -556,9 +556,9 @@ const processNoteEnhancementJob = async ({
       fallbackModel: modelMap.final,
       messages: [{
         role: 'user',
-        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc, subject)}\n\nLecture Audio Transcription:\n${transcription}`,
+        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc, subject, transcription)}\n\nLecture Audio Transcription:\n${transcription}`,
       }],
-      jsonMode: true,
+      responseFormat: 'json_object',
     });
 
     try {
@@ -623,7 +623,7 @@ const processNoteEnhancementJob = async ({
         role: 'user',
         content: buildMergePrompt(userNotesSnapshot, className, completedSections, subject),
       }],
-      jsonMode: true,
+      responseFormat: 'json_object',
       maxTokens: 8192,
     });
 
@@ -750,7 +750,7 @@ const processYoutubeSourceJob = async ({
 
   const messages: AiMessage[] = [{
     role: 'user',
-    content: `${buildYoutubeSourcePrompt(className, subject)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
+    content: `${buildYoutubeSourcePrompt(className, subject, preparedSource.sourceText)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
   }];
 
   const streamResult = await streamDocPreview({
@@ -808,6 +808,7 @@ const processYoutubeDerivedJob = async ({
   const titleSnapshot = typeof input.titleSnapshot === 'string' ? input.titleSnapshot : null;
   const classId = input.classId == null ? null : String(input.classId);
   const className = typeof input.className === 'string' ? input.className : null;
+  const subject = typeof input.subject === 'string' ? input.subject : null;
   const sourceKey = typeof job.source_key === 'string' ? job.source_key : String(input.sourceKey || '');
 
   if (!sourceJobId || !sourceKey) {
@@ -915,6 +916,7 @@ const processYoutubeDerivedJob = async ({
         keepFile: false,
         file: null,
         className,
+        subject,
       })),
       reporter,
       phase: 'drafting',
@@ -972,6 +974,7 @@ const processYoutubeDerivedJob = async ({
         keepFile: false,
         file: null,
         className,
+        subject,
         masteryData: null,
         weakTopics: null,
         examMode: null,
@@ -1039,6 +1042,7 @@ const processYoutubeDerivedJob = async ({
     keepFile: false,
     file: null,
     className,
+    subject,
     coachConfig: null,
   }));
 
