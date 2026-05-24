@@ -295,8 +295,8 @@ export default function GuidesLibrary() {
             : 'Choose notes to attach'
         : genSource === 'file'
             ? genFile?.name || 'Upload pending'
-            : 'Setup answers only';
-    const setupSummary = showSetupQuestions ? 'Guided setup open' : 'Using defaults';
+            : 'No source attached';
+    const setupSummary = showSetupQuestions ? 'Tune focus open' : 'Tune focus hidden';
 
     const handleBulkDelete = async () => {
         const ids = [...selectedIds];
@@ -355,13 +355,15 @@ export default function GuidesLibrary() {
         const title = genTitle.trim() || (examLabel ? `${examLabel} Tutor Session` : 'Tutor Session');
         const userTopics = parseListInput(genTopics);
         const weakTopics = parseListInput(genWeakTopics);
+        const hasSelectedNotes = genSource === 'note' && selectedNotes.length > 0;
+        const hasUploadedFile = genSource === 'file' && Boolean(genFile);
 
-        if (!examLabel) {
-            toast.error('Tell us what you are studying for first');
+        if (!examLabel && !hasSelectedNotes && !hasUploadedFile) {
+            toast.error('Add a topic or attach source material first.');
             return;
         }
 
-        if (genSource === 'note' && selectedNotes.length > 0) {
+        if (hasSelectedNotes) {
             const selected = selectedNotes.map(id => notes.find(n => n.id === id)).filter(Boolean);
             if (selected.length === 0) { toast.error('Select at least one note'); return; }
             noteText = selected.map(note => {
@@ -372,18 +374,15 @@ export default function GuidesLibrary() {
             if (!noteText.trim()) { toast.error('Selected notes are empty'); return; }
             noteId = selected.length === 1 ? selected[0].id : null;
             classId = selected[0].class_id;
-        } else if (genSource === 'file' && genFile) {
+        } else if (hasUploadedFile) {
             file = genFile;
-        } else if (genSource === 'note' || genSource === 'file') {
-            toast.error(genSource === 'note' ? 'Select at least one note' : 'Upload a file');
-            return;
         }
 
         const hasSource = Boolean(noteText.trim() || file);
         const hasSetupDetails = Boolean(examLabel || genExamDate || userTopics.length || weakTopics.length || genTone);
         const coachConfig = {
             creationMode: hasSource && hasSetupDetails ? 'hybrid' : hasSource ? 'source' : 'setup',
-            examLabel,
+            ...(examLabel ? { examLabel } : {}),
             ...(genExamDate ? { examDate: genExamDate } : {}),
             ...(userTopics.length ? { userTopics } : {}),
             ...(weakTopics.length ? { weakTopics } : {}),
@@ -515,30 +514,33 @@ export default function GuidesLibrary() {
                                                 <Target className="h-4 w-4" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">Study brief</p>
-                                                <h3 className="mt-0.5 font-serif text-xl font-bold italic leading-tight text-claude-text">Goal and focus</h3>
+                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">Quick start</p>
+                                                <h3 className="mt-0.5 font-serif text-xl font-bold italic leading-tight text-claude-text">Tell River the topic</h3>
                                             </div>
                                         </div>
 
                                         <div>
                                             <label htmlFor="coach-exam-label" className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                What are you studying for
+                                                What should River help with?
                                             </label>
                                             <input
                                                 id="coach-exam-label"
                                                 type="text"
                                                 value={genExamLabel}
                                                 onChange={e => setGenExamLabel(e.target.value)}
-                                                placeholder="AP Biology midterm, Organic Chemistry quiz, Civics final..."
+                                                placeholder="Biology midterm, mitosis, lecture 6, organic chemistry quiz..."
                                                 className="w-full rounded-2xl border-2 border-claude-border bg-claude-bg/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
                                             />
+                                            <p className="mt-2 text-xs leading-5 text-claude-secondary">
+                                                Required unless you attach notes or a file.
+                                            </p>
                                         </div>
 
                                         <div className="mt-4 rounded-2xl border border-claude-border/70 bg-claude-bg/45 p-4">
                                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                 <div>
-                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Focus map</p>
-                                                    <p className="mt-1 text-sm leading-5 text-claude-secondary">Optional details for a sharper first pass.</p>
+                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Tune focus</p>
+                                                    <p className="mt-1 text-sm leading-5 text-claude-secondary">Optional timing, weak spots, and tone.</p>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -617,8 +619,8 @@ export default function GuidesLibrary() {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="rounded-xl border border-claude-border bg-claude-surface/30 px-4 py-3 text-sm leading-6 text-claude-secondary">
-                                                    Fast mode is on. River will use the goal, current tone, and any source you attach.
+                                                <div className="rounded-xl border border-claude-border bg-claude-surface/30 px-3 py-2 text-xs leading-5 text-claude-secondary">
+                                                    Optional focus details hidden.
                                                 </div>
                                             )}
                                         </div>

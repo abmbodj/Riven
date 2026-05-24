@@ -4,6 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GuidesLibrary from './GuidesLibrary.jsx';
 
+const toastMock = vi.hoisted(() => ({
+  error: vi.fn(),
+  success: vi.fn(),
+}));
+
 vi.mock('../api', () => ({
   api: {
     getStudyGuides: vi.fn(),
@@ -15,10 +20,7 @@ vi.mock('../api', () => ({
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-  }),
+  useToast: () => toastMock,
 }));
 
 vi.mock('../components/ConfirmModal', () => ({
@@ -379,8 +381,10 @@ describe('GuidesLibrary', () => {
     expect(dialog.parentElement).toHaveClass('items-center');
     expect(dialog.parentElement).toHaveClass('justify-center');
     expect(screen.getByText(/session composer/i)).toBeInTheDocument();
-    expect(screen.getByText(/study brief/i)).toBeInTheDocument();
-    expect(screen.getByText(/focus map/i)).toBeInTheDocument();
+    expect(screen.getByText(/quick start/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/what should river help with/i)).toBeInTheDocument();
+    expect(screen.getByText(/required unless you attach notes or a file/i)).toBeInTheDocument();
+    expect(screen.getByText(/^tune focus$/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /show setup/i })).toBeInTheDocument();
     expect(screen.getByText(/optional source material/i)).toBeInTheDocument();
     expect(screen.getByText(/output brief/i)).toBeInTheDocument();
@@ -392,7 +396,7 @@ describe('GuidesLibrary', () => {
     });
   });
 
-  it('can create a tutor session from setup answers without separate source material', async () => {
+  it('can create a tutor session from a typed topic and optional setup answers', async () => {
     api.getStudyGuides.mockResolvedValue([]);
     api.generateAiGuide.mockResolvedValue({ guide_id: 'guide-setup' });
 
@@ -407,7 +411,7 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByRole('dialog', { name: /create tutor session/i })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/what are you studying for/i), {
+    fireEvent.change(screen.getByLabelText(/what should river help with/i), {
       target: { value: 'Biology Midterm' },
     });
     const showSetupButton = screen.queryByRole('button', { name: /show setup/i });
@@ -442,5 +446,64 @@ describe('GuidesLibrary', () => {
         null,
       );
     });
+  });
+
+  it('can create a tutor session from selected notes without a typed topic', async () => {
+    api.getStudyGuides.mockResolvedValue([]);
+    api.getNotes.mockResolvedValue([
+      {
+        id: 'note-1',
+        title: 'Mitosis Notes',
+        class_id: null,
+        content: {
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Mitosis creates two identical daughter cells.' }],
+            },
+          ],
+        },
+      },
+    ]);
+    api.generateAiGuide.mockResolvedValue({ guide_id: 'guide-notes' });
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/no tutor sessions yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /notes/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /mitosis notes/i }));
+    fireEvent.click(screen.getByRole('button', { name: /build tutor session/i }));
+
+    await waitFor(() => {
+      expect(api.generateAiGuide).toHaveBeenCalled();
+    });
+    const call = api.generateAiGuide.mock.calls[0];
+    expect(call[0]).toContain('--- Mitosis Notes ---');
+    expect(call[0]).toContain('Mitosis creates two identical daughter cells.');
+    expect(call[2]).toBe('Tutor Session');
+    expect(call[3]).toBe('note-1');
+    expect(call[7]).not.toHaveProperty('examLabel');
+  });
+
+  it('requires a topic or source material before creating a tutor session', async () => {
+    api.getStudyGuides.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/no tutor sessions yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /build tutor session/i }));
+
+    expect(api.generateAiGuide).not.toHaveBeenCalled();
+    expect(toastMock.error).toHaveBeenCalledWith('Add a topic or attach source material first.');
   });
 });
