@@ -400,18 +400,23 @@ describe('GroupDetails upload flow', () => {
     });
 
     const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
 
     fireEvent.click(within(primaryHub).getByRole('tab', { name: /week/i }));
 
     const weekTimeline = await within(primaryHub).findByTestId('calendar-timeline');
     expect(weekTimeline).toHaveAttribute('data-density', 'dense');
+    expect(weekTimeline).toHaveAttribute('data-fit-mode', 'group-weekday');
     expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'dense');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
 
     fireEvent.click(within(primaryHub).getByRole('tab', { name: /^day$/i }));
 
     const dayTimeline = await within(primaryHub).findByTestId('calendar-timeline');
     expect(dayTimeline).toHaveAttribute('data-density', 'dense');
+    expect(dayTimeline).toHaveAttribute('data-fit-mode', 'group-weekday');
     expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'dense');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {

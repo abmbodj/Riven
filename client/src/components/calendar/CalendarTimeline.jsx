@@ -2,9 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import {
     ALL_DAY_ROW_HEIGHT,
     DAY_HEADER_HEIGHT,
-    END_HOUR,
     HOUR_HEIGHT,
-    START_HOUR,
     buildVisibleDates,
     formatDateHeader,
     formatHour,
@@ -14,6 +12,7 @@ import {
     getMinutesSinceStart,
     isSameDay,
     layoutTimedEvents,
+    resolveTimelineWindow,
 } from './calendarTimeline.utils';
 
 function isAllDayAssignment(dueDate) {
@@ -69,6 +68,7 @@ export default function CalendarTimeline({
     contentMode,
     onDaySelect,
     density = 'comfortable',
+    fitMode = 'default',
 }) {
     const scrollRef = useRef(null);
     const [now, setNow] = useState(() => new Date());
@@ -89,10 +89,7 @@ export default function CalendarTimeline({
     const compactDensity = density === 'compact';
     const denseDensity = density === 'dense';
     const tightDensity = compactDensity || denseDensity;
-    const hourHeight = denseDensity ? 42 : compactDensity ? 46 : HOUR_HEIGHT;
-    const dayHeaderHeight = denseDensity ? 52 : compactDensity ? 56 : DAY_HEADER_HEIGHT;
-    const allDayRowHeight = denseDensity ? 44 : compactDensity ? 48 : ALL_DAY_ROW_HEIGHT;
-    const gridHeight = (END_HOUR - START_HOUR) * hourHeight;
+    const fitWeekdayView = fitMode === 'group-weekday';
     const columnWidth = 320;
     const railWidth = view === 'week' ? 92 : 72;
 
@@ -201,26 +198,54 @@ export default function CalendarTimeline({
         return map;
     }, [activeFilters, assignments, classMap, scheduleSlots, showAssignments, showClasses, visibleDates]);
 
-    const timedEvents = useMemo(
-        () => Object.values(timedEventsByDate).flat(),
-        [timedEventsByDate],
+    const timedEvents = useMemo(() => Object.values(timedEventsByDate).flat(), [timedEventsByDate]);
+    const timelineWindow = useMemo(
+        () => resolveTimelineWindow(timedEvents, fitMode),
+        [fitMode, timedEvents],
     );
+    const visibleStartHour = timelineWindow.startHour;
+    const visibleEndHour = timelineWindow.endHour;
+    const hourHeight = fitWeekdayView
+        ? 24
+        : denseDensity
+        ? 42
+        : compactDensity
+        ? 46
+        : HOUR_HEIGHT;
+    const dayHeaderHeight = fitWeekdayView
+        ? 40
+        : denseDensity
+        ? 52
+        : compactDensity
+        ? 56
+        : DAY_HEADER_HEIGHT;
+    const allDayRowHeight = fitWeekdayView
+        ? 30
+        : denseDensity
+        ? 44
+        : compactDensity
+        ? 48
+        : ALL_DAY_ROW_HEIGHT;
+    const gridHeight = (visibleEndHour - visibleStartHour) * hourHeight;
 
     useLayoutEffect(() => {
         const container = scrollRef.current;
         if (!container) return;
-        container.scrollTop = getDefaultScrollTop(timedEvents, view, { hourHeight, startHour: START_HOUR });
-    }, [hourHeight, timedEvents, view, anchorDate]);
+        container.scrollTop = fitWeekdayView
+            ? 0
+            : getDefaultScrollTop(timedEvents, view, { hourHeight, startHour: visibleStartHour });
+    }, [anchorDate, fitWeekdayView, hourHeight, timedEvents, view, visibleStartHour]);
 
     return (
         <div
             data-testid="calendar-timeline"
             data-density={denseDensity ? 'dense' : compactDensity ? 'compact' : 'comfortable'}
+            data-fit-mode={fitMode}
             className={`overflow-hidden border border-claude-border/30 bg-claude-surface/55 shadow-[0_12px_40px_rgba(7,14,33,0.18)] ${tightDensity ? 'mt-1 rounded-[1.5rem]' : 'mt-2 rounded-[1.75rem]'}`}
         >
             <div
                 ref={scrollRef}
-                className={`overflow-auto overscroll-contain scroll-smooth ${tightDensity ? (denseDensity ? 'max-h-[64vh]' : 'max-h-[68vh]') : 'max-h-[72vh]'}`}
+                className={`overflow-auto overscroll-contain scroll-smooth ${fitWeekdayView ? 'max-h-[22rem]' : tightDensity ? (denseDensity ? 'max-h-[64vh]' : 'max-h-[68vh]') : 'max-h-[72vh]'}`}
                 aria-label={`${view === 'day' ? 'Day' : 'Week'} timeline`}
             >
                 <div
@@ -349,15 +374,15 @@ export default function CalendarTimeline({
                         className="relative sticky left-0 z-20 border-r bg-[color:color-mix(in_srgb,var(--surface-color)_96%,transparent)]"
                         style={{ height: gridHeight }}
                     >
-                        {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => {
-                            const hour = START_HOUR + index;
+                        {Array.from({ length: visibleEndHour - visibleStartHour + 1 }, (_, index) => {
+                            const hour = visibleStartHour + index;
                             return (
                                 <div
                                     key={hour}
                                     className={`absolute inset-x-0 flex items-start justify-end font-mono uppercase tracking-[0.18em] text-claude-secondary ${tightDensity ? (denseDensity ? 'pr-2 text-[7px]' : 'pr-2 text-[8px]') : 'pr-3 text-[9px]'}`}
                                     style={{ top: (index * hourHeight) - 7 }}
                                 >
-                                    {hour < END_HOUR ? formatHour(hour) : ''}
+                                    {hour < visibleEndHour ? formatHour(hour) : ''}
                                 </div>
                             );
                         })}
@@ -367,8 +392,8 @@ export default function CalendarTimeline({
                         const key = getDateKey(date);
                         const events = timedEventsByDate[key] || [];
                         const isToday = todayByKey[key];
-                        const showCurrentTime = isToday && now.getHours() >= START_HOUR && now.getHours() < END_HOUR;
-                        const currentTimeTop = getCurrentTimeTop(now, { hourHeight, startHour: START_HOUR });
+                        const showCurrentTime = isToday && now.getHours() >= visibleStartHour && now.getHours() < visibleEndHour;
+                        const currentTimeTop = getCurrentTimeTop(now, { hourHeight, startHour: visibleStartHour });
 
                         return (
                             <div
@@ -379,7 +404,7 @@ export default function CalendarTimeline({
                                 ].join(' ')}
                                 style={{ height: gridHeight, minWidth: view === 'day' ? `${columnWidth}px` : undefined }}
                             >
-                                {Array.from({ length: END_HOUR - START_HOUR }, (_, index) => (
+                                {Array.from({ length: visibleEndHour - visibleStartHour }, (_, index) => (
                                     <div
                                         key={index}
                                         className="absolute inset-x-0 border-t border-claude-border/15"
@@ -401,8 +426,21 @@ export default function CalendarTimeline({
 
                                 {events.map((event) => {
                                     const durationMinutes = Math.max(event.endMinutes - event.startMinutes, event.kind === 'assignment' ? 38 : 32);
-                                    const safeTopScaled = ((event.startMinutes - (START_HOUR * 60)) / 60) * hourHeight;
-                                    const safeHeight = Math.max((durationMinutes / 60) * hourHeight, event.kind === 'class' ? (compactDensity ? 46 : 56) : (compactDensity ? 38 : 44));
+                                    const safeTopScaled = ((event.startMinutes - (visibleStartHour * 60)) / 60) * hourHeight;
+                                    const safeHeight = Math.max(
+                                        (durationMinutes / 60) * hourHeight,
+                                        event.kind === 'class'
+                                            ? fitWeekdayView
+                                                ? 32
+                                                : compactDensity
+                                                ? 46
+                                                : 56
+                                            : fitWeekdayView
+                                            ? 28
+                                            : compactDensity
+                                            ? 38
+                                            : 44
+                                    );
                                     const horizontalGap = 8;
                                     const laneWidth = `calc((100% - ${horizontalGap * 2}px) / ${event.laneCount})`;
                                     const leftOffset = `calc(${horizontalGap}px + (${event.laneIndex} * ((100% - ${horizontalGap * 2}px) / ${event.laneCount})))`;
@@ -471,10 +509,12 @@ export default function CalendarTimeline({
                         <span className="h-2 w-2 rounded-full bg-claude-accent" />
                         Current time
                     </span>
-                    <span className="inline-flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-claude-border/80" />
-                        Scroll for earlier and later hours
-                    </span>
+                    {!fitWeekdayView && (
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-claude-border/80" />
+                            Scroll for earlier and later hours
+                        </span>
+                    )}
                     <span>
                         {view === 'day' ? formatChipDate(visibleDates[0]) : `${formatChipDate(visibleDates[0])} - ${formatChipDate(visibleDates[visibleDates.length - 1])}`}
                     </span>

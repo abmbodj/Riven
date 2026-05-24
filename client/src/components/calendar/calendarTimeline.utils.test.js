@@ -5,6 +5,7 @@ import {
     buildVisibleDates,
     getDefaultScrollTop,
     layoutTimedEvents,
+    resolveTimelineWindow,
 } from './calendarTimeline.utils';
 
 describe('calendarTimeline utils', () => {
@@ -38,5 +39,20 @@ describe('calendarTimeline utils', () => {
         ], 'week');
 
         expect(scrollTop).toBe(((8 * 60) - (START_HOUR * 60)) / 60 * HOUR_HEIGHT);
+    });
+
+    it('uses a shorter group weekday window while still including earlier events', () => {
+        expect(resolveTimelineWindow([], 'group-weekday')).toEqual({
+            startHour: 9,
+            endHour: 18,
+        });
+
+        expect(resolveTimelineWindow([
+            { startMinutes: 6 * 60 + 30, endMinutes: 8 * 60 },
+            { startMinutes: 18 * 60, endMinutes: 19 * 60 },
+        ], 'group-weekday')).toEqual({
+            startHour: 6,
+            endHour: 20,
+        });
     });
 });

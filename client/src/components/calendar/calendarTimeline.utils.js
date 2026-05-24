@@ -66,6 +66,41 @@ export function getDateKey(date) {
     return date.toDateString();
 }
 
+export function resolveTimelineWindow(events, fitMode = 'default') {
+    if (fitMode !== 'group-weekday') {
+        return {
+            startHour: START_HOUR,
+            endHour: END_HOUR,
+        };
+    }
+
+    const DEFAULT_START = 9;
+    const DEFAULT_END = 18;
+    const BUFFER_HOURS = 1;
+    const visibleEvents = events.filter((event) => (
+        Number.isFinite(event.startMinutes) && Number.isFinite(event.endMinutes)
+    ));
+
+    if (visibleEvents.length === 0) {
+        return {
+            startHour: DEFAULT_START,
+            endHour: DEFAULT_END,
+        };
+    }
+
+    const earliestHour = Math.floor(
+        Math.min(...visibleEvents.map((event) => event.startMinutes)) / 60
+    ) - BUFFER_HOURS;
+    const latestHour = Math.ceil(
+        Math.max(...visibleEvents.map((event) => event.endMinutes)) / 60
+    ) + BUFFER_HOURS;
+
+    return {
+        startHour: Math.max(START_HOUR, Math.min(DEFAULT_START, earliestHour)),
+        endHour: Math.min(END_HOUR, Math.max(DEFAULT_END, latestHour)),
+    };
+}
+
 function assignLanes(clusterEvents) {
     const laneEndTimes = [];
     let maxLaneCount = 0;

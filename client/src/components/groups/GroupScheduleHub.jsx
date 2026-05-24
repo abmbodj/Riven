@@ -339,10 +339,12 @@ function DayDetailSurface({
     onPropose,
     onSuggestionSelect,
     density = 'comfortable',
+    fitMode = 'default',
     className = '',
 }) {
     const hasAgenda = agendaItems.length > 0;
     const denseDensity = density === 'dense';
+    const fitWeekdayView = fitMode === 'group-weekday';
     const suggestionCopy = suggestionMode === 'fallback'
         ? 'Best nearby openings this month.'
         : 'Best overlap windows for this day.';
@@ -351,7 +353,8 @@ function DayDetailSurface({
         <section
             data-testid="group-schedule-day-surface"
             data-density={denseDensity ? 'dense' : 'comfortable'}
-            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] ${denseDensity ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} ${className}`.trim()}
+            data-fit-mode={fitMode}
+            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] ${fitWeekdayView ? 'p-2 md:p-2' : denseDensity ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} ${className}`.trim()}
         >
             {/* Header */}
             <div className="flex items-center justify-between gap-3">
@@ -379,7 +382,7 @@ function DayDetailSurface({
             </div>
 
             {/* Best Times panel */}
-            <div className={`mt-2.5 ${scheduleSoftPanelClass} ${denseDensity ? 'p-2' : 'p-2.5'}`}>
+            <div className={`mt-2 ${scheduleSoftPanelClass} ${fitWeekdayView ? 'p-1.5' : denseDensity ? 'p-2' : 'p-2.5'}`}>
                 <div className="flex items-center gap-2">
                     <Sparkles className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
                     <span className={`font-mono font-bold uppercase tracking-[0.14em] text-claude-accent ${denseDensity ? 'text-[8px]' : 'text-[9px]'}`}>
@@ -413,7 +416,7 @@ function DayDetailSurface({
             </div>
 
             {/* Agenda */}
-            <div className={denseDensity ? 'mt-2' : 'mt-2.5'}>
+            <div className={fitWeekdayView ? 'mt-1.5' : denseDensity ? 'mt-2' : 'mt-2.5'}>
                 {hasAgenda ? (
                     <AnimatePresence mode="popLayout" initial={false}>
                         {agendaItems.map((item) => (
@@ -424,29 +427,29 @@ function DayDetailSurface({
                                 exit={{ opacity: 0, scale: 0.97 }}
                                 transition={{ duration: 0.2, ease: 'easeOut' }}
                                 layout="position"
-                                className={denseDensity ? 'mb-2 last:mb-0' : 'mb-2.5 last:mb-0'}
+                                className={fitWeekdayView ? 'mb-1.5 last:mb-0' : denseDensity ? 'mb-2 last:mb-0' : 'mb-2.5 last:mb-0'}
                             >
                                 {renderAgendaItem(item)}
                             </motion.div>
                         ))}
                     </AnimatePresence>
                 ) : (
-                    <div className={`flex flex-col items-center text-center ${denseDensity ? 'gap-1.5 py-3' : 'gap-2 py-4'}`}>
-                        <div className={`flex items-center justify-center rounded-full border border-white/10 bg-white/[0.04] ${denseDensity ? 'h-7 w-7' : 'h-8 w-8'}`}>
-                            <CalendarDays className={`${denseDensity ? 'h-3 w-3' : 'h-3.5 w-3.5'} text-claude-secondary`} />
+                    <div className={`flex flex-col items-center text-center ${fitWeekdayView ? 'gap-1 py-2.5' : denseDensity ? 'gap-1.5 py-3' : 'gap-2 py-4'}`}>
+                        <div className={`flex items-center justify-center rounded-full border border-white/10 bg-white/[0.04] ${fitWeekdayView ? 'h-6 w-6' : denseDensity ? 'h-7 w-7' : 'h-8 w-8'}`}>
+                            <CalendarDays className={`${fitWeekdayView ? 'h-2.5 w-2.5' : denseDensity ? 'h-3 w-3' : 'h-3.5 w-3.5'} text-claude-secondary`} />
                         </div>
                         <div>
-                                <p className={`font-display font-bold italic tracking-tight text-claude-text ${denseDensity ? 'text-[0.95rem]' : 'text-[1rem]'}`}>Nothing scheduled</p>
-                                <p className={`mt-0.5 text-claude-secondary ${denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
+                                <p className={`font-display font-bold italic tracking-tight text-claude-text ${fitWeekdayView ? 'text-[0.9rem]' : denseDensity ? 'text-[0.95rem]' : 'text-[1rem]'}`}>Nothing scheduled</p>
+                                <p className={`mt-0.5 text-claude-secondary ${fitWeekdayView ? 'text-[9px] leading-4' : denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
                                     Propose a session to get things going.
                                 </p>
                         </div>
                         <button
                             type="button"
                             onClick={onPropose}
-                            className={`inline-flex items-center gap-1 rounded-full border border-claude-accent/30 bg-claude-accent/16 font-semibold text-claude-text transition-colors hover:bg-claude-accent/22 ${denseDensity ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
+                            className={`inline-flex items-center gap-1 rounded-full border border-claude-accent/30 bg-claude-accent/16 font-semibold text-claude-text transition-colors hover:bg-claude-accent/22 ${fitWeekdayView ? 'px-2 py-0.5 text-[9px]' : denseDensity ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                         >
-                            <CalendarPlus2 className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
+                            <CalendarPlus2 className={`${fitWeekdayView ? 'h-2.5 w-2.5' : denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
                             Propose Session
                         </button>
                     </div>
@@ -485,6 +488,7 @@ export default function GroupScheduleHub({
     const titleIdRef = useRef(`group-meetup-composer-title-${Math.random().toString(36).slice(2, 9)}`);
     const scheduleDensity = view === 'month' ? 'compact' : 'dense';
     const denseDensity = scheduleDensity === 'dense';
+    const timelineFitMode = view === 'month' ? 'default' : 'group-weekday';
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
@@ -894,6 +898,7 @@ export default function GroupScheduleHub({
                             contentMode={contentMode}
                             onDaySelect={handleDaySelect}
                             density={scheduleDensity}
+                            fitMode={timelineFitMode}
                         />
                     )}
                 </section>
@@ -902,6 +907,7 @@ export default function GroupScheduleHub({
                 <DayDetailSurface
                     {...dayDetailProps}
                     density={scheduleDensity}
+                    fitMode={timelineFitMode}
                     className="lg:sticky lg:top-24"
                 />
             </div>
