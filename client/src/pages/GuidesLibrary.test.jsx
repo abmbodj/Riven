@@ -384,9 +384,12 @@ describe('GuidesLibrary', () => {
     expect(screen.getByText(/quick start/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/what should river help with/i)).toBeInTheDocument();
     expect(screen.getByText(/required unless you attach notes or a file/i)).toBeInTheDocument();
+    expect(screen.getByText(/^source material$/i)).toBeInTheDocument();
+    expect(screen.getByText(/choose this before building if you want river grounded in notes or a file/i)).toBeInTheDocument();
     expect(screen.getByText(/^tune focus$/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /show setup/i })).toBeInTheDocument();
-    expect(screen.getByText(/optional source material/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/what topics should we cover/i)).toBeInTheDocument();
+    expect(screen.getByText(/session details/i)).toBeInTheDocument();
     expect(screen.getByText(/output brief/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /close create tutor session/i }));
@@ -414,10 +417,6 @@ describe('GuidesLibrary', () => {
     fireEvent.change(screen.getByLabelText(/what should river help with/i), {
       target: { value: 'Biology Midterm' },
     });
-    const showSetupButton = screen.queryByRole('button', { name: /show setup/i });
-    if (showSetupButton) {
-      fireEvent.click(showSetupButton);
-    }
     fireEvent.change(screen.getByLabelText(/what topics should we cover/i), {
       target: { value: 'Cells, Mitosis' },
     });

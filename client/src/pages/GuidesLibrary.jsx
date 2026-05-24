@@ -262,7 +262,7 @@ export default function GuidesLibrary() {
     const [genTopics, setGenTopics] = useState('');
     const [genWeakTopics, setGenWeakTopics] = useState('');
     const [genTone, setGenTone] = useState('calm review');
-    const [showSetupQuestions, setShowSetupQuestions] = useState(false);
+    const [showSetupQuestions, setShowSetupQuestions] = useState(true);
 
     const loadData = useCallback(async () => {
         try {
@@ -536,6 +536,65 @@ export default function GuidesLibrary() {
                                             </p>
                                         </div>
 
+                                        <div className="mt-4 rounded-2xl border border-claude-accent/25 bg-[linear-gradient(180deg,rgba(222,185,106,0.08),rgba(255,255,255,0.02))] p-4 shadow-[0_12px_36px_rgba(0,0,0,0.18)]">
+                                            <div className="mb-4 flex items-start gap-3">
+                                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-accent/10 text-claude-accent">
+                                                    <BookOpen className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Source material</p>
+                                                    <p className="mt-1 text-sm leading-5 text-claude-secondary">Choose this before building if you want River grounded in notes or a file.</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid gap-2 sm:grid-cols-3">
+                                                {[
+                                                    {
+                                                        id: 'none',
+                                                        title: 'Brief only',
+                                                        description: 'Use the topic field',
+                                                        icon: Target,
+                                                    },
+                                                    {
+                                                        id: 'note',
+                                                        title: 'Notes',
+                                                        description: 'Pull from saved notes',
+                                                        icon: BookOpen,
+                                                    },
+                                                    {
+                                                        id: 'file',
+                                                        title: 'File',
+                                                        description: 'Upload source material',
+                                                        icon: Upload,
+                                                    },
+                                                ].map((option) => {
+                                                    const SourceIcon = option.icon;
+                                                    const isActive = genSource === option.id;
+                                                    return (
+                                                        <button
+                                                            key={option.id}
+                                                            type="button"
+                                                            aria-pressed={isActive}
+                                                            onClick={() => setGenSource(option.id)}
+                                                            className={`tap-action flex min-h-[84px] items-start gap-3 rounded-2xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50 ${
+                                                                isActive
+                                                                    ? 'border-claude-accent bg-claude-accent/15 text-claude-accent shadow-[0_0_0_1px_rgba(222,185,106,0.1)]'
+                                                                    : 'border-claude-border bg-claude-bg/25 text-claude-secondary hover:border-claude-accent/30 hover:text-claude-text'
+                                                            }`}
+                                                        >
+                                                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${isActive ? 'border-claude-accent/30 bg-claude-accent/15' : 'border-claude-border bg-claude-bg/30'}`}>
+                                                                <SourceIcon className="h-4 w-4" />
+                                                            </span>
+                                                            <span className="min-w-0">
+                                                                <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.16em]">{option.title}</span>
+                                                                <span className="mt-1 block text-xs leading-5 text-claude-secondary">{option.description}</span>
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
                                         <div className="mt-4 rounded-2xl border border-claude-border/70 bg-claude-bg/45 p-4">
                                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                 <div>
@@ -633,9 +692,9 @@ export default function GuidesLibrary() {
                                                     <BookOpen className="h-5 w-5" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Source and output</p>
-                                                    <h3 className="mt-1 font-serif text-xl font-bold italic leading-tight text-claude-text">Choose what River can see</h3>
-                                                    <p className="mt-1 text-sm leading-6 text-claude-secondary">Keep it brief-only, or ground the session in existing material.</p>
+                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Session details</p>
+                                                    <h3 className="mt-1 font-serif text-xl font-bold italic leading-tight text-claude-text">Name the session</h3>
+                                                    <p className="mt-1 text-sm leading-6 text-claude-secondary">Set the title and review the source state before you build.</p>
                                                 </div>
                                             </div>
 
@@ -654,56 +713,6 @@ export default function GuidesLibrary() {
                                             </div>
 
                                             <div className="mt-5">
-                                                <p className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Optional source material</p>
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {[
-                                                        {
-                                                            id: 'none',
-                                                            title: 'Brief only',
-                                                            description: 'No file',
-                                                            icon: Target,
-                                                        },
-                                                        {
-                                                            id: 'note',
-                                                            title: 'Notes',
-                                                            description: 'Saved notes',
-                                                            icon: BookOpen,
-                                                        },
-                                                        {
-                                                            id: 'file',
-                                                            title: 'File',
-                                                            description: 'Upload',
-                                                            icon: Upload,
-                                                        },
-                                                    ].map((option) => {
-                                                        const SourceIcon = option.icon;
-                                                        const isActive = genSource === option.id;
-                                                        return (
-                                                            <button
-                                                                key={option.id}
-                                                                type="button"
-                                                                aria-pressed={isActive}
-                                                                onClick={() => setGenSource(option.id)}
-                                                                className={`tap-action flex min-h-[62px] flex-col items-start justify-center gap-1 rounded-2xl border p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50 ${
-                                                                    isActive
-                                                                        ? 'border-claude-accent bg-claude-accent/15 text-claude-accent'
-                                                                        : 'border-claude-border bg-claude-bg/25 text-claude-secondary hover:border-claude-accent/30 hover:text-claude-text'
-                                                                }`}
-                                                            >
-                                                                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${isActive ? 'border-claude-accent/30 bg-claude-accent/15' : 'border-claude-border bg-claude-bg/30'}`}>
-                                                                    <SourceIcon className="h-3.5 w-3.5" />
-                                                                </span>
-                                                                <span className="min-w-0">
-                                                                    <span className="block truncate font-mono text-[9px] font-bold uppercase tracking-[0.14em]">{option.title}</span>
-                                                                    <span className="block truncate text-[10px] leading-4 text-claude-secondary">{option.description}</span>
-                                                                </span>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-
-                                            <div className="mt-4">
                                                 {genSource === 'note' ? (
                                                     <div>
                                                         {selectedNotes.length > 1 && (
@@ -847,7 +856,7 @@ export default function GuidesLibrary() {
                             setGenTopics('');
                             setGenWeakTopics('');
                             setGenTone('calm review');
-                            setShowSetupQuestions(false);
+                            setShowSetupQuestions(true);
                         }}
                         className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
                         aria-label="Create tutor session"
