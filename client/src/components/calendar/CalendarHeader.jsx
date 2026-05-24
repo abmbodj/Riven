@@ -65,13 +65,20 @@ export default function CalendarHeader({
     onToday,
     contentMode,
     onContentModeChange,
+    contentOptions,
     classes,
     activeFilters,
     onFilterToggle,
+    eyebrow,
 }) {
     const rangeLabel = formatRangeLabel(anchorDate, view);
     const inCurrentRange = isCurrentRange(anchorDate, view);
     const compactMode = view === 'week' || view === 'day';
+    const modeOptions = contentOptions || [
+        { value: 'assignments', label: 'Assignments' },
+        { value: 'classes', label: 'Classes' },
+        { value: 'both', label: 'Both' },
+    ];
 
     return (
         <div className={`mb-4 ${compactMode ? 'space-y-2.5' : 'space-y-3'}`}>
@@ -88,7 +95,7 @@ export default function CalendarHeader({
 
                     <div className="min-w-0 flex-1">
                         <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-claude-secondary">
-                            {compactMode ? 'Schedule view' : 'Calendar view'}
+                            {eyebrow || (compactMode ? 'Schedule view' : 'Calendar view')}
                         </div>
                         <motion.div
                             key={`${view}-${rangeLabel}`}
@@ -130,11 +137,7 @@ export default function CalendarHeader({
                     <SegmentedControl
                         value={contentMode}
                         onChange={onContentModeChange}
-                        options={[
-                            { value: 'assignments', label: 'Assignments' },
-                            { value: 'classes', label: 'Classes' },
-                            { value: 'both', label: 'Both' },
-                        ]}
+                        options={modeOptions}
                         layoutId="calendar-content-pill"
                         compact={false}
                     />

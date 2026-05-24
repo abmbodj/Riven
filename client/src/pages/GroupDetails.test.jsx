@@ -332,8 +332,11 @@ describe('GroupDetails upload flow', () => {
       expect(api.getGroupScheduleCalendar).toHaveBeenCalledWith('group-1', expectedRange.start, expectedRange.end);
     });
 
-    expect(screen.getAllByRole('grid', { name: /monthly group schedule/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('grid', { name: /monthly calendar/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText(expectedMonthLabel).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('tab', { name: /month/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('tab', { name: /week/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('tab', { name: /day/i }).length).toBeGreaterThan(0);
     expect(screen.queryByText('Rolling Week')).not.toBeInTheDocument();
     expect(screen.queryByText('Next 7 Days')).not.toBeInTheDocument();
   });
@@ -376,7 +379,7 @@ describe('GroupDetails upload flow', () => {
     });
 
     const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
-    const monthGrid = within(primaryHub).getByRole('grid', { name: /monthly group schedule/i });
+    const monthGrid = within(primaryHub).getByRole('grid', { name: /monthly calendar/i });
     const daySurface = within(primaryHub).getByTestId('group-schedule-day-surface');
     const targetCell = within(monthGrid).getAllByRole('gridcell').find((cell) => (
       cell.getAttribute('aria-label')?.includes(targetLabel)
@@ -409,5 +412,67 @@ describe('GroupDetails upload flow', () => {
 
     expect(await screen.findByText('Create failed')).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: /add the details/i })).toBeInTheDocument();
+  });
+
+  it('keeps group schedule actions while using the shared calendar shell', async () => {
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+    });
+
+    const scheduleScroll = screen.getByTestId('group-schedule-scroll');
+    expect(scheduleScroll).toHaveClass('flex-1');
+    expect(scheduleScroll).toHaveClass('min-h-0');
+    expect(scheduleScroll).toHaveClass('overflow-y-auto');
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    expect(within(primaryHub).getByRole('grid', { name: /monthly calendar/i })).toBeInTheDocument();
+
+    fireEvent.click(within(primaryHub).getByRole('button', { name: /busy\/free/i }));
+
+    await waitFor(() => {
+      expect(api.setGroupScheduleShare).toHaveBeenCalledWith('group-1', 'busy_free');
+    });
+
+    fireEvent.click(within(primaryHub).getAllByRole('button', { name: /propose/i })[0]);
+    expect(screen.getByRole('dialog', { name: /pick the time/i })).toBeInTheDocument();
+  });
+
+  it('does not surface hidden member schedule slots in the shared calendar', async () => {
+    api.getGroupScheduleCalendar.mockResolvedValueOnce({
+      my_share_mode: null,
+      members: [
+        {
+          id: 'hidden-user',
+          username: 'hidden',
+          display_name: 'Hidden Member',
+          share_mode: 'hidden',
+        },
+      ],
+      schedule_slots: [
+        {
+          id: 'hidden-slot',
+          user_id: 'hidden-user',
+          member_name: 'Hidden Member',
+          day_of_week: new Date().getDay(),
+          start_time: '10:00',
+          end_time: '11:00',
+          visibility_mode: 'hidden',
+          class_name: 'Secret Class',
+        },
+      ],
+      meetups: [],
+    });
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-schedule-hub').length).toBeGreaterThan(0);
+    });
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    expect(within(primaryHub).queryByText('Hidden Member')).not.toBeInTheDocument();
+    expect(within(primaryHub).queryByText('Secret Class')).not.toBeInTheDocument();
   });
 });

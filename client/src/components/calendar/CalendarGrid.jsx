@@ -50,6 +50,7 @@ export default function CalendarGrid({
 
         for (const a of assignments) {
             if (!a.due_date) continue;
+            if (activeFilters.length > 0 && !activeFilters.includes(a.class_id)) continue;
             const d = new Date(a.due_date);
             if (Number.isNaN(d.getTime())) continue;
             const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -57,7 +58,7 @@ export default function CalendarGrid({
             map[key].push(a);
         }
         return map;
-    }, [assignments, showAssignments]);
+    }, [activeFilters, assignments, showAssignments]);
 
     // Index schedule slots by day_of_week
     const scheduleByDow = useMemo(() => {

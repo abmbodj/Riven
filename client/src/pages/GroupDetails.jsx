@@ -786,19 +786,21 @@ export default function GroupDetails() {
                 </div>
 
                 {activeTab === 'schedule' ? (
-                    <GroupScheduleHub
-                        group={group}
-                        calendarData={groupSchedule}
-                        loading={scheduleLoading}
-                        isAdmin={isAdmin}
-                        composerRequestKey={scheduleComposerRequestKey}
-                        onRangeChange={handleScheduleRangeChange}
-                        onSetShareMode={handleSetShareMode}
-                        onCreateMeetup={handleCreateMeetup}
-                        onJoinMeetup={handleJoinMeetup}
-                        onLeaveMeetup={handleLeaveMeetup}
-                        onCancelMeetup={handleCancelMeetup}
-                    />
+                    <div data-testid="group-schedule-scroll" className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2 pb-10 no-scrollbar">
+                        <GroupScheduleHub
+                            group={group}
+                            calendarData={groupSchedule}
+                            loading={scheduleLoading}
+                            isAdmin={isAdmin}
+                            composerRequestKey={scheduleComposerRequestKey}
+                            onRangeChange={handleScheduleRangeChange}
+                            onSetShareMode={handleSetShareMode}
+                            onCreateMeetup={handleCreateMeetup}
+                            onJoinMeetup={handleJoinMeetup}
+                            onLeaveMeetup={handleLeaveMeetup}
+                            onCancelMeetup={handleCancelMeetup}
+                        />
+                    </div>
                 ) : (
                     <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                         <div className="col-span-4 flex flex-col gap-5 overflow-y-auto pr-2 no-scrollbar">

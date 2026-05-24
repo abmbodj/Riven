@@ -20,6 +20,18 @@ function isAllDayAssignment(dueDate) {
     return dueDate.getHours() === 0 && dueDate.getMinutes() === 0;
 }
 
+function getAssignmentEndDate(assignment, dueDate) {
+    const rawEnd = assignment.end_date || assignment.end_at;
+    if (!rawEnd) return new Date(dueDate.getTime() + 45 * 60 * 1000);
+
+    const endDate = new Date(rawEnd);
+    if (Number.isNaN(endDate.getTime()) || endDate <= dueDate) {
+        return new Date(dueDate.getTime() + 45 * 60 * 1000);
+    }
+
+    return endDate;
+}
+
 function formatChipDate(date) {
     return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -99,7 +111,7 @@ export default function CalendarTimeline({
             const key = getDateKey(dueDate);
             if (!map[key]) map[key] = [];
             map[key].push({
-                kind: 'assignment',
+                kind: assignment.calendar_kind || 'assignment',
                 id: `assignment-all-day-${assignment.id}`,
                 title: assignment.title,
                 subtitle: assignment.assignment_type && assignment.assignment_type !== 'assignment'
@@ -160,7 +172,7 @@ export default function CalendarTimeline({
                 const key = getDateKey(dueDate);
                 if (!map[key]) map[key] = [];
                 map[key].push({
-                    kind: 'assignment',
+                    kind: assignment.calendar_kind || 'assignment',
                     id: `assignment-${assignment.id}`,
                     title: assignment.title,
                     subtitle: assignment.assignment_type && assignment.assignment_type !== 'assignment'
@@ -170,7 +182,7 @@ export default function CalendarTimeline({
                     className: classMap[assignment.class_id]?.name || 'General',
                     date: dueDate,
                     startMinutes: (dueDate.getHours() * 60) + dueDate.getMinutes(),
-                    endMinutes: (dueDate.getHours() * 60) + dueDate.getMinutes() + 45,
+                    endMinutes: (getAssignmentEndDate(assignment, dueDate).getHours() * 60) + getAssignmentEndDate(assignment, dueDate).getMinutes(),
                 });
             }
         }
@@ -405,7 +417,7 @@ export default function CalendarTimeline({
                                                 backgroundColor: event.kind === 'class' ? `${event.color}22` : `${event.color}12`,
                                                 borderColor: event.kind === 'class' ? `${event.color}50` : `${event.color}36`,
                                             }}
-                                            aria-label={`${event.kind === 'class' ? 'Class' : 'Assignment'} ${event.title} on ${formatDateHeader(date, false)}`}
+                                            aria-label={`${event.kind === 'class' ? 'Class' : event.kind === 'meetup' ? 'Study session' : 'Assignment'} ${event.title} on ${formatDateHeader(date, false)}`}
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
@@ -413,7 +425,7 @@ export default function CalendarTimeline({
                                                         className="font-mono text-[9px] font-bold uppercase tracking-[0.18em]"
                                                         style={{ color: event.color }}
                                                     >
-                                                        {event.kind === 'class' ? formatEventTimeRange(event.startMinutes, event.endMinutes) : `Due ${formatEventTime(event.startMinutes)}`}
+                                                        {event.kind === 'class' ? formatEventTimeRange(event.startMinutes, event.endMinutes) : event.kind === 'meetup' ? formatEventTimeRange(event.startMinutes, event.endMinutes) : `Due ${formatEventTime(event.startMinutes)}`}
                                                     </div>
                                                     <div className="mt-1 line-clamp-2 font-serif text-sm italic font-bold text-claude-text">
                                                         {event.title}

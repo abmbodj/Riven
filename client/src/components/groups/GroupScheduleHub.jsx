@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
     CalendarDays,
     CalendarPlus2,
-    ChevronLeft,
-    ChevronRight,
     Clock3,
     Eye,
     EyeOff,
@@ -15,24 +13,24 @@ import {
     X,
 } from 'lucide-react';
 import {
-    addMonths,
     calculateBestTimes,
     formatDateLabel,
+    formatMemberName,
     formatMeetupRange,
     formatTimeLabel,
     fromLocalDateTimeValue,
-    getMonthGridDays,
     getVisibleMonthRange,
     isSameLocalDay,
-    isSameLocalMonth,
     SHORT_DAY_LABELS,
     startOfDay,
     startOfMonth,
     summarizeDay,
-    toDateKey,
     toLocalDateTimeValue,
 } from './groupScheduleUtils.js';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
+import CalendarHeader from '../calendar/CalendarHeader.jsx';
+import CalendarGrid from '../calendar/CalendarGrid.jsx';
+import CalendarTimeline from '../calendar/CalendarTimeline.jsx';
 
 const SHARE_MODES = [
     {
@@ -57,6 +55,9 @@ const SHARE_MODES = [
 
 const DURATION_OPTIONS = [45, 60, 90, 120];
 const EMPTY_ARRAY = [];
+const MEETUP_SOURCE_ID = 'group-meetups';
+const MEETUP_COLOR = '#deb96a';
+const MEMBER_COLORS = ['#7a9e72', '#5e7b8f', '#c47c7c', '#8b5cf6', '#06b6d4', '#f59e0b', '#22c55e', '#ec4899'];
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 const schedulePanelClass = 'glass-panel-premium rounded-[2rem] border border-white/10 shadow-[0_28px_56px_rgba(3,7,11,0.24)]';
@@ -76,6 +77,31 @@ function createDefaultComposerDate(selectedDate = new Date()) {
     }
 
     return base;
+}
+
+function getMemberSourceId(memberId) {
+    return `member:${memberId}`;
+}
+
+function getCalendarVisibleRange(anchorDate, view) {
+    if (view === 'month') return getVisibleMonthRange(anchorDate);
+
+    const start = startOfDay(anchorDate);
+    if (view === 'week') {
+        start.setDate(start.getDate() - start.getDay());
+        const end = startOfDay(start);
+        end.setDate(start.getDate() + 6);
+        return { start, end };
+    }
+
+    return { start, end: startOfDay(anchorDate) };
+}
+
+function getPreservedDayForMonth(selectedDate, targetMonth) {
+    const year = targetMonth.getFullYear();
+    const month = targetMonth.getMonth();
+    const maxDay = new Date(year, month + 1, 0).getDate();
+    return startOfDay(new Date(year, month, Math.min(selectedDate.getDate(), maxDay)));
 }
 
 function createComposerState(selectedDate) {
@@ -116,13 +142,6 @@ function formatSuggestionLabel(suggestion) {
         hour: 'numeric',
         minute: '2-digit',
     })} · ${suggestion.freeCount} free`;
-}
-
-function getPreservedDayForMonth(selectedDate, targetMonth) {
-    const year = targetMonth.getFullYear();
-    const month = targetMonth.getMonth();
-    const maxDay = new Date(year, month + 1, 0).getDate();
-    return startOfDay(new Date(year, month, Math.min(selectedDate.getDate(), maxDay)));
 }
 
 function AvatarStack({ attendees = [], count = 0 }) {
@@ -309,142 +328,6 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
     );
 }
 
-// Compact Google Calendar-style month grid
-function MonthGrid({
-    anchorDate,
-    monthDays,
-    selectedDate,
-    daySummaryByKey,
-    onSelectDay,
-}) {
-    const today = startOfDay(new Date());
-
-    return (
-        <div role="grid" aria-label="Monthly group schedule">
-            {/* Day-of-week headers */}
-            <div className="grid grid-cols-7 pb-2.5">
-                {SHORT_DAY_LABELS.map((label) => (
-                    <div
-                        key={label}
-                        className="text-center text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-claude-secondary/55"
-                    >
-                        {label}
-                    </div>
-                ))}
-            </div>
-
-            {/* Day cells */}
-            <div className="grid grid-cols-7">
-                {monthDays.map((date) => {
-                    const key = toDateKey(date);
-                    const summary = daySummaryByKey.get(key) || {
-                        scheduleCount: 0,
-                        meetupCount: 0,
-                        activeMeetupCount: 0,
-                        cancelledMeetupCount: 0,
-                        meetups: EMPTY_ARRAY,
-                    };
-                    const inMonth = isSameLocalMonth(date, anchorDate);
-                    const isSelected = isSameLocalDay(date, selectedDate);
-                    const isToday = isSameLocalDay(date, today);
-                    const hasMeetups = summary.activeMeetupCount > 0;
-                    const hasSchedule = summary.scheduleCount > 0;
-                    const hasCancelledOnly = !hasMeetups && !hasSchedule && summary.cancelledMeetupCount > 0;
-
-                    const ariaLabel = [
-                        formatDateLabel(date, { weekday: 'long', month: 'long', day: 'numeric' }),
-                        !inMonth ? 'outside current month' : null,
-                        hasMeetups ? `${summary.activeMeetupCount} meetup${summary.activeMeetupCount === 1 ? '' : 's'}` : null,
-                        summary.cancelledMeetupCount > 0 ? `${summary.cancelledMeetupCount} cancelled` : null,
-                        hasSchedule ? `${summary.scheduleCount} class block${summary.scheduleCount === 1 ? '' : 's'}` : null,
-                    ].filter(Boolean).join(', ');
-
-                    return (
-                        <button
-                            key={key}
-                            type="button"
-                            role="gridcell"
-                            aria-label={ariaLabel}
-                            aria-selected={isSelected}
-                            aria-current={isToday ? 'date' : undefined}
-                            onClick={() => onSelectDay(date)}
-                            className={[
-                                'flex flex-col items-center gap-1 rounded-xl py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-0',
-                                isSelected
-                                    ? 'bg-[linear-gradient(155deg,rgba(222,185,106,0.19),rgba(44,31,10,0.45))] ring-1 ring-inset ring-claude-accent/35'
-                                    : hasMeetups
-                                    ? 'bg-claude-accent/[0.07] hover:bg-claude-accent/[0.13]'
-                                    : hasSchedule
-                                    ? 'bg-botanical-forest/[0.07] hover:bg-botanical-forest/[0.12]'
-                                    : 'hover:bg-white/[0.04]',
-                            ].join(' ')}
-                        >
-                            {/* Day number circle */}
-                            <span
-                                className={[
-                                    'inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all duration-150',
-                                    isSelected
-                                        ? 'bg-claude-accent text-[#182a31] shadow-[0_0_18px_rgba(222,185,106,0.28)]'
-                                        : isToday
-                                        ? 'bg-emerald-400/[0.1] text-emerald-100 ring-1 ring-emerald-400/70'
-                                        : inMonth
-                                        ? 'text-claude-text'
-                                        : 'text-claude-secondary/30',
-                                ].join(' ')}
-                            >
-                                {date.getDate()}
-                            </span>
-
-                            {/* Event indicators */}
-                            <div className="flex h-3 items-center justify-center gap-1" aria-hidden="true">
-                                {hasMeetups && (
-                                    <>
-                                        <span className={[
-                                            'h-2 w-2 rounded-full',
-                                            isSelected
-                                                ? 'bg-[#182a31]/50'
-                                                : 'bg-claude-accent shadow-[0_0_6px_rgba(222,185,106,0.45)]',
-                                        ].join(' ')} />
-                                        {summary.activeMeetupCount > 1 && (
-                                            <span className={[
-                                                'text-[10px] font-mono font-bold leading-none',
-                                                isSelected ? 'text-[#182a31]/70' : 'text-claude-accent',
-                                            ].join(' ')}>
-                                                {summary.activeMeetupCount}
-                                            </span>
-                                        )}
-                                    </>
-                                )}
-                                {hasSchedule && (
-                                    <>
-                                        <span className={[
-                                            'h-2 w-2 rounded-full',
-                                            isSelected
-                                                ? 'bg-[#182a31]/40'
-                                                : 'bg-[#7db591] shadow-[0_0_5px_rgba(93,172,118,0.5)]',
-                                        ].join(' ')} />
-                                        {summary.scheduleCount > 1 && (
-                                            <span className={[
-                                                'text-[10px] font-mono font-bold leading-none',
-                                                isSelected ? 'text-[#182a31]/60' : 'text-[#7db591]',
-                                            ].join(' ')}>
-                                                {summary.scheduleCount}
-                                            </span>
-                                        )}
-                                    </>
-                                )}
-                                {hasCancelledOnly && (
-                                    <span className="h-1.5 w-1.5 rounded-full bg-white/[0.18]" />
-                                )}
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
-
 // Day detail panel
 function DayDetailSurface({
     selectedDate,
@@ -585,6 +468,9 @@ export default function GroupScheduleHub({
 }) {
     const [anchorDate, setAnchorDate] = useState(() => startOfDay(new Date()));
     const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+    const [view, setView] = useState('month');
+    const [activeFilters, setActiveFilters] = useState([]);
+    const [contentMode, setContentMode] = useState('both');
     const [shareBusy, setShareBusy] = useState(false);
     const [composerOpen, setComposerOpen] = useState(false);
     const [composerStep, setComposerStep] = useState(1);
@@ -599,23 +485,62 @@ export default function GroupScheduleHub({
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
     const meetups = calendarData?.meetups ?? EMPTY_ARRAY;
     const myShareMode = calendarData?.my_share_mode || null;
-    const visibleRange = useMemo(() => getVisibleMonthRange(anchorDate), [anchorDate]);
-    const monthDays = useMemo(() => getMonthGridDays(anchorDate), [anchorDate]);
+    const visibleRange = useMemo(() => getCalendarVisibleRange(anchorDate, view), [anchorDate, view]);
 
-    const daySummaryByKey = useMemo(() => {
-        const summaryMap = new Map();
+    const calendarSources = useMemo(() => {
+        const memberSources = members
+            .filter((member) => member.share_mode !== 'hidden')
+            .map((member, index) => ({
+                id: getMemberSourceId(member.id),
+                name: formatMemberName(member),
+                color: MEMBER_COLORS[index % MEMBER_COLORS.length],
+                room: member.share_mode === 'full' ? 'Full schedule' : 'Busy/free',
+            }));
 
-        monthDays.forEach((date) => {
-            summaryMap.set(toDateKey(date), summarizeDay(date, scheduleSlots, meetups));
-        });
+        return [
+            {
+                id: MEETUP_SOURCE_ID,
+                name: 'Study Sessions',
+                color: MEETUP_COLOR,
+                room: 'Group meetup',
+            },
+            ...memberSources,
+        ];
+    }, [members]);
 
-        return summaryMap;
-    }, [meetups, monthDays, scheduleSlots]);
+    const groupScheduleSlots = useMemo(() => {
+        const visibleMemberSourceIds = new Set(calendarSources.map((source) => source.id));
 
-    const selectedDaySummary = useMemo(
-        () => daySummaryByKey.get(toDateKey(selectedDate)) || summarizeDay(selectedDate, scheduleSlots, meetups),
-        [daySummaryByKey, meetups, scheduleSlots, selectedDate],
-    );
+        return scheduleSlots
+            .map((slot) => ({
+                ...slot,
+                class_id: getMemberSourceId(slot.user_id),
+            }))
+            .filter((slot) => visibleMemberSourceIds.has(slot.class_id));
+    }, [calendarSources, scheduleSlots]);
+
+    const groupMeetupAssignments = useMemo(() => meetups.map((meetup) => ({
+        id: meetup.id,
+        title: meetup.topic,
+        due_date: meetup.start_at,
+        end_date: meetup.end_at,
+        class_id: MEETUP_SOURCE_ID,
+        assignment_type: meetup.status === 'cancelled' ? 'cancelled' : 'study session',
+        calendar_kind: 'meetup',
+    })), [meetups]);
+
+    const selectedDaySummary = useMemo(() => {
+        const showSessions = contentMode === 'assignments' || contentMode === 'both';
+        const showAvailability = contentMode === 'classes' || contentMode === 'both';
+        const filteredMeetups = showSessions
+            ? meetups.filter(() => activeFilters.length === 0 || activeFilters.includes(MEETUP_SOURCE_ID))
+            : EMPTY_ARRAY;
+        const filteredSlots = showAvailability
+            ? groupScheduleSlots.filter((slot) => activeFilters.length === 0 || activeFilters.includes(slot.class_id))
+            : EMPTY_ARRAY;
+
+        return summarizeDay(selectedDate, filteredSlots, filteredMeetups);
+    }, [activeFilters, contentMode, groupScheduleSlots, meetups, selectedDate]);
 
     const agendaItems = selectedDaySummary.agendaItems;
     const bestTimes = useMemo(
@@ -624,10 +549,10 @@ export default function GroupScheduleHub({
             rangeEnd: visibleRange.end,
             members,
             meetups,
-            scheduleSlots,
+            scheduleSlots: groupScheduleSlots,
             limit: 6,
         }),
-        [members, meetups, scheduleSlots, visibleRange.end, visibleRange.start],
+        [groupScheduleSlots, members, meetups, visibleRange.end, visibleRange.start],
     );
     const selectedDaySuggestions = useMemo(
         () => bestTimes.filter((suggestion) => isSameLocalDay(suggestion.startsAt, selectedDate)).slice(0, 3),
@@ -641,6 +566,19 @@ export default function GroupScheduleHub({
         : bestTimes.length > 0
         ? 'fallback'
         : 'empty';
+
+    const handleFilterToggle = (id) => {
+        if (id === 'all') {
+            setActiveFilters([]);
+            return;
+        }
+
+        setActiveFilters((current) => (
+            current.includes(id)
+                ? current.filter((filterId) => filterId !== id)
+                : [...current, id]
+        ));
+    };
 
     useBodyScrollLock(composerOpen);
 
@@ -660,12 +598,32 @@ export default function GroupScheduleHub({
         setSelectedDate(today);
     };
 
-    const shiftMonth = (direction) => {
+    const handleViewChange = (nextView) => {
+        setView(nextView);
+        if (nextView === 'week' || nextView === 'day') {
+            setAnchorDate(selectedDate ? startOfDay(selectedDate) : startOfDay(new Date()));
+        }
+    };
+
+    const handleNavigate = (direction) => {
         setAnchorDate((current) => {
-            const nextMonth = addMonths(current, direction);
-            setSelectedDate((currentSelected) => getPreservedDayForMonth(currentSelected, nextMonth));
-            return nextMonth;
+            const next = startOfDay(current);
+            if (view === 'month') {
+                next.setMonth(current.getMonth() + direction, 1);
+                setSelectedDate((currentSelected) => getPreservedDayForMonth(currentSelected, next));
+            } else if (view === 'week') {
+                next.setDate(current.getDate() + (direction * 7));
+            } else {
+                next.setDate(current.getDate() + direction);
+            }
+            return next;
         });
+    };
+
+    const handleDaySelect = (date) => {
+        const nextDate = startOfDay(date);
+        setSelectedDate(nextDate);
+        setAnchorDate(nextDate);
     };
 
     const openComposer = (suggestion = null) => {
@@ -882,43 +840,52 @@ export default function GroupScheduleHub({
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px] xl:grid-cols-[minmax(0,1.65fr)_380px]">
                 {/* Calendar section */}
-                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.34),rgba(9,13,21,0.95)_62%)] p-4 md:p-5 lg:p-6`}>
-                    {/* Month navigation */}
-                    <div className="flex items-center justify-between gap-3">
-                        <button
-                            type="button"
-                            onClick={() => shiftMonth(-1)}
-                            aria-label="Previous month"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-claude-text transition-colors hover:bg-white/[0.1]"
-                        >
-                            <ChevronLeft className="h-5 w-5" />
-                        </button>
+                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-4 md:p-5 lg:p-6`}>
+                    <CalendarHeader
+                        anchorDate={anchorDate}
+                        onPrev={() => handleNavigate(-1)}
+                        onNext={() => handleNavigate(1)}
+                        onToday={handleSelectToday}
+                        view={view}
+                        onViewChange={handleViewChange}
+                        contentMode={contentMode}
+                        onContentModeChange={setContentMode}
+                        contentOptions={[
+                            { value: 'assignments', label: 'Sessions' },
+                            { value: 'classes', label: 'Availability' },
+                            { value: 'both', label: 'Both' },
+                        ]}
+                        classes={calendarSources}
+                        activeFilters={activeFilters}
+                        onFilterToggle={handleFilterToggle}
+                        eyebrow="Group calendar"
+                    />
 
-                        <div className="min-w-0 flex-1 text-center">
-                            <h2 className="font-display text-[2rem] font-bold italic tracking-tight text-claude-text md:text-[2.35rem]">
-                                {formatDateLabel(anchorDate, { month: 'long', year: 'numeric' })}
-                            </h2>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => shiftMonth(1)}
-                            aria-label="Next month"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-claude-text transition-colors hover:bg-white/[0.1]"
-                        >
-                            <ChevronRight className="h-5 w-5" />
-                        </button>
-                    </div>
-
-                    <div className="mt-5">
-                        <MonthGrid
+                    {view === 'month' && (
+                        <CalendarGrid
                             anchorDate={anchorDate}
-                            monthDays={monthDays}
-                            selectedDate={selectedDate}
-                            daySummaryByKey={daySummaryByKey}
-                            onSelectDay={(date) => setSelectedDate(startOfDay(date))}
+                            assignments={groupMeetupAssignments}
+                            scheduleSlots={groupScheduleSlots}
+                            classes={calendarSources}
+                            activeFilters={activeFilters}
+                            contentMode={contentMode}
+                            selectedDay={selectedDate}
+                            onDaySelect={handleDaySelect}
                         />
-                    </div>
+                    )}
+
+                    {(view === 'week' || view === 'day') && (
+                        <CalendarTimeline
+                            anchorDate={anchorDate}
+                            view={view}
+                            assignments={groupMeetupAssignments}
+                            scheduleSlots={groupScheduleSlots}
+                            classes={calendarSources}
+                            activeFilters={activeFilters}
+                            contentMode={contentMode}
+                            onDaySelect={handleDaySelect}
+                        />
+                    )}
                 </section>
 
                 {/* Day detail — inline below calendar on mobile, sidebar on desktop */}
