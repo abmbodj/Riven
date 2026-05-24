@@ -115,17 +115,17 @@ export function layoutTimedEvents(events) {
     return sortedEvents;
 }
 
-export function getDefaultScrollTop(events, view) {
+export function getDefaultScrollTop(events, view, { hourHeight = HOUR_HEIGHT, startHour = START_HOUR } = {}) {
     if (view === 'month') return 0;
     if (events.length === 0) {
-        return Math.max(0, ((8 * 60) - (START_HOUR * 60)) / 60 * HOUR_HEIGHT);
+        return Math.max(0, ((8 * 60) - (startHour * 60)) / 60 * hourHeight);
     }
 
     const earliestMinutes = Math.min(...events.map((event) => event.startMinutes));
-    const preferredStart = Math.max((START_HOUR * 60), earliestMinutes - 60);
-    return ((preferredStart - (START_HOUR * 60)) / 60) * HOUR_HEIGHT;
+    const preferredStart = Math.max((startHour * 60), earliestMinutes - 60);
+    return ((preferredStart - (startHour * 60)) / 60) * hourHeight;
 }
 
-export function getCurrentTimeTop(now) {
-    return (((now.getHours() * 60) + now.getMinutes()) - (START_HOUR * 60)) / 60 * HOUR_HEIGHT;
+export function getCurrentTimeTop(now, { hourHeight = HOUR_HEIGHT, startHour = START_HOUR } = {}) {
+    return (((now.getHours() * 60) + now.getMinutes()) - (startHour * 60)) / 60 * hourHeight;
 }

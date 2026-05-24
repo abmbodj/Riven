@@ -144,19 +144,19 @@ function formatSuggestionLabel(suggestion) {
     })} · ${suggestion.freeCount} free`;
 }
 
-function AvatarStack({ attendees = [], count = 0 }) {
+function AvatarStack({ attendees = [], count = 0, dense = false }) {
     const displayCount = count || attendees.length;
 
     if (!displayCount) {
         return (
-            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.14em] text-claude-secondary">
+            <div className={`inline-flex items-center rounded-full border border-white/10 bg-white/5 font-mono font-semibold uppercase tracking-[0.14em] text-claude-secondary ${dense ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-1 text-[10px]'}`}>
                 Nobody yet
             </div>
         );
     }
 
     return (
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center ${dense ? 'gap-1.5' : 'gap-2'}`}>
             <div className="flex -space-x-2">
                 {attendees.slice(0, 4).map((attendee) => (
                     <img
@@ -164,11 +164,11 @@ function AvatarStack({ attendees = [], count = 0 }) {
                         src={attendee.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${attendee.username || attendee.id}`}
                         alt=""
                         loading="lazy"
-                        className="h-7 w-7 rounded-full border border-[rgba(24,42,49,0.92)] bg-white/90 p-0.5"
+                        className={`rounded-full border border-[rgba(24,42,49,0.92)] bg-white/90 p-0.5 ${dense ? 'h-6 w-6' : 'h-7 w-7'}`}
                     />
                 ))}
             </div>
-            <span className="text-[11px] font-medium text-claude-secondary">
+            <span className={`font-medium text-claude-secondary ${dense ? 'text-[10px]' : 'text-[11px]'}`}>
                 {displayCount}
             </span>
         </div>
@@ -177,7 +177,7 @@ function AvatarStack({ attendees = [], count = 0 }) {
 
 function ShareModeControl({ currentMode, onChange, busy }) {
     return (
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-3 gap-1.5">
             {SHARE_MODES.map((mode) => {
                 const Icon = mode.icon;
                 const isActive = (currentMode || 'hidden') === mode.value;
@@ -196,12 +196,12 @@ function ShareModeControl({ currentMode, onChange, busy }) {
                     >
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(222,185,106,0.09),transparent_55%)]" />
                         <div className="flex items-center gap-2">
-                            <Icon className="h-3.5 w-3.5" />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.14em]">
+                            <Icon className="h-3 w-3" />
+                            <span className="text-[9px] font-mono font-bold uppercase tracking-[0.12em]">
                                 {mode.label}
                             </span>
                         </div>
-                        <p className="mt-1 line-clamp-1 text-[10px] font-medium text-inherit/75">
+                        <p className="mt-0.5 line-clamp-1 text-[9px] font-medium leading-4 text-inherit/75">
                             {mode.description}
                         </p>
                     </button>
@@ -211,37 +211,37 @@ function ShareModeControl({ currentMode, onChange, busy }) {
     );
 }
 
-function ScheduleBlockCard({ item }) {
+function ScheduleBlockCard({ item, dense = false }) {
     return (
-        <div className="guide-shell rounded-[1.3rem] border border-[#7d9a86]/25 bg-[linear-gradient(135deg,rgba(93,132,112,0.24),rgba(23,47,40,0.76))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+        <div className={`guide-shell rounded-[1.3rem] border border-[#7d9a86]/25 bg-[linear-gradient(135deg,rgba(93,132,112,0.24),rgba(23,47,40,0.76))] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${dense ? 'px-3 py-2.5' : 'px-4 py-3'}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-claude-text">
+                    <p className={`font-semibold text-claude-text ${dense ? 'text-[12px]' : 'text-[13px]'}`}>
                         {item.title}
                     </p>
-                    <p className="mt-1 text-xs font-medium text-[#d9e8dd]/75">
+                    <p className={`mt-0.5 font-medium leading-4 text-[#d9e8dd]/75 ${dense ? 'text-[10px]' : 'text-[11px]'}`}>
                         {item.subtitle}
                     </p>
                 </div>
-                <div className={`${scheduleChipClass} text-[#d9e8dd]/80`}>
+                <div className={`${scheduleChipClass} px-2 py-0.5 text-[#d9e8dd]/80 ${dense ? 'text-[7px]' : 'text-[8px]'}`}>
                     {formatTimeLabel(item.startAt.toTimeString().slice(0, 5))}
                 </div>
             </div>
-            <p className="mt-3 text-xs font-medium text-[#d9e8dd]/80">
+            <p className={`mt-2 font-medium text-[#d9e8dd]/80 ${dense ? 'text-[10px]' : 'text-[11px]'}`}>
                 {formatTimeLabel(item.startAt.toTimeString().slice(0, 5))} - {formatTimeLabel(item.endAt.toTimeString().slice(0, 5))}
             </p>
         </div>
     );
 }
 
-function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
+function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel, dense = false }) {
     const stateLabel = getMeetupStateLabel(meetup);
     const canCancel = !isMeetupCancelled(meetup) && (Boolean(meetup?.is_creator) || isAdmin);
     const locationHref = meetup.location_url || null;
     const locationLabel = meetup.location_label || (locationHref ? 'Shared link available' : '');
 
     return (
-        <div className="glass-panel-premium rounded-[1.45rem] border border-claude-accent/28 bg-[linear-gradient(145deg,rgba(222,185,106,0.16),rgba(43,30,12,0.74))] px-4 py-4 shadow-[0_24px_44px_rgba(17,10,2,0.24)]">
+        <div className={`glass-panel-premium rounded-[1.35rem] border border-claude-accent/28 bg-[linear-gradient(145deg,rgba(222,185,106,0.16),rgba(43,30,12,0.74))] shadow-[0_24px_44px_rgba(17,10,2,0.24)] ${dense ? 'px-3 py-3' : 'px-3.5 py-3.5'}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -252,15 +252,15 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                             {meetup.attendee_count || 0} attending
                         </span>
                     </div>
-                    <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6 text-claude-text">
+                    <h3 className={`line-clamp-2 font-semibold leading-5 text-claude-text ${dense ? 'mt-2 text-[14px]' : 'mt-2.5 text-[15px]'}`}>
                         {meetup.topic}
                     </h3>
-                    <div className="mt-3 space-y-2 text-sm text-claude-secondary">
+                    <div className={`text-sm text-claude-secondary ${dense ? 'mt-2 space-y-1' : 'mt-2.5 space-y-1.5'}`}>
                         <div className="flex items-start gap-2">
-                            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-claude-accent" />
+                            <Clock3 className={`mt-0.5 shrink-0 text-claude-accent ${dense ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
                             <div className="min-w-0">
                                 <div>{formatMeetupRange(meetup.start_at, meetup.end_at)}</div>
-                                <div className="mt-1 text-xs text-claude-secondary/80">
+                                <div className={`mt-0.5 text-claude-secondary/80 ${dense ? 'text-[10px]' : 'text-[11px]'}`}>
                                     {getLocalTimezoneLabel(meetup.start_at)}
                                 </div>
                             </div>
@@ -268,9 +268,9 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                         {locationLabel && (
                             <div className="flex items-center gap-2">
                                 {meetup.location_label ? (
-                                    <MapPin className="h-4 w-4 shrink-0 text-claude-accent" />
+                                    <MapPin className={`shrink-0 text-claude-accent ${dense ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
                                 ) : (
-                                    <Link2 className="h-4 w-4 shrink-0 text-claude-accent" />
+                                    <Link2 className={`shrink-0 text-claude-accent ${dense ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
                                 )}
                                 {locationHref ? (
                                     <a
@@ -288,19 +288,19 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                         )}
                     </div>
                 </div>
-                <AvatarStack attendees={meetup.attendees || []} count={meetup.attendee_count || 0} />
+                <AvatarStack attendees={meetup.attendees || []} count={meetup.attendee_count || 0} dense={dense} />
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className={`flex flex-wrap items-center gap-2 ${dense ? 'mt-2' : 'mt-3'}`}>
                 {isMeetupCancelled(meetup) ? (
-                    <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-medium text-claude-secondary">
+                    <div className={`rounded-full border border-white/10 bg-white/[0.05] font-medium text-claude-secondary ${dense ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-[11px]'}`}>
                         This session has been cancelled.
                     </div>
                 ) : meetup.is_joined ? (
                     <button
                         type="button"
                         onClick={() => onLeave(meetup)}
-                        className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-claude-text transition-colors hover:border-white/20 hover:bg-white/[0.1]"
+                        className={`rounded-full border border-white/10 bg-white/[0.06] font-semibold text-claude-text transition-colors hover:border-white/20 hover:bg-white/[0.1] ${dense ? 'px-3 py-1 text-[10px]' : 'px-3.5 py-1.5 text-[11px]'}`}
                     >
                         Leave
                     </button>
@@ -308,7 +308,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                     <button
                         type="button"
                         onClick={() => onJoin(meetup)}
-                        className="rounded-full border border-claude-accent/30 bg-claude-accent px-4 py-2 text-sm font-semibold text-[#182a31] shadow-[0_12px_26px_rgba(41,28,7,0.2)] transition-transform hover:-translate-y-0.5"
+                        className={`rounded-full border border-claude-accent/30 bg-claude-accent font-semibold text-[#182a31] shadow-[0_12px_26px_rgba(41,28,7,0.2)] transition-transform hover:-translate-y-0.5 ${dense ? 'px-3 py-1 text-[10px]' : 'px-3.5 py-1.5 text-[11px]'}`}
                     >
                         Join
                     </button>
@@ -318,7 +318,7 @@ function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel }) {
                     <button
                         type="button"
                         onClick={() => onCancel(meetup)}
-                        className="rounded-full border border-red-400/22 bg-red-500/12 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/18"
+                        className={`rounded-full border border-red-400/22 bg-red-500/12 font-semibold text-red-200 transition-colors hover:bg-red-500/18 ${dense ? 'px-3 py-1 text-[10px]' : 'px-3.5 py-1.5 text-[11px]'}`}
                     >
                         Cancel
                     </button>
@@ -338,9 +338,11 @@ function DayDetailSurface({
     onToday,
     onPropose,
     onSuggestionSelect,
+    density = 'comfortable',
     className = '',
 }) {
     const hasAgenda = agendaItems.length > 0;
+    const denseDensity = density === 'dense';
     const suggestionCopy = suggestionMode === 'fallback'
         ? 'Best nearby openings this month.'
         : 'Best overlap windows for this day.';
@@ -348,54 +350,55 @@ function DayDetailSurface({
     return (
         <section
             data-testid="group-schedule-day-surface"
-            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-3 md:p-4 ${className}`.trim()}
+            data-density={denseDensity ? 'dense' : 'comfortable'}
+            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] ${denseDensity ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} ${className}`.trim()}
         >
             {/* Header */}
             <div className="flex items-center justify-between gap-3">
-                <h3 className="font-display text-[1.25rem] font-bold italic leading-tight tracking-tight text-claude-text md:text-[1.4rem]">
+                <h3 className={`font-display font-bold italic leading-tight tracking-tight text-claude-text ${denseDensity ? 'text-[1rem] md:text-[1.1rem]' : 'text-[1.1rem] md:text-[1.25rem]'}`}>
                     {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
                 </h3>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className={`flex shrink-0 items-center ${denseDensity ? 'gap-1.5' : 'gap-2'}`}>
                     <button
                         type="button"
                         onClick={onToday}
-                        className="rounded-full border border-emerald-400/20 bg-emerald-400/14 px-2.5 py-1.5 text-xs font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/22"
+                        className={`rounded-full border border-emerald-400/20 bg-emerald-400/14 font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/22 ${denseDensity ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                     >
                         Today
                     </button>
                     <button
                         type="button"
                         onClick={onPropose}
-                        className="inline-flex items-center gap-1.5 rounded-[1rem] border border-claude-accent/30 bg-claude-accent/16 px-2.5 py-1.5 text-xs font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
+                        className={`inline-flex items-center gap-1 rounded-[0.9rem] border border-claude-accent/30 bg-claude-accent/16 font-semibold text-claude-text transition-colors hover:bg-claude-accent/22 ${denseDensity ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                     >
-                        <CalendarPlus2 className="h-3.5 w-3.5 text-claude-accent" />
+                        <CalendarPlus2 className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
                         <span className="hidden sm:inline">Propose</span>
                     </button>
                 </div>
             </div>
 
             {/* Best Times panel */}
-            <div className={`mt-3 ${scheduleSoftPanelClass} p-3`}>
+            <div className={`mt-2.5 ${scheduleSoftPanelClass} ${denseDensity ? 'p-2' : 'p-2.5'}`}>
                 <div className="flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                    <Sparkles className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
+                    <span className={`font-mono font-bold uppercase tracking-[0.14em] text-claude-accent ${denseDensity ? 'text-[8px]' : 'text-[9px]'}`}>
                         Best Times
                     </span>
                 </div>
 
                 {suggestions.length > 0 ? (
                     <>
-                        <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                        <p className={`mt-1 text-claude-secondary ${denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
                             {suggestionCopy}
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className={`mt-1.5 flex flex-wrap ${denseDensity ? 'gap-0.5' : 'gap-1'}`}>
                             {suggestions.map((suggestion) => (
                                 <button
                                     key={suggestion.key}
                                     type="button"
                                     onClick={() => onSuggestionSelect(suggestion)}
-                                    className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-3 py-1.5 text-xs font-medium text-claude-text transition-colors hover:bg-claude-accent/16"
+                                    className={`rounded-full border border-claude-accent/20 bg-claude-accent/10 font-medium text-claude-text transition-colors hover:bg-claude-accent/16 ${denseDensity ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                                 >
                                     {formatSuggestionLabel(suggestion)}
                                 </button>
@@ -403,14 +406,14 @@ function DayDetailSurface({
                         </div>
                     </>
                 ) : (
-                    <p className="mt-1.5 text-xs leading-5 text-claude-secondary">
+                    <p className={`mt-1 text-claude-secondary ${denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
                         Share your schedule to unlock overlap suggestions.
                     </p>
                 )}
             </div>
 
             {/* Agenda */}
-            <div className="mt-3">
+            <div className={denseDensity ? 'mt-2' : 'mt-2.5'}>
                 {hasAgenda ? (
                     <AnimatePresence mode="popLayout" initial={false}>
                         {agendaItems.map((item) => (
@@ -421,29 +424,29 @@ function DayDetailSurface({
                                 exit={{ opacity: 0, scale: 0.97 }}
                                 transition={{ duration: 0.2, ease: 'easeOut' }}
                                 layout="position"
-                                className="mb-3 last:mb-0"
+                                className={denseDensity ? 'mb-2 last:mb-0' : 'mb-2.5 last:mb-0'}
                             >
                                 {renderAgendaItem(item)}
                             </motion.div>
                         ))}
                     </AnimatePresence>
                 ) : (
-                    <div className="flex flex-col items-center gap-3 py-7 text-center">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
-                            <CalendarDays className="h-4 w-4 text-claude-secondary" />
+                    <div className={`flex flex-col items-center text-center ${denseDensity ? 'gap-1.5 py-3' : 'gap-2 py-4'}`}>
+                        <div className={`flex items-center justify-center rounded-full border border-white/10 bg-white/[0.04] ${denseDensity ? 'h-7 w-7' : 'h-8 w-8'}`}>
+                            <CalendarDays className={`${denseDensity ? 'h-3 w-3' : 'h-3.5 w-3.5'} text-claude-secondary`} />
                         </div>
                         <div>
-                                <p className="font-display text-lg font-bold italic tracking-tight text-claude-text">Nothing scheduled</p>
-                                <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                <p className={`font-display font-bold italic tracking-tight text-claude-text ${denseDensity ? 'text-[0.95rem]' : 'text-[1rem]'}`}>Nothing scheduled</p>
+                                <p className={`mt-0.5 text-claude-secondary ${denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
                                     Propose a session to get things going.
                                 </p>
                         </div>
                         <button
                             type="button"
                             onClick={onPropose}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/30 bg-claude-accent/16 px-3 py-1.5 text-xs font-semibold text-claude-text transition-colors hover:bg-claude-accent/22"
+                            className={`inline-flex items-center gap-1 rounded-full border border-claude-accent/30 bg-claude-accent/16 font-semibold text-claude-text transition-colors hover:bg-claude-accent/22 ${denseDensity ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                         >
-                            <CalendarPlus2 className="h-3.5 w-3.5 text-claude-accent" />
+                            <CalendarPlus2 className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
                             Propose Session
                         </button>
                     </div>
@@ -480,6 +483,8 @@ export default function GroupScheduleHub({
     const dialogRef = useRef(null);
     const restoreFocusRef = useRef(null);
     const titleIdRef = useRef(`group-meetup-composer-title-${Math.random().toString(36).slice(2, 9)}`);
+    const scheduleDensity = view === 'month' ? 'compact' : 'dense';
+    const denseDensity = scheduleDensity === 'dense';
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
@@ -775,7 +780,7 @@ export default function GroupScheduleHub({
 
     const renderAgendaItem = (item) => {
         if (item.kind === 'schedule') {
-            return <ScheduleBlockCard key={item.id} item={item} />;
+            return <ScheduleBlockCard key={item.id} item={item} dense={denseDensity} />;
         }
 
         return (
@@ -786,6 +791,7 @@ export default function GroupScheduleHub({
                 onJoin={onJoinMeetup}
                 onLeave={onLeaveMeetup}
                 onCancel={onCancelMeetup}
+                dense={denseDensity}
             />
         );
     };
@@ -819,29 +825,29 @@ export default function GroupScheduleHub({
     return (
         <div data-testid="group-schedule-hub" className="space-y-3">
             {/* Shared Availability — text-reduced header */}
-            <section className={`${schedulePanelClass} p-3 md:p-4`}>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <section className={`${schedulePanelClass} p-2.5 md:p-3`}>
+                <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <UsersRound className="h-3.5 w-3.5 text-claude-accent" />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
+                            <UsersRound className="h-3 w-3 text-claude-accent" />
+                            <span className="text-[9px] font-mono font-bold uppercase tracking-[0.14em] text-claude-accent">
                                 Shared Availability
                             </span>
                         </div>
-                        <h2 className="mt-1.5 font-display text-xl font-bold italic leading-tight tracking-tight text-claude-text md:text-2xl">
+                        <h2 className="mt-1 font-display text-[1.15rem] font-bold italic leading-tight tracking-tight text-claude-text md:text-[1.35rem]">
                             Keep your schedule visible to {group?.name || 'this group'} on your terms.
                         </h2>
                     </div>
 
-                    <div className="w-full max-w-md">
+                    <div className="w-full max-w-[22rem]">
                         <ShareModeControl currentMode={myShareMode} onChange={handleShareChange} busy={shareBusy} />
                     </div>
                 </div>
             </section>
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_320px] xl:grid-cols-[minmax(0,1.7fr)_340px]">
+            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.55fr)_320px] xl:grid-cols-[minmax(0,1.7fr)_340px]">
                 {/* Calendar section */}
-                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-3 md:p-4`}>
+                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-2.5 md:p-3`}>
                     <CalendarHeader
                         anchorDate={anchorDate}
                         onPrev={() => handleNavigate(-1)}
@@ -860,7 +866,7 @@ export default function GroupScheduleHub({
                         activeFilters={activeFilters}
                         onFilterToggle={handleFilterToggle}
                         eyebrow="Group calendar"
-                        density="compact"
+                        density={scheduleDensity}
                     />
 
                     {view === 'month' && (
@@ -873,7 +879,7 @@ export default function GroupScheduleHub({
                             contentMode={contentMode}
                             selectedDay={selectedDate}
                             onDaySelect={handleDaySelect}
-                            density="compact"
+                            density={scheduleDensity}
                         />
                     )}
 
@@ -887,6 +893,7 @@ export default function GroupScheduleHub({
                             activeFilters={activeFilters}
                             contentMode={contentMode}
                             onDaySelect={handleDaySelect}
+                            density={scheduleDensity}
                         />
                     )}
                 </section>
@@ -894,6 +901,7 @@ export default function GroupScheduleHub({
                 {/* Day detail — inline below calendar on mobile, sidebar on desktop */}
                 <DayDetailSurface
                     {...dayDetailProps}
+                    density={scheduleDensity}
                     className="lg:sticky lg:top-24"
                 />
             </div>

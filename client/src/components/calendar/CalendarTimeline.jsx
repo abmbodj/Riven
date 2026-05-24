@@ -68,6 +68,7 @@ export default function CalendarTimeline({
     activeFilters,
     contentMode,
     onDaySelect,
+    density = 'comfortable',
 }) {
     const scrollRef = useRef(null);
     const [now, setNow] = useState(() => new Date());
@@ -85,7 +86,13 @@ export default function CalendarTimeline({
     const visibleDates = useMemo(() => buildVisibleDates(anchorDate, view), [anchorDate, view]);
     const todayByKey = useMemo(() => buildTodayMap(visibleDates), [visibleDates]);
     const compactHeaders = view === 'week';
-    const gridHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+    const compactDensity = density === 'compact';
+    const denseDensity = density === 'dense';
+    const tightDensity = compactDensity || denseDensity;
+    const hourHeight = denseDensity ? 42 : compactDensity ? 46 : HOUR_HEIGHT;
+    const dayHeaderHeight = denseDensity ? 52 : compactDensity ? 56 : DAY_HEADER_HEIGHT;
+    const allDayRowHeight = denseDensity ? 44 : compactDensity ? 48 : ALL_DAY_ROW_HEIGHT;
+    const gridHeight = (END_HOUR - START_HOUR) * hourHeight;
     const columnWidth = 320;
     const railWidth = view === 'week' ? 92 : 72;
 
@@ -202,25 +209,29 @@ export default function CalendarTimeline({
     useLayoutEffect(() => {
         const container = scrollRef.current;
         if (!container) return;
-        container.scrollTop = getDefaultScrollTop(timedEvents, view);
-    }, [timedEvents, view, anchorDate]);
+        container.scrollTop = getDefaultScrollTop(timedEvents, view, { hourHeight, startHour: START_HOUR });
+    }, [hourHeight, timedEvents, view, anchorDate]);
 
     return (
-        <div className="mt-2 rounded-[1.75rem] border border-claude-border/30 bg-claude-surface/55 shadow-[0_12px_40px_rgba(7,14,33,0.18)] overflow-hidden">
+        <div
+            data-testid="calendar-timeline"
+            data-density={denseDensity ? 'dense' : compactDensity ? 'compact' : 'comfortable'}
+            className={`overflow-hidden border border-claude-border/30 bg-claude-surface/55 shadow-[0_12px_40px_rgba(7,14,33,0.18)] ${tightDensity ? 'mt-1 rounded-[1.5rem]' : 'mt-2 rounded-[1.75rem]'}`}
+        >
             <div
                 ref={scrollRef}
-                className="overflow-auto max-h-[72vh] overscroll-contain scroll-smooth"
+                className={`overflow-auto overscroll-contain scroll-smooth ${tightDensity ? (denseDensity ? 'max-h-[64vh]' : 'max-h-[68vh]') : 'max-h-[72vh]'}`}
                 aria-label={`${view === 'day' ? 'Day' : 'Week'} timeline`}
             >
                 <div
                     className="grid min-w-full"
                     style={{ gridTemplateColumns: `${railWidth}px repeat(${visibleDates.length}, ${view === 'day' ? `minmax(${columnWidth}px, 1fr)` : 'minmax(0, 1fr)'})` }}
                 >
-                    <div className={`sticky top-0 left-0 z-40 border-b border-r border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl ${compactHeaders ? 'px-3 py-2.5' : 'px-3 py-3'}`}>
-                        <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-claude-secondary">
+                    <div className={`sticky top-0 left-0 z-40 border-b border-r border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl ${compactHeaders || tightDensity ? 'px-2.5 py-2' : 'px-3 py-3'}`}>
+                        <div className={`font-mono uppercase text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[7px] tracking-[0.16em]' : 'text-[8px] tracking-[0.2em]') : 'text-[9px] tracking-[0.24em]'}`}>
                             {view === 'day' ? 'Focus' : 'Week'}
                         </div>
-                        <div className={`mt-1 font-serif italic font-bold text-claude-text ${compactHeaders ? 'text-[0.95rem] leading-tight' : 'text-sm'}`}>
+                        <div className={`mt-0.5 font-serif italic font-bold text-claude-text ${compactHeaders || tightDensity ? (denseDensity ? 'text-[0.85rem] leading-tight' : 'text-[0.9rem] leading-tight') : 'text-sm'}`}>
                             Schedule
                         </div>
                     </div>
@@ -235,34 +246,34 @@ export default function CalendarTimeline({
                                 key={date.toISOString()}
                                 onClick={() => onDaySelect(date)}
                                 className={[
-                                    `sticky top-0 z-30 min-w-0 border-b border-claude-border/20 text-left transition-colors cursor-pointer ${compactHeaders ? 'px-2 py-2.5' : 'px-3 py-3'}`,
+                                    `sticky top-0 z-30 min-w-0 border-b border-claude-border/20 text-left transition-colors cursor-pointer ${(compactHeaders || tightDensity) ? (denseDensity ? 'px-2 py-1.5' : 'px-2 py-2') : 'px-3 py-3'}`,
                                     'bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl',
                                     isToday ? 'shadow-[inset_0_-2px_0_var(--accent-color)]' : '',
                                 ].join(' ')}
-                                style={{ minHeight: DAY_HEADER_HEIGHT }}
+                                style={{ minHeight: dayHeaderHeight }}
                                 aria-label={`Open ${formatDateHeader(date, false)}`}
                             >
                                 <div className="flex min-w-0 items-start justify-between gap-2">
                                     <div className="min-w-0">
-                                        <div className={`truncate font-mono uppercase text-claude-secondary ${compactHeaders ? 'text-[8px] tracking-[0.18em]' : 'text-[9px] tracking-[0.22em]'}`}>
+                                        <div className={`truncate font-mono uppercase text-claude-secondary ${(compactHeaders || tightDensity) ? (denseDensity ? 'text-[7px] tracking-[0.14em]' : 'text-[7px] tracking-[0.16em]') : 'text-[9px] tracking-[0.22em]'}`}>
                                             {compactHeaders ? formatDateHeader(date, true) : formatDateHeader(date, false)}
                                         </div>
-                                        <div className={`mt-1 flex items-center ${compactHeaders ? 'gap-1.5' : 'gap-2'}`}>
+                                        <div className={`mt-0.5 flex items-center ${(compactHeaders || tightDensity) ? (denseDensity ? 'gap-0.5' : 'gap-1') : 'gap-2'}`}>
                                             <span className={[
-                                                compactHeaders ? 'font-serif text-[1.05rem] italic font-bold leading-none' : 'font-serif text-lg italic font-bold leading-none',
+                                                (compactHeaders || tightDensity) ? (denseDensity ? 'font-serif text-[0.9rem] italic font-bold leading-none' : 'font-serif text-[0.95rem] italic font-bold leading-none') : 'font-serif text-lg italic font-bold leading-none',
                                                 isToday ? 'text-claude-accent' : 'text-claude-text',
                                             ].join(' ')}>
                                                 {date.getDate()}
                                             </span>
                                             {isToday && (
-                                                <span className={`rounded-full border border-claude-accent/40 bg-claude-accent/12 font-mono uppercase text-claude-accent ${compactHeaders ? 'px-1.5 py-0.5 text-[7px] tracking-[0.16em]' : 'px-2 py-1 text-[8px] tracking-[0.22em]'}`}>
+                                                <span className={`rounded-full border border-claude-accent/40 bg-claude-accent/12 font-mono uppercase text-claude-accent ${(compactHeaders || tightDensity) ? (denseDensity ? 'px-1 py-[1px] text-[6px] tracking-[0.14em]' : 'px-1.5 py-[2px] text-[7px] tracking-[0.16em]') : 'px-2 py-1 text-[8px] tracking-[0.22em]'}`}>
                                                     Today
                                                 </span>
                                             )}
                                         </div>
                                     </div>
                                     <div className="min-w-0 text-right">
-                                        <div className={`truncate font-mono uppercase text-claude-secondary ${compactHeaders ? 'text-[8px] tracking-[0.16em]' : 'text-[9px] tracking-[0.2em]'}`}>
+                                        <div className={`truncate font-mono uppercase text-claude-secondary ${(compactHeaders || tightDensity) ? (denseDensity ? 'text-[6px] tracking-[0.12em]' : 'text-[7px] tracking-[0.14em]') : 'text-[9px] tracking-[0.2em]'}`}>
                                             {allDayItems.length} all day
                                         </div>
                                     </div>
@@ -272,10 +283,10 @@ export default function CalendarTimeline({
                     })}
 
                     <div
-                        className="sticky left-0 z-30 border-r border-b border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_94%,transparent)] backdrop-blur-xl px-3 py-3"
-                        style={{ top: DAY_HEADER_HEIGHT, minHeight: ALL_DAY_ROW_HEIGHT }}
+                        className={`sticky left-0 z-30 border-r border-b border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_94%,transparent)] backdrop-blur-xl ${tightDensity ? (denseDensity ? 'px-2 py-2' : 'px-2.5 py-2.5') : 'px-3 py-3'}`}
+                        style={{ top: dayHeaderHeight, minHeight: allDayRowHeight }}
                     >
-                        <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-claude-secondary">
+                        <div className={`font-mono uppercase text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[6px] tracking-[0.14em]' : 'text-[7px] tracking-[0.16em]') : 'text-[9px] tracking-[0.22em]'}`}>
                             All day
                         </div>
                     </div>
@@ -291,27 +302,27 @@ export default function CalendarTimeline({
                             <div
                                 key={`${date.toISOString()}-all-day`}
                                 className={[
-                                    'sticky z-20 min-w-0 border-b border-claude-border/20 px-2 py-2 backdrop-blur-xl',
+                                    `sticky z-20 min-w-0 border-b border-claude-border/20 backdrop-blur-xl ${tightDensity ? (denseDensity ? 'px-1.5 py-[6px]' : 'px-1.5 py-1.5') : 'px-2 py-2'}`,
                                     isToday ? 'bg-claude-accent/[0.05]' : 'bg-[color:color-mix(in_srgb,var(--surface-color)_90%,transparent)]',
                                 ].join(' ')}
-                                style={{ top: DAY_HEADER_HEIGHT, minHeight: ALL_DAY_ROW_HEIGHT }}
+                                style={{ top: dayHeaderHeight, minHeight: allDayRowHeight }}
                             >
-                                <div className="flex min-w-0 flex-wrap gap-1.5 overflow-hidden">
+                                <div className={`flex min-w-0 flex-wrap overflow-hidden ${tightDensity ? (denseDensity ? 'gap-0.5' : 'gap-1') : 'gap-1.5'}`}>
                                     {visibleItems.map((event) => (
                                         <button
                                             key={event.id}
                                             onClick={() => onDaySelect(date)}
-                                            className="max-w-full rounded-full border px-2.5 py-1 text-left transition-transform hover:-translate-y-0.5 tap-action cursor-pointer"
+                                            className={`max-w-full rounded-full border text-left transition-transform hover:-translate-y-0.5 tap-action cursor-pointer ${tightDensity ? (denseDensity ? 'px-2 py-[3px]' : 'px-2 py-0.5') : 'px-2.5 py-1'}`}
                                             style={{
                                                 backgroundColor: `${event.color}16`,
                                                 borderColor: `${event.color}42`,
                                                 color: event.color,
                                             }}
                                         >
-                                            <span className="block truncate font-mono text-[9px] uppercase tracking-[0.18em]">
+                                            <span className={`block truncate font-mono uppercase ${tightDensity ? (denseDensity ? 'text-[6px] tracking-[0.12em]' : 'text-[7px] tracking-[0.14em]') : 'text-[9px] tracking-[0.18em]'}`}>
                                                 {event.className}
                                             </span>
-                                            <span className="block truncate font-serif text-xs italic font-bold">
+                                            <span className={`block truncate font-serif italic font-bold ${tightDensity ? (denseDensity ? 'text-[10px]' : 'text-[11px]') : 'text-xs'}`}>
                                                 {event.title}
                                             </span>
                                         </button>
@@ -319,13 +330,13 @@ export default function CalendarTimeline({
                                     {hiddenCount > 0 && (
                                         <button
                                             onClick={() => onDaySelect(date)}
-                                            className="rounded-full border border-claude-border/25 bg-claude-border/10 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-claude-secondary"
+                                            className={`rounded-full border border-claude-border/25 bg-claude-border/10 font-mono uppercase tracking-[0.18em] text-claude-secondary ${tightDensity ? (denseDensity ? 'px-2 py-[3px] text-[6px]' : 'px-2 py-0.5 text-[7px]') : 'px-2.5 py-1 text-[9px]'}`}
                                         >
                                             +{hiddenCount} more
                                         </button>
                                     )}
                                     {events.length === 0 && (
-                                        <span className="truncate font-mono text-[9px] uppercase tracking-[0.18em] text-claude-secondary/70">
+                                        <span className={`truncate font-mono uppercase tracking-[0.18em] text-claude-secondary/70 ${tightDensity ? (denseDensity ? 'text-[6px]' : 'text-[7px]') : 'text-[9px]'}`}>
                                             Nothing due
                                         </span>
                                     )}
@@ -343,8 +354,8 @@ export default function CalendarTimeline({
                             return (
                                 <div
                                     key={hour}
-                                    className="absolute inset-x-0 flex items-start justify-end pr-3 font-mono text-[9px] uppercase tracking-[0.18em] text-claude-secondary"
-                                    style={{ top: (index * HOUR_HEIGHT) - 7 }}
+                                    className={`absolute inset-x-0 flex items-start justify-end font-mono uppercase tracking-[0.18em] text-claude-secondary ${tightDensity ? (denseDensity ? 'pr-2 text-[7px]' : 'pr-2 text-[8px]') : 'pr-3 text-[9px]'}`}
+                                    style={{ top: (index * hourHeight) - 7 }}
                                 >
                                     {hour < END_HOUR ? formatHour(hour) : ''}
                                 </div>
@@ -357,7 +368,7 @@ export default function CalendarTimeline({
                         const events = timedEventsByDate[key] || [];
                         const isToday = todayByKey[key];
                         const showCurrentTime = isToday && now.getHours() >= START_HOUR && now.getHours() < END_HOUR;
-                        const currentTimeTop = getCurrentTimeTop(now);
+                        const currentTimeTop = getCurrentTimeTop(now, { hourHeight, startHour: START_HOUR });
 
                         return (
                             <div
@@ -372,7 +383,7 @@ export default function CalendarTimeline({
                                     <div
                                         key={index}
                                         className="absolute inset-x-0 border-t border-claude-border/15"
-                                        style={{ top: index * HOUR_HEIGHT }}
+                                        style={{ top: index * hourHeight }}
                                         aria-hidden="true"
                                     />
                                 ))}
@@ -383,35 +394,35 @@ export default function CalendarTimeline({
                                         style={{ top: currentTimeTop }}
                                         aria-hidden="true"
                                     >
-                                        <div className="absolute -left-1.5 top-[-5px] h-3 w-3 rounded-full bg-claude-accent shadow-[0_0_0_3px_rgba(225,111,181,0.18)]" />
+                                        <div className={`absolute -left-1.5 top-[-5px] rounded-full bg-claude-accent shadow-[0_0_0_3px_rgba(225,111,181,0.18)] ${tightDensity ? (denseDensity ? 'h-2 w-2' : 'h-2.5 w-2.5') : 'h-3 w-3'}`} />
                                         <div className="border-t border-claude-accent/70" />
                                     </div>
                                 )}
 
                                 {events.map((event) => {
-                                    const safeTop = ((event.startMinutes - (START_HOUR * 60)) / 60) * HOUR_HEIGHT;
                                     const durationMinutes = Math.max(event.endMinutes - event.startMinutes, event.kind === 'assignment' ? 38 : 32);
-                                    const safeHeight = Math.max((durationMinutes / 60) * HOUR_HEIGHT, event.kind === 'class' ? 56 : 44);
+                                    const safeTopScaled = ((event.startMinutes - (START_HOUR * 60)) / 60) * hourHeight;
+                                    const safeHeight = Math.max((durationMinutes / 60) * hourHeight, event.kind === 'class' ? (compactDensity ? 46 : 56) : (compactDensity ? 38 : 44));
                                     const horizontalGap = 8;
                                     const laneWidth = `calc((100% - ${horizontalGap * 2}px) / ${event.laneCount})`;
                                     const leftOffset = `calc(${horizontalGap}px + (${event.laneIndex} * ((100% - ${horizontalGap * 2}px) / ${event.laneCount})))`;
 
-                                    if (safeTop + safeHeight < 0 || safeTop > gridHeight) return null;
+                                    if (safeTopScaled + safeHeight < 0 || safeTopScaled > gridHeight) return null;
 
                                     return (
                                         <button
                                             key={event.id}
                                             onClick={() => onDaySelect(date)}
                                             className={[
-                                                'absolute rounded-2xl border px-3 py-2 text-left shadow-[0_12px_30px_rgba(8,15,32,0.16)]',
+                                                `absolute rounded-2xl border text-left shadow-[0_12px_30px_rgba(8,15,32,0.16)] ${tightDensity ? (denseDensity ? 'px-2 py-1' : 'px-2 py-1.5') : 'px-3 py-2'}`,
                                                 'transition-transform hover:-translate-y-0.5 tap-action cursor-pointer overflow-hidden',
                                                 event.kind === 'class'
                                                     ? 'bg-[color:color-mix(in_srgb,var(--surface-color)_70%,transparent)]'
                                                     : 'bg-[color:color-mix(in_srgb,var(--surface-color)_84%,transparent)]',
                                             ].join(' ')}
                                             style={{
-                                                top: Math.max(safeTop, 0),
-                                                height: Math.min(safeHeight, gridHeight - Math.max(safeTop, 0)),
+                                                top: Math.max(safeTopScaled, 0),
+                                                height: Math.min(safeHeight, gridHeight - Math.max(safeTopScaled, 0)),
                                                 width: laneWidth,
                                                 left: leftOffset,
                                                 backgroundColor: event.kind === 'class' ? `${event.color}22` : `${event.color}12`,
@@ -422,26 +433,26 @@ export default function CalendarTimeline({
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
                                                     <div
-                                                        className="font-mono text-[9px] font-bold uppercase tracking-[0.18em]"
+                                                        className={`font-mono font-bold uppercase ${tightDensity ? (denseDensity ? 'text-[7px] tracking-[0.12em]' : 'text-[8px] tracking-[0.14em]') : 'text-[9px] tracking-[0.18em]'}`}
                                                         style={{ color: event.color }}
                                                     >
                                                         {event.kind === 'class' ? formatEventTimeRange(event.startMinutes, event.endMinutes) : event.kind === 'meetup' ? formatEventTimeRange(event.startMinutes, event.endMinutes) : `Due ${formatEventTime(event.startMinutes)}`}
                                                     </div>
-                                                    <div className="mt-1 line-clamp-2 font-serif text-sm italic font-bold text-claude-text">
+                                                    <div className={`mt-0.5 line-clamp-2 font-serif italic font-bold text-claude-text ${tightDensity ? (denseDensity ? 'text-[12px]' : 'text-[13px]') : 'text-sm'}`}>
                                                         {event.title}
                                                     </div>
                                                 </div>
                                                 <span
-                                                    className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full"
+                                                    className={`mt-0.5 shrink-0 rounded-full ${tightDensity ? (denseDensity ? 'h-1.5 w-1.5' : 'h-2 w-2') : 'h-2.5 w-2.5'}`}
                                                     style={{ backgroundColor: event.color }}
                                                 />
                                             </div>
 
-                                            <div className="mt-1.5 space-y-1">
-                                                <div className="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
+                                            <div className={`mt-1 space-y-0.5 ${tightDensity ? 'text-[8px]' : ''}`}>
+                                                <div className={`truncate font-mono uppercase tracking-[0.16em] text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[7px]' : 'text-[8px]') : 'text-[9px]'}`}>
                                                     {event.className}
                                                 </div>
-                                                <div className="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary/80">
+                                                <div className={`truncate font-mono uppercase tracking-[0.16em] text-claude-secondary/80 ${tightDensity ? (denseDensity ? 'text-[7px]' : 'text-[8px]') : 'text-[9px]'}`}>
                                                     {event.subtitle}
                                                 </div>
                                             </div>
@@ -454,8 +465,8 @@ export default function CalendarTimeline({
                 </div>
             </div>
 
-            <div className="border-t border-claude-border/20 bg-claude-surface/65 px-4 py-2">
-                <div className="flex flex-wrap items-center gap-3 font-mono text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
+            <div className={`border-t border-claude-border/20 bg-claude-surface/65 ${tightDensity ? (denseDensity ? 'px-3 py-1' : 'px-3 py-1.5') : 'px-4 py-2'}`}>
+                <div className={`flex flex-wrap items-center gap-3 font-mono uppercase tracking-[0.18em] text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[7px]' : 'text-[8px]') : 'text-[9px]'}`}>
                     <span className="inline-flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-claude-accent" />
                         Current time

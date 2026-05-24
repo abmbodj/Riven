@@ -37,6 +37,8 @@ export default function CalendarGrid({
 }) {
     const today = new Date();
     const compactDensity = density === 'compact';
+    const denseDensity = density === 'dense';
+    const tightDensity = compactDensity || denseDensity;
     const viewMonth = useMemo(
         () => new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1),
         [anchorDate],
@@ -84,11 +86,11 @@ export default function CalendarGrid({
     return (
         <div role="grid" aria-label="Monthly calendar">
             {/* Weekday headers */}
-            <div className="grid grid-cols-7 mb-1">
+            <div className={`grid grid-cols-7 ${tightDensity ? 'mb-0.5' : 'mb-1'}`}>
                 {WEEKDAY_LABELS.map((d) => (
                     <div
                         key={d}
-                        className={`text-center font-mono uppercase tracking-widest font-bold text-claude-secondary ${compactDensity ? 'py-0.5 text-[8px]' : 'py-1 text-[9px]'}`}
+                        className={`text-center font-mono uppercase tracking-widest font-bold text-claude-secondary ${tightDensity ? (denseDensity ? 'py-[1px] text-[6px]' : 'py-[1px] text-[7px]') : 'py-1 text-[9px]'}`}
                     >
                         {d}
                     </div>
@@ -96,7 +98,7 @@ export default function CalendarGrid({
             </div>
 
             {/* Day cells */}
-            <div className="grid grid-cols-7 gap-px bg-claude-border/20 rounded-2xl overflow-hidden">
+            <div className={`grid grid-cols-7 gap-px bg-claude-border/20 overflow-hidden ${tightDensity ? 'rounded-xl' : 'rounded-2xl'}`}>
                 {cells.map((date, idx) => {
                     const inMonth = date.getMonth() === viewMonth.getMonth();
                     const isToday = isSameDay(date, today);
@@ -120,7 +122,7 @@ export default function CalendarGrid({
                             overflow={overflow}
                             scheduleCount={scheduleCount}
                             classColorMap={classColorMap}
-                            compact={compactDensity}
+                            compact={tightDensity}
                             onClick={() => onDaySelect(date)}
                         />
                     );
@@ -144,7 +146,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
             aria-label={ariaLabel}
             onClick={onClick}
             className={[
-                `relative flex flex-col items-center justify-start aspect-square ${compact ? 'pt-1 pb-0.5' : 'pt-1.5 pb-1'}`,
+                `relative flex flex-col items-center justify-start aspect-square ${compact ? 'pt-[3px] pb-[1px]' : 'pt-1.5 pb-1'}`,
                 'min-w-0 cursor-pointer tap-action transition-colors duration-150',
                 'bg-claude-surface',
                 isSelected ? 'bg-claude-accent/10' : '',
@@ -152,15 +154,15 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
                 !inMonth ? 'opacity-30' : '',
                 'hover:bg-claude-accent/[0.06] active:bg-claude-accent/15',
                 // Desktop: taller cells with title preview
-                compact ? 'lg:aspect-auto lg:min-h-[64px] lg:items-start lg:px-1.5' : 'lg:aspect-auto lg:min-h-[90px] lg:items-start lg:px-1.5',
+                compact ? 'lg:aspect-auto lg:min-h-[48px] lg:items-start lg:px-[3px]' : 'lg:aspect-auto lg:min-h-[90px] lg:items-start lg:px-1.5',
             ].filter(Boolean).join(' ')}
         >
             {/* Day number */}
             <span
                 className={[
-                    'font-mono text-[11px] font-bold leading-none',
+                    `font-mono font-bold leading-none ${compact ? 'text-[9px]' : 'text-[11px]'}`,
                     isToday
-                        ? 'w-5 h-5 flex items-center justify-center rounded-full bg-claude-accent text-claude-text text-[10px]'
+                        ? `w-5 h-5 flex items-center justify-center rounded-full bg-claude-accent text-claude-text ${compact ? 'text-[8px]' : 'text-[10px]'}` 
                         : 'text-claude-text',
                     !inMonth ? 'text-claude-secondary' : '',
                 ].filter(Boolean).join(' ')}
@@ -170,25 +172,25 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
 
             {/* Schedule line indicators */}
             {scheduleCount > 0 && (
-                <div className="flex flex-col gap-0.5 mt-0.5" aria-hidden="true">
+                <div className={`flex flex-col ${compact ? 'gap-[1px] mt-[1px]' : 'gap-0.5 mt-0.5'}`} aria-hidden="true">
                     {Array.from({ length: Math.min(scheduleCount, 2) }).map((_, index) => (
-                        <div key={index} className="w-4 h-0.5 rounded-full bg-claude-secondary/40" />
+                        <div key={index} className={`rounded-full bg-claude-secondary/40 ${compact ? 'w-3 h-0.5' : 'w-4 h-0.5'}`} />
                     ))}
                 </div>
             )}
 
             {/* Assignment dots */}
             {visibleDots.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-0.5 mt-1 max-w-full">
+                <div className={`flex flex-wrap justify-center max-w-full ${compact ? 'gap-[1px] mt-0.5' : 'gap-0.5 mt-1'}`}>
                     {visibleDots.map((a, i) => (
                         <span
                             key={a.id ?? i}
-                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            className={`rounded-full shrink-0 ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`}
                             style={{ backgroundColor: classColorMap[a.class_id] || 'var(--accent-color)' }}
                         />
                     ))}
                     {overflow > 0 && (
-                        <span className="font-mono text-[8px] text-claude-secondary leading-none">
+                        <span className={`font-mono leading-none text-claude-secondary ${compact ? 'text-[6px]' : 'text-[8px]'}`}>
                             +{overflow}
                         </span>
                     )}
@@ -197,11 +199,11 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
 
             {/* Desktop: first assignment title */}
             {assignments.length > 0 && (
-                <div className="hidden lg:block w-full mt-1 space-y-0.5">
+                <div className={`hidden lg:block w-full ${compact ? 'mt-[1px] space-y-[1px]' : 'mt-1 space-y-0.5'}`}>
                     {assignments.slice(0, compact ? 1 : 2).map((a, i) => (
                         <div
                             key={a.id ?? i}
-                            className="w-full text-left truncate font-mono text-[9px] font-bold px-1 py-0.5 rounded"
+                            className={`w-full text-left truncate font-mono font-bold rounded ${compact ? 'px-[3px] py-[1px] text-[7px]' : 'px-1 py-0.5 text-[9px]'}`}
                             style={{
                                 backgroundColor: (classColorMap[a.class_id] || 'var(--accent-color)') + '20',
                                 color: classColorMap[a.class_id] || 'var(--accent-color)',
@@ -211,7 +213,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
                         </div>
                     ))}
                     {assignments.length > (compact ? 1 : 2) && (
-                        <div className="font-mono text-[9px] text-claude-secondary px-1">
+                        <div className={`font-mono text-claude-secondary px-1 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
                             +{assignments.length - (compact ? 1 : 2)} more
                         </div>
                     )}

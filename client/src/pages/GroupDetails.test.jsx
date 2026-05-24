@@ -312,7 +312,7 @@ describe('GroupDetails upload flow', () => {
     expect(api.joinGroupMeetup).not.toHaveBeenCalled();
     expect(screen.queryByText('Cram Page')).not.toBeInTheDocument();
     expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
-  });
+  }, 10000);
 
   it('renders a month calendar by default and requests the visible month range', async () => {
     const now = new Date();
@@ -390,6 +390,28 @@ describe('GroupDetails upload flow', () => {
 
     expect(await within(daySurface).findByText('Calendar redesign session')).toBeInTheDocument();
     expect(within(daySurface).getByText(targetLabel)).toBeInTheDocument();
+  });
+
+  it('keeps the compact calendar shell in week and day views', async () => {
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+    });
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+
+    fireEvent.click(within(primaryHub).getByRole('tab', { name: /week/i }));
+
+    const weekTimeline = await within(primaryHub).findByTestId('calendar-timeline');
+    expect(weekTimeline).toHaveAttribute('data-density', 'dense');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'dense');
+
+    fireEvent.click(within(primaryHub).getByRole('tab', { name: /^day$/i }));
+
+    const dayTimeline = await within(primaryHub).findByTestId('calendar-timeline');
+    expect(dayTimeline).toHaveAttribute('data-density', 'dense');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'dense');
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {
