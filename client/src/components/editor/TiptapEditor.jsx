@@ -8,6 +8,8 @@ import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import SlashCommandMenu, { COMMANDS } from './SlashCommandMenu';
+import { LatexMath } from './LatexMathExtension';
+import 'katex/dist/katex.min.css';
 import './editorStyles.css';
 
 const SlashCommandPluginKey = new PluginKey('slashCommand');
@@ -95,6 +97,7 @@ export default function TiptapEditor({ content, onUpdate, editable = true, place
             }),
             HorizontalRule,
             Placeholder.configure({ placeholder }),
+            LatexMath,
             ...(editable ? [SlashCommand] : []),
         ],
         content: content || undefined,

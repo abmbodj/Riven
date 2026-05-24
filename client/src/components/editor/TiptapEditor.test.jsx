@@ -73,6 +73,10 @@ vi.mock('./SlashCommandMenu', () => ({
   COMMANDS: [],
 }));
 
+vi.mock('./LatexMathExtension', () => ({
+  LatexMath: { name: 'latexMath' },
+}));
+
 const firstDoc = {
   type: 'doc',
   content: [

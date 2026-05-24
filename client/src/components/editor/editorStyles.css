@@ -192,3 +192,44 @@
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.02em;
 }
+
+/* LaTeX math (KaTeX widgets overlay source $...$ / $$...$$ text) */
+.riven-editor .riven-math-source {
+  color: transparent;
+  caret-color: var(--text-color);
+}
+
+.riven-editor .riven-math-inline {
+  display: inline;
+  vertical-align: baseline;
+  pointer-events: none;
+}
+
+.riven-editor .riven-math-block {
+  display: block;
+  margin: 0.75rem 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  pointer-events: none;
+}
+
+.riven-editor .riven-math-block .katex-display {
+  margin: 0;
+}
+
+.riven-editor .katex {
+  font-size: 1.05em;
+  color: var(--text-color);
+}
+
+.riven-editor .katex .mord,
+.riven-editor .katex .mop,
+.riven-editor .katex .mbin,
+.riven-editor .katex .mrel,
+.riven-editor .katex .mpunct,
+.riven-editor .katex .mopen,
+.riven-editor .katex .mclose {
+  color: var(--text-color);
+}
