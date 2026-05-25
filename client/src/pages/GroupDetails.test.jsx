@@ -392,7 +392,7 @@ describe('GroupDetails upload flow', () => {
     expect(within(daySurface).getByText(targetLabel)).toBeInTheDocument();
   });
 
-  it('keeps the compact calendar shell in week and day views', async () => {
+  it('keeps month, week, and day on the same compact calendar shell', async () => {
     renderGroupDetails();
 
     await waitFor(() => {
@@ -401,22 +401,41 @@ describe('GroupDetails upload flow', () => {
 
     const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
     expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'comfortable');
 
     fireEvent.click(within(primaryHub).getByRole('tab', { name: /week/i }));
 
     const weekTimeline = await within(primaryHub).findByTestId('calendar-timeline');
-    expect(weekTimeline).toHaveAttribute('data-density', 'dense');
-    expect(weekTimeline).toHaveAttribute('data-fit-mode', 'group-weekday');
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'dense');
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
+    expect(weekTimeline).toHaveAttribute('data-density', 'compact');
+    expect(weekTimeline).toHaveAttribute('data-fit-mode', 'default');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'comfortable');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
 
     fireEvent.click(within(primaryHub).getByRole('tab', { name: /^day$/i }));
 
     const dayTimeline = await within(primaryHub).findByTestId('calendar-timeline');
-    expect(dayTimeline).toHaveAttribute('data-density', 'dense');
-    expect(dayTimeline).toHaveAttribute('data-fit-mode', 'group-weekday');
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'dense');
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
+    expect(dayTimeline).toHaveAttribute('data-density', 'compact');
+    expect(dayTimeline).toHaveAttribute('data-fit-mode', 'default');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'comfortable');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
+  });
+
+  it('wraps group calendar filters on desktop instead of requiring horizontal scroll', async () => {
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
+    });
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    const filterList = within(primaryHub).getByTestId('calendar-filter-list');
+
+    expect(filterList).toHaveClass('overflow-x-auto');
+    expect(filterList).toHaveClass('sm:flex-wrap');
+    expect(filterList).toHaveClass('sm:overflow-visible');
+    expect(within(primaryHub).getByRole('tab', { name: /month/i })).toBeInTheDocument();
+    expect(within(primaryHub).getByRole('tab', { name: /week/i })).toBeInTheDocument();
+    expect(within(primaryHub).getByRole('tab', { name: /^day$/i })).toBeInTheDocument();
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {

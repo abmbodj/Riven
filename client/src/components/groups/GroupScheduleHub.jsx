@@ -486,9 +486,9 @@ export default function GroupScheduleHub({
     const dialogRef = useRef(null);
     const restoreFocusRef = useRef(null);
     const titleIdRef = useRef(`group-meetup-composer-title-${Math.random().toString(36).slice(2, 9)}`);
-    const scheduleDensity = view === 'month' ? 'compact' : 'dense';
+    const scheduleDensity = 'compact';
     const denseDensity = scheduleDensity === 'dense';
-    const timelineFitMode = view === 'month' ? 'default' : 'group-weekday';
+    const timelineFitMode = 'default';
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;

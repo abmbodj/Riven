@@ -149,7 +149,10 @@ export default function CalendarHeader({
                     />
 
                     <div className="min-w-0 flex-1">
-                        <div className={`flex overflow-x-auto hide-scrollbar ${tightDensity ? 'gap-1' : 'gap-1.5'}`}>
+                        <div
+                            data-testid="calendar-filter-list"
+                            className={`flex overflow-x-auto hide-scrollbar sm:flex-wrap sm:overflow-visible ${tightDensity ? 'gap-1' : 'gap-1.5'}`}
+                        >
                             <FilterPill
                                 label="All"
                                 active={activeFilters.length === 0}
