@@ -694,6 +694,10 @@ const QUALITY_MIN_INTUITION_WORDS = 18;
 const QUALITY_MIN_EXAMPLES = 2;
 const QUALITY_MIN_EXAMPLE_STEPS = 2;
 const QUALITY_MIN_MISTAKES = 2;
+const LATEX_MATH_RE = /(\$\$[\s\S]+?\$\$|(^|[^$])\$(?!\$)[^$\n]+?\$(?!\$))/u;
+const EQUATION_OPERATOR_RE = /(=|\\frac|\\sqrt|\\int|\\sum|\\lim|\\cdot|\\times|\\leq?|\\geq?|\^|[+\-*/])/u;
+const MATH_REASONING_RE = /\b(add|subtract|multiply|divide|factor|expand|simplify|isolate|cancel|substitute|differentiate|integrate|derive|apply|use|move|combine|because|since|so that|therefore|to get|to keep|both sides|inverse operation)\b/iu;
+const MATH_MISTAKE_RE = /\b(sign|negative|positive|factor|foil|distribute|cancel|divide|multiply|add|subtract|denominator|numerator|exponent|square root|derivative|integral|constant|unit|both sides|domain)\b/iu;
 
 const normalizeForQuality = (value) => normalizeText(value, '')
   .toLowerCase()
@@ -736,6 +740,84 @@ const hasCorrectionLanguage = (value) => (
     .test(normalizeText(value, ''))
 );
 
+const hasLatexMath = (value) => LATEX_MATH_RE.test(normalizeText(value, ''));
+
+const extractLatexMath = (value) => {
+  const text = normalizeText(value, '');
+  const matches = [];
+  for (const match of text.matchAll(/(\$\$[\s\S]+?\$\$|(^|[^$])\$(?!\$)([^$\n]+?)\$(?!\$))/gu)) {
+    const fullMatch = match[0] || '';
+    if (fullMatch.startsWith('$$')) {
+      matches.push(fullMatch.slice(2, -2).trim());
+    } else {
+      matches.push((match[3] || fullMatch.replace(/^\s*\$/, '').replace(/\$\s*$/, '')).trim());
+    }
+  }
+  return matches.filter(Boolean);
+};
+
+const hasEquationLatex = (value) => extractLatexMath(value).some((tex) => EQUATION_OPERATOR_RE.test(tex));
+
+const hasMathReasoningLanguage = (value) => MATH_REASONING_RE.test(normalizeText(value, ''));
+
+const validateMathTutorCardQuality = ({ card, label, teaching, workedExamples, mistakes, issues }) => {
+  const mathText = [
+    card.prompt,
+    card.target_answer,
+    teaching.learning_objective,
+    teaching.explain,
+    teaching.intuition,
+    teaching.example,
+    teaching.why_it_matters,
+    ...workedExamples.flatMap((example) => [
+      example.title,
+      example.problem,
+      example.result,
+      example.takeaway,
+      ...(Array.isArray(example.steps) ? example.steps.flatMap((step) => [step.step, step.detail]) : []),
+    ]),
+    ...mistakes,
+  ].join('\n');
+
+  if (!hasLatexMath(mathText)) {
+    issues.push(`${label}: math tutor cards must use LaTeX notation for formulas and calculations.`);
+  }
+
+  if (!hasLatexMath(card.prompt)) {
+    issues.push(`${label}: math recall prompt should include a similar LaTeX practice problem.`);
+  }
+
+  if (!hasLatexMath(teaching.explain)) {
+    issues.push(`${label}: math explanation must include the formula or setup in LaTeX.`);
+  }
+
+  workedExamples.forEach((example, exampleIndex) => {
+    const exampleLabel = `${label} example ${exampleIndex + 1}`;
+    const steps = Array.isArray(example.steps) ? example.steps : [];
+    const equationSteps = steps.filter((step) => hasEquationLatex(step.step));
+
+    if (!hasLatexMath(example.problem)) {
+      issues.push(`${exampleLabel}: math problem statement must include LaTeX.`);
+    }
+
+    if (equationSteps.length === 0) {
+      issues.push(`${exampleLabel}: include at least one equation-bearing LaTeX step.`);
+    }
+
+    steps.forEach((step, stepIndex) => {
+      if (hasLatexMath(step.step) && !hasMathReasoningLanguage(step.detail)) {
+        issues.push(`${exampleLabel} step ${stepIndex + 1}: explain the operation, not just the next line.`);
+      }
+    });
+  });
+
+  mistakes.forEach((mistake, mistakeIndex) => {
+    if (!hasLatexMath(mistake) && !MATH_MISTAKE_RE.test(normalizeText(mistake, ''))) {
+      issues.push(`${label} mistake ${mistakeIndex + 1}: use an actual computational or algebraic error.`);
+    }
+  });
+};
+
 export const validateTutorSessionQuality = (guideData) => {
   const normalized = normalizeStudyGuideData(guideData);
   if (!normalized) {
@@ -744,6 +826,7 @@ export const validateTutorSessionQuality = (guideData) => {
 
   const issues = [];
   const seenConceptIds = new Set();
+  const isMathSession = normalized.session_meta.subject === 'Mathematics';
 
   normalized.cards.forEach((card, index) => {
     const label = card.id || `card ${index + 1}`;
@@ -804,9 +887,18 @@ export const validateTutorSessionQuality = (guideData) => {
       });
     });
 
+    const firstExampleMath = extractLatexMath(workedExamples[0]?.problem).join('|');
+    const secondExampleMath = extractLatexMath(workedExamples[1]?.problem).join('|');
+    const examplesUseDifferentMath = Boolean(
+      isMathSession
+      && firstExampleMath
+      && secondExampleMath
+      && firstExampleMath !== secondExampleMath
+    );
     if (
       workedExamples.length >= 2
       && qualityOverlap(workedExamples[0]?.problem, workedExamples[1]?.problem) > 0.82
+      && !examplesUseDifferentMath
     ) {
       issues.push(`${label}: worked examples are too repetitive.`);
     }
@@ -833,6 +925,17 @@ export const validateTutorSessionQuality = (guideData) => {
       issues.push(`${label}: each main tutor card should teach a distinct concept.`);
     }
     seenConceptIds.add(card.concept_id);
+
+    if (isMathSession) {
+      validateMathTutorCardQuality({
+        card,
+        label,
+        teaching,
+        workedExamples,
+        mistakes,
+        issues,
+      });
+    }
   });
 
   return {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildNaturalNoteStyleInstructions,
+  buildGuideContents,
   buildYoutubeNotesContents,
   consumeAiQuota,
   generateClassPreview,
@@ -68,6 +69,24 @@ describe('aiCore', () => {
     expect(promptText).toContain('Key Concepts');
     expect(promptText).not.toContain('Potential Exam Questions');
     expect(promptText).not.toContain('takeaway');
+  });
+
+  it('builds math tutor prompts with solve-step requirements', () => {
+    const contents = buildGuideContents({
+      processedNotes: 'Solve quadratic equations by factoring.',
+      hasProcessedNotes: true,
+      keepFile: false,
+      file: null,
+      className: 'MATH 110',
+      subject: 'Mathematics',
+      coachConfig: null,
+    });
+    const promptText = contents[0]?.text ?? '';
+
+    expect(promptText).toContain('Mathematics tutor requirements');
+    expect(promptText).toContain('write the equation');
+    expect(promptText).toContain('step objects whose "step" field contains the actual equation line in LaTeX');
+    expect(promptText).toContain('do not yap around the topic');
   });
 
   it('resets stale AI quota counters before reporting limits', () => {

@@ -47,6 +47,79 @@ const makeStrongTeaching = (topic = 'mitosis') => ({
   why_it_matters: `${topic} matters because it turns memorized vocabulary into usable exam reasoning.`,
 });
 
+const makeStrongMathTeaching = () => ({
+  learning_objective: 'Solve factorable quadratic equations by choosing factoring, isolating each zero factor, and checking the roots.',
+  explain: [
+    'A factorable quadratic is a problem where the expression can be rewritten as a product of two simpler linear factors. The goal is not to stare at $x^2 + 5x + 6 = 0$ and guess randomly. The goal is to ask which two numbers multiply to $6$ and add to $5$, because those two numbers become the constants inside the factors.',
+    'Once the expression becomes $(x + 2)(x + 3) = 0$, the zero-product property is the reason the method works. If a product equals zero, at least one factor must equal zero. That lets us split one quadratic equation into two linear equations: $x + 2 = 0$ or $x + 3 = 0$.',
+    'The final skill is checking the roots back in the original equation. If $x = -2$, then $(-2)^2 + 5(-2) + 6 = 4 - 10 + 6 = 0$. If $x = -3$, then $(-3)^2 + 5(-3) + 6 = 9 - 15 + 6 = 0$. The check proves the algebra did not just look plausible; it actually satisfies the original equation.',
+  ].join('\n\n'),
+  intuition: 'Think of factoring like rewinding multiplication: the quadratic is the expanded answer, and the factors are the two smaller pieces that created it.',
+  worked_examples: [
+    {
+      title: 'Example 1: Basic Solve',
+      problem: 'Solve $x^2 + 5x + 6 = 0$ by factoring.',
+      steps: [
+        { step: '$x^2 + 5x + 6 = (x + 2)(x + 3)$', detail: 'Factor because $2 \\cdot 3 = 6$ and $2 + 3 = 5$, so the middle and constant terms match.' },
+        { step: '$(x + 2)(x + 3) = 0$', detail: 'Use the zero-product property because a product can equal zero only when at least one factor is zero.' },
+        { step: '$x + 2 = 0 \\Rightarrow x = -2$ and $x + 3 = 0 \\Rightarrow x = -3$', detail: 'Subtract from both sides to isolate $x$ in each smaller linear equation.' },
+      ],
+      result: 'The solutions are $x = -2$ and $x = -3$.',
+      takeaway: 'Factoring turns one quadratic into two linear equations.',
+    },
+    {
+      title: 'Example 2: Harder Case',
+      problem: 'Solve $2x^2 - 7x + 3 = 0$ by factoring.',
+      steps: [
+        { step: '$2x^2 - 7x + 3 = (2x - 1)(x - 3)$', detail: 'Factor by finding binomials whose first terms multiply to $2x^2$ and whose cross terms combine to $-7x$.' },
+        { step: '$(2x - 1)(x - 3) = 0$', detail: 'Apply the zero-product property because each factor is a possible way for the product to become zero.' },
+        { step: '$2x - 1 = 0 \\Rightarrow x = \\frac{1}{2}$ and $x - 3 = 0 \\Rightarrow x = 3$', detail: 'Isolate $x$ by undoing subtraction and division on both sides of each equation.' },
+      ],
+      result: 'The solutions are $x = \\frac{1}{2}$ and $x = 3$.',
+      takeaway: 'When the leading coefficient is not $1$, check the cross terms before trusting the factors.',
+    },
+  ],
+  common_mistakes: [
+    'A sign error like factoring $x^2 + 5x + 6$ as $(x - 2)(x - 3)$ is wrong because it gives $x^2 - 5x + 6$, so the signs must match the middle term.',
+    'Stopping at $(x + 2)(x + 3) = 0$ is incomplete because the correction is to set each factor equal to zero and solve $x + 2 = 0$ and $x + 3 = 0$.',
+  ],
+  example: 'A factorable quadratic like $x^2 + 5x + 6 = 0$ can be solved by factoring, splitting, solving, and checking.',
+  steps: ['Factor the quadratic.', 'Set each factor equal to zero.', 'Solve and check both roots.'],
+  why_it_matters: 'Factoring matters because it is the fastest clean method when a quadratic has simple integer factors.',
+});
+
+const makeMathGuideData = (teaching = makeStrongMathTeaching()) => {
+  const guideData = makeGuideData();
+  return {
+    ...guideData,
+    session_meta: {
+      ...guideData.session_meta,
+      subject: 'Mathematics',
+      student_goal: 'Solve quadratic equations by factoring',
+    },
+    knowledge_map: {
+      concepts: [{
+        id: 'concept-factoring-quadratics',
+        title: 'Factoring Quadratics',
+        summary: 'Factorable quadratics can be solved by the zero-product property.',
+        depends_on: [],
+        weak_points: ['sign-errors', 'zero-product-property'],
+        misconception_tags: ['wrong-signs'],
+      }],
+    },
+    cards: [{
+      ...guideData.cards[0],
+      id: 'card-factor-quadratics',
+      concept_id: 'concept-factoring-quadratics',
+      prompt: 'Solve $x^2 + 7x + 12 = 0$ by factoring.',
+      target_answer: '$x = -3$ and $x = -4$.',
+      required_idea_tags: ['factor', 'zero-product-property', 'both-roots'],
+      misconception_tags: ['wrong-signs'],
+      teaching,
+    }],
+  };
+};
+
 const makeGuideData = () => ({
   session_meta: {
     subject: 'Biology',
@@ -428,6 +501,85 @@ describe('studyGuideCore', () => {
     expect(quality.ok).toBe(false);
     expect(quality.issues.join(' ')).toContain('include at least 2 worked examples');
     expect(quality.issues.join(' ')).toContain('name the error and explain the correction');
+  });
+
+  it('accepts a strong math mini-lesson with LaTeX solved steps', () => {
+    expect(validateTutorSessionQuality(makeMathGuideData())).toEqual({
+      ok: true,
+      issues: [],
+    });
+  });
+
+  it('rejects math cards with prose-only examples', () => {
+    const teaching = {
+      ...makeStrongMathTeaching(),
+      explain: makeStrongMathTeaching().explain.replace(/\$/g, ''),
+      worked_examples: makeStrongMathTeaching().worked_examples.map((example) => ({
+        ...example,
+        problem: 'Solve a quadratic by factoring.',
+        steps: example.steps.map((step) => ({
+          step: step.step.replace(/\$/g, ''),
+          detail: step.detail,
+        })),
+      })),
+    };
+
+    const quality = validateTutorSessionQuality(makeMathGuideData(teaching));
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('math explanation must include the formula or setup in LaTeX');
+    expect(quality.issues.join(' ')).toContain('math problem statement must include LaTeX');
+  });
+
+  it('rejects math examples without equation-bearing steps', () => {
+    const teaching = {
+      ...makeStrongMathTeaching(),
+      worked_examples: makeStrongMathTeaching().worked_examples.map((example) => ({
+        ...example,
+        steps: example.steps.map((step) => ({
+          ...step,
+          step: '$x$ is handled by factoring.',
+        })),
+      })),
+    };
+
+    const quality = validateTutorSessionQuality(makeMathGuideData(teaching));
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('include at least one equation-bearing LaTeX step');
+  });
+
+  it('rejects math equation steps without operation explanations', () => {
+    const teaching = {
+      ...makeStrongMathTeaching(),
+      worked_examples: makeStrongMathTeaching().worked_examples.map((example) => ({
+        ...example,
+        steps: example.steps.map((step) => ({
+          ...step,
+          detail: 'Next line.',
+        })),
+      })),
+    };
+
+    const quality = validateTutorSessionQuality(makeMathGuideData(teaching));
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('explain the operation, not just the next line');
+  });
+
+  it('rejects math cards missing computational mistakes', () => {
+    const teaching = {
+      ...makeStrongMathTeaching(),
+      common_mistakes: [
+        'Being careless is wrong because the correction is to be careful.',
+        'Forgetting the idea is wrong because the correction is to remember it.',
+      ],
+    };
+
+    const quality = validateTutorSessionQuality(makeMathGuideData(teaching));
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('use an actual computational or algebraic error');
   });
 
   it('builds summary docs and plain text exports from the River contract', () => {

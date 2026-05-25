@@ -279,6 +279,84 @@ const makeToctGuide = () => makeGuide({
   },
 });
 
+const makeMathGuide = () => makeGuide({
+  id: 'guide-math-1',
+  title: 'Quadratic Factoring Tutor Session',
+  guide_data: {
+    ...makeGuide().guide_data,
+    session_meta: {
+      ...makeGuide().guide_data.session_meta,
+      subject: 'Mathematics',
+      student_goal: 'Solve quadratic equations by factoring',
+    },
+    knowledge_map: {
+      concepts: [{
+        id: 'concept-factoring-quadratics',
+        title: 'Factoring Quadratics',
+        summary: 'Factorable quadratics can be solved by the zero-product property.',
+        depends_on: [],
+        weak_points: ['sign-errors', 'zero-product-property'],
+        misconception_tags: ['wrong-signs'],
+      }],
+    },
+    cards: [
+      {
+        ...makeGuide().guide_data.cards[0],
+        id: 'card-factor-quadratics',
+        concept_id: 'concept-factoring-quadratics',
+        prompt: 'Solve $x^2 + 7x + 12 = 0$ by factoring.',
+        target_answer: '$x = -3$ and $x = -4$.',
+        required_idea_tags: ['factor', 'zero-product-property', 'both-roots'],
+        teaching: {
+          learning_objective: 'Solve factorable quadratic equations by choosing factoring, splitting factors, and checking roots.',
+          explain: [
+            'A factorable quadratic such as $x^2 + 5x + 6 = 0$ is solved by rewriting it as a product of two binomials.',
+            'The method works because $(x + 2)(x + 3) = 0$ lets us use the zero-product property on each factor.',
+            'After solving each smaller equation, we check the roots in the original equation so the algebra is verified.',
+          ].join('\n\n'),
+          intuition: 'Think of factoring like reversing multiplication: the expanded quadratic is the final product, and the binomials are the pieces that made it.',
+          worked_examples: [
+            {
+              title: 'Example 1: Basic Solve',
+              problem: 'Solve $x^2 + 5x + 6 = 0$ by factoring.',
+              steps: [
+                { step: '$x^2 + 5x + 6 = (x + 2)(x + 3)$', detail: 'Factor because $2 \\cdot 3 = 6$ and $2 + 3 = 5$, so the middle term and constant match.' },
+                { step: '$x + 2 = 0 \\Rightarrow x = -2$ and $x + 3 = 0 \\Rightarrow x = -3$', detail: 'Subtract from both sides to isolate $x$ in each linear equation.' },
+              ],
+              result: 'The solutions are $x = -2$ and $x = -3$.',
+              takeaway: 'Factoring turns one quadratic into two linear equations.',
+            },
+            {
+              title: 'Example 2: Harder Case',
+              problem: 'Solve $2x^2 - 7x + 3 = 0$ by factoring.',
+              steps: [
+                { step: '$2x^2 - 7x + 3 = (2x - 1)(x - 3)$', detail: 'Use factors whose cross terms combine to $-7x$ so the expanded form matches.' },
+                { step: '$2x - 1 = 0 \\Rightarrow x = \\frac{1}{2}$ and $x - 3 = 0 \\Rightarrow x = 3$', detail: 'Undo subtraction and division on both sides to isolate each solution.' },
+              ],
+              result: 'The solutions are $x = \\frac{1}{2}$ and $x = 3$.',
+              takeaway: 'When the leading coefficient is not $1$, check the cross terms before trusting the factors.',
+            },
+          ],
+          common_mistakes: [
+            'Factoring $x^2 + 5x + 6$ as $(x - 2)(x - 3)$ is wrong because the signs create $x^2 - 5x + 6$ instead.',
+            'Stopping at $(x + 2)(x + 3) = 0$ is incomplete because each factor still needs to be set equal to zero.',
+          ],
+          example: 'Use factoring when the quadratic splits cleanly into binomials like $(x + 2)(x + 3)$.',
+          steps: ['Factor the quadratic.', 'Set each factor equal to zero.', 'Solve and check both roots.'],
+          why_it_matters: 'Factoring is often the fastest method for clean integer roots.',
+        },
+      },
+    ],
+  },
+  study_state: {
+    ...makeGuide().study_state,
+    current_card_id: 'card-factor-quadratics',
+    card_states: {
+      'card-factor-quadratics': { attempts: 0, hints_used: 0, status: 'active', last_outcome: null, completed: false },
+    },
+  },
+});
+
 const legacyGuide = {
   id: 'guide-legacy',
   title: 'Old Exam Coach',
@@ -491,6 +569,39 @@ describe('GuideView', () => {
     expect(within(teach).queryByTestId('river-board-frame')).not.toBeInTheDocument();
     expect(within(teach).queryByTestId('desktop-board-teacher')).not.toBeInTheDocument();
     expect(within(teach).getByText(/Breakdown/i)).toBeInTheDocument();
+  });
+
+  it('renders math tutor worked steps as equations with reasoning', async () => {
+    api.getStudyGuide.mockResolvedValue(makeMathGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-math-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    expect(teach.querySelector('.katex')).toBeInTheDocument();
+
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(await within(teach).findByRole('button', { name: /Continue.*Mental Model/i }));
+    fireEvent.click(await within(teach).findByRole('button', { name: /Continue.*Example 1: Basic Solve/i }));
+
+    await waitFor(() => {
+      expect(within(teach).getAllByText(/Equation/i).length).toBeGreaterThan(0);
+    });
+    const equationStep = Array.from(within(teach).getAllByRole('button')).find((button) => (
+      button.textContent?.includes('Equation')
+    ));
+    expect(equationStep).toBeTruthy();
+    fireEvent.click(equationStep);
+    expect(within(teach).getByText(/Reasoning/i)).toBeInTheDocument();
+    expect(teach.querySelectorAll('.katex').length).toBeGreaterThan(1);
   });
 
   it('reveals smart teaching chips without calling live assist', async () => {

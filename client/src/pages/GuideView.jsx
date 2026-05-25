@@ -92,6 +92,11 @@ const chunkExplain = (raw) => {
     return out;
 };
 
+const hasMathSyntax = (value) => (
+    typeof value === 'string'
+    && /(\$\$[\s\S]+?\$\$|(^|[^$])\$(?!\$)[^$\n]+?\$(?!\$))/u.test(value)
+);
+
 // Mirrors POSES.accent values from RiverMascot — drives surface tinting on feedback
 const RIVER_POSE_ACCENT = {
     idle: '#8fb27c',
@@ -2514,6 +2519,7 @@ export default function GuideView() {
                                                             {section.data.steps.map((exStep, si) => {
                                                                 const stepKey = `${sectionIndex}-${si}`;
                                                                 const isExpanded = !!expandedSteps[stepKey];
+                                                                const stepIsMath = hasMathSyntax(exStep.step);
                                                                 return (
                                                                     <div key={si}>
                                                                         <button
@@ -2530,8 +2536,24 @@ export default function GuideView() {
                                                                             >
                                                                                 {si + 1}
                                                                             </span>
-                                                                            <span className="flex-1 text-sm leading-6" style={{ color: '#d4ccb8' }}>
-                                                                                <SubjectRenderer content={exStep.step} inline />
+                                                                            <span
+                                                                                className={stepIsMath ? 'flex-1 rounded-lg px-3 py-2' : 'flex-1 text-sm leading-6'}
+                                                                                style={stepIsMath
+                                                                                    ? {
+                                                                                        color: '#e8dcc8',
+                                                                                        backgroundColor: 'rgba(255,255,255,0.035)',
+                                                                                        border: '1px solid rgba(255,255,255,0.06)',
+                                                                                    }
+                                                                                    : { color: '#d4ccb8' }}
+                                                                            >
+                                                                                {stepIsMath ? (
+                                                                                    <span className="mb-1 block text-[9px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.45)' }}>
+                                                                                        Equation
+                                                                                    </span>
+                                                                                ) : null}
+                                                                                <span className={stepIsMath ? 'block text-base leading-7' : undefined}>
+                                                                                    <SubjectRenderer content={exStep.step} inline />
+                                                                                </span>
                                                                             </span>
                                                                             <ChevronLeft
                                                                                 className="shrink-0 mt-0.5 w-4 h-4 transition-transform duration-200"
@@ -2549,6 +2571,11 @@ export default function GuideView() {
                                                                                 transition={{ duration: 0.25, ease: PANEL_EASE }}
                                                                                 className="px-5 pb-3 pl-13"
                                                                             >
+                                                                                {stepIsMath ? (
+                                                                                    <p className="mb-1 text-[9px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.42)', paddingLeft: 32 }}>
+                                                                                        Reasoning
+                                                                                    </p>
+                                                                                ) : null}
                                                                                 <p className="text-sm leading-6" style={{ color: 'rgba(212,204,184,0.7)', paddingLeft: 32 }}>
                                                                                     <SubjectRenderer content={exStep.detail} inline />
                                                                                 </p>

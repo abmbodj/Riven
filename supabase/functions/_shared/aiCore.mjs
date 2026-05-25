@@ -60,6 +60,20 @@ const buildSubjectContext = (className, subject) => {
   return parts.join('\n');
 };
 
+const buildMathTutorInstructions = (subject) => (
+  subject === 'Mathematics'
+    ? `
+Mathematics tutor requirements:
+- Teach like The Organic Chemistry Tutor solving at a board: identify the problem type, choose the method, write the equation, solve one legal step at a time, check the answer, then give the student a similar practice prompt.
+- Every formula, variable, expression, equation, substitution, derivative, integral, and final answer MUST be in LaTeX using $...$ inline or $$...$$ for display equations.
+- Each worked example title should signal progression, such as "Example 1: Basic Solve" and "Example 2: Harder Case".
+- Each worked example must include a problem with LaTeX, then step objects whose "step" field contains the actual equation line in LaTeX and whose "detail" field explains why that operation is legal.
+- Show method selection explicitly: when to factor vs. use the quadratic formula, when to substitute, when to differentiate/integrate, or which theorem/formula applies.
+- Common mistakes must be computational: sign errors, distribution/factoring mistakes, cancellation errors, missing constants, wrong derivative/integral rules, domain restrictions, or unit mistakes. Include the wrong move and the correction.
+- The card prompt must be a concise practice problem in LaTeX that matches the method just taught.`
+    : ''
+);
+
 export { buildSubjectContext };
 
 export const buildNaturalNoteStyleInstructions = ({
@@ -400,10 +414,11 @@ const buildGuidePrompt = (className, subject) => {
   const resolved = resolveSubject(className, subject);
   const strategy = getSubjectStrategy(resolved);
   const guideHint = strategy.guideStyle ? `\n${strategy.guideStyle}` : '';
+  const mathTutorHint = buildMathTutorInstructions(resolved);
   return `You are an expert tutor creating a River-led AI tutor session${className ? ` for ${className}` : ''}.
 ${className ? `Tailor concept selection, terminology, examples, and misconceptions specifically to ${className}.` : ''}
 
-${buildSubjectContext(className, subject)}${guideHint}
+${buildSubjectContext(className, subject)}${guideHint}${mathTutorHint}
 
 Output ONLY a valid JSON object. No markdown, backticks, or text outside the object.
 Required structure:
@@ -608,6 +623,7 @@ The "teaching.intuition" field MUST provide a mental model, analogy, or intuitiv
 The "teaching.common_mistakes" array MUST list 2-3 mistakes students commonly make, and each item must include the correction or why the mistake is wrong.
 For software architecture or system design, teach concrete choices and tradeoffs. A simple web app example should include frontend, auth, API, database, profile image storage, and update flow. An enterprise example should add services, queues, observability, permissions, failure modes, and scaling tradeoffs.
 Avoid generic filler such as "user interface, business logic, and data storage" unless you immediately explain the responsibility, boundary, data flow, or tradeoff.
+For mathematics, do not yap around the topic. The teaching must be mostly solved steps, method choice, legal transformations, checks, and similar practice.
 Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, teaching content, presentation cues, and feedback variants.
 River must stay central, warm, slightly playful, and distinct. Use the green knit beanie as a signature trait.
 Partial answers should usually count as good enough progress when the learner shows real understanding; reserve hard stops for clear misconceptions.
