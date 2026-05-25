@@ -10,6 +10,7 @@ import {
   normalizeCoachConfig,
   mergeGuidePayloadMeta,
   ensureApiKey,
+  assertTutorSessionQuality,
   parseAiJsonResponse,
   createHttpError,
 } from '../_shared/aiCore.mjs';
@@ -166,7 +167,7 @@ serve(async (request) => {
           const streamResponse = ai.streamContent({
             model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages,
-            maxTokens: 6144,
+            maxTokens: 8192,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -195,6 +196,7 @@ serve(async (request) => {
           if (!guideData) {
             throw createHttpError('AI failed to generate a valid tutor session.', 500);
           }
+          assertTutorSessionQuality(guideData);
 
           const guideContent = buildStudyGuideSummaryDoc(guideData);
           const studyState = createDefaultStudyGuideState(guideData);

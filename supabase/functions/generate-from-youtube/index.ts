@@ -9,6 +9,7 @@ import {
   buildYoutubeGuideContents,
   buildYoutubeExamContents,
   buildYoutubeNotesContents,
+  assertTutorSessionQuality,
   parseAiJsonResponse,
 } from '../_shared/aiCore.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
@@ -134,7 +135,7 @@ serve(async (request) => {
 
       (async () => {
         try {
-          const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 6144, notes: 6144 };
+          const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 8192, notes: 6144 };
           const streamResponse = ai.streamContent({
             model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages,
@@ -202,6 +203,7 @@ serve(async (request) => {
             if (!guideData) {
               throw createHttpError('AI failed to generate a valid tutor session.', 500);
             }
+            assertTutorSessionQuality(guideData);
 
             const guideContent = buildStudyGuideSummaryDoc(guideData);
             const studyState = createDefaultStudyGuideState(guideData);
@@ -371,6 +373,7 @@ serve(async (request) => {
       if (!guideData) {
         throw createHttpError('AI failed to generate a valid tutor session.', 500);
       }
+      assertTutorSessionQuality(guideData);
 
       const guideContent = buildStudyGuideSummaryDoc(guideData);
       const studyState = createDefaultStudyGuideState(guideData);

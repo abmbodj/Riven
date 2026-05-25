@@ -57,10 +57,10 @@ const UNSUPPORTED_TRAY_STYLE = {
     background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
 };
 
-// Explain chunking: keep paragraphs whole when short; otherwise pack ~1-2 sentences per beat.
-const CHUNK_MIN_CHARS = 180;
-const CHUNK_TARGET_CHARS = 280;
-const CHUNK_MAX_CHARS = 380;
+// Explain chunking: keep paragraphs whole when short; otherwise reveal one digestible board beat at a time.
+const CHUNK_MIN_CHARS = 150;
+const CHUNK_TARGET_CHARS = 240;
+const CHUNK_MAX_CHARS = 320;
 
 const chunkExplain = (raw) => {
     if (!raw || typeof raw !== 'string') return [];
@@ -243,7 +243,7 @@ const getCompleteCaption = (guideData, completionPayload) => {
 const getTeachSectionPresentation = (section, currentCard) => {
     const captions = {
         explain: 'River is teaching.',
-        intuition: 'Let me show you why this works...',
+        intuition: 'Here is the mental model.',
         worked_example: 'Watch how this plays out step by step.',
         common_mistakes: 'Before you try, watch out for these.',
         legacy_steps: 'Let me break this down.',
@@ -786,8 +786,8 @@ export default function GuideView() {
         ? guideData?.knowledge_map?.concepts.find((concept) => concept.id === currentCard.concept_id) || null
         : null;
 
-    const isToctStyleCard = currentCard?.teaching?.worked_examples?.length > 0
-        || Boolean(currentCard?.teaching?.intuition);
+    const isToctStyleCard = currentCard?.teaching?.worked_examples?.length >= 2
+        && Boolean(currentCard?.teaching?.intuition);
 
     const teachSections = useMemo(() => {
         if (!currentCard?.teaching) return [];
@@ -795,7 +795,7 @@ export default function GuideView() {
         const sections = [];
         sections.push({ key: 'explain', label: 'Explanation', type: 'explain' });
         if (t.intuition) {
-            sections.push({ key: 'intuition', label: 'The Why', type: 'intuition' });
+            sections.push({ key: 'intuition', label: 'Mental Model', type: 'intuition' });
         }
         if (t.worked_examples?.length > 0) {
             t.worked_examples.forEach((ex, i) => {
@@ -803,7 +803,7 @@ export default function GuideView() {
             });
         }
         if (t.common_mistakes?.length > 0) {
-            sections.push({ key: 'mistakes', label: 'Watch Out', type: 'common_mistakes' });
+            sections.push({ key: 'mistakes', label: 'Common Mistakes', type: 'common_mistakes' });
         }
         // Fallback for old guides without TOCT fields
         if (sections.length === 1) {
@@ -2300,6 +2300,19 @@ export default function GuideView() {
                                     >
                                         <SubjectRenderer content={currentConcept?.title || currentCard.prompt} />
                                     </h2>
+                                    {currentCard.teaching.learning_objective ? (
+                                        <p
+                                            className="mt-3 max-w-[68ch] text-sm leading-6 lg:max-w-[52ch]"
+                                            style={{ color: 'rgba(232,220,200,0.74)' }}
+                                        >
+                                            <span className="font-mono text-[10px] uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>
+                                                Goal
+                                            </span>
+                                            <span className="ml-2">
+                                                <SubjectRenderer content={currentCard.teaching.learning_objective} inline />
+                                            </span>
+                                        </p>
+                                    ) : null}
                                     {/* Chalk progress dots */}
                                     <div className="mt-3 flex items-center gap-1.5">
                                         {teachSections.map((section, i) => (
@@ -2321,7 +2334,7 @@ export default function GuideView() {
                                 </div>
 
                                 {/* ── Lecture sections ── */}
-                                <div className="relative z-10 space-y-6" data-testid="river-board-content">
+                                <div className="relative z-10 space-y-6 lg:pr-[15rem] 2xl:pr-[17rem]" data-testid="river-board-content">
                                     {teachSections.map((section, sectionIndex) => {
                                         if (sectionIndex > teachSection) return null;
                                         const isActiveSectionTarget = sectionIndex === teachSection && section.type !== 'explain';
@@ -2493,7 +2506,7 @@ export default function GuideView() {
                                                                     style={{ color: 'rgba(222,185,106,0.4)' }}
                                                                 >
                                                                     {section.data.steps.every((_, si) => expandedSteps[`${sectionIndex}-${si}`] !== false)
-                                                                        ? 'Collapse all' : 'Expand all'}
+                                                                        ? 'Hide step details' : 'Show step details'}
                                                                 </button>
                                                             </div>
                                                         )}

@@ -305,6 +305,10 @@ const normalizeTeaching = (value, card, concept) => {
     : [];
 
   return {
+    learning_objective: normalizeText(
+      raw.learning_objective ?? raw.learningObjective,
+      `Understand and apply ${concept?.title || card.prompt} in exam-style reasoning.`,
+    ),
     explain: normalizeText(raw.explain, fallbackExplain),
     intuition: normalizeText(raw.intuition, ''),
     worked_examples: workedExamples,
@@ -681,6 +685,159 @@ export const normalizeStudyGuideData = (value) => {
     adaptation_rules: normalizeAdaptationRules(raw.adaptation_rules ?? raw.adaptationRules),
     completion,
     sections: deriveSections(knowledgeMap.concepts, cards),
+  };
+};
+
+const QUALITY_MIN_EXPLAIN_WORDS = 150;
+const QUALITY_MIN_EXPLAIN_PARAGRAPHS = 3;
+const QUALITY_MIN_INTUITION_WORDS = 18;
+const QUALITY_MIN_EXAMPLES = 2;
+const QUALITY_MIN_EXAMPLE_STEPS = 2;
+const QUALITY_MIN_MISTAKES = 2;
+
+const normalizeForQuality = (value) => normalizeText(value, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9\s]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const qualityWords = (value) => (
+  normalizeForQuality(value).split(' ').filter(Boolean)
+);
+
+const qualityWordCount = (value) => qualityWords(value).length;
+
+const qualityParagraphs = (value) => (
+  normalizeText(value, '')
+    .split(/\n\s*\n/u)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+);
+
+const qualityContentWords = (value) => {
+  const stopWords = new Set([
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'in',
+    'into', 'is', 'it', 'of', 'on', 'or', 'that', 'the', 'their', 'this', 'to',
+    'with', 'will', 'you', 'your',
+  ]);
+  return qualityWords(value).filter((word) => word.length > 2 && !stopWords.has(word));
+};
+
+const qualityOverlap = (left, right) => {
+  const leftWords = qualityContentWords(left);
+  const rightWords = new Set(qualityContentWords(right));
+  if (leftWords.length === 0 || rightWords.size === 0) return 0;
+  const matches = leftWords.filter((word) => rightWords.has(word)).length;
+  return matches / leftWords.length;
+};
+
+const hasCorrectionLanguage = (value) => (
+  /\b(because|instead|rather than|not\b|avoid|fix|correct|should|means|confuses|misses|remember)\b/iu
+    .test(normalizeText(value, ''))
+);
+
+export const validateTutorSessionQuality = (guideData) => {
+  const normalized = normalizeStudyGuideData(guideData);
+  if (!normalized) {
+    return { ok: false, issues: ['Tutor session is missing the required v4 structure.'] };
+  }
+
+  const issues = [];
+  const seenConceptIds = new Set();
+
+  normalized.cards.forEach((card, index) => {
+    const label = card.id || `card ${index + 1}`;
+    const teaching = card.teaching || {};
+    const objective = normalizeText(teaching.learning_objective, '');
+    const explain = normalizeText(teaching.explain, '');
+    const paragraphs = qualityParagraphs(explain);
+    const explainWordCount = qualityWordCount(explain);
+    const intuition = normalizeText(teaching.intuition, '');
+    const workedExamples = Array.isArray(teaching.worked_examples)
+      ? teaching.worked_examples
+      : [];
+    const mistakes = Array.isArray(teaching.common_mistakes)
+      ? teaching.common_mistakes
+      : [];
+
+    if (!objective || qualityWordCount(objective) < 5) {
+      issues.push(`${label}: add a specific learning objective.`);
+    }
+
+    if (paragraphs.length < QUALITY_MIN_EXPLAIN_PARAGRAPHS) {
+      issues.push(`${label}: explanation must be at least ${QUALITY_MIN_EXPLAIN_PARAGRAPHS} paragraphs.`);
+    }
+
+    if (explainWordCount < QUALITY_MIN_EXPLAIN_WORDS) {
+      issues.push(`${label}: explanation is too shallow (${explainWordCount} words).`);
+    }
+
+    if (qualityWordCount(intuition) < QUALITY_MIN_INTUITION_WORDS) {
+      issues.push(`${label}: intuition must be a real mental model, not a short restatement.`);
+    } else if (qualityOverlap(intuition, explain) > 0.78) {
+      issues.push(`${label}: intuition repeats the explanation too closely.`);
+    }
+
+    if (workedExamples.length < QUALITY_MIN_EXAMPLES) {
+      issues.push(`${label}: include at least ${QUALITY_MIN_EXAMPLES} worked examples.`);
+    }
+
+    workedExamples.forEach((example, exampleIndex) => {
+      const exampleLabel = `${label} example ${exampleIndex + 1}`;
+      const steps = Array.isArray(example.steps) ? example.steps : [];
+      if (qualityWordCount(example.problem) < 5) {
+        issues.push(`${exampleLabel}: problem statement is too thin.`);
+      }
+      if (steps.length < QUALITY_MIN_EXAMPLE_STEPS) {
+        issues.push(`${exampleLabel}: include at least ${QUALITY_MIN_EXAMPLE_STEPS} reasoning steps.`);
+      }
+      if (!normalizeText(example.result, '')) {
+        issues.push(`${exampleLabel}: include a result.`);
+      }
+      if (qualityWordCount(example.takeaway) < 5) {
+        issues.push(`${exampleLabel}: include a useful takeaway.`);
+      }
+      steps.forEach((step, stepIndex) => {
+        if (qualityWordCount(step.detail) < 8) {
+          issues.push(`${exampleLabel} step ${stepIndex + 1}: explain why the step works.`);
+        }
+      });
+    });
+
+    if (
+      workedExamples.length >= 2
+      && qualityOverlap(workedExamples[0]?.problem, workedExamples[1]?.problem) > 0.82
+    ) {
+      issues.push(`${label}: worked examples are too repetitive.`);
+    }
+
+    if (mistakes.length < QUALITY_MIN_MISTAKES) {
+      issues.push(`${label}: include at least ${QUALITY_MIN_MISTAKES} common mistakes.`);
+    }
+
+    mistakes.forEach((mistake, mistakeIndex) => {
+      if (qualityWordCount(mistake) < 8 || !hasCorrectionLanguage(mistake)) {
+        issues.push(`${label} mistake ${mistakeIndex + 1}: name the error and explain the correction.`);
+      }
+    });
+
+    if (!Array.isArray(card.required_idea_tags) || card.required_idea_tags.length === 0) {
+      issues.push(`${label}: required idea tags are needed for grading.`);
+    }
+
+    if (qualityWordCount(card.prompt) > 36) {
+      issues.push(`${label}: recall prompt should stay concise.`);
+    }
+
+    if (seenConceptIds.has(card.concept_id)) {
+      issues.push(`${label}: each main tutor card should teach a distinct concept.`);
+    }
+    seenConceptIds.add(card.concept_id);
+  });
+
+  return {
+    ok: issues.length === 0,
+    issues,
   };
 };
 

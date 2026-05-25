@@ -230,21 +230,39 @@ const makeToctGuide = () => makeGuide({
         prompt: 'How should a system design describe a web app?',
         target_answer: 'It should show components, data flow, APIs, and tradeoffs.',
         teaching: {
-          explain: 'A system design is a map of the important parts of software and how those parts talk to each other.',
+          learning_objective: 'Trace a web request through components, data flow, APIs, and tradeoffs.',
+          explain: [
+            'A system design is a map of the important parts of software and the responsibilities each part owns.',
+            'For a web app, the frontend collects intent, the API validates and coordinates that intent, and storage preserves the durable state.',
+            'The value is in the arrows between those parts: data flow shows what changes, who is allowed to change it, and where failures can happen.',
+          ].join('\n\n'),
           intuition: 'Think of it like a campus map: buildings matter, but the paths between them explain how people actually move.',
           worked_examples: [
             {
-              title: 'Checkout service',
-              problem: 'Design the checkout path for a small store.',
+              title: 'Example 1: Profile update',
+              problem: 'Design the profile update path for a small account page.',
               steps: [
-                { step: 'Identify the browser, API server, payment provider, and database.', detail: 'These are the components that must cooperate.' },
-                { step: 'Draw the payment request and confirmation flow.', detail: 'The arrows reveal the system behavior.' },
+                { step: 'Identify the browser, API server, auth check, and profile table.', detail: 'These components define the minimum boundary between user intent, permission, and stored profile data.' },
+                { step: 'Trace the update request from form submit to database write.', detail: 'The arrows reveal who validates the request, where bad input is rejected, and when the UI can show success.' },
               ],
               result: 'The diagram explains both structure and flow.',
               takeaway: 'Good architecture names the parts and the paths.',
             },
+            {
+              title: 'Example 2: Enterprise profile update',
+              problem: 'Extend the profile update path for a company with audit logs and image uploads.',
+              steps: [
+                { step: 'Separate the profile API, object storage, audit log, and notification queue.', detail: 'Different responsibilities need different reliability, permission, and scaling choices.' },
+                { step: 'Mark the synchronous path and the background path separately.', detail: 'The profile save should finish quickly while audit and notification work can be queued safely.' },
+              ],
+              result: 'The design now shows services, storage, queues, and failure boundaries.',
+              takeaway: 'Complex architecture adds boundaries only when they clarify ownership or reduce risk.',
+            },
           ],
-          common_mistakes: ['Listing tools without showing how data moves.'],
+          common_mistakes: [
+            'Listing tools without showing data movement is wrong because it hides how the system actually behaves.',
+            'Skipping failure paths is risky because architecture must show what happens when storage, auth, or queues fail.',
+          ],
           example: 'A store might include a React UI, Node API, Stripe, and Postgres.',
           steps: ['Name components.', 'Trace data flow.', 'Mark tradeoffs.'],
           why_it_matters: 'Architecture helps teams make changes without breaking hidden dependencies.',
@@ -419,13 +437,60 @@ describe('GuideView', () => {
     expect(activeTarget.className).not.toContain('-mx-3');
     expect(activeTarget.className).not.toContain('px-3');
 
-    fireEvent.click(within(teach).getByRole('button', { name: /Continue.*The Why/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    await waitFor(() => {
+      expect(within(teach).getByRole('button', { name: /Continue.*Mental Model/i })).toBeInTheDocument();
+    });
+    fireEvent.click(within(teach).getByRole('button', { name: /Continue.*Mental Model/i }));
 
     await waitFor(() => {
       activeTarget = teach.querySelector('[data-current-teach-target="true"]');
       expect(activeTarget).toHaveTextContent(/campus map/i);
     });
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
+  });
+
+  it('keeps thin teaching content in the legacy layout instead of the full chalkboard lecture', async () => {
+    api.getStudyGuide.mockResolvedValue({
+      ...makeToctGuide(),
+      guide_data: {
+        ...makeToctGuide().guide_data,
+        cards: [{
+          ...makeToctGuide().guide_data.cards[0],
+          teaching: {
+            explain: 'A system design names components and interactions.',
+            intuition: 'Think of it like a map.',
+            worked_examples: [{
+              title: 'Tiny example',
+              problem: 'Name a web app component.',
+              steps: [{ step: 'Name the UI.', detail: 'It is visible.' }],
+              result: 'UI named.',
+              takeaway: 'Components matter.',
+            }],
+            common_mistakes: ['Being vague.'],
+            example: 'React and Postgres.',
+            steps: ['Name parts.'],
+            why_it_matters: 'It helps planning.',
+          },
+        }],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    expect(within(teach).queryByTestId('river-board-frame')).not.toBeInTheDocument();
+    expect(within(teach).queryByTestId('desktop-board-teacher')).not.toBeInTheDocument();
+    expect(within(teach).getByText(/Breakdown/i)).toBeInTheDocument();
   });
 
   it('reveals smart teaching chips without calling live assist', async () => {

@@ -5,7 +5,47 @@ import {
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
   studyGuideDataToPlainText,
+  validateTutorSessionQuality,
 } from '../../supabase/functions/_shared/studyGuideCore.mjs';
+
+const makeStrongTeaching = (topic = 'mitosis') => ({
+  learning_objective: `Explain ${topic} by tracing the mechanism, outcome, examples, and likely mistakes.`,
+  explain: [
+    `${topic} starts with a concrete job, not a vocabulary label. The student first needs to know what the process is responsible for and what finished result would prove that the process worked. That turns the topic into a checkable claim instead of a loose definition.`,
+    `The mechanism is the second layer. A strong learner can describe what changes first, why that change makes the next step possible, and how the parts stay coordinated. This matters because exam questions often change the wording while still testing the same chain of cause and effect.`,
+    `The final layer is transfer. Once the student can follow the mechanism, examples become easier because each example is just a different surface version of the same underlying pattern. The student should be able to explain the result, reject a tempting distractor, and say why the correction is true. That is what makes the lesson useful after the exact wording changes.`,
+  ].join('\n\n'),
+  intuition: `Think of ${topic} like a handoff line where each person must pass the right item to the next person; if one handoff is wrong, the final result exposes the mistake.`,
+  worked_examples: [
+    {
+      title: 'Example 1: Basic application',
+      problem: `A short-answer question asks what ${topic} produces and why that result matters.`,
+      steps: [
+        { step: 'Name the final product.', detail: 'Starting from the final product keeps the answer anchored to what the grader needs to see.' },
+        { step: 'Connect the product to the mechanism.', detail: 'The mechanism explains why the output is not just memorized but logically produced by the process.' },
+      ],
+      result: `The answer identifies the output of ${topic} and the reason the process produces it.`,
+      takeaway: 'The safest answer pairs outcome with mechanism.',
+    },
+    {
+      title: 'Example 2: Distractor application',
+      problem: `A harder question asks the student to separate ${topic} from a similar process.`,
+      steps: [
+        { step: 'Compare what each process changes.', detail: 'Similar processes often share words, so the changed quantity or structure is the reliable separator.' },
+        { step: 'Reject the option with the wrong result.', detail: 'A familiar-sounding option is still wrong when its final result does not match the prompt.' },
+      ],
+      result: `The correct choice is the process whose mechanism and final result match ${topic}.`,
+      takeaway: 'Distractors fall apart when mechanism and outcome are checked together.',
+    },
+  ],
+  common_mistakes: [
+    `Only naming the topic is wrong because the correction requires explaining what ${topic} actually changes.`,
+    `Choosing a similar process is wrong because the final result should be used to correct the mix-up.`,
+  ],
+  example: `${topic} can be tested by asking what changes, why it changes, and what final state proves the change happened.`,
+  steps: ['Name the output.', 'Trace the mechanism.', 'Reject the distractor.'],
+  why_it_matters: `${topic} matters because it turns memorized vocabulary into usable exam reasoning.`,
+});
 
 const makeGuideData = () => ({
   session_meta: {
@@ -315,6 +355,79 @@ describe('studyGuideCore', () => {
         },
       ],
     })).toBe(null);
+  });
+
+  it('accepts a strong mini-lecture tutor card', () => {
+    const guideData = makeGuideData();
+    const strongGuide = {
+      ...guideData,
+      knowledge_map: {
+        concepts: [guideData.knowledge_map.concepts[0]],
+      },
+      cards: [{
+        ...guideData.cards[0],
+        teaching: makeStrongTeaching('mitosis'),
+      }],
+    };
+
+    expect(validateTutorSessionQuality(strongGuide)).toEqual({
+      ok: true,
+      issues: [],
+    });
+  });
+
+  it('rejects one-paragraph explanations', () => {
+    const guideData = makeGuideData();
+    const teaching = {
+      ...makeStrongTeaching('mitosis'),
+      explain: 'Mitosis makes two cells and has steps, examples, and mistakes, but this single paragraph is intentionally too compressed to be a useful tutor lesson.',
+    };
+
+    const quality = validateTutorSessionQuality({
+      ...guideData,
+      knowledge_map: { concepts: [guideData.knowledge_map.concepts[0]] },
+      cards: [{ ...guideData.cards[0], teaching }],
+    });
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('explanation must be at least 3 paragraphs');
+  });
+
+  it('rejects repeated worked examples', () => {
+    const guideData = makeGuideData();
+    const teaching = makeStrongTeaching('mitosis');
+    teaching.worked_examples = [
+      teaching.worked_examples[0],
+      { ...teaching.worked_examples[0], title: 'Example 2: Same example again' },
+    ];
+
+    const quality = validateTutorSessionQuality({
+      ...guideData,
+      knowledge_map: { concepts: [guideData.knowledge_map.concepts[0]] },
+      cards: [{ ...guideData.cards[0], teaching }],
+    });
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('worked examples are too repetitive');
+  });
+
+  it('rejects missing examples or missing mistake corrections', () => {
+    const guideData = makeGuideData();
+    const teaching = {
+      ...makeStrongTeaching('mitosis'),
+      worked_examples: [],
+      common_mistakes: ['Vague answer.', 'Wrong process.'],
+    };
+
+    const quality = validateTutorSessionQuality({
+      ...guideData,
+      knowledge_map: { concepts: [guideData.knowledge_map.concepts[0]] },
+      cards: [{ ...guideData.cards[0], teaching }],
+    });
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('include at least 2 worked examples');
+    expect(quality.issues.join(' ')).toContain('name the error and explain the correction');
   });
 
   it('builds summary docs and plain text exports from the River contract', () => {

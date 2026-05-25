@@ -4,6 +4,7 @@ import {
   buildStudyGuideSummaryDoc,
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
+  validateTutorSessionQuality,
 } from './studyGuideCore.mjs';
 import { getSubjectStrategy, resolveNoteStrategy } from './subjectStrategies.mjs';
 
@@ -501,8 +502,9 @@ Required structure:
         "struggle": "line when the student struggles"
       },
       "teaching": {
-        "explain": "3-5 paragraph thorough explanation (minimum 400 words). Build understanding progressively: what the concept is, how it works mechanically, then why it behaves this way. Never summarize in one paragraph.",
-        "intuition": "The 'why' behind this concept — a mental model, analogy, or intuitive explanation that makes it click. Use 'imagine...', 'think of it like...', or 'the reason this works is...'",
+        "learning_objective": "specific skill the student should be able to do after this card",
+        "explain": "3-5 short paragraphs that teach the concept progressively: what it is, how it works, why it behaves that way, and how to use it. Never summarize in one paragraph.",
+        "intuition": "A mental model or analogy that is meaningfully different from the explanation. Use imagine, think of it like, or the reason this works is.",
         "worked_examples": [
           {
             "title": "Example 1: Basic application",
@@ -598,15 +600,29 @@ Required structure:
 }
 Build a tutor session in the style of The Organic Chemistry Tutor: teach thoroughly first, THEN check understanding.
 Structure the experience like a deep lecture: intro -> thorough explanation -> worked examples -> common mistakes -> check understanding -> feedback -> complete.
-Create a 2-4 card, one-card-at-a-time training flow. Each card should feel like a 5-8 minute video lesson: thorough explanation, intuitive reasoning, 2-3 worked examples building in difficulty, and explicit common mistakes BEFORE asking the student to try.
-The "teaching.explain" field MUST be 3-5 paragraphs (at minimum 400 words). Never produce a single-paragraph explanation. Build understanding layer by layer.
-The "teaching.worked_examples" array MUST contain 2-3 complete worked examples. Each example must show every step with detailed reasoning in the "detail" field. Examples should progress from straightforward to more challenging.
-The "teaching.intuition" field MUST provide a mental model, analogy, or intuitive explanation that makes the concept click.
-The "teaching.common_mistakes" array MUST list 2-3 mistakes students commonly make, with clear explanations of why each is wrong.
+Create a 2-4 card, one-card-at-a-time training flow. Each card must teach a distinct concept and feel like a 5-8 minute mini lecture: objective -> explanation -> mental model -> 2-3 worked examples -> common mistakes -> concise recall prompt.
+The "teaching.learning_objective" field MUST be specific and action-oriented. Bad: "understand architecture". Good: "Trace how a profile update moves from UI to API to database while naming the tradeoffs."
+The "teaching.explain" field MUST be 3-5 short paragraphs. Build understanding layer by layer and make every paragraph add a new idea. Do not repeat the same sentence with different wording.
+The "teaching.worked_examples" array MUST contain 2-3 complete worked examples. Each example must show every step with detailed reasoning in the "detail" field, and the examples must progress from straightforward to more challenging.
+The "teaching.intuition" field MUST provide a mental model, analogy, or intuitive explanation that makes the concept click. It must not simply restate "components interact with each other."
+The "teaching.common_mistakes" array MUST list 2-3 mistakes students commonly make, and each item must include the correction or why the mistake is wrong.
+For software architecture or system design, teach concrete choices and tradeoffs. A simple web app example should include frontend, auth, API, database, profile image storage, and update flow. An enterprise example should add services, queues, observability, permissions, failure modes, and scaling tradeoffs.
+Avoid generic filler such as "user interface, business logic, and data storage" unless you immediately explain the responsibility, boundary, data flow, or tradeoff.
 Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, teaching content, presentation cues, and feedback variants.
 River must stay central, warm, slightly playful, and distinct. Use the green knit beanie as a signature trait.
 Partial answers should usually count as good enough progress when the learner shows real understanding; reserve hard stops for clear misconceptions.
 Keep prompts concise. Keep target answers concise. Keep River premium, calm, clear, and emotionally supportive.`;
+};
+
+export const assertTutorSessionQuality = (guideData) => {
+  const quality = validateTutorSessionQuality(guideData);
+  if (!quality.ok) {
+    throw createHttpError(
+      'AI generated a tutor session that was too shallow or repetitive. Please try again with clearer source material.',
+      500,
+      { qualityIssues: quality.issues },
+    );
+  }
 };
 
 export const normalizeCoachConfig = (value, { hasSourceMaterial = false } = {}) => {
@@ -786,6 +802,7 @@ export const generateStudyGuideFromAi = async ({
   if (!guideData) {
     throw createHttpError('AI failed to generate a valid tutor session.', 500);
   }
+  assertTutorSessionQuality(guideData);
 
   const guideContent = buildStudyGuideSummaryDoc(guideData);
   const studyState = createDefaultStudyGuideState(guideData);

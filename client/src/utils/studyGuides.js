@@ -311,6 +311,10 @@ const normalizeTeaching = (value, card, concept) => {
         : [];
 
     return {
+        learning_objective: normalizeText(
+            raw.learning_objective ?? raw.learningObjective,
+            `Understand and apply ${concept?.title || card.prompt} in exam-style reasoning.`,
+        ),
         explain: normalizeText(raw.explain, fallbackExplain),
         intuition: normalizeText(raw.intuition, ''),
         worked_examples: workedExamples,

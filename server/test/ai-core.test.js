@@ -11,6 +11,45 @@ import {
   getAiLimitStatus,
 } from '../../supabase/functions/_shared/aiCore.mjs';
 
+const makeStrongTeaching = (topic) => ({
+  learning_objective: `Explain ${topic} with its mechanism, outcome, examples, and common exam traps.`,
+  explain: [
+    `${topic} is easiest to learn when the student separates the name of the process from the job it performs. The first layer is the definition: identify where the process happens, what enters the process, and what must be true when the process is finished. That gives the learner a stable frame before any memorized details are added.`,
+    `The second layer is mechanism. A strong answer should trace the sequence of events instead of listing disconnected terms. When the learner can say what changes first, what that change allows next, and what result is produced, the concept becomes usable in new questions rather than only recognizable in old notes.`,
+    `The final layer is exam reasoning. Most wrong answers come from mixing similar processes or reporting a gross value when the question asks for a net value. The student should practice naming the exact output, explaining why distractors are wrong, and connecting the output to the bigger system so the answer stays clear under time pressure.`,
+  ].join('\n\n'),
+  intuition: `Think of ${topic} like a checkpoint route: each checkpoint only matters because it changes what the next checkpoint is allowed to do, and the final checkpoint tells you whether the whole route succeeded.`,
+  worked_examples: [
+    {
+      title: `Example 1: Basic ${topic} recall`,
+      problem: `A quiz asks for the location and final outcome of ${topic}.`,
+      steps: [
+        { step: 'Name the location first.', detail: 'Starting with location prevents the answer from drifting into a related process that happens somewhere else.' },
+        { step: 'State the final outcome in net terms.', detail: 'The final outcome is what the grader is usually checking, so gross intermediate values must be filtered out.' },
+      ],
+      result: `${topic} is answered by pairing the correct location with the correct net outcome.`,
+      takeaway: 'A complete answer names both where it happens and what it produces.',
+    },
+    {
+      title: `Example 2: Distractor check for ${topic}`,
+      problem: `A harder question gives two similar processes and asks which one matches ${topic}.`,
+      steps: [
+        { step: 'Compare the required output to each option.', detail: 'The output is the strongest clue because similar processes often share vocabulary but produce different results.' },
+        { step: 'Reject the option with the wrong scale or timing.', detail: 'Distractors often sound familiar, so the safest move is to test whether the timing and final product match the prompt.' },
+      ],
+      result: `The correct option is the one whose mechanism and final output both match ${topic}.`,
+      takeaway: 'Hard questions are solved by testing mechanism and outcome together.',
+    },
+  ],
+  common_mistakes: [
+    `Only memorizing a keyword is wrong because ${topic} questions often ask for the mechanism behind the keyword instead.`,
+    `Giving an intermediate value instead of the final answer is wrong because the correction depends on whether the prompt asks for gross or net outcome.`,
+  ],
+  example: `${topic} can be checked by asking what changes, where it changes, and what final output remains.`,
+  steps: ['Name the location.', 'Trace the mechanism.', 'State the final outcome.'],
+  why_it_matters: `${topic} matters because it supports later questions that combine definitions, mechanisms, and distractor elimination.`,
+});
+
 describe('aiCore', () => {
   it('builds shared note-style instructions for natural notes without exam-question filler', () => {
     const instructions = buildNaturalNoteStyleInstructions({ includeKeyConcepts: true });
@@ -317,6 +356,7 @@ describe('aiCore', () => {
                 success: 'That lands exactly where it should.',
                 struggle: 'Let me narrow the frame.',
               },
+              teaching: makeStrongTeaching('glycolysis'),
               transitions: {
                 on_correct: null,
                 on_partial: 'retry',
@@ -512,6 +552,7 @@ describe('aiCore', () => {
                 success: 'That lands exactly where it should.',
                 struggle: 'Let me narrow the frame.',
               },
+              teaching: makeStrongTeaching('mitosis'),
               transitions: {
                 on_correct: null,
                 on_partial: 'retry',

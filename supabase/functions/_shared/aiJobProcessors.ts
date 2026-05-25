@@ -4,6 +4,7 @@ import {
   buildGuideContents,
   consumeAiQuota,
   createHttpError,
+  assertTutorSessionQuality,
   parseAiJsonResponse,
 } from './aiCore.mjs';
 import { createAiClient, contentsToMessages, type AiClient, type AiMessage, type AiResponseFormat } from './aiClient.ts';
@@ -1051,7 +1052,7 @@ const processYoutubeDerivedJob = async ({
     primaryModel: modelMap.final,
     fallbackModel: modelMap.final,
     messages: guideMessages,
-    maxTokens: 6144,
+    maxTokens: 8192,
   });
 
   let fullGuideText = '';
@@ -1083,6 +1084,7 @@ const processYoutubeDerivedJob = async ({
   if (!guideData) {
     throw createHttpError('AI failed to generate a valid tutor session.', 500);
   }
+  assertTutorSessionQuality(guideData);
 
   const guideContent = buildStudyGuideSummaryDoc(guideData);
   const studyState = createDefaultStudyGuideState(guideData);
