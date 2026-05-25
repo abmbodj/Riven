@@ -360,11 +360,11 @@ function DesktopBoardTeacher({
         boardWidth: 900,
         boardHeight: 540,
         teacherWidth: 224,
-        left: 658,
+        left: 690,
         top: 124,
-        path: 'M704 254 L548 230',
-        stickStartX: 704,
-        stickStartY: 254,
+        path: 'M745 261 L548 230',
+        stickStartX: 745,
+        stickStartY: 261,
         pointerEndX: 548,
         pointerEndY: 230,
         perchLeft: 36,
@@ -398,23 +398,29 @@ function DesktopBoardTeacher({
             const boardLeft = boardRect?.left || 0;
             const leftViewportLimit = 72 - boardLeft;
             const rightViewportLimit = viewportWidth - boardLeft - teacherWidth - 12;
+            const handOffsetX = teacherWidth * 0.245;
+            const handOffsetY = teacherWidth * 0.61;
+            const minStickReach = clamp(teacherWidth * 0.48, 98, 124);
             const preferredLeft = side === 'left'
                 ? -teacherWidth * 0.26
-                : boardWidth - teacherWidth * 1.08;
+                : boardWidth - teacherWidth * 0.94;
             const textSafeLeft = side === 'left'
                 ? Math.min(-teacherWidth * 0.18, targetLeft - teacherWidth - 18)
                 : targetRight + 20;
+            const reachSafeLeft = targetRight + 10 + minStickReach - handOffsetX;
+            const rightSafeLeft = Math.min(Math.max(textSafeLeft, reachSafeLeft), rightViewportLimit);
+            const rightPreferredLeft = Math.min(Math.max(preferredLeft, rightSafeLeft), rightViewportLimit);
             const left = side === 'left'
                 ? clamp(preferredLeft, leftViewportLimit, textSafeLeft)
-                : clamp(preferredLeft, Math.min(textSafeLeft, rightViewportLimit), rightViewportLimit);
+                : clamp(rightPreferredLeft, rightSafeLeft, rightViewportLimit);
             const targetY = targetRect?.height ? targetCenterY : top + (teacherHeight * 0.42);
             const startX = side === 'left'
                 ? left + (teacherWidth * 0.8)
-                : left + (teacherWidth * 0.2);
-            const startY = clamp(top + (teacherWidth * 0.58), 82, boardHeight - 72);
+                : left + handOffsetX;
+            const startY = clamp(top + handOffsetY, 82, boardHeight - 72);
             const endX = side === 'left'
                 ? Math.max(startX + 42, targetLeft - 8)
-                : Math.min(startX - 36, targetRight + 18);
+                : targetRight + 10;
             const endY = clamp(targetY, 78, boardHeight - 74);
             const path = `M${startX.toFixed(1)} ${startY.toFixed(1)} L${endX.toFixed(1)} ${endY.toFixed(1)}`;
             const edgeWithinRig = side === 'left' ? -left : boardWidth - left;
@@ -466,10 +472,10 @@ function DesktopBoardTeacher({
         const uy = dy / length;
         const px = -uy;
         const py = ux;
-        const startRadius = 6.2;
-        const endRadius = 3.4;
-        const handleRadius = 7.4;
-        const bandDistance = 15;
+        const startRadius = 3.6;
+        const endRadius = 2.2;
+        const handleRadius = 4.8;
+        const bandDistance = 10;
         const bodyPath = [
             `M${(startX + px * startRadius).toFixed(1)} ${(startY + py * startRadius).toFixed(1)}`,
             `L${(endX + px * endRadius).toFixed(1)} ${(endY + py * endRadius).toFixed(1)}`,
@@ -526,7 +532,7 @@ function DesktopBoardTeacher({
                         animate={{ opacity: 1 }}
                         transition={{ duration: reduceMotion ? 0 : 0.3, ease: PANEL_EASE }}
                         style={{
-                            transform: 'translate3d(2px, 3px, 0)',
+                            transform: 'translate3d(1.2px, 1.8px, 0)',
                         }}
                     />
                     <motion.path
@@ -535,7 +541,7 @@ function DesktopBoardTeacher({
                         d={stickGeometry.bodyPath}
                         fill="url(#river-pointer-wood)"
                         stroke="rgba(67,37,21,0.86)"
-                        strokeWidth="0.9"
+                        strokeWidth="0.55"
                         initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: reduceMotion ? 0 : 0.34, ease: PANEL_EASE }}
@@ -550,7 +556,7 @@ function DesktopBoardTeacher({
                         d={stickGeometry.grainPath}
                         fill="none"
                         stroke="rgba(83,42,18,0.36)"
-                        strokeWidth="1"
+                        strokeWidth="0.65"
                         strokeLinecap="round"
                         initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
                         animate={{ pathLength: 1, opacity: 0.82 }}
@@ -571,12 +577,13 @@ function DesktopBoardTeacher({
                     />
                     <motion.circle
                         key={`handle-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                        data-testid="desktop-board-teacher-stick-handle"
                         cx={placement.stickStartX}
                         cy={placement.stickStartY}
                         r={stickGeometry.handleRadius}
                         fill="rgba(83,48,28,0.96)"
                         stroke="rgba(214,150,79,0.55)"
-                        strokeWidth="1.4"
+                        strokeWidth="0.8"
                         initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: reduceMotion ? 0 : 0.28, ease: PANEL_EASE }}

@@ -405,7 +405,11 @@ describe('GuideView', () => {
     const woodenStick = within(boardTeacher).getByTestId('desktop-board-teacher-stick');
     expect(woodenStick).toBeInTheDocument();
     expect(woodenStick).toHaveAttribute('fill', 'url(#river-pointer-wood)');
+    expect(woodenStick.getAttribute('stroke-width') || woodenStick.getAttribute('strokeWidth')).toBe('0.55');
+    expect(woodenStick.getAttribute('stroke-dasharray') || woodenStick.getAttribute('strokeDasharray')).toBeNull();
     expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick-tip')).toBeInTheDocument();
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick-handle')).toBeInTheDocument();
+    expect(within(boardTeacher).queryByTestId('desktop-board-teacher-chalk-dot')).not.toBeInTheDocument();
     expect(teacherRig.getAttribute('style') || '').not.toContain('clip-path');
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-variant', 'board-teacher');
