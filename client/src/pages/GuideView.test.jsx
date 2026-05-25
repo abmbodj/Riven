@@ -389,12 +389,31 @@ describe('GuideView', () => {
 
     const teach = await screen.findByTestId('river-session-teach');
     const boardTeacher = within(teach).getByTestId('desktop-board-teacher');
+    const boardFrame = within(teach).getByTestId('river-board-frame');
+    const boardSurface = within(teach).getByTestId('river-board-surface');
+    const boardContent = within(teach).getByTestId('river-board-content');
     expect(boardTeacher).toBeInTheDocument();
+    expect(boardFrame).not.toContainElement(boardTeacher);
+    expect(boardSurface).not.toContainElement(boardTeacher);
+    expect(boardContent.className).not.toContain('lg:px-[10rem]');
+    expect(boardContent.className).not.toContain('xl:px-[12rem]');
+    expect(boardTeacher).toHaveAttribute('data-river-side', 'right');
+    const teacherRig = within(boardTeacher).getByTestId('desktop-board-teacher-rig');
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-perch')).toBeInTheDocument();
+    expect(within(boardTeacher).queryByTestId('desktop-board-teacher-grip')).not.toBeInTheDocument();
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-pointer')).toBeInTheDocument();
+    const woodenStick = within(boardTeacher).getByTestId('desktop-board-teacher-stick');
+    expect(woodenStick).toBeInTheDocument();
+    expect(woodenStick).toHaveAttribute('fill', 'url(#river-pointer-wood)');
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick-tip')).toBeInTheDocument();
+    expect(teacherRig.getAttribute('style') || '').not.toContain('clip-path');
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-variant', 'board-teacher');
 
     let activeTarget = teach.querySelector('[data-current-teach-target="true"]');
     expect(activeTarget).toHaveTextContent(/A system design is a map/i);
+    expect(activeTarget.className).not.toContain('-mx-3');
+    expect(activeTarget.className).not.toContain('px-3');
 
     fireEvent.click(within(teach).getByRole('button', { name: /Continue.*The Why/i }));
 

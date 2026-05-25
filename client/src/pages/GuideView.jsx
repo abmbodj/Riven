@@ -345,19 +345,8 @@ const getPrefersReducedMotion = () => (
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 );
 
-const getBoardTeacherCaption = (caption, activeSection) => {
-    const sectionLabel = activeSection?.type === 'worked_example'
-        ? 'this example'
-        : activeSection?.label?.toLowerCase();
-    const fallback = sectionLabel ? `Pointing to ${sectionLabel}.` : 'Pointing to this part.';
-    const trimmed = typeof caption === 'string' ? caption.trim() : '';
-    if (!trimmed || trimmed.length > 86) return fallback;
-    return trimmed;
-};
-
 function DesktopBoardTeacher({
     state,
-    caption,
     boardRef,
     targetRef,
     activeSection,
@@ -366,18 +355,22 @@ function DesktopBoardTeacher({
 }) {
     const visualBudgetConstrained = useMobileVisualBudget();
     const reduceMotion = visualBudgetConstrained || getPrefersReducedMotion();
-    const side = activeSection?.type === 'explain'
-        ? 'left'
-        : (sectionIndex % 2 === 0 ? 'left' : 'right');
+    const side = 'right';
     const [placement, setPlacement] = useState(() => ({
         boardWidth: 900,
         boardHeight: 540,
-        teacherWidth: 178,
-        left: 18,
-        top: 172,
-        path: 'M158 308 C232 286 286 244 348 220',
+        teacherWidth: 224,
+        left: 658,
+        top: 124,
+        path: 'M704 254 L548 230',
+        stickStartX: 704,
+        stickStartY: 254,
+        pointerEndX: 548,
+        pointerEndY: 230,
+        perchLeft: 36,
+        perchTop: 184,
+        perchWidth: 184,
     }));
-    const teacherCaption = getBoardTeacherCaption(caption, activeSection);
 
     useEffect(() => {
         let raf = 0;
@@ -389,35 +382,47 @@ function DesktopBoardTeacher({
             const targetRect = target?.getBoundingClientRect?.();
             const boardWidth = Math.max(boardRect?.width || 900, 480);
             const boardHeight = Math.max(boardRect?.height || 540, 420);
-            const teacherWidth = Math.min(190, Math.max(158, boardWidth * 0.18));
-            const teacherHeight = teacherWidth * 1.35;
-            const gutter = Math.max(14, Math.min(26, boardWidth * 0.02));
+            const teacherWidth = Math.min(244, Math.max(212, boardWidth * 0.2));
+            const teacherHeight = teacherWidth * 1.04;
             const targetCenterY = targetRect?.height
                 ? targetRect.top - (boardRect?.top || 0) + (targetRect.height / 2)
                 : 170 + (sectionIndex * 92);
-            const top = clamp(targetCenterY - (teacherHeight * 0.44), 96, Math.max(96, boardHeight - teacherHeight - 64));
-            const left = side === 'left'
-                ? gutter
-                : boardWidth - teacherWidth - gutter;
+            const top = clamp(targetCenterY - (teacherHeight * 0.52), 24, Math.max(24, boardHeight - teacherHeight - 26));
             const targetLeft = targetRect?.width
                 ? targetRect.left - (boardRect?.left || 0)
                 : boardWidth * 0.38;
             const targetRight = targetRect?.width
                 ? targetRect.right - (boardRect?.left || 0)
                 : boardWidth * 0.64;
+            const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : (boardRect?.right || boardWidth) + 24;
+            const boardLeft = boardRect?.left || 0;
+            const leftViewportLimit = 72 - boardLeft;
+            const rightViewportLimit = viewportWidth - boardLeft - teacherWidth - 12;
+            const preferredLeft = side === 'left'
+                ? -teacherWidth * 0.26
+                : boardWidth - teacherWidth * 1.08;
+            const textSafeLeft = side === 'left'
+                ? Math.min(-teacherWidth * 0.18, targetLeft - teacherWidth - 18)
+                : targetRight + 20;
+            const left = side === 'left'
+                ? clamp(preferredLeft, leftViewportLimit, textSafeLeft)
+                : clamp(preferredLeft, Math.min(textSafeLeft, rightViewportLimit), rightViewportLimit);
             const targetY = targetRect?.height ? targetCenterY : top + (teacherHeight * 0.42);
             const startX = side === 'left'
-                ? left + (teacherWidth * 0.82)
-                : left + (teacherWidth * 0.18);
-            const startY = top + (teacherHeight * 0.42);
+                ? left + (teacherWidth * 0.8)
+                : left + (teacherWidth * 0.2);
+            const startY = clamp(top + (teacherWidth * 0.58), 82, boardHeight - 72);
             const endX = side === 'left'
-                ? Math.max(startX + 56, targetLeft + 4)
-                : Math.min(startX - 56, targetRight - 4);
+                ? Math.max(startX + 42, targetLeft - 8)
+                : Math.min(startX - 36, targetRight + 18);
             const endY = clamp(targetY, 78, boardHeight - 74);
-            const controlX = side === 'left'
-                ? startX + Math.max(72, (endX - startX) * 0.5)
-                : startX - Math.max(72, (startX - endX) * 0.5);
-            const path = `M${startX.toFixed(1)} ${startY.toFixed(1)} C${controlX.toFixed(1)} ${startY.toFixed(1)} ${controlX.toFixed(1)} ${endY.toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+            const path = `M${startX.toFixed(1)} ${startY.toFixed(1)} L${endX.toFixed(1)} ${endY.toFixed(1)}`;
+            const edgeWithinRig = side === 'left' ? -left : boardWidth - left;
+            const perchWidth = clamp(teacherWidth * 0.84, 168, 208);
+            const perchLeft = side === 'left'
+                ? edgeWithinRig - 34
+                : edgeWithinRig - perchWidth + 34;
+            const perchTop = teacherWidth * 0.82;
 
             setPlacement({
                 boardWidth,
@@ -426,6 +431,13 @@ function DesktopBoardTeacher({
                 left,
                 top,
                 path,
+                stickStartX: startX,
+                stickStartY: startY,
+                pointerEndX: endX,
+                pointerEndY: endY,
+                perchLeft,
+                perchTop,
+                perchWidth,
             });
         };
 
@@ -442,74 +454,202 @@ function DesktopBoardTeacher({
         };
     }, [activeSection?.key, activeSection?.type, boardRef, revealIndex, sectionIndex, side, targetRef]);
 
+    const stickGeometry = useMemo(() => {
+        const startX = placement.stickStartX;
+        const startY = placement.stickStartY;
+        const endX = placement.pointerEndX;
+        const endY = placement.pointerEndY;
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const ux = dx / length;
+        const uy = dy / length;
+        const px = -uy;
+        const py = ux;
+        const startRadius = 6.2;
+        const endRadius = 3.4;
+        const handleRadius = 7.4;
+        const bandDistance = 15;
+        const bodyPath = [
+            `M${(startX + px * startRadius).toFixed(1)} ${(startY + py * startRadius).toFixed(1)}`,
+            `L${(endX + px * endRadius).toFixed(1)} ${(endY + py * endRadius).toFixed(1)}`,
+            `Q${endX.toFixed(1)} ${endY.toFixed(1)} ${(endX - px * endRadius).toFixed(1)} ${(endY - py * endRadius).toFixed(1)}`,
+            `L${(startX - px * startRadius).toFixed(1)} ${(startY - py * startRadius).toFixed(1)}`,
+            `Q${startX.toFixed(1)} ${startY.toFixed(1)} ${(startX + px * startRadius).toFixed(1)} ${(startY + py * startRadius).toFixed(1)}Z`,
+        ].join(' ');
+        const grainPath = [
+            `M${(startX + px * 2.1 + ux * 4).toFixed(1)} ${(startY + py * 2.1 + uy * 4).toFixed(1)}`,
+            `L${(endX + px * 1.1 - ux * 7).toFixed(1)} ${(endY + py * 1.1 - uy * 7).toFixed(1)}`,
+            `M${(startX - px * 1.8 + ux * 7).toFixed(1)} ${(startY - py * 1.8 + uy * 7).toFixed(1)}`,
+            `L${(endX - px * 0.8 - ux * 12).toFixed(1)} ${(endY - py * 0.8 - uy * 12).toFixed(1)}`,
+        ].join(' ');
+        const tipBandPath = [
+            `M${(endX - ux * bandDistance + px * endRadius).toFixed(1)} ${(endY - uy * bandDistance + py * endRadius).toFixed(1)}`,
+            `L${(endX + px * endRadius).toFixed(1)} ${(endY + py * endRadius).toFixed(1)}`,
+            `Q${endX.toFixed(1)} ${endY.toFixed(1)} ${(endX - px * endRadius).toFixed(1)} ${(endY - py * endRadius).toFixed(1)}`,
+            `L${(endX - ux * bandDistance - px * endRadius).toFixed(1)} ${(endY - uy * bandDistance - py * endRadius).toFixed(1)}Z`,
+        ].join(' ');
+        return {
+            bodyPath,
+            grainPath,
+            tipBandPath,
+            handleRadius,
+        };
+    }, [placement.pointerEndX, placement.pointerEndY, placement.stickStartX, placement.stickStartY]);
+
     return (
         <div
-            className="pointer-events-none absolute inset-0 z-20 hidden lg:block"
+            className="pointer-events-none absolute inset-0 z-20 hidden overflow-visible lg:block"
+            data-river-side={side}
             data-testid="desktop-board-teacher"
         >
             <svg
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full overflow-visible"
+                className="absolute inset-0 z-20 h-full w-full overflow-visible"
                 viewBox={`0 0 ${placement.boardWidth} ${placement.boardHeight}`}
                 preserveAspectRatio="none"
             >
-                <motion.path
-                    key={`${activeSection?.key || 'section'}-${revealIndex}-${side}`}
-                    d={placement.path}
-                    fill="none"
-                    stroke="rgba(238,225,190,0.74)"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeDasharray="6 8"
-                    initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.48, ease: PANEL_EASE }}
-                    style={{
-                        filter: 'drop-shadow(0 0 6px rgba(222,185,106,0.28))',
-                    }}
-                />
+                <defs>
+                    <linearGradient id="river-pointer-wood" x1="0%" x2="100%" y1="0%" y2="0%">
+                        <stop offset="0%" stopColor="#6f3f22" />
+                        <stop offset="42%" stopColor="#b8783e" />
+                        <stop offset="72%" stopColor="#d29a58" />
+                        <stop offset="100%" stopColor="#7b4525" />
+                    </linearGradient>
+                </defs>
+                <g data-testid="desktop-board-teacher-pointer">
+                    <motion.path
+                        key={`stick-shadow-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                        d={stickGeometry.bodyPath}
+                        fill="rgba(27,16,10,0.38)"
+                        initial={reduceMotion ? false : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.3, ease: PANEL_EASE }}
+                        style={{
+                            transform: 'translate3d(2px, 3px, 0)',
+                        }}
+                    />
+                    <motion.path
+                        key={`stick-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                        data-testid="desktop-board-teacher-stick"
+                        d={stickGeometry.bodyPath}
+                        fill="url(#river-pointer-wood)"
+                        stroke="rgba(67,37,21,0.86)"
+                        strokeWidth="0.9"
+                        initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.34, ease: PANEL_EASE }}
+                        style={{
+                            filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.26))',
+                            transformBox: 'fill-box',
+                            transformOrigin: side === 'left' ? 'left center' : 'right center',
+                        }}
+                    />
+                    <motion.path
+                        key={`stick-highlight-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                        d={stickGeometry.grainPath}
+                        fill="none"
+                        stroke="rgba(83,42,18,0.36)"
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                        initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+                        animate={{ pathLength: 1, opacity: 0.82 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.5, ease: PANEL_EASE }}
+                    />
+                    <motion.path
+                        key={`tip-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                        data-testid="desktop-board-teacher-stick-tip"
+                        d={stickGeometry.tipBandPath}
+                        fill="rgba(66,38,22,0.96)"
+                        initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.32, ease: PANEL_EASE, delay: 0.05 }}
+                        style={{
+                            transformBox: 'fill-box',
+                            transformOrigin: 'center',
+                        }}
+                    />
+                    <motion.circle
+                        key={`handle-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                        cx={placement.stickStartX}
+                        cy={placement.stickStartY}
+                        r={stickGeometry.handleRadius}
+                        fill="rgba(83,48,28,0.96)"
+                        stroke="rgba(214,150,79,0.55)"
+                        strokeWidth="1.4"
+                        initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.28, ease: PANEL_EASE }}
+                        style={{
+                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.32))',
+                            transformBox: 'fill-box',
+                            transformOrigin: 'center',
+                        }}
+                    />
+                </g>
             </svg>
 
             <motion.div
-                className="absolute left-0 top-0"
+                className="absolute left-0 top-0 z-30"
+                data-testid="desktop-board-teacher-rig"
                 style={{ width: placement.teacherWidth }}
                 initial={reduceMotion ? false : { opacity: 0, x: placement.left, y: placement.top + 10 }}
                 animate={{ opacity: 1, x: placement.left, y: placement.top }}
-                transition={{ duration: reduceMotion ? 0 : 0.5, ease: PANEL_EASE }}
+                transition={{ duration: reduceMotion ? 0 : 0.58, ease: PANEL_EASE }}
             >
-                {teacherCaption ? (
-                    <motion.div
-                        className="mb-1 max-h-[74px] overflow-hidden rounded-xl border px-3 py-2 text-left"
-                        initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.28, ease: PANEL_EASE }}
-                        style={{
-                            borderColor: 'rgba(222,185,106,0.24)',
-                            background: 'linear-gradient(180deg,rgba(238,225,190,0.16),rgba(29,52,42,0.64))',
-                            boxShadow: '0 12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08)',
-                        }}
-                    >
-                        <p className="font-mono text-[9px] uppercase tracking-[0.2em]" style={{ color: 'rgba(222,185,106,0.82)' }}>
-                            River
-                        </p>
-                        <p className="mt-1 text-[12px] leading-5" style={{ color: '#e8dcc8' }}>
-                            {teacherCaption}
-                        </p>
-                    </motion.div>
-                ) : null}
                 <div
+                    data-testid="desktop-board-teacher-perch"
+                    className="absolute z-0 h-[20px] overflow-visible rounded-[0.42rem] border"
                     style={{
-                        transform: side === 'right' ? 'scaleX(-1)' : undefined,
-                        transformOrigin: 'center',
+                        width: placement.perchWidth,
+                        transform: `translate3d(${placement.perchLeft}px, ${placement.perchTop}px, 0)`,
+                        borderColor: 'rgba(222,185,106,0.28)',
+                        background: 'linear-gradient(180deg,rgba(126,84,55,0.98),rgba(72,44,29,0.98))',
+                        boxShadow: '0 12px 18px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,234,189,0.24), inset 0 -4px 7px rgba(0,0,0,0.28)',
                     }}
                 >
-                    <RiverMascot
-                        state={state}
-                        compact
-                        variant="board-teacher"
-                        className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.34)]"
+                    <span
+                        aria-hidden="true"
+                        className="absolute left-[12%] top-[-12px] h-[20px] w-[72%] rounded-full"
+                        style={{ background: 'radial-gradient(ellipse,rgba(0,0,0,0.34),transparent 72%)' }}
+                    />
+                    <span
+                        aria-hidden="true"
+                        className="absolute inset-x-3 top-[4px] h-px"
+                        style={{ background: 'linear-gradient(90deg,transparent,rgba(255,235,190,0.34),transparent)' }}
+                    />
+                    <span
+                        aria-hidden="true"
+                        className="absolute bottom-[-5px] h-[7px] w-[26px] rounded-b-md"
+                        style={{
+                            [side === 'left' ? 'left' : 'right']: '18px',
+                            background: 'linear-gradient(180deg,rgba(76,47,31,0.92),rgba(35,22,16,0.96))',
+                        }}
                     />
                 </div>
+
+                <motion.div
+                    className="relative z-10"
+                    animate={reduceMotion
+                        ? { x: 0, y: 0, rotate: 0, scale: 1 }
+                        : { x: [0, 1.2, 0], y: [0, -1.2, 0], rotate: [0, -0.7, 0], scale: [1, 1.006, 1] }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: PANEL_EASE }}
+                    style={{ transformOrigin: '50% 84%' }}
+                >
+                    <div
+                        style={{
+                            transform: side === 'right' ? 'scaleX(-1)' : undefined,
+                            transformOrigin: 'center',
+                        }}
+                    >
+                        <RiverMascot
+                            state={state}
+                            compact
+                            variant="board-teacher"
+                            className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.34)]"
+                        />
+                    </div>
+                </motion.div>
             </motion.div>
         </div>
     );
@@ -562,7 +702,7 @@ export default function GuideView() {
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
     const sectionRefs = useRef({});
-    const boardSurfaceRef = useRef(null);
+    const boardFrameRef = useRef(null);
     const activeTeachTargetRef = useRef(null);
     const scrollRafRef = useRef(null);
     const hasSeenRevealHint = useRef(localStorage.getItem('riven_reveal_hint_seen') === '1');
@@ -2097,11 +2237,23 @@ export default function GuideView() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, ease: PANEL_EASE }}
                     >
-                        {/* Wooden frame */}
-                        <div
-                            className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
-                            style={BOARD_FRAME_STYLE}
-                        >
+                        <div className="relative overflow-visible" data-testid="river-board-stage">
+                            <DesktopBoardTeacher
+                                state={riverState}
+                                boardRef={boardFrameRef}
+                                targetRef={activeTeachTargetRef}
+                                activeSection={currentTeachSectionMeta}
+                                sectionIndex={teachSection}
+                                revealIndex={explainRevealed}
+                            />
+
+                            {/* Wooden frame */}
+                            <div
+                                ref={boardFrameRef}
+                                data-testid="river-board-frame"
+                                className="relative z-10 overflow-hidden rounded-[1rem] sm:rounded-[1.25rem]"
+                                style={BOARD_FRAME_STYLE}
+                            >
                             {/* Wood grain texture */}
                             <div
                                 className="pointer-events-none absolute inset-0 opacity-[0.12]"
@@ -2110,7 +2262,7 @@ export default function GuideView() {
 
                             {/* Chalkboard surface */}
                             <div
-                                ref={boardSurfaceRef}
+                                data-testid="river-board-surface"
                                 className="relative rounded-[0.5rem] sm:rounded-[0.75rem] px-5 py-6 sm:px-8 sm:py-8"
                                 style={BOARD_SURFACE_STYLE}
                             >
@@ -2126,18 +2278,8 @@ export default function GuideView() {
                                     style={BOARD_TRAY_STYLE}
                                 />
 
-                                <DesktopBoardTeacher
-                                    state={riverState}
-                                    caption={teachRevealCaption}
-                                    boardRef={boardSurfaceRef}
-                                    targetRef={activeTeachTargetRef}
-                                    activeSection={currentTeachSectionMeta}
-                                    sectionIndex={teachSection}
-                                    revealIndex={explainRevealed}
-                                />
-
                                 {/* Section progress header */}
-                                <div className="relative z-10 mb-6 sm:mb-8 lg:px-[10rem] xl:px-[12rem]">
+                                <div className="relative z-10 mb-6 sm:mb-8" data-testid="river-board-header">
                                     <div className="min-w-0 pt-1">
                                     <p
                                         className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.2em]"
@@ -2172,7 +2314,7 @@ export default function GuideView() {
                                 </div>
 
                                 {/* ── Lecture sections ── */}
-                                <div className="relative z-10 space-y-6 lg:px-[10rem] xl:px-[12rem]">
+                                <div className="relative z-10 space-y-6" data-testid="river-board-content">
                                     {teachSections.map((section, sectionIndex) => {
                                         if (sectionIndex > teachSection) return null;
                                         const isActiveSectionTarget = sectionIndex === teachSection && section.type !== 'explain';
@@ -2185,14 +2327,9 @@ export default function GuideView() {
                                                     if (isActiveSectionTarget) activeTeachTargetRef.current = el;
                                                 }}
                                                 data-current-teach-target={isActiveSectionTarget ? 'true' : undefined}
-                                                className={isActiveSectionTarget ? 'relative -m-3 rounded-2xl p-3' : undefined}
                                                 initial={{ opacity: 0, y: 12 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ duration: 0.5, ease: PANEL_EASE }}
-                                                style={isActiveSectionTarget ? {
-                                                    background: 'linear-gradient(90deg,rgba(238,225,190,0.055),rgba(222,185,106,0.025),transparent)',
-                                                    boxShadow: 'inset 4px 0 0 rgba(238,225,190,0.18), 0 0 28px rgba(222,185,106,0.08)',
-                                                } : undefined}
                                             >
                                                 {/* Section label */}
                                                 <div className="flex items-center gap-3 mb-3">
@@ -2217,7 +2354,7 @@ export default function GuideView() {
                                                                         if (isCurrent) activeTeachTargetRef.current = el;
                                                                     }}
                                                                     data-current-teach-target={isCurrent ? 'true' : undefined}
-                                                                    className={`text-[15px] sm:text-base leading-[1.8] max-w-[72ch] transition-[color,opacity,background,box-shadow] duration-500 ease-out ${isCurrent ? '-mx-3 rounded-xl px-3 py-2' : ''}`}
+                                                                    className="text-[15px] sm:text-base leading-[1.8] max-w-[72ch] transition-[color,opacity] duration-500 ease-out"
                                                                     initial={{ opacity: 0, y: 8 }}
                                                                     animate={{ opacity: 1, y: 0 }}
                                                                     transition={{ duration: 0.45, ease: PANEL_EASE }}
@@ -2225,12 +2362,6 @@ export default function GuideView() {
                                                                         color: isCurrent
                                                                             ? '#e8dcc8'
                                                                             : 'color-mix(in oklab, #d4ccb8 55%, transparent)',
-                                                                        background: isCurrent
-                                                                            ? 'linear-gradient(90deg,rgba(238,225,190,0.08),rgba(222,185,106,0.035),transparent)'
-                                                                            : undefined,
-                                                                        boxShadow: isCurrent
-                                                                            ? 'inset 0 -2px 0 rgba(238,225,190,0.24), 0 0 24px rgba(222,185,106,0.08)'
-                                                                            : undefined,
                                                                     }}
                                                                 >
                                                                     <SubjectRenderer content={paragraph} inline />
@@ -2499,7 +2630,7 @@ export default function GuideView() {
 
                                 {/* ── Bottom actions ── */}
                                 <div
-                                    className="sticky bottom-0 z-30 -mx-5 mt-8 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0 lg:mx-[10rem] lg:px-0 xl:mx-[12rem]"
+                                    className="sticky bottom-0 z-30 -mx-5 mt-8 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
                                     style={{ backgroundColor: 'rgba(22, 48, 36, 0.97)', backdropFilter: 'blur(8px)' }}
                                 >
                                     <button
@@ -2541,6 +2672,7 @@ export default function GuideView() {
                                     </button>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     </motion.section>
                     ) : (

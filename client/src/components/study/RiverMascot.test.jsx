@@ -83,6 +83,7 @@ describe('RiverMascot', () => {
         expect(mascot).toHaveAttribute('aria-label', 'River is pointing something out');
         expect(container.querySelector('img[src="/river-background.svg"]')).toBeNull();
         expect(container.querySelector('[data-river-feature="speech-bubble"]')).toBeNull();
+        expect(container.querySelector('[data-river-feature="lily-pad"]')).toBeNull();
         expect(container.querySelector('[data-river-feature="belly"]')).toBeTruthy();
         expect(container.querySelector('[data-river-feature="forelimb-right"]')).toBeTruthy();
     });
