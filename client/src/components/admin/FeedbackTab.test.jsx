@@ -46,6 +46,29 @@ describe('FeedbackTab', () => {
     expect(onDelete).toHaveBeenCalledWith(11);
   });
 
+  it('shows a retryable error state instead of the empty inbox', () => {
+    const onRetry = vi.fn();
+
+    render(
+      <FeedbackTab
+        feedback={[]}
+        loadError="feedback_submissions missing"
+        onRetry={onRetry}
+        onToggleFavorite={vi.fn()}
+        onDelete={vi.fn()}
+        onThank={vi.fn()}
+        haptics={haptics}
+      />
+    );
+
+    expect(screen.getByText(/could not load feedback/i)).toBeInTheDocument();
+    expect(screen.getByText(/feedback_submissions missing/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no feedback yet/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
   it('locks the thank action once feedback was already acknowledged', () => {
     render(
       <FeedbackTab

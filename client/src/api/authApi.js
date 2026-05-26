@@ -4613,10 +4613,16 @@ export const adminDeleteMessage = (id) => callAdminEndpoint({
     body: { messageId: id },
 });
 
-export const adminGetFeedback = () => safeFetchArray(callAdminEndpoint({
-    method: 'GET',
-    action: 'feedback',
-}));
+export const adminGetFeedback = async () => {
+    const data = await callAdminEndpoint({
+        method: 'GET',
+        action: 'feedback',
+    });
+    if (!Array.isArray(data)) {
+        throw new Error('Unexpected admin feedback payload');
+    }
+    return data;
+};
 export const adminToggleFeedbackFavorite = (feedbackId, isFavorited) => callAdminEndpoint({
     method: 'PUT',
     action: 'feedback-favorite',

@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import Inbox from 'lucide-react/dist/esm/icons/inbox';
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import Send from 'lucide-react/dist/esm/icons/send';
 import Star from 'lucide-react/dist/esm/icons/star';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
@@ -16,7 +18,44 @@ const formatSubmittedAt = (value) => {
     });
 };
 
-export default function FeedbackTab({ feedback = [], onToggleFavorite, onDelete, onThank, haptics }) {
+export default function FeedbackTab({
+    feedback = [],
+    loadError = null,
+    onRetry,
+    onToggleFavorite,
+    onDelete,
+    onThank,
+    haptics,
+}) {
+    if (loadError) {
+        return (
+            <div className="relative overflow-hidden rounded-[2rem] border border-red-500/25 bg-red-500/5 px-6 py-16 text-center">
+                <div className="relative z-10">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/25 bg-red-500/10">
+                        <AlertCircle className="h-7 w-7 text-red-400" />
+                    </div>
+                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-red-400">
+                        Could not load feedback
+                    </p>
+                    <p className="mt-3 text-sm text-claude-secondary/80">{loadError}</p>
+                    {onRetry && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                haptics?.light();
+                                onRetry();
+                            }}
+                            className="tap-action mt-6 inline-flex items-center justify-center gap-2 rounded-[1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.97]"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            Retry
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     if (feedback.length === 0) {
         return (
             <div className="relative overflow-hidden rounded-[2rem] border border-dashed border-claude-border/60 px-6 py-16 text-center">

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminPanel from './AdminPanel.jsx';
@@ -97,9 +97,10 @@ vi.mock('../components/admin/BroadcastsTab', () => ({
   default: () => <div>Broadcasts Content</div>,
 }));
 
-vi.mock('../components/admin/FeedbackTab', () => ({
-  default: () => <div>Feedback Content</div>,
-}));
+vi.mock('../components/admin/FeedbackTab', async () => {
+  const { default: FeedbackTab } = await vi.importActual('../components/admin/FeedbackTab.jsx');
+  return { default: FeedbackTab };
+});
 
 vi.mock('../components/admin/AccountTab', () => ({
   default: () => <div>Account Content</div>,
@@ -146,5 +147,23 @@ describe('AdminPanel feedback access', () => {
 
     expect(screen.queryByRole('button', { name: /feedback/i })).not.toBeInTheDocument();
     expect(adminGetFeedback).not.toHaveBeenCalled();
+  });
+
+  it('shows a feedback load error instead of an empty inbox when the fetch fails', async () => {
+    adminGetFeedback.mockRejectedValue(
+      Object.assign(new Error('feedback_submissions missing'), { status: 500 })
+    );
+
+    renderAdminPanel();
+
+    await waitFor(() => {
+      expect(adminGetFeedback).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /feedback/i }));
+
+    expect(await screen.findByText(/could not load feedback/i)).toBeInTheDocument();
+    expect(screen.getByText(/feedback_submissions missing/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no feedback yet/i)).not.toBeInTheDocument();
   });
 });

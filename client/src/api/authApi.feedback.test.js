@@ -90,6 +90,31 @@ describe('authApi feedback and notification methods', () => {
     }));
   });
 
+  it('throws when the admin feedback list request fails', async () => {
+    const edgeToken = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(edgeToken);
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: edgeToken,
+        },
+      },
+    });
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      headers: {
+        get: () => 'application/json',
+      },
+      text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'feedback_submissions missing' })),
+    });
+
+    await expect(authApi.adminGetFeedback()).rejects.toMatchObject({
+      status: 500,
+      message: 'feedback_submissions missing',
+    });
+  });
+
   it('loads feedback moderation rows through the admin edge function', async () => {
     const edgeToken = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
     authApi.setToken(edgeToken);

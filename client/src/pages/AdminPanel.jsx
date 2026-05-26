@@ -56,6 +56,7 @@ export default function AdminPanel() {
     const [users, setUsers] = useState([]);
     const [messages, setMessages] = useState([]);
     const [feedback, setFeedback] = useState([]);
+    const [feedbackLoadError, setFeedbackLoadError] = useState(null);
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -106,18 +107,58 @@ export default function AdminPanel() {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         try {
-            const [statsData, usersData, messagesData, feedbackData, reportsData] = await Promise.all([
+            const [
+                statsResult,
+                usersResult,
+                messagesResult,
+                feedbackResult,
+                reportsResult,
+            ] = await Promise.allSettled([
                 adminGetStats(),
                 getAllUsers(),
                 adminGetMessages(),
                 isOwner ? adminGetFeedback() : Promise.resolve([]),
-                adminGetReports()
+                adminGetReports(),
             ]);
-            setStats(statsData);
-            setUsers(usersData || []);
-            setMessages(messagesData || []);
-            setFeedback(sortFeedbackEntries(feedbackData || []));
-            setReports(reportsData || []);
+
+            const rejectUnlessAuth = (result, label) => {
+                if (result.status === 'fulfilled') return result.value;
+                if (result.reason?.status === 401 || result.reason?.status === 403) {
+                    throw result.reason;
+                }
+                console.error(`[AdminPanel] Failed to load ${label}:`, result.reason);
+                return null;
+            };
+
+            const statsData = rejectUnlessAuth(statsResult, 'stats');
+            const usersData = rejectUnlessAuth(usersResult, 'users');
+            const messagesData = rejectUnlessAuth(messagesResult, 'messages');
+            const reportsData = rejectUnlessAuth(reportsResult, 'reports');
+
+            if (statsData) setStats(statsData);
+            if (usersData) setUsers(usersData);
+            if (messagesData) setMessages(messagesData);
+            if (reportsData) setReports(reportsData);
+
+            if (feedbackResult.status === 'fulfilled') {
+                setFeedback(sortFeedbackEntries(feedbackResult.value || []));
+                setFeedbackLoadError(null);
+            } else if (isOwner) {
+                console.error('[AdminPanel] Failed to load feedback:', feedbackResult.reason);
+                setFeedback([]);
+                setFeedbackLoadError(
+                    feedbackResult.reason?.message || 'Could not load feedback'
+                );
+            } else {
+                setFeedback([]);
+                setFeedbackLoadError(null);
+            }
+
+            const coreFailed = [statsResult, usersResult, messagesResult, reportsResult]
+                .some((result) => result.status === 'rejected');
+            if (coreFailed) {
+                toast.error('Failed to load admin data');
+            }
         } catch (err) {
             console.error(err);
             toast.error('Failed to load admin data');
@@ -419,6 +460,8 @@ export default function AdminPanel() {
                         {activeTab === 'feedback' && isOwner && (
                             <FeedbackTab
                                 feedback={feedback}
+                                loadError={feedbackLoadError}
+                                onRetry={() => loadData(true)}
                                 onToggleFavorite={handleToggleFeedbackFavorite}
                                 onDelete={handleDeleteFeedback}
                                 onThank={handleThankFeedback}
