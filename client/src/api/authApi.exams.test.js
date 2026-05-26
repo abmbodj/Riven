@@ -116,26 +116,15 @@ const rushingAnswers = (total = 20) => makeTimedAnswers({
   rushIncorrect: true,
 });
 
-const queueExamInsightsTables = ({ attempts = [], mastery = [], classes = [], masteryClassId = null }) => {
+const queueExamInsightsTables = ({ attempts = [], classes = [] }) => {
   const attemptOrder = vi.fn().mockResolvedValue({ data: attempts, error: null });
   const attemptSelect = vi.fn().mockReturnValue({ order: attemptOrder });
-
-  let masterySelect;
-  if (masteryClassId) {
-    const masteryEq = vi.fn().mockResolvedValue({ data: mastery, error: null });
-    const masteryOrder = vi.fn().mockReturnValue({ eq: masteryEq });
-    masterySelect = vi.fn().mockReturnValue({ order: masteryOrder });
-  } else {
-    const masteryOrder = vi.fn().mockResolvedValue({ data: mastery, error: null });
-    masterySelect = vi.fn().mockReturnValue({ order: masteryOrder });
-  }
 
   const classOrder = vi.fn().mockResolvedValue({ data: classes, error: null });
   const classSelect = vi.fn().mockReturnValue({ order: classOrder });
 
   supabase.from
     .mockReturnValueOnce({ select: attemptSelect })
-    .mockReturnValueOnce({ select: masterySelect })
     .mockReturnValueOnce({ select: classSelect });
 };
 
@@ -150,7 +139,6 @@ describe('authApi exam insights', () => {
   it('returns an empty exam insights payload when there are no attempts', async () => {
     queueExamInsightsTables({
       attempts: [],
-      mastery: [],
       classes: [],
     });
 
@@ -171,7 +159,6 @@ describe('authApi exam insights', () => {
         buildAttempt({ id: 'a2', examId: 'exam-2', score: 7, total: 10, completedAt: '2026-03-21T16:00:00.000Z', durationSeconds: 900 }),
         buildAttempt({ id: 'a1', examId: 'exam-1', score: 6, total: 10, completedAt: '2026-03-20T16:00:00.000Z', durationSeconds: 1200 }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -195,14 +182,10 @@ describe('authApi exam insights', () => {
         buildAttempt({ id: 'bio-1', examId: 'exam-b1', score: 9, total: 10, completedAt: '2026-03-22T16:00:00.000Z', classId: 'class-bio', title: 'Bio Mock' }),
         buildAttempt({ id: 'chem-1', examId: 'exam-c1', score: 5, total: 10, completedAt: '2026-03-21T16:00:00.000Z', classId: 'class-chem', title: 'Chem Mock' }),
       ],
-      mastery: [
-        { id: 'm1', topic: 'Stoichiometry', mastery_score: 0.33, total_seen: 6, total_correct: 2, class_id: 'class-chem' },
-      ],
       classes: [
         { id: 'class-bio', name: 'Biology', color: '#7a9e72' },
         { id: 'class-chem', name: 'Chemistry', color: '#cf8f43' },
       ],
-      masteryClassId: 'class-chem',
     });
 
     const insights = await authApi.getExamInsights({ classId: 'class-chem' });
@@ -210,7 +193,7 @@ describe('authApi exam insights', () => {
     expect(insights.summary.totalAttempts).toBe(1);
     expect(insights.summary.averageScore).toBe(50);
     expect(insights.classOptions.map((option) => option.name)).toEqual(['Biology', 'Chemistry']);
-    expect(insights.weakTopics[0]).toMatchObject({ topic: 'Stoichiometry' });
+    expect(insights).not.toHaveProperty('weakTopics');
   });
 
   it('classifies a fast and accurate exam taker at the threshold', async () => {
@@ -236,7 +219,6 @@ describe('authApi exam insights', () => {
           answers,
         }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -270,7 +252,6 @@ describe('authApi exam insights', () => {
           answers,
         }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -311,7 +292,6 @@ describe('authApi exam insights', () => {
           answers,
         }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -351,7 +331,6 @@ describe('authApi exam insights', () => {
           answers,
         }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -473,7 +452,6 @@ describe('authApi exam insights', () => {
           answers,
         }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -500,7 +478,6 @@ describe('authApi exam insights', () => {
         buildAttempt({ id: 'a2', examId: 'exam-2', score: 5, total: 10, completedAt: '2026-03-21T16:00:00.000Z' }),
         buildAttempt({ id: 'a1', examId: 'exam-1', score: 4, total: 10, completedAt: '2026-03-20T16:00:00.000Z' }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -518,7 +495,6 @@ describe('authApi exam insights', () => {
         buildAttempt({ id: 'a2', examId: 'exam-repeat', score: 5, total: 10, completedAt: '2026-03-21T16:00:00.000Z' }),
         buildAttempt({ id: 'a1', examId: 'exam-other', score: 5, total: 10, completedAt: '2026-03-20T16:00:00.000Z' }),
       ],
-      mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -528,31 +504,46 @@ describe('authApi exam insights', () => {
     expect(insights.persona.label).toBe('Cramming Loop');
   });
 
-  it('ranks weak topics and emits a focused-exam recommendation payload', async () => {
+  it('emits only generic class-aware recommendation payloads for the hub', async () => {
     queueExamInsightsTables({
       attempts: [
         buildAttempt({ id: 'a1', examId: 'exam-1', score: 6, total: 10, completedAt: '2026-03-20T16:00:00.000Z', classId: 'class-bio', title: 'Cell Unit Exam' }),
         buildAttempt({ id: 'a2', examId: 'exam-2', score: 7, total: 10, completedAt: '2026-03-22T16:00:00.000Z', classId: 'class-bio', title: 'Membranes Quiz' }),
       ],
-      mastery: [
-        { id: 'm1', topic: 'Cell Signaling', mastery_score: 0.22, total_seen: 9, total_correct: 2, class_id: 'class-bio' },
-        { id: 'm2', topic: 'Enzymes', mastery_score: 0.31, total_seen: 8, total_correct: 3, class_id: 'class-bio' },
-        { id: 'm3', topic: 'Membranes', mastery_score: 0.42, total_seen: 6, total_correct: 2, class_id: 'class-bio' },
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+    const standardAction = insights.recommendedActions.find((action) => action.kind === 'generate_standard');
+
+    expect(insights).not.toHaveProperty('weakTopics');
+    expect(insights.recommendedActions.some((action) => action.kind === 'generate_focused')).toBe(false);
+    expect(standardAction).toMatchObject({
+      label: 'Build another Biology exam',
+      payload: {
+        classId: 'class-bio',
+        title: 'Biology Mock Exam',
+      },
+    });
+  });
+
+  it('keeps persona copy free of topic wording', async () => {
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({ id: 'a2', examId: 'exam-2', score: 7, total: 10, completedAt: '2026-03-22T16:00:00.000Z' }),
+        buildAttempt({ id: 'a1', examId: 'exam-1', score: 7, total: 10, completedAt: '2026-03-20T16:00:00.000Z' }),
       ],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
     const insights = await authApi.getExamInsights();
-    const focusedAction = insights.recommendedActions.find((action) => action.kind === 'generate_focused');
+    const personaCopy = [
+      insights.persona.description,
+      ...(insights.persona.evidence || []),
+      ...(insights.persona.improvements || []),
+    ].join(' ').toLowerCase();
 
-    expect(insights.weakTopics.map((topic) => topic.topic)).toEqual(['Cell Signaling', 'Enzymes', 'Membranes']);
-    expect(focusedAction).toMatchObject({
-      label: 'Build a focused Biology exam',
-      payload: {
-        examMode: 'focused',
-        classId: 'class-bio',
-        weakTopics: ['Cell Signaling', 'Enzymes', 'Membranes'],
-      },
-    });
+    expect(personaCopy).not.toContain('weak topic');
+    expect(personaCopy).not.toContain('topics');
   });
 });

@@ -295,7 +295,6 @@ export const api = {
                 averageDurationMinutes: null,
             },
             recentAttempts: [],
-            weakTopics: [],
             recommendedActions: [],
             classOptions: [],
         }),

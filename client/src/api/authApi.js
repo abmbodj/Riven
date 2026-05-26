@@ -2268,11 +2268,9 @@ const buildExamPersona = ({
     averagePaceSeconds,
     trendDelta,
     retryRate,
-    weakTopics,
     latestAttempt,
     paceTemperament,
 }) => {
-    const weakTopicLabel = weakTopics[0]?.topic || 'your weakest topics';
     const temperament = paceTemperament || null;
     const isRushingTemperament = temperament?.key === 'rushing'
         && (temperament.confidence === 'medium' || temperament.confidence === 'high');
@@ -2283,14 +2281,14 @@ const buildExamPersona = ({
         return {
             key: 'getting-started',
             label: 'Getting Started',
-            description: 'You are still building a useful exam pattern. A couple more attempts will reveal pace, pressure points, and weak topics.',
+            description: 'You are still building a useful exam pattern. A couple more attempts will reveal pace, pressure points, and score trends.',
             evidence: [
                 `${totalAttempts} completed attempt${totalAttempts === 1 ? '' : 's'}`,
                 'Need 2+ attempts for trend data',
             ],
             improvements: [
                 'Take another mock exam this week to establish a baseline.',
-                'Link the exam to a class so weak-topic recommendations stay specific.',
+                'Keep your next attempt linked to a class so your stats stay organized by subject.',
             ],
             paceTemperament: temperament,
         };
@@ -2322,8 +2320,8 @@ const buildExamPersona = ({
             ],
             improvements: [
                 isRushingTemperament
-                    ? `Slow down on ${weakTopicLabel} with a focused exam before another full retake.`
-                    : `Pause full retakes and generate a focused exam for ${weakTopicLabel}.`,
+                    ? 'Slow down on the next timed run and leave room for a short review pass.'
+                    : 'Pause back-to-back retakes and switch to a fresh mock after reviewing one recent attempt.',
                 latestAttempt?.mock_exams?.title
                     ? `Review the misses from ${latestAttempt.mock_exams.title} before taking it again.`
                     : 'Review one recent attempt before starting another full exam.',
@@ -2349,7 +2347,7 @@ const buildExamPersona = ({
                 ...(temperament?.evidence?.filter((item) => item.includes('hard')) || []),
             ],
             improvements: [
-                `Rotate in focused exams on ${weakTopicLabel} so your fastest lane stays honest.`,
+                'Mix in a fresh exam from the same class so your fastest lane stays honest.',
                 'Retake a recent exam only after reviewing mistakes once to keep practice challenging.',
             ],
             paceTemperament: temperament,
@@ -2366,7 +2364,7 @@ const buildExamPersona = ({
                 `${formatEvidencePercent(averageScore || 0)} average score`,
             ],
             improvements: [
-                `Lock in the gains with one focused exam on ${weakTopicLabel}.`,
+                'Lock in the gains with one fresh mock exam before the signal cools off.',
                 'Keep spacing attempts instead of bunching multiple retakes into one sitting.',
             ],
             paceTemperament: temperament,
@@ -2390,7 +2388,7 @@ const buildExamPersona = ({
         improvements: [
             isRushingTemperament
                 ? 'Add a short review pass between questions on your next timed attempt.'
-                : `Use focused exams to chip away at ${weakTopicLabel}.`,
+                : 'Add one fresh mock exam to pressure-test your next study block.',
             'Keep one full-length exam in the mix so your pacing stays realistic.',
         ],
         paceTemperament: temperament,
@@ -2412,7 +2410,7 @@ const createEmptyExamInsights = () => ({
         evidence: ['0 completed attempts', 'No trend yet'],
         improvements: [
             'Generate your first mock exam to start tracking your exam habits.',
-            'Link the exam to a class so future weak-topic suggestions stay specific.',
+            'Link the exam to a class so future insights stay organized by subject.',
         ],
         paceTemperament: null,
     },
@@ -2423,7 +2421,6 @@ const createEmptyExamInsights = () => ({
         averageDurationMinutes: null,
     },
     recentAttempts: [],
-    weakTopics: [],
     recommendedActions: [
         {
             id: 'generate-first-exam',
@@ -2447,9 +2444,8 @@ export const getAllExamAttempts = async (classId) => {
 };
 
 export const getExamInsights = async ({ classId = null } = {}) => {
-    const [attempts, mastery, classes] = await Promise.all([
+    const [attempts, classes] = await Promise.all([
         getAllExamAttempts(),
-        getTopicMastery(classId || null),
         getClasses(),
     ]);
 
@@ -2551,19 +2547,6 @@ export const getExamInsights = async ({ classId = null } = {}) => {
             return right.attempts - left.attempts;
         })[0] || null;
 
-    const weakTopics = (mastery || [])
-        .slice()
-        .sort((left, right) => Number(left.mastery_score || 0) - Number(right.mastery_score || 0))
-        .slice(0, 5)
-        .map((topic) => ({
-            id: topic.id,
-            topic: topic.topic,
-            masteryScore: Number(topic.mastery_score || 0),
-            totalSeen: Number(topic.total_seen || 0),
-            totalCorrect: Number(topic.total_correct || 0),
-            classId: topic.class_id || null,
-        }));
-
     const latestAttempt = sortedAttempts[0] || null;
     const paceTemperament = buildAggregatePaceTemperament(sortedAttempts, averageScore);
     const persona = buildExamPersona({
@@ -2572,30 +2555,26 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         averagePaceSeconds,
         trendDelta,
         retryRate,
-        weakTopics,
         latestAttempt,
         paceTemperament,
     });
 
     const recommendedActions = [];
-    const focusedActionClassId = classId || weakTopics[0]?.classId || latestAttempt?.mock_exams?.class_id || null;
-    const focusedActionClass = classOptions.find((option) => option.id === focusedActionClassId) || null;
-    const focusedWeakTopics = weakTopics.slice(0, 3).map((topic) => topic.topic).filter(Boolean);
+    const standardActionClassId = classId || latestAttempt?.mock_exams?.class_id || null;
+    const standardActionClass = classOptions.find((option) => option.id === standardActionClassId) || null;
 
-    if (focusedWeakTopics.length > 0) {
-        recommendedActions.push({
-            id: 'generate-focused-exam',
-            kind: 'generate_focused',
-            label: focusedActionClass?.name ? `Build a focused ${focusedActionClass.name} exam` : 'Build a focused weak-topic exam',
-            description: `Target ${focusedWeakTopics.join(', ')} next.`,
-            payload: {
-                examMode: 'focused',
-                classId: focusedActionClassId,
-                weakTopics: focusedWeakTopics,
-                title: focusedActionClass?.name ? `Focused ${focusedActionClass.name} Check-In` : 'Focused Weak Topic Check-In',
-            },
-        });
-    }
+    recommendedActions.push({
+        id: 'generate-next-exam',
+        kind: 'generate_standard',
+        label: standardActionClass?.name ? `Build another ${standardActionClass.name} exam` : 'Build a fresh mock exam',
+        description: retryRate >= 0.5
+            ? 'Use a fresh exam to break the retake loop.'
+            : 'Keep your signal clean with a new mock exam.',
+        payload: {
+            ...(standardActionClassId ? { classId: standardActionClassId } : {}),
+            ...(standardActionClass?.name ? { title: `${standardActionClass.name} Mock Exam` } : {}),
+        },
+    });
 
     const isRushingTemperament = paceTemperament?.key === 'rushing'
         && (paceTemperament.confidence === 'medium' || paceTemperament.confidence === 'high');
@@ -2644,7 +2623,6 @@ export const getExamInsights = async ({ classId = null } = {}) => {
             classId: attempt?.mock_exams?.class_id || null,
             examMode: attempt?.mock_exams?.exam_mode || 'standard',
         })),
-        weakTopics,
         recommendedActions,
         classOptions,
     };

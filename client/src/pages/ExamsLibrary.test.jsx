@@ -93,7 +93,7 @@ const baseInsights = {
     description: 'Your results are stable enough to sharpen with targeted practice.',
     evidence: ['72% average score', '+6 pt trend'],
     improvements: [
-      'Run one focused exam on Cell Signaling.',
+      'Add one fresh mock exam to pressure-test your next study block.',
       'Keep one full-length exam each week.',
     ],
   },
@@ -115,32 +115,20 @@ const baseInsights = {
       score: 8,
       total: 10,
       percentage: 80,
-      title: 'Cell Biology Mock',
+      title: 'Biology Practice Mock',
       classId: 'class-bio',
-      examMode: 'focused',
-    },
-  ],
-  weakTopics: [
-    {
-      id: 'topic-1',
-      topic: 'Cell Signaling',
-      masteryScore: 0.28,
-      totalSeen: 8,
-      totalCorrect: 2,
-      classId: 'class-bio',
+      examMode: 'standard',
     },
   ],
   recommendedActions: [
     {
-      id: 'focused-action',
-      kind: 'generate_focused',
-      label: 'Build a focused Biology exam',
-      description: 'Target Cell Signaling next.',
+      id: 'standard-action',
+      kind: 'generate_standard',
+      label: 'Build another Biology exam',
+      description: 'Keep your signal clean with a new mock exam.',
       payload: {
-        examMode: 'focused',
         classId: 'class-bio',
-        weakTopics: ['Cell Signaling'],
-        title: 'Focused Biology Check-In',
+        title: 'Biology Mock Exam',
       },
     },
   ],
@@ -171,7 +159,6 @@ const emptyInsights = {
     averageDurationMinutes: null,
   },
   recentAttempts: [],
-  weakTopics: [],
   recommendedActions: [
     {
       id: 'first-exam',
@@ -197,12 +184,12 @@ describe('ExamsLibrary insights hub', () => {
     api.getMockExams.mockResolvedValue([
       {
         id: 'exam-1',
-        title: 'Cell Biology Mock',
+        title: 'Biology Practice Mock',
         class_id: 'class-bio',
         created_at: '2026-03-20T12:00:00.000Z',
         questions: Array.from({ length: 10 }, (_, index) => ({ id: index, type: 'mcq' })),
         source_type: 'notes',
-        exam_mode: 'focused',
+        exam_mode: 'standard',
       },
     ]);
     api.getNotes.mockResolvedValue([
@@ -273,7 +260,7 @@ describe('ExamsLibrary insights hub', () => {
           recentAttempts: [
             {
               ...baseInsights.recentAttempts[0],
-              title: 'Chemistry Stoichiometry Mock',
+              title: 'Chemistry Practice Mock',
               classId: 'class-chem',
             },
           ],
@@ -293,19 +280,22 @@ describe('ExamsLibrary insights hub', () => {
       expect(api.getExamInsights).toHaveBeenLastCalledWith({ classId: 'class-chem' });
     });
     expect(await screen.findByText('Chemistry Builder')).toBeInTheDocument();
-    expect(screen.getByText('Chemistry Stoichiometry Mock')).toBeInTheDocument();
+    expect(screen.getByText('Chemistry Practice Mock')).toBeInTheDocument();
   });
 
   it('renders persona copy and summary cards from mocked insight data', async () => {
     renderLibrary();
 
     const hub = await screen.findByTestId('exam-insights-hub');
+    const nextSteps = within(hub).getByTestId('exam-next-steps');
 
     expect(within(hub).getByText('Deliberate Builder')).toBeInTheDocument();
     expect(within(hub).getByText('6')).toBeInTheDocument();
     expect(within(hub).getByText('72%')).toBeInTheDocument();
     expect(within(hub).getByText('91%')).toBeInTheDocument();
-    expect(within(hub).getByText('Cell Signaling')).toBeInTheDocument();
-    expect(within(hub).getByText('Build a focused Biology exam')).toBeInTheDocument();
+    expect(within(nextSteps).getByText('Use Biology Practice Mock as a checkpoint')).toBeInTheDocument();
+    expect(within(nextSteps).getByText('Keep the streak measured')).toBeInTheDocument();
+    expect(within(hub).getByText('Build another Biology exam')).toBeInTheDocument();
+    expect(within(hub).queryByText(/cell signaling/i)).not.toBeInTheDocument();
   });
 });

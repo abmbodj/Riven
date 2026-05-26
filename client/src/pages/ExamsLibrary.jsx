@@ -150,8 +150,6 @@ export default function ExamsLibrary() {
     const [selectedGuide, setSelectedGuide] = useState(null);
     const [genFile, setGenFile] = useState(null);
     const [genTitle, setGenTitle] = useState('');
-    const [genExamMode, setGenExamMode] = useState('standard');
-    const [genWeakTopics, setGenWeakTopics] = useState([]);
     const [genClassOverrideId, setGenClassOverrideId] = useState(null);
 
     const loadData = useCallback(async () => {
@@ -226,8 +224,6 @@ export default function ExamsLibrary() {
         setSelectedGuide(null);
         setGenFile(null);
         setGenTitle(preset.title || '');
-        setGenExamMode(preset.examMode || 'standard');
-        setGenWeakTopics(Array.isArray(preset.weakTopics) ? preset.weakTopics : []);
         setGenClassOverrideId(preset.classId || null);
     }, []);
 
@@ -317,8 +313,7 @@ export default function ExamsLibrary() {
                 classId,
                 className,
                 {
-                    examMode: genExamMode,
-                    weakTopics: genWeakTopics,
+                    examMode: 'standard',
                     subject,
                 }
             );
@@ -352,13 +347,8 @@ export default function ExamsLibrary() {
             return;
         }
 
-        if (action.kind === 'generate_focused') {
-            openGenerateModal(action.payload || {});
-            return;
-        }
-
         if (action.kind === 'generate_standard') {
-            openGenerateModal();
+            openGenerateModal(action.payload || {});
         }
     }, [navigate, openGenerateModal]);
 
@@ -414,27 +404,17 @@ export default function ExamsLibrary() {
                                     <input type="text" value={genTitle} onChange={e => setGenTitle(e.target.value)} placeholder="AI Mock Exam" className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" style={{ fontSize: '16px' }} />
                                 </div>
 
-                                {(genExamMode !== 'standard' || genWeakTopics.length > 0 || generationClass) ? (
+                                {generationClass ? (
                                     <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/10 p-4">
                                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">
-                                            {genExamMode === 'focused' ? 'Focused setup' : 'Exam context'}
+                                            Class context
                                         </p>
                                         <div className="mt-3 flex flex-wrap gap-2">
-                                            {genExamMode !== 'standard' ? (
-                                                <span className="rounded-full border border-claude-accent/25 bg-claude-bg/30 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-text">
-                                                    {genExamMode}
-                                                </span>
-                                            ) : null}
                                             {generationClass ? (
                                                 <span className="rounded-full border border-claude-accent/25 bg-claude-bg/30 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-text">
                                                     {generationClass.name}
                                                 </span>
                                             ) : null}
-                                            {genWeakTopics.map((topic) => (
-                                                <span key={topic} className="rounded-full border border-claude-accent/25 bg-claude-bg/30 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-text">
-                                                    {topic}
-                                                </span>
-                                            ))}
                                         </div>
                                     </div>
                                 ) : null}

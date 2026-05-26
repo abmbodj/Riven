@@ -5,12 +5,8 @@ import {
     BarChart3,
     Flame,
     Sparkles,
-    Target,
     TrendingUp,
 } from 'lucide-react';
-
-const WARN_TEXT = 'color-mix(in srgb, var(--accent-color) 75%, var(--text-color))';
-const WARN_BAR = 'color-mix(in srgb, var(--botanical-forest) 55%, var(--accent-color))';
 
 function formatPercent(value) {
     if (value == null) return '--';
@@ -38,8 +34,72 @@ function formatDate(value) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function formatTopicPercent(value) {
-    return `${Math.round(Number(value || 0) * 100)}%`;
+function buildNextSteps({ summary, habits, recentAttempts, paceTemperament }) {
+    const nextSteps = [];
+    const averageScore = summary?.averageScore;
+    const trendDelta = summary?.trendDelta;
+    const retryRate = Number(habits?.retryRate || 0);
+    const averagePaceSeconds = summary?.averagePaceSeconds;
+    const latestAttempt = recentAttempts[0] || null;
+    const hasTimedAttempts = averagePaceSeconds != null;
+
+    if (averageScore != null && averageScore < 60) {
+        nextSteps.push({
+            title: 'Reset before the next full mock',
+            detail: `Your average is ${formatPercent(averageScore)}. Review one recent exam before you start another long run.`,
+        });
+    }
+
+    if (trendDelta != null && trendDelta <= 0) {
+        nextSteps.push({
+            title: trendDelta < 0 ? 'Break the slide' : 'Turn the flat trend into a lift',
+            detail: trendDelta < 0
+                ? `Scores are down ${Math.abs(Math.round(trendDelta))} points recently. Space the next attempt after a short review block.`
+                : 'Use the next exam after a focused review session so the trend has a chance to move.',
+        });
+    }
+
+    if (retryRate >= 0.5) {
+        nextSteps.push({
+            title: 'Reduce back-to-back retakes',
+            detail: `${formatPercent(retryRate * 100)} of your attempts are repeats. Switch to a fresh exam after one review pass.`,
+        });
+    }
+
+    if (paceTemperament?.key === 'rushing' && (paceTemperament.confidence === 'medium' || paceTemperament.confidence === 'high')) {
+        nextSteps.push({
+            title: 'Slow the first pass down',
+            detail: 'Your pace looks quick enough to risk avoidable misses. Give yourself one short accuracy check before submitting.',
+        });
+    } else if (hasTimedAttempts && averagePaceSeconds > 105) {
+        nextSteps.push({
+            title: 'Train clock control',
+            detail: `You average ${formatPace(averagePaceSeconds)}. Try one shorter timed run this week to build pace without a full retake.`,
+        });
+    } else if (!hasTimedAttempts) {
+        nextSteps.push({
+            title: 'Add one timed attempt',
+            detail: 'A timed mock will unlock pace feedback so you can compare speed and accuracy together.',
+        });
+    }
+
+    if (nextSteps.length < 2) {
+        nextSteps.push({
+            title: latestAttempt?.title ? `Use ${latestAttempt.title} as a checkpoint` : 'Use your latest exam as a checkpoint',
+            detail: latestAttempt?.percentage != null
+                ? `Your latest score was ${latestAttempt.percentage}%. Review that run once, then take a fresh mock to confirm the adjustment.`
+                : 'Review the latest run once, then take a fresh mock to confirm the adjustment.',
+        });
+    }
+
+    if (nextSteps.length < 3) {
+        nextSteps.push({
+            title: 'Keep the streak measured',
+            detail: 'Aim for one thoughtful review between attempts so the hub reflects real improvement instead of repetition.',
+        });
+    }
+
+    return nextSteps.slice(0, 3);
 }
 
 function buildTrendModel(attempts) {
@@ -305,11 +365,16 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
         persona,
         paceTemperament,
         habits,
-        weakTopics,
         recentAttempts,
         recommendedActions,
     } = insights;
     const displayTemperament = paceTemperament || persona?.paceTemperament;
+    const nextSteps = buildNextSteps({
+        summary,
+        habits,
+        recentAttempts,
+        paceTemperament: displayTemperament,
+    });
 
     if ((summary?.totalAttempts || 0) === 0) {
         const primaryAction = recommendedActions[0];
@@ -329,7 +394,7 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
                         Learn your exam pattern
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                        After a couple of mock exams, this hub shows your pacing, weak topics, and the habits that shape your scores.
+                        After a couple of mock exams, this hub shows your pacing, score trends, and the habits that shape your results.
                     </p>
                     {primaryAction ? (
                         <div className="mt-6 flex justify-center">
@@ -506,48 +571,21 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
 
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
                 <article className="glass-panel rounded-[28px] p-5 sm:p-6">
-                    <HubSectionHeader label="Weak topics" title="Where to tighten up" icon={Target} />
+                    <HubSectionHeader label="Next steps" title="What to do next" icon={Sparkles} />
 
-                    {weakTopics.length > 0 ? (
-                        <ul className="mt-5 divide-y divide-claude-border/30">
-                            {weakTopics.map((topic) => {
-                                const width = `${Math.max(6, Math.round(topic.masteryScore * 100))}%`;
-
-                                return (
-                                    <li key={topic.id} className="py-4 first:pt-0 last:pb-0">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm font-medium text-claude-text">{topic.topic}</p>
-                                            <span
-                                                className="text-[10px] font-mono font-bold uppercase tracking-wide"
-                                                style={{ color: WARN_TEXT }}
-                                            >
-                                                {formatTopicPercent(topic.masteryScore)}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className="mt-3 h-2 overflow-hidden rounded-full"
-                                            style={{ backgroundColor: 'color-mix(in srgb, var(--bg-color) 70%, var(--border-color))' }}
-                                        >
-                                            <div
-                                                className="h-full rounded-full transition-[width] duration-300"
-                                                style={{ width, backgroundColor: WARN_BAR }}
-                                            />
-                                        </div>
-                                        <p className="mt-2 text-[10px] font-mono text-claude-secondary">
-                                            {topic.totalCorrect}/{topic.totalSeen} correct
-                                        </p>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    ) : (
-                        <div className="mt-5 rounded-xl border border-dashed border-claude-border/50 bg-claude-bg/10 px-5 py-8 text-center">
-                            <p className="font-display text-lg italic text-claude-text">No weak topics surfaced yet.</p>
-                            <p className="mt-2 text-xs text-claude-secondary">
-                                Linked-class attempts will start filling this in.
-                            </p>
-                        </div>
-                    )}
+                    <ul className="mt-5 space-y-3" data-testid="exam-next-steps">
+                        {nextSteps.map((step) => (
+                            <li
+                                key={step.title}
+                                className="rounded-2xl border border-claude-border/35 bg-claude-surface/35 px-4 py-4"
+                            >
+                                <p className="text-sm font-medium text-claude-text">{step.title}</p>
+                                <p className="mt-2 text-xs leading-6 text-claude-secondary">
+                                    {step.detail}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
                 </article>
 
                 <article className="glass-panel rounded-[28px] p-5 sm:p-6">
