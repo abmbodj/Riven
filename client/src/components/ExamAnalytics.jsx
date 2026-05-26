@@ -34,7 +34,7 @@ function formatDate(value) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function buildNextSteps({ summary, habits, recentAttempts, paceTemperament }) {
+function buildNextSteps({ summary, habits, recentAttempts, paceTemperament, strengthInsights }) {
     const nextSteps = [];
     const averageScore = summary?.averageScore;
     const trendDelta = summary?.trendDelta;
@@ -42,6 +42,24 @@ function buildNextSteps({ summary, habits, recentAttempts, paceTemperament }) {
     const averagePaceSeconds = summary?.averagePaceSeconds;
     const latestAttempt = recentAttempts[0] || null;
     const hasTimedAttempts = averagePaceSeconds != null;
+    const strengthLevel = strengthInsights?.level;
+
+    if (strengthLevel === 'strong') {
+        nextSteps.push({
+            title: 'Stay exam-ready',
+            detail: 'Your scores and pace look strong. Take one fresh timed mock to confirm the pattern holds.',
+        });
+    } else if (strengthLevel === 'solid') {
+        const detail = trendDelta != null && trendDelta >= 3
+            ? `You are on track with a +${Math.round(trendDelta)} pt recent trend. Keep one thoughtful review between attempts.`
+            : summary?.bestScore != null
+                ? `Your best run was ${formatPercent(summary.bestScore)}. A fresh mock after a quick review will lock in the habit.`
+                : 'You are on track. A fresh timed mock after review will keep momentum going.';
+        nextSteps.push({
+            title: "You're on track",
+            detail,
+        });
+    }
 
     if (averageScore != null && averageScore < 60) {
         nextSteps.push({
@@ -364,16 +382,23 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
         summary,
         persona,
         paceTemperament,
+        strengthInsights,
         habits,
         recentAttempts,
         recommendedActions,
     } = insights;
     const displayTemperament = paceTemperament || persona?.paceTemperament;
+    const displayStrengthInsights = strengthInsights || persona?.strengthInsights;
+    const showStrengthPanel = (
+        (displayStrengthInsights?.level === 'strong' || displayStrengthInsights?.level === 'solid')
+        && (displayStrengthInsights?.strengths?.length || 0) > 0
+    );
     const nextSteps = buildNextSteps({
         summary,
         habits,
         recentAttempts,
         paceTemperament: displayTemperament,
+        strengthInsights: displayStrengthInsights,
     });
 
     if ((summary?.totalAttempts || 0) === 0) {
@@ -435,7 +460,9 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                <article className="glass-panel rounded-[28px] p-5 sm:p-6">
+                <article
+                    className={`glass-panel rounded-[28px] p-5 sm:p-6 ${displayStrengthInsights?.level === 'strong' ? 'ring-1 ring-claude-accent/25' : ''}`}
+                >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium text-claude-secondary">Persona</p>
@@ -443,12 +470,44 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
                                 {persona.label}
                             </h3>
                         </div>
-                        <TrendBadge trendDelta={summary.trendDelta} />
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                            {displayStrengthInsights?.level === 'strong' ? (
+                                <span
+                                    className="rounded-full border border-claude-accent/30 bg-claude-accent/10 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wide text-claude-accent"
+                                    data-testid="strong-exam-taker-badge"
+                                >
+                                    Strong exam taker
+                                </span>
+                            ) : null}
+                            <TrendBadge trendDelta={summary.trendDelta} />
+                        </div>
                     </div>
 
                     <p className="mt-4 max-w-prose text-sm leading-6 text-claude-secondary">
                         {persona.description}
                     </p>
+
+                    {showStrengthPanel ? (
+                        <div
+                            className="mt-4 rounded-2xl border border-claude-accent/25 bg-claude-accent/5 px-4 py-3"
+                            data-testid="exam-strengths"
+                        >
+                            <p className="text-xs font-medium text-claude-accent">What&apos;s working</p>
+                            {displayStrengthInsights.affirmation ? (
+                                <p className="mt-1 text-sm font-medium text-claude-text">
+                                    {displayStrengthInsights.affirmation}
+                                </p>
+                            ) : null}
+                            <ul className="mt-2 flex flex-col gap-1 text-xs text-claude-secondary">
+                                {(displayStrengthInsights.strengths || []).map((item) => (
+                                    <li key={item} className="flex items-center gap-2">
+                                        <span className="h-1 w-1 shrink-0 rounded-full bg-claude-accent" aria-hidden />
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
 
                     {displayTemperament?.label ? (
                         <div

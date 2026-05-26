@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabaseClient';
 import * as authApi from './authApi';
 import {
   buildAggregatePaceTemperament,
+  buildStrengthInsights,
   computeRushIndex,
 } from '../lib/examInsightSignals.js';
 
@@ -227,6 +228,8 @@ describe('authApi exam insights', () => {
     expect(insights.summary.averageScore).toBe(80);
     expect(insights.paceTemperament.key).toBe('natural-fast');
     expect(insights.persona.label).toBe('Fast & Accurate');
+    expect(insights.strengthInsights.level).toBe('strong');
+    expect(insights.persona.strengths?.length).toBeGreaterThan(0);
   });
 
   it('labels rushing temperament and avoids Fast & Accurate for fast mediocre accuracy', async () => {
@@ -260,6 +263,8 @@ describe('authApi exam insights', () => {
     expect(insights.paceTemperament.key).toBe('rushing');
     expect(insights.persona.label).toBe('Cramming Loop');
     expect(insights.persona.label).not.toBe('Fast & Accurate');
+    expect(insights.strengthInsights.level).not.toBe('strong');
+    expect(insights.strengthInsights.strengths).toHaveLength(0);
   });
 
   it('classifies fast inaccurate attempts as rushing with Cramming Loop persona', async () => {
@@ -338,6 +343,9 @@ describe('authApi exam insights', () => {
 
     expect(insights.paceTemperament.key).toBe('deliberate');
     expect(insights.persona.label).toBe('Deliberate Builder');
+    expect(insights.persona.description).toContain('strong');
+    expect(insights.strengthInsights.level).toBe('strong');
+    expect(insights.strengthInsights.strengths.length).toBeGreaterThan(0);
   });
 
   it('flags retake memorization when second attempt is faster without score lift', async () => {
@@ -485,6 +493,52 @@ describe('authApi exam insights', () => {
 
     expect(insights.summary.trendDelta).toBeCloseTo(33.333, 2);
     expect(insights.persona.label).toBe('Steady Climber');
+    expect(['strong', 'solid']).toContain(insights.strengthInsights.level);
+    expect(insights.strengthInsights.strengths.some((item) => item.includes('improvement'))).toBe(true);
+  });
+
+  it('does not mark a single high-score attempt as a strong exam taker', async () => {
+    const answers = naturalFastAnswers(20);
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-1',
+          score: 18,
+          total: 20,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 1000,
+          answers,
+        }),
+      ],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.summary.averageScore).toBe(90);
+    expect(insights.persona.key).toBe('getting-started');
+    expect(insights.strengthInsights.level).toBe('forming');
+  });
+
+  it('buildStrengthInsights returns solid for improving mid-high scores without cramming persona', () => {
+    const result = buildStrengthInsights({
+      totalAttempts: 3,
+      averageScore: 72,
+      bestScore: 78,
+      trendDelta: 6,
+      personaKey: 'deliberate-builder',
+      paceTemperament: {
+        key: 'deliberate',
+        confidence: 'medium',
+        label: 'Deliberate pace',
+      },
+      latestAttempt: null,
+      personaStrengths: [],
+    });
+
+    expect(result.level).toBe('solid');
+    expect(result.affirmation).toContain('on track');
   });
 
   it('classifies a cramming loop when retakes are high without meaningful lift', async () => {

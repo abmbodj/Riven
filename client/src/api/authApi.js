@@ -16,7 +16,7 @@ import {
     normalizeSharedPayload,
     serializeSharedPayload,
 } from '../utils/sharedResources.js';
-import { buildAggregatePaceTemperament } from '../lib/examInsightSignals.js';
+import { buildAggregatePaceTemperament, buildStrengthInsights } from '../lib/examInsightSignals.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -2340,11 +2340,15 @@ const buildExamPersona = ({
         return {
             key: 'fast-and-accurate',
             label: 'Fast & Accurate',
-            description: 'You move quickly without letting accuracy slip, which usually means your recall is holding up under pressure.',
+            description: 'You are exam-ready under time pressure — quick pacing with accuracy that holds on harder questions.',
             evidence: [
                 `${formatEvidencePercent(averageScore)} average score`,
                 `${Math.round(averagePaceSeconds)}s per question`,
                 ...(temperament?.evidence?.filter((item) => item.includes('hard')) || []),
+            ],
+            strengths: [
+                temperament?.label ? `${temperament.label} on recent timed mocks` : 'Strong pace with controlled accuracy',
+                `${formatEvidencePercent(averageScore)} average with fast pacing`,
             ],
             improvements: [
                 'Mix in a fresh exam from the same class so your fastest lane stays honest.',
@@ -2358,10 +2362,14 @@ const buildExamPersona = ({
         return {
             key: 'steady-climber',
             label: 'Steady Climber',
-            description: 'Your recent exams are meaningfully stronger than your early baseline, so your practice loop is translating into better results.',
+            description: 'You are building momentum — recent mocks are meaningfully stronger than your early baseline.',
             evidence: [
                 `Recent trend +${Math.round(trendDelta)} pts`,
                 `${formatEvidencePercent(averageScore || 0)} average score`,
+            ],
+            strengths: [
+                `+${Math.round(trendDelta)} pt lift on recent attempts`,
+                `${formatEvidencePercent(averageScore || 0)} average score across your history`,
             ],
             improvements: [
                 'Lock in the gains with one fresh mock exam before the signal cools off.',
@@ -2371,11 +2379,25 @@ const buildExamPersona = ({
         };
     }
 
-    const deliberateDescription = temperament?.key === 'deliberate'
-        ? 'You take more time per question and keep accuracy reasonably controlled — a solid base for targeted improvement.'
-        : temperament?.key === 'slow'
-            ? 'Your pacing is slower and scores are still building. Extra review before timed runs can help accuracy catch up.'
-            : 'Your exam results are stable and reasonably controlled, which is a good base for more targeted improvement.';
+    const isStrongDeliberate = averageScore != null
+        && averageScore >= 80
+        && !isRushingTemperament
+        && (temperament?.key === 'deliberate' || temperament?.key === 'natural-fast');
+
+    const deliberateDescription = isStrongDeliberate
+        ? 'You are a strong, careful exam taker — your pacing stays controlled and your scores back it up.'
+        : temperament?.key === 'deliberate'
+            ? 'You take more time per question and keep accuracy reasonably controlled — a solid base for targeted improvement.'
+            : temperament?.key === 'slow'
+                ? 'Your pacing is slower and scores are still building. Extra review before timed runs can help accuracy catch up.'
+                : 'Your exam results are stable and reasonably controlled, which is a good base for more targeted improvement.';
+
+    const deliberateStrengths = isStrongDeliberate
+        ? [
+            `${formatEvidencePercent(averageScore)} average with deliberate pacing`,
+            temperament?.label || 'Controlled pace on timed attempts',
+        ]
+        : [];
 
     return {
         key: 'deliberate-builder',
@@ -2385,6 +2407,7 @@ const buildExamPersona = ({
             `${formatEvidencePercent(averageScore || 0)} average score`,
             trendDelta == null ? 'Trend still forming' : `${trendDelta >= 0 ? '+' : ''}${Math.round(trendDelta)} pt trend`,
         ],
+        strengths: deliberateStrengths,
         improvements: [
             isRushingTemperament
                 ? 'Add a short review pass between questions on your next timed attempt.'
@@ -2413,8 +2436,14 @@ const createEmptyExamInsights = () => ({
             'Link the exam to a class so future insights stay organized by subject.',
         ],
         paceTemperament: null,
+        strengths: [],
     },
     paceTemperament: null,
+    strengthInsights: {
+        level: 'forming',
+        affirmation: 'Complete your first mock exams to see what is working.',
+        strengths: [],
+    },
     habits: {
         retryRate: 0,
         strongestStudyDay: null,
@@ -2559,6 +2588,18 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         paceTemperament,
     });
 
+    const strengthInsights = buildStrengthInsights({
+        totalAttempts: sortedAttempts.length,
+        averageScore,
+        bestScore,
+        trendDelta,
+        personaKey: persona.key,
+        paceTemperament,
+        latestAttempt,
+        personaStrengths: persona.strengths || [],
+    });
+    persona.strengthInsights = strengthInsights;
+
     const recommendedActions = [];
     const standardActionClassId = classId || latestAttempt?.mock_exams?.class_id || null;
     const standardActionClass = classOptions.find((option) => option.id === standardActionClassId) || null;
@@ -2606,6 +2647,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         },
         paceTemperament,
         persona,
+        strengthInsights,
         habits: {
             retryRate,
             strongestStudyDay,

@@ -316,3 +316,122 @@ export const buildAggregatePaceTemperament = (attempts, averageScore) => {
         },
     };
 };
+
+const CRAMMING_PERSONA_KEYS = new Set(['cramming-loop', 'cramming-loop-rushing']);
+
+const hasMediumOrHighConfidence = (confidence) => confidence === 'medium' || confidence === 'high';
+
+export const buildStrengthInsights = ({
+    totalAttempts,
+    averageScore,
+    bestScore,
+    trendDelta,
+    personaKey,
+    paceTemperament,
+    latestAttempt,
+    personaStrengths = [],
+}) => {
+    const temperament = paceTemperament || {};
+    const tempoKey = temperament.key;
+    const tempoConfidence = temperament.confidence;
+    const hasReliableTemperament = hasMediumOrHighConfidence(tempoConfidence);
+    const isRushing = tempoKey === 'rushing' && hasReliableTemperament;
+    const isNaturalFast = tempoKey === 'natural-fast' && hasReliableTemperament;
+    const isDeliberate = tempoKey === 'deliberate' && hasReliableTemperament;
+
+    const latestProfile = latestAttempt ? buildAttemptTimingProfile(latestAttempt) : null;
+    const latestRushIndex = latestProfile?.rushIndex;
+    const hardAccuracy = temperament?.metrics?.hardAccuracy ?? latestProfile?.hardAccuracy;
+    const hardAccuracyPercent = hardAccuracy != null ? Math.round(hardAccuracy * 100) : null;
+
+    const strengths = [];
+    const addStrength = (text) => {
+        if (!text || strengths.includes(text)) return;
+        strengths.push(text);
+    };
+
+    if (totalAttempts < 2 || personaKey === 'getting-started') {
+        return {
+            level: 'forming',
+            affirmation: 'Complete another mock to unlock a fuller performance read.',
+            strengths: [],
+        };
+    }
+
+    if (averageScore != null) {
+        addStrength(`${Math.round(averageScore)}% average across ${totalAttempts} attempts`);
+    }
+    if (trendDelta != null && trendDelta >= 3) {
+        addStrength(`+${Math.round(trendDelta)} pt improvement on recent mocks`);
+    }
+    if (bestScore != null && bestScore >= 85) {
+        addStrength(`${Math.round(bestScore)}% best run on record`);
+    }
+    if (hardAccuracyPercent != null && hardAccuracyPercent >= 70) {
+        addStrength(`Strong on harder questions (${hardAccuracyPercent}% on hard items)`);
+    }
+    if (isNaturalFast) {
+        addStrength('Pace and accuracy align — quick without a high rush signal');
+    } else if (isDeliberate && averageScore != null && averageScore >= 75) {
+        addStrength('Controlled pacing with solid scores');
+    }
+    (personaStrengths || []).forEach(addStrength);
+
+    if (CRAMMING_PERSONA_KEYS.has(personaKey)) {
+        return {
+            level: 'forming',
+            affirmation: 'Focus on accuracy and review before your next timed run.',
+            strengths: [],
+        };
+    }
+
+    const isStrongPersona = personaKey === 'fast-and-accurate';
+    const isSteadyStrong = personaKey === 'steady-climber' && trendDelta != null && trendDelta >= 5;
+    const isHighControlledPace = averageScore != null
+        && averageScore >= 80
+        && (isNaturalFast || isDeliberate)
+        && !isRushing;
+    const isHighLowRush = averageScore != null
+        && averageScore >= 85
+        && latestRushIndex != null
+        && latestRushIndex < 0.25;
+
+    if (isStrongPersona || isSteadyStrong || isHighControlledPace || isHighLowRush) {
+        let affirmation = "You're performing strongly as an exam taker.";
+        if (isStrongPersona) {
+            affirmation = "You're exam-ready under time pressure.";
+        } else if (isSteadyStrong) {
+            affirmation = 'Your recent mocks show real momentum.';
+        } else if (isHighControlledPace) {
+            affirmation = "You're a strong, careful exam taker.";
+        }
+
+        return {
+            level: 'strong',
+            affirmation,
+            strengths: strengths.slice(0, 4),
+        };
+    }
+
+    const isSolid = averageScore != null
+        && averageScore >= 70
+        && ((trendDelta != null && trendDelta >= 3) || (bestScore != null && bestScore >= 85));
+
+    if (isSolid) {
+        const affirmation = trendDelta != null && trendDelta >= 3
+            ? "You're on track with improving results."
+            : `Solid performance — your best run hit ${Math.round(bestScore)}%.`;
+
+        return {
+            level: 'solid',
+            affirmation,
+            strengths: strengths.slice(0, 4),
+        };
+    }
+
+    return {
+        level: 'forming',
+        affirmation: 'Complete another timed mock for a clearer strength read.',
+        strengths: strengths.slice(0, 2),
+    };
+};
