@@ -4,6 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GuideView from './GuideView.jsx';
 
+const { mobileBudgetMock } = vi.hoisted(() => ({
+  mobileBudgetMock: vi.fn(() => false),
+}));
+
 vi.mock('../api', () => ({
   api: {
     getStudyGuide: vi.fn(),
@@ -20,6 +24,10 @@ vi.mock('../hooks/useToast', () => ({
     error: vi.fn(),
     success: vi.fn(),
   }),
+}));
+
+vi.mock('../hooks/useMobileVisualBudget.js', () => ({
+  useMobileVisualBudget: () => mobileBudgetMock(),
 }));
 
 vi.mock('../components/ui/PricingModal', () => ({
@@ -357,6 +365,44 @@ const makeMathGuide = () => makeGuide({
   },
 });
 
+const makeFuzzyFlowGuide = ({ studyStateOverrides = {}, teachingOverrides = {} } = {}) => {
+  const baseGuide = makeToctGuide();
+  const baseCardState = baseGuide.study_state.card_states['card-toct-1'];
+
+  return {
+    ...baseGuide,
+    guide_data: {
+      ...baseGuide.guide_data,
+      cards: [{
+        ...baseGuide.guide_data.cards[0],
+        teaching: {
+          ...baseGuide.guide_data.cards[0].teaching,
+          explain: [
+            'A system design begins by naming the parts of the software that own distinct responsibilities.',
+            'The frontend gathers intent from the user and packages it into a request the rest of the system can understand.',
+            'The API validates that request, applies business rules, and decides which downstream actions are allowed.',
+            'The data layer keeps the durable record, so the design has to show where truth is stored and recovered.',
+            'The arrows between those parts matter because they reveal where data changes, where errors surface, and where trust boundaries live.',
+          ].join('\n\n'),
+          ...teachingOverrides,
+        },
+      }],
+    },
+    study_state: {
+      ...baseGuide.study_state,
+      ...studyStateOverrides,
+      card_states: {
+        ...baseGuide.study_state.card_states,
+        ...(studyStateOverrides.card_states || {}),
+        'card-toct-1': {
+          ...baseCardState,
+          ...(studyStateOverrides.card_states?.['card-toct-1'] || {}),
+        },
+      },
+    },
+  };
+};
+
 const legacyGuide = {
   id: 'guide-legacy',
   title: 'Old Exam Coach',
@@ -374,6 +420,8 @@ const legacyGuide = {
 describe('GuideView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mobileBudgetMock.mockReset();
+    mobileBudgetMock.mockReturnValue(false);
     api.updateStudyGuide.mockImplementation(async (id, updates) => ({
       ...makeGuide(),
       id,
@@ -527,6 +575,67 @@ describe('GuideView', () => {
       expect(activeTarget).toHaveTextContent(/campus map/i);
     });
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
+  });
+
+  it('uses Still fuzzy to show the mental model inline and skip the later Mental Model step', async () => {
+    api.getStudyGuide.mockResolvedValue(makeFuzzyFlowGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+
+    fireEvent.click(await within(teach).findByRole('button', { name: /Still fuzzy/i }));
+
+    expect(within(teach).getAllByText(/campus map/i).length).toBeGreaterThan(0);
+    expect(within(teach).queryByRole('button', { name: /Still fuzzy/i })).not.toBeInTheDocument();
+
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+
+    await waitFor(() => {
+      expect(within(teach).getByRole('button', { name: /Continue.*Example 1: Profile update/i })).toBeInTheDocument();
+    });
+    expect(within(teach).queryByRole('button', { name: /Continue.*Mental Model/i })).not.toBeInTheDocument();
+
+    fireEvent.click(within(teach).getByRole('button', { name: /Continue.*Example 1: Profile update/i }));
+    await waitFor(() => {
+      expect(within(teach).getByText(/Design the profile update path/i)).toBeInTheDocument();
+    });
+  });
+
+  it('keeps the later Mental Model step when the learner clicks Got it', async () => {
+    api.getStudyGuide.mockResolvedValue(makeFuzzyFlowGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+
+    fireEvent.click(await within(teach).findByRole('button', { name: /Got it/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+
+    await waitFor(() => {
+      expect(within(teach).getByRole('button', { name: /Continue.*Mental Model/i })).toBeInTheDocument();
+    });
   });
 
   it('keeps thin teaching content in the legacy layout instead of the full chalkboard lecture', async () => {
@@ -714,6 +823,49 @@ describe('GuideView', () => {
     expect(screen.queryByTestId('river-session-intro')).not.toBeInTheDocument();
   });
 
+  it('resumes without the later Mental Model step after the card has already previewed it', async () => {
+    api.getStudyGuide.mockResolvedValue(makeFuzzyFlowGuide({
+      studyStateOverrides: {
+        session_status: 'paused',
+        active_stage: 'teach',
+        teach_section_index: 0,
+        explain_revealed_count: 3,
+        paused_at: '2026-04-05T12:00:00.000Z',
+        last_interaction_at: '2026-04-05T12:00:00.000Z',
+        card_states: {
+          'card-toct-1': {
+            attempts: 0,
+            hints_used: 0,
+            status: 'active',
+            last_outcome: null,
+            completed: false,
+            intuition_previewed: true,
+          },
+        },
+      },
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const teach = await screen.findByTestId('river-session-teach');
+    expect(within(teach).getAllByText(/campus map/i).length).toBeGreaterThan(0);
+    expect(within(teach).queryByRole('button', { name: /Still fuzzy/i })).not.toBeInTheDocument();
+
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+
+    await waitFor(() => {
+      expect(within(teach).getByRole('button', { name: /Continue.*Example 1: Profile update/i })).toBeInTheDocument();
+    });
+    expect(within(teach).queryByRole('button', { name: /Continue.*Mental Model/i })).not.toBeInTheDocument();
+  });
+
   it('pauses instead of completing when the learner uses the back control mid-session', async () => {
     api.getStudyGuide.mockResolvedValue(makeGuide());
 
@@ -783,6 +935,77 @@ describe('GuideView', () => {
         }),
       }),
     }));
+  });
+
+  it('matches the Still fuzzy skip behavior on mobile', async () => {
+    mobileBudgetMock.mockReturnValue(true);
+    api.getStudyGuide.mockResolvedValue(makeFuzzyFlowGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+
+    fireEvent.click(await within(teach).findByRole('button', { name: /Put it another way/i }));
+
+    expect(within(teach).getAllByText(/campus map/i).length).toBeGreaterThan(0);
+    expect(within(teach).queryByRole('button', { name: /Put it another way/i })).not.toBeInTheDocument();
+
+    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+
+    await waitFor(() => {
+      expect(within(teach).getByRole('button', { name: /Next: Example 1: Profile update/i })).toBeInTheDocument();
+    });
+    expect(within(teach).queryByRole('button', { name: /Next: Mental Model/i })).not.toBeInTheDocument();
+  });
+
+  it('does not offer a fuzzy CTA when the card has no mental model', async () => {
+    mobileBudgetMock.mockReturnValue(true);
+    const baseGuide = makeGuide();
+    api.getStudyGuide.mockResolvedValue(makeGuide({
+      guide_data: {
+        ...baseGuide.guide_data,
+        cards: [{
+          ...baseGuide.guide_data.cards[0],
+          teaching: {
+            ...baseGuide.guide_data.cards[0].teaching,
+            explain: [
+              'Mitosis starts by identifying the original parent cell.',
+              'The cell copies its DNA so each future cell can receive a full set.',
+              'Those copied chromosomes are organized so they can be separated cleanly.',
+              'The cell then pulls the copies apart into two matching groups.',
+              'A final split forms two new cells that keep the same genetic instructions.',
+            ].join('\n\n'),
+          },
+        }],
+      },
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+
+    expect(within(teach).queryByRole('button', { name: /Put it another way/i })).not.toBeInTheDocument();
   });
 
   it('shows the unsupported hard-cutover state for pre-v4 guides', async () => {

@@ -191,6 +191,7 @@ const buildDefaultCardState = (cardState = {}) => ({
     assist_count: cardState.assist_count || 0,
     last_assist_at: cardState.last_assist_at || null,
     revealed_answer: Boolean(cardState.revealed_answer),
+    intuition_previewed: Boolean(cardState.intuition_previewed),
     skipped: Boolean(cardState.skipped),
 });
 
@@ -736,6 +737,12 @@ export default function GuideView() {
             const restoredCard = normalizedGuideData?.cards.find(
                 (card) => card.id === normalizedStudyState.current_card_id,
             ) || normalizedGuideData?.cards[0] || null;
+            const shouldRestoreFuzzyPeek = Boolean(
+                restoredStage === 'teach'
+                && (normalizedStudyState.teach_section_index || 0) === 0
+                && normalizedStudyState.card_states?.[restoredCard?.id]?.intuition_previewed
+                && restoredCard?.teaching?.intuition,
+            );
 
             setGuide(nextGuide);
             setGuideData(normalizedGuideData);
@@ -750,7 +757,7 @@ export default function GuideView() {
             setTeachSection(normalizedStudyState.teach_section_index || 0);
             setExpandedSteps({});
             setExplainRevealed(normalizedStudyState.explain_revealed_count || 1);
-            setFuzzyPeek(false);
+            setFuzzyPeek(shouldRestoreFuzzyPeek);
             setRiverState(restoredStage === 'complete'
                 ? 'celebrate'
                 : restoredStage === 'check'
@@ -799,7 +806,7 @@ export default function GuideView() {
         const t = currentCard.teaching;
         const sections = [];
         sections.push({ key: 'explain', label: 'Explanation', type: 'explain' });
-        if (t.intuition) {
+        if (t.intuition && !currentCardState?.intuition_previewed) {
             sections.push({ key: 'intuition', label: 'Mental Model', type: 'intuition' });
         }
         if (t.worked_examples?.length > 0) {
@@ -816,7 +823,7 @@ export default function GuideView() {
             if (t.why_it_matters) sections.push({ key: 'why', label: 'Why It Matters', type: 'legacy_why' });
         }
         return sections;
-    }, [currentCard]);
+    }, [currentCard, currentCardState?.intuition_previewed]);
 
     const explainParagraphs = useMemo(
         () => chunkExplain(currentCard?.teaching?.explain),
@@ -831,6 +838,7 @@ export default function GuideView() {
         : riverCaption;
     const showFuzzyPrompt = (
         onExplainSection
+        && Boolean(currentCard?.teaching?.intuition)
         && explainRevealed >= 3
         && explainRevealed < explainTotal
         && explainTotal > 4
@@ -1071,11 +1079,27 @@ export default function GuideView() {
         });
     }, []);
 
+    const markCurrentCardIntuitionPreviewed = useCallback(() => {
+        if (!guideData || !currentCard?.teaching?.intuition) return;
+
+        setStudyState((prev) => normalizeGuideStudyState(guideData, {
+            ...prev,
+            card_states: {
+                ...prev.card_states,
+                [currentCard.id]: {
+                    ...buildDefaultCardState(prev.card_states?.[currentCard.id]),
+                    intuition_previewed: true,
+                },
+            },
+        }));
+    }, [currentCard, guideData]);
+
     const handleFuzzy = useCallback(() => {
+        markCurrentCardIntuitionPreviewed();
         setFuzzyPeek(true);
         setRiverState('thinking');
         setRiverCaption('No rush. Let me put it another way.');
-    }, []);
+    }, [markCurrentCardIntuitionPreviewed]);
 
     const handleGotIt = useCallback(() => {
         setRiverState('encourage');
@@ -1117,14 +1141,18 @@ export default function GuideView() {
         const section = teachSections[nextIndex];
         const presentation = getTeachSectionPresentation(section, currentCard);
         setTeachSection(nextIndex);
-        setFuzzyPeek(false);
+        setFuzzyPeek(Boolean(
+            section?.type === 'explain'
+            && currentCardState?.intuition_previewed
+            && currentCard?.teaching?.intuition,
+        ));
         setRiverState(presentation.state);
         setRiverCaption(presentation.caption);
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = requestAnimationFrame(() => {
             sectionRefs.current[section.key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
-    }, [currentCard, explainRevealed, onExplainSection, teachSection, teachSections]);
+    }, [currentCard, currentCardState?.intuition_previewed, explainRevealed, onExplainSection, teachSection, teachSections]);
 
     const handleReturnToTeach = useCallback(() => {
         const section = teachSections[teachSection];
@@ -1140,9 +1168,14 @@ export default function GuideView() {
             }));
         }
         setSessionStage('teach');
+        setFuzzyPeek(Boolean(
+            section?.type === 'explain'
+            && currentCardState?.intuition_previewed
+            && currentCard?.teaching?.intuition,
+        ));
         setRiverState(presentation.state);
         setRiverCaption(section?.type === 'explain' ? getTeachCaption(currentCard) : presentation.caption);
-    }, [currentCard, explainRevealed, guideData, teachSection, teachSections]);
+    }, [currentCard, currentCardState?.intuition_previewed, explainRevealed, guideData, teachSection, teachSections]);
 
     const handleSubmit = async () => {
         if (!guideData || !currentCard || submitting) return;
@@ -2058,7 +2091,7 @@ export default function GuideView() {
                                                         <SubjectRenderer content={paragraph} />
                                                     </p>
                                                 ))}
-                                                {showFuzzyPrompt ? (
+                                                {showFuzzyPrompt && !fuzzyPeek ? (
                                                     <div className="rounded-[1.15rem] border px-4 py-3" style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
                                                         <p className="text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
                                                             River can restate this before you move on.
@@ -2086,7 +2119,7 @@ export default function GuideView() {
                                                 {fuzzyPeek ? (
                                                     <div className="rounded-[1.15rem] border px-4 py-3" style={{ borderColor: 'rgba(143,178,124,0.26)', backgroundColor: 'rgba(143,178,124,0.08)' }}>
                                                         <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
-                                                            <SubjectRenderer content={currentCard.teaching.why_it_matters || currentCard.teaching.example || currentCard.teaching.explain} />
+                                                            <SubjectRenderer content={currentCard.teaching.intuition} />
                                                         </p>
                                                     </div>
                                                 ) : null}

@@ -660,6 +660,7 @@ const buildDefaultCardState = () => ({
     assist_count: 0,
     last_assist_at: null,
     revealed_answer: false,
+    intuition_previewed: false,
     skipped: false,
 });
 
@@ -748,6 +749,7 @@ export const normalizeGuideStudyState = (guideData, studyState) => {
                 assist_count: clampNumber(incoming.assist_count ?? incoming.assistCount, { min: 0, max: 99, fallback: 0 }),
                 last_assist_at: normalizeOptionalText(incoming.last_assist_at ?? incoming.lastAssistAt),
                 revealed_answer: Boolean(incoming.revealed_answer ?? incoming.revealedAnswer),
+                intuition_previewed: Boolean(incoming.intuition_previewed ?? incoming.intuitionPreviewed),
                 skipped,
             }];
         }),
