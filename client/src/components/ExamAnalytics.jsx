@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import {
     ArrowRight,
     BarChart3,
-    Clock3,
     Flame,
-    Loader2,
-    Medal,
     Sparkles,
     Target,
     TrendingUp,
 } from 'lucide-react';
+
+const WARN_TEXT = 'color-mix(in srgb, var(--accent-color) 75%, var(--text-color))';
+const WARN_BAR = 'color-mix(in srgb, var(--botanical-forest) 55%, var(--accent-color))';
 
 function formatPercent(value) {
     if (value == null) return '--';
@@ -60,7 +60,7 @@ function buildTrendModel(attempts) {
                 : paddingX + (innerWidth / (list.length - 1)) * index;
             const score = Number(attempt.percentage || 0);
             const y = baselineY - (score / 100) * usableHeight;
-            return { ...attempt, x, y };
+            return { ...attempt, x, y, score };
         });
 
     return {
@@ -72,36 +72,217 @@ function buildTrendModel(attempts) {
     };
 }
 
+function buildTrendAriaLabel(attempts, trendDelta) {
+    if (attempts.length < 2) return 'Score trend unavailable';
+    const oldest = attempts.at(-1);
+    const latest = attempts[0];
+    const trendPhrase = trendDelta == null
+        ? 'trend still forming'
+        : trendDelta >= 0
+            ? `up ${Math.round(trendDelta)} points recently`
+            : `down ${Math.abs(Math.round(trendDelta))} points recently`;
+    return `Score trend from ${formatPercent(oldest?.percentage)} on ${formatDate(oldest?.completedAt)} to ${formatPercent(latest?.percentage)} on ${formatDate(latest?.completedAt)}, ${trendPhrase}`;
+}
+
+function HubSectionHeader({ label, title, icon: Icon, badge }) {
+    return (
+        <div className="flex items-start justify-between gap-4">
+            <div>
+                <p className="text-xs font-medium text-claude-secondary">{label}</p>
+                {title ? (
+                    <h3 className="mt-1.5 font-display text-xl font-bold italic leading-tight text-claude-text sm:text-2xl">
+                        {title}
+                    </h3>
+                ) : null}
+            </div>
+            {badge || (Icon ? (
+                <div
+                    className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-claude-border/50 bg-claude-bg/30 text-claude-accent sm:flex"
+                    aria-hidden
+                >
+                    <Icon className="h-4 w-4" />
+                </div>
+            ) : null)}
+        </div>
+    );
+}
+
+function MetricStrip({ summary }) {
+    const metrics = [
+        {
+            key: 'avg',
+            label: 'Avg score',
+            value: formatPercent(summary.averageScore),
+            detail: 'Across attempts',
+            emphasized: true,
+        },
+        {
+            key: 'attempts',
+            label: 'Attempts',
+            value: summary.totalAttempts,
+            detail: 'Completed',
+        },
+        {
+            key: 'best',
+            label: 'Best',
+            value: formatPercent(summary.bestScore),
+            detail: 'Strongest run',
+        },
+        {
+            key: 'pace',
+            label: 'Avg pace',
+            value: formatPace(summary.averagePaceSeconds),
+            detail: 'Timed only',
+        },
+    ];
+
+    return (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-claude-border/40 bg-claude-border/30 sm:grid-cols-4">
+            {metrics.map((metric, index) => (
+                <div
+                    key={metric.key}
+                    className={`bg-claude-bg/25 px-4 py-3.5 ${metric.emphasized ? 'col-span-2 sm:col-span-1' : ''} ${index > 0 ? 'border-t border-claude-border/30 sm:border-t-0 sm:border-l' : ''}`}
+                >
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-claude-secondary">
+                        {metric.label}
+                    </p>
+                    <p
+                        className={`mt-1.5 font-display font-bold leading-none text-claude-text ${metric.emphasized ? 'text-[2rem] text-claude-accent' : 'text-2xl'}`}
+                    >
+                        {metric.value}
+                    </p>
+                    <p className="mt-1.5 text-xs text-claude-secondary/80">{metric.detail}</p>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function TrendBadge({ trendDelta }) {
+    const label = trendDelta == null
+        ? 'Trend forming'
+        : `${trendDelta >= 0 ? '+' : ''}${Math.round(trendDelta)} pt trend`;
+
+    return (
+        <span className="shrink-0 rounded-full border border-claude-accent/25 bg-claude-accent/10 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wide text-claude-accent">
+            {label}
+        </span>
+    );
+}
+
+function ActionButton({ action, onAction, primary = false }) {
+    return (
+        <button
+            type="button"
+            onClick={() => onAction?.(action)}
+            className={`tap-action inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition-[color,background-color,border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${primary ? 'border-claude-accent/40 bg-claude-accent text-botanical-ink hover:brightness-110' : 'border-claude-accent/25 bg-claude-accent/10 text-claude-accent hover:border-claude-accent/40 hover:bg-claude-accent/15'}`}
+        >
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <span>{action.label}</span>
+        </button>
+    );
+}
+
+function ScoreTrendChart({ recentAttempts, trendDelta, areaFillId }) {
+    const trendModel = useMemo(
+        () => buildTrendModel(recentAttempts),
+        [recentAttempts],
+    );
+    const ariaLabel = buildTrendAriaLabel(recentAttempts, trendDelta);
+    const oldestDate = formatDate(recentAttempts.at(-1)?.completedAt);
+    const latestDate = formatDate(recentAttempts[0]?.completedAt);
+
+    if (recentAttempts.length < 2) {
+        return (
+            <p className="text-sm leading-6 text-claude-secondary">
+                Complete one more exam to see how your scores are moving.
+            </p>
+        );
+    }
+
+    return (
+        <>
+            <div className="mt-4 h-[100px] w-full">
+                <svg
+                    viewBox="0 0 320 90"
+                    className="h-full w-full"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label={ariaLabel}
+                >
+                    <line x1="0" y1="24" x2="320" y2="24" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.2" />
+                    <line x1="0" y1="50" x2="320" y2="50" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.2" />
+                    <line x1="0" y1="76" x2="320" y2="76" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.2" />
+                    <path d={trendModel.areaPath} fill={`url(#${areaFillId})`} />
+                    <path
+                        d={trendModel.linePath}
+                        fill="none"
+                        stroke="var(--accent-color)"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                    {trendModel.points.map((point) => (
+                        <g key={point.id}>
+                            <circle cx={point.x} cy={point.y} r="4" fill="var(--accent-color)" />
+                            <text
+                                x={point.x}
+                                y={Math.max(8, point.y - 8)}
+                                textAnchor="middle"
+                                fill="var(--secondary-text-color)"
+                                fontSize="8"
+                                fontFamily="ui-monospace, monospace"
+                            >
+                                {Math.round(point.score)}%
+                            </text>
+                        </g>
+                    ))}
+                    <defs>
+                        <linearGradient id={areaFillId} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] font-mono text-claude-secondary/80">
+                <span>{oldestDate ? `Oldest · ${oldestDate}` : 'Oldest'}</span>
+                <span>{latestDate ? `Latest · ${latestDate}` : 'Latest'}</span>
+            </div>
+        </>
+    );
+}
+
 function ExamInsightsSkeleton() {
     return (
         <section
             aria-label="Loading exam insights"
             className="glass-panel rounded-[28px] p-5 sm:p-6"
+            data-testid="exam-insights-hub"
         >
-            <div className="mb-5 flex items-center justify-between gap-4">
-                <div>
-                    <div className="h-3 w-20 animate-pulse rounded bg-claude-border/60" />
-                    <div className="mt-3 h-8 w-40 animate-pulse rounded bg-claude-border/50" />
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <div className="space-y-2">
+                    <div className="h-3 w-24 animate-pulse rounded bg-claude-border/60" />
+                    <div className="h-8 w-56 animate-pulse rounded bg-claude-border/50" />
                 </div>
-                <div className="h-10 w-10 animate-pulse rounded-2xl bg-claude-border/50" />
             </div>
-
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-claude-border/40 sm:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="min-h-[110px] rounded-2xl border border-claude-border/40 bg-claude-bg/20 p-4">
-                        <div className="h-3 w-16 animate-pulse rounded bg-claude-border/50" />
-                        <div className="mt-4 h-8 w-20 animate-pulse rounded bg-claude-border/60" />
-                        <div className="mt-3 h-2.5 w-24 animate-pulse rounded bg-claude-border/40" />
+                    <div
+                        key={index}
+                        className={`bg-claude-bg/20 p-4 ${index === 0 ? 'col-span-2 sm:col-span-1' : ''}`}
+                    >
+                        <div className="h-2.5 w-14 animate-pulse rounded bg-claude-border/50" />
+                        <div className="mt-3 h-7 w-16 animate-pulse rounded bg-claude-border/60" />
                     </div>
                 ))}
             </div>
-
-            <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="mt-6 space-y-6">
                 {Array.from({ length: 2 }).map((_, index) => (
-                    <div key={index} className="min-h-[220px] rounded-[24px] border border-claude-border/40 bg-claude-bg/20 p-5">
-                        <div className="h-3 w-20 animate-pulse rounded bg-claude-border/50" />
-                        <div className="mt-4 h-6 w-40 animate-pulse rounded bg-claude-border/60" />
-                        <div className="mt-3 space-y-2">
+                    <div key={index} className="border-t border-claude-border/30 pt-6 first:border-t-0 first:pt-0">
+                        <div className="h-3 w-16 animate-pulse rounded bg-claude-border/50" />
+                        <div className="mt-3 h-6 w-40 animate-pulse rounded bg-claude-border/60" />
+                        <div className="mt-4 space-y-2">
                             <div className="h-3 w-full animate-pulse rounded bg-claude-border/40" />
                             <div className="h-3 w-4/5 animate-pulse rounded bg-claude-border/40" />
                         </div>
@@ -112,28 +293,8 @@ function ExamInsightsSkeleton() {
     );
 }
 
-function ActionButton({ action, onAction }) {
-    return (
-        <button
-            type="button"
-            onClick={() => onAction?.(action)}
-            className="tap-action inline-flex min-h-[44px] items-center gap-2 rounded-full border border-claude-accent/25 bg-claude-accent/10 px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-        >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>{action.label}</span>
-        </button>
-    );
-}
-
 export default function ExamAnalytics({ insights, loading, onAction }) {
-    const gradientBaseId = useId().replace(/:/g, '');
-    const areaGradientId = `${gradientBaseId}-area`;
-    const lineGradientId = `${gradientBaseId}-line`;
-
-    const trendModel = useMemo(
-        () => buildTrendModel(insights?.recentAttempts || []),
-        [insights?.recentAttempts],
-    );
+    const areaFillId = useId().replace(/:/g, '');
 
     if (loading || !insights) {
         return <ExamInsightsSkeleton />;
@@ -142,293 +303,203 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
     const { summary, persona, habits, weakTopics, recentAttempts, recommendedActions } = insights;
 
     if ((summary?.totalAttempts || 0) === 0) {
+        const primaryAction = recommendedActions[0];
+        const secondaryActions = recommendedActions.slice(1);
+
         return (
             <section
-                className="glass-panel rounded-[28px] p-6 sm:p-7"
+                className="glass-panel rounded-[28px] p-6 sm:p-8"
                 data-testid="exam-insights-hub"
             >
-                <div className="mx-auto max-w-2xl text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.5rem] border border-claude-accent/20 bg-claude-accent/10 text-claude-accent">
-                        <BarChart3 className="h-7 w-7" />
+                <div className="mx-auto max-w-xl text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-claude-accent/20 bg-claude-accent/10 text-claude-accent">
+                        <BarChart3 className="h-6 w-6" />
                     </div>
-                    <p className="mt-5 text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-secondary">
-                        Insights Hub
-                    </p>
-                    <h2 className="mt-3 font-display text-[2rem] font-bold italic leading-none text-claude-text">
+                    <p className="mt-4 text-xs font-medium text-claude-secondary">Insights Hub</p>
+                    <h2 className="mt-2 font-display text-[1.75rem] font-bold italic leading-tight text-claude-text sm:text-[2rem]">
                         Learn your exam pattern
                     </h2>
-                    <p className="mt-4 text-sm leading-6 text-claude-secondary">
-                        Your mock exam hub will show pacing, weak topics, and exam-taker habits once you have a couple of attempts to compare.
+                    <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                        After a couple of mock exams, this hub shows your pacing, weak topics, and the habits that shape your scores.
                     </p>
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                        {recommendedActions.map((action) => (
-                            <ActionButton key={action.id} action={action} onAction={onAction} />
-                        ))}
-                    </div>
+                    {primaryAction ? (
+                        <div className="mt-6 flex justify-center">
+                            <ActionButton action={primaryAction} onAction={onAction} primary />
+                        </div>
+                    ) : null}
+                    {secondaryActions.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                            {secondaryActions.map((action) => (
+                                <ActionButton key={action.id} action={action} onAction={onAction} />
+                            ))}
+                        </div>
+                    ) : null}
                 </div>
             </section>
         );
     }
 
-    const statCards = [
-        {
-            label: 'Attempts',
-            value: summary.totalAttempts,
-            detail: 'Completed mock exams',
-            icon: Target,
-        },
-        {
-            label: 'Avg Score',
-            value: formatPercent(summary.averageScore),
-            detail: 'Across all attempts',
-            icon: TrendingUp,
-        },
-        {
-            label: 'Best Score',
-            value: formatPercent(summary.bestScore),
-            detail: 'Your strongest run',
-            icon: Medal,
-        },
-        {
-            label: 'Avg Pace',
-            value: formatPace(summary.averagePaceSeconds),
-            detail: 'Only timed attempts',
-            icon: Clock3,
-        },
-    ];
-
     return (
-        <section className="space-y-5" data-testid="exam-insights-hub">
+        <section className="space-y-6" data-testid="exam-insights-hub">
             <div className="glass-panel rounded-[28px] p-5 sm:p-6">
-                <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-secondary">
-                            Insights Hub
-                        </p>
-                        <h2 className="mt-2 font-display text-[1.9rem] font-bold italic leading-none text-claude-text">
+                        <p className="text-xs font-medium text-claude-secondary">Insights Hub</p>
+                        <h2 className="mt-1.5 font-display text-[1.65rem] font-bold italic leading-tight text-claude-text sm:text-[1.9rem]">
                             What kind of exam taker are you?
                         </h2>
                     </div>
-                    <div className="hidden h-11 w-11 items-center justify-center rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/10 text-claude-accent sm:flex">
-                        <Sparkles className="h-4.5 w-4.5" />
+                    <div
+                        className="hidden h-10 w-10 items-center justify-center rounded-xl border border-claude-accent/20 bg-claude-accent/10 text-claude-accent sm:flex"
+                        aria-hidden
+                    >
+                        <Sparkles className="h-4 w-4" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {statCards.map((card) => {
-                        const Icon = card.icon;
-                        return (
-                            <article key={card.label} className="min-h-[118px] rounded-2xl border border-claude-border/40 bg-claude-bg/20 p-4">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                        {card.label}
-                                    </p>
-                                    <Icon className="h-3.5 w-3.5 text-claude-accent" />
-                                </div>
-                                <p className="mt-4 font-display text-[1.75rem] font-bold leading-none text-claude-text">
-                                    {card.value}
-                                </p>
-                                <p className="mt-3 text-xs text-claude-secondary/80">
-                                    {card.detail}
-                                </p>
-                            </article>
-                        );
-                    })}
-                </div>
+                <MetricStrip summary={summary} />
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                 <article className="glass-panel rounded-[28px] p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-secondary">
-                                Persona
-                            </p>
-                            <h3 className="mt-2 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-claude-secondary">Persona</p>
+                            <h3 className="mt-1.5 font-display text-xl font-bold italic leading-tight text-claude-text sm:text-2xl">
                                 {persona.label}
                             </h3>
                         </div>
-                        <div className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                            {summary.trendDelta == null ? 'Trend forming' : `${summary.trendDelta >= 0 ? '+' : ''}${Math.round(summary.trendDelta)} pt trend`}
-                        </div>
+                        <TrendBadge trendDelta={summary.trendDelta} />
                     </div>
 
-                    <p className="mt-4 text-sm leading-6 text-claude-secondary">
+                    <p className="mt-4 max-w-prose text-sm leading-6 text-claude-secondary">
                         {persona.description}
                     </p>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {(persona.evidence || []).map((evidence) => (
-                            <span
-                                key={evidence}
-                                className="rounded-full border border-claude-border/50 bg-claude-bg/20 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"
-                            >
-                                {evidence}
-                            </span>
-                        ))}
-                    </div>
+                    {(persona.evidence || []).length > 0 ? (
+                        <ul className="mt-4 flex flex-col gap-1.5 text-xs text-claude-secondary sm:flex-row sm:flex-wrap sm:gap-x-4">
+                            {(persona.evidence || []).map((evidence) => (
+                                <li key={evidence} className="flex items-center gap-2">
+                                    <span className="h-1 w-1 shrink-0 rounded-full bg-claude-accent/70" aria-hidden />
+                                    {evidence}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
 
-                    <div className="mt-5 space-y-2.5">
-                        {(persona.improvements || []).map((improvement) => (
-                            <div key={improvement} className="rounded-2xl border border-claude-border/40 bg-claude-bg/20 px-4 py-3">
-                                <p className="text-sm leading-6 text-claude-text">
+                    {(persona.improvements || []).length > 0 ? (
+                        <ul className="mt-5 divide-y divide-claude-border/30 border-t border-claude-border/30">
+                            {(persona.improvements || []).map((improvement) => (
+                                <li
+                                    key={improvement}
+                                    className="border-l-2 py-3 pl-3 text-sm leading-6 text-claude-text first:pt-4"
+                                    style={{ borderColor: 'color-mix(in srgb, var(--accent-color) 45%, transparent)' }}
+                                >
                                     {improvement}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
 
                     {recommendedActions.length > 0 ? (
-                        <div className="mt-5 flex flex-wrap gap-2">
-                            {recommendedActions.map((action) => (
-                                <ActionButton key={action.id} action={action} onAction={onAction} />
+                        <div className="mt-5 flex flex-wrap gap-2 border-t border-claude-border/30 pt-5">
+                            {recommendedActions.map((action, index) => (
+                                <ActionButton
+                                    key={action.id}
+                                    action={action}
+                                    onAction={onAction}
+                                    primary={index === 0}
+                                />
                             ))}
                         </div>
                     ) : null}
                 </article>
 
                 <article className="glass-panel rounded-[28px] p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-secondary">
-                                Habits
-                            </p>
-                            <h3 className="mt-2 font-display text-[1.65rem] font-bold italic leading-none text-claude-text">
-                                Your exam rhythm
-                            </h3>
-                        </div>
-                        <div className="hidden h-10 w-10 items-center justify-center rounded-[1.1rem] border border-claude-border/40 bg-claude-bg/20 text-claude-accent sm:flex">
-                            <Flame className="h-4 w-4" />
-                        </div>
-                    </div>
+                    <HubSectionHeader label="Habits" title="Your exam rhythm" icon={Flame} />
 
-                    <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-claude-border/40 bg-claude-bg/20 p-4">
-                            <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                Retry Rate
-                            </p>
-                            <p className="mt-3 font-display text-2xl font-bold leading-none text-claude-text">
+                    <dl className="mt-5 grid grid-cols-1 gap-4 border-y border-claude-border/30 py-4 sm:grid-cols-3 sm:gap-3 sm:py-5">
+                        <div>
+                            <dt className="text-[10px] font-mono uppercase tracking-wider text-claude-secondary">Retry rate</dt>
+                            <dd className="mt-1 font-display text-2xl font-bold leading-none text-claude-text">
                                 {formatPercent((habits.retryRate || 0) * 100)}
-                            </p>
-                            <p className="mt-2 text-xs text-claude-secondary/80">
-                                Attempts that repeat an exam
-                            </p>
+                            </dd>
+                            <dd className="mt-1 text-xs text-claude-secondary/80">Repeat attempts</dd>
                         </div>
-                        <div className="rounded-2xl border border-claude-border/40 bg-claude-bg/20 p-4">
-                            <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                Strongest Day
-                            </p>
-                            <p className="mt-3 font-display text-2xl font-bold leading-none text-claude-text">
+                        <div className="sm:border-l sm:border-claude-border/30 sm:pl-4">
+                            <dt className="text-[10px] font-mono uppercase tracking-wider text-claude-secondary">Strongest day</dt>
+                            <dd className="mt-1 font-display text-2xl font-bold leading-none text-claude-text">
                                 {habits.strongestStudyDay?.day || '--'}
-                            </p>
-                            <p className="mt-2 text-xs text-claude-secondary/80">
+                            </dd>
+                            <dd className="mt-1 text-xs text-claude-secondary/80">
                                 {habits.strongestStudyDay?.averageScore != null
                                     ? `${formatPercent(habits.strongestStudyDay.averageScore)} average`
                                     : 'Need more attempts'}
-                            </p>
+                            </dd>
                         </div>
-                        <div className="rounded-2xl border border-claude-border/40 bg-claude-bg/20 p-4">
-                            <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                Avg Duration
-                            </p>
-                            <p className="mt-3 font-display text-2xl font-bold leading-none text-claude-text">
+                        <div className="sm:border-l sm:border-claude-border/30 sm:pl-4">
+                            <dt className="text-[10px] font-mono uppercase tracking-wider text-claude-secondary">Avg duration</dt>
+                            <dd className="mt-1 font-display text-2xl font-bold leading-none text-claude-text">
                                 {formatMinutes(habits.averageDurationMinutes)}
-                            </p>
-                            <p className="mt-2 text-xs text-claude-secondary/80">
-                                Timed attempts only
-                            </p>
+                            </dd>
+                            <dd className="mt-1 text-xs text-claude-secondary/80">Timed attempts</dd>
                         </div>
-                    </div>
+                    </dl>
 
-                    <div className="mt-5 rounded-[24px] border border-claude-border/40 bg-claude-bg/20 p-4">
+                    <div className="pt-2">
                         <div className="flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-claude-accent" />
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                Score Trend
-                            </p>
+                            <TrendingUp className="h-4 w-4 text-claude-accent" aria-hidden />
+                            <p className="text-xs font-medium text-claude-secondary">Score trend</p>
                         </div>
-
-                        {recentAttempts.length < 2 ? (
-                            <p className="mt-4 text-sm leading-6 text-claude-secondary">
-                                Complete one more exam to see how your scores are moving.
-                            </p>
-                        ) : (
-                            <>
-                                <div className="mt-4 h-[92px] w-full">
-                                    <svg viewBox="0 0 320 90" className="h-full w-full" preserveAspectRatio="none">
-                                        <defs>
-                                            <linearGradient id={areaGradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-                                                <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.28" />
-                                                <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0.02" />
-                                            </linearGradient>
-                                            <linearGradient id={lineGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.55" />
-                                                <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="1" />
-                                            </linearGradient>
-                                        </defs>
-                                        <line x1="0" y1="24" x2="320" y2="24" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.25" />
-                                        <line x1="0" y1="50" x2="320" y2="50" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.25" />
-                                        <line x1="0" y1="76" x2="320" y2="76" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.25" />
-                                        <path d={trendModel.areaPath} fill={`url(#${areaGradientId})`} />
-                                        <path d={trendModel.linePath} fill="none" stroke={`url(#${lineGradientId})`} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                                        {trendModel.points.map((point) => (
-                                            <circle key={point.id} cx={point.x} cy={point.y} r="3.5" fill="var(--accent-color)" />
-                                        ))}
-                                    </svg>
-                                </div>
-                                <div className="mt-3 flex items-center justify-between gap-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary/80">
-                                    <span>{formatDate(recentAttempts.at(-1)?.completedAt)}</span>
-                                    <span>Most recent {formatDate(recentAttempts[0]?.completedAt)}</span>
-                                </div>
-                            </>
-                        )}
+                        <ScoreTrendChart
+                            recentAttempts={recentAttempts}
+                            trendDelta={summary.trendDelta}
+                            areaFillId={areaFillId}
+                        />
                     </div>
                 </article>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
                 <article className="glass-panel rounded-[28px] p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-secondary">
-                                Weak Topics
-                            </p>
-                            <h3 className="mt-2 font-display text-[1.65rem] font-bold italic leading-none text-claude-text">
-                                Where to tighten up
-                            </h3>
-                        </div>
-                        <div className="hidden h-10 w-10 items-center justify-center rounded-[1.1rem] border border-red-500/20 bg-red-500/10 text-red-400 sm:flex">
-                            <Target className="h-4 w-4" />
-                        </div>
-                    </div>
+                    <HubSectionHeader label="Weak topics" title="Where to tighten up" icon={Target} />
 
                     {weakTopics.length > 0 ? (
-                        <div className="mt-5 space-y-3">
+                        <ul className="mt-5 divide-y divide-claude-border/30">
                             {weakTopics.map((topic) => {
                                 const width = `${Math.max(6, Math.round(topic.masteryScore * 100))}%`;
 
                                 return (
-                                    <div key={topic.id} className="rounded-2xl border border-red-500/10 bg-red-500/[0.05] p-4">
+                                    <li key={topic.id} className="py-4 first:pt-0 last:pb-0">
                                         <div className="flex items-center justify-between gap-3">
                                             <p className="text-sm font-medium text-claude-text">{topic.topic}</p>
-                                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-red-400">
+                                            <span
+                                                className="text-[10px] font-mono font-bold uppercase tracking-wide"
+                                                style={{ color: WARN_TEXT }}
+                                            >
                                                 {formatTopicPercent(topic.masteryScore)}
                                             </span>
                                         </div>
-                                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-claude-bg/40">
-                                            <div className="h-full rounded-full bg-red-500" style={{ width }} />
+                                        <div
+                                            className="mt-3 h-2 overflow-hidden rounded-full"
+                                            style={{ backgroundColor: 'color-mix(in srgb, var(--bg-color) 70%, var(--border-color))' }}
+                                        >
+                                            <div
+                                                className="h-full rounded-full transition-[width] duration-300"
+                                                style={{ width, backgroundColor: WARN_BAR }}
+                                            />
                                         </div>
-                                        <p className="mt-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                        <p className="mt-2 text-[10px] font-mono text-claude-secondary">
                                             {topic.totalCorrect}/{topic.totalSeen} correct
                                         </p>
-                                    </div>
+                                    </li>
                                 );
                             })}
-                        </div>
+                        </ul>
                     ) : (
-                        <div className="mt-5 rounded-2xl border border-dashed border-claude-border/50 bg-claude-bg/10 px-5 py-8 text-center">
+                        <div className="mt-5 rounded-xl border border-dashed border-claude-border/50 bg-claude-bg/10 px-5 py-8 text-center">
                             <p className="font-display text-lg italic text-claude-text">No weak topics surfaced yet.</p>
-                            <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                            <p className="mt-2 text-xs text-claude-secondary">
                                 Linked-class attempts will start filling this in.
                             </p>
                         </div>
@@ -436,62 +507,53 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
                 </article>
 
                 <article className="glass-panel rounded-[28px] p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-secondary">
-                                Recent Attempts
-                            </p>
-                            <h3 className="mt-2 font-display text-[1.65rem] font-bold italic leading-none text-claude-text">
-                                Latest exam runs
-                            </h3>
-                        </div>
-                        <div className="hidden h-10 w-10 items-center justify-center rounded-[1.1rem] border border-claude-border/40 bg-claude-bg/20 text-claude-accent sm:flex">
-                            <Loader2 className="h-0 w-0" />
-                            <BarChart3 className="h-4 w-4" />
-                        </div>
-                    </div>
+                    <HubSectionHeader label="Recent attempts" title="Latest exam runs" icon={BarChart3} />
 
-                    <div className="mt-5 space-y-2.5">
+                    <ul className="mt-5 divide-y divide-claude-border/30">
                         {recentAttempts.map((attempt) => (
-                            <Link
-                                key={attempt.id}
-                                to={`/exam/${attempt.examId}`}
-                                className="tap-action group flex min-h-[78px] items-center gap-3 rounded-2xl border border-claude-border/40 bg-claude-bg/20 px-4 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                            >
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-claude-accent/15 bg-claude-accent/10">
-                                    <span className="font-display text-lg font-bold text-claude-accent">
-                                        {attempt.percentage != null ? `${attempt.percentage}%` : '--'}
-                                    </span>
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-claude-text transition-colors group-hover:text-claude-accent">
-                                        {attempt.title}
-                                    </p>
-                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                            {attempt.score}/{attempt.total} correct
+                            <li key={attempt.id}>
+                                <Link
+                                    to={`/exam/${attempt.examId}`}
+                                    className="tap-action group -mx-1 flex min-h-[72px] items-center gap-3 rounded-xl px-1 py-3 transition-[color,background-color,border-color] duration-200 hover:bg-claude-bg/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                >
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-claude-accent/20 bg-claude-accent/10">
+                                        <span className="font-display text-base font-bold text-claude-accent">
+                                            {attempt.percentage != null ? `${attempt.percentage}%` : '--'}
                                         </span>
-                                        {attempt.durationSeconds ? (
-                                            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                                {formatPace(attempt.durationSeconds / Math.max(attempt.total || 1, 1))}
-                                            </span>
-                                        ) : null}
-                                        {attempt.examMode && attempt.examMode !== 'standard' ? (
-                                            <span className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-2 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                                {attempt.examMode}
-                                            </span>
-                                        ) : null}
                                     </div>
-                                </div>
-                                <div className="shrink-0 text-right">
-                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                        {formatDate(attempt.completedAt)}
-                                    </p>
-                                    <ArrowRight className="ml-auto mt-2 h-4 w-4 text-claude-secondary/60 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-claude-accent" />
-                                </div>
-                            </Link>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-serif text-sm font-bold italic text-claude-text transition-colors group-hover:text-claude-accent">
+                                            {attempt.title}
+                                        </p>
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                            <span className="text-[10px] font-mono uppercase tracking-wide text-claude-secondary">
+                                                {attempt.score}/{attempt.total} correct
+                                            </span>
+                                            {attempt.durationSeconds ? (
+                                                <span className="text-[10px] font-mono uppercase tracking-wide text-claude-secondary">
+                                                    {formatPace(attempt.durationSeconds / Math.max(attempt.total || 1, 1))}
+                                                </span>
+                                            ) : null}
+                                            {attempt.examMode && attempt.examMode !== 'standard' ? (
+                                                <span className="rounded-full border border-claude-accent/20 bg-claude-accent/10 px-2 py-0.5 text-[9px] font-mono uppercase tracking-wide text-claude-accent">
+                                                    {attempt.examMode}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                        <p className="text-[10px] font-mono text-claude-secondary">
+                                            {formatDate(attempt.completedAt)}
+                                        </p>
+                                        <ArrowRight
+                                            className="ml-auto mt-1.5 h-4 w-4 text-claude-secondary/50 transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-claude-accent"
+                                            aria-hidden
+                                        />
+                                    </div>
+                                </Link>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 </article>
             </div>
         </section>
