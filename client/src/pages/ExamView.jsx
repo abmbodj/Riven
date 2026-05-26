@@ -159,13 +159,14 @@ export default function ExamView() {
     const handleShortAnswerSubmit = async () => {
         if (showSAFeedback || !shortAnswer.trim() || gradingAnswer) return;
         const question = exam.questions[currentIndex];
-        const timeMs = Date.now() - questionStartTime.current;
+        const submittedAnswer = shortAnswer.trim();
+        const thinkingTimeMs = Date.now() - questionStartTime.current;
 
         setGradingAnswer(true);
         try {
             const result = await api.gradeShortAnswer(
                 question.question,
-                shortAnswer.trim(),
+                submittedAnswer,
                 question.correct_answer,
                 question.grading_rubric
             );
@@ -180,7 +181,7 @@ export default function ExamView() {
                 type: 'short_answer',
                 topic: question.topic || 'General',
                 difficulty: question.difficulty || 'medium',
-                selected: shortAnswer.trim(),
+                selected: submittedAnswer,
                 correct: question.correct_answer,
                 isCorrect,
                 gradeScore: result.score,
@@ -188,7 +189,7 @@ export default function ExamView() {
                 keyPointsHit: result.keyPointsHit,
                 keyPointsMissed: result.keyPointsMissed,
                 explanation: question.explanation,
-                time_ms: timeMs,
+                time_ms: thinkingTimeMs,
             }]);
         } catch {
             toast.error('Failed to grade answer. Try again.');

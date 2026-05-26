@@ -16,6 +16,7 @@ import {
     normalizeSharedPayload,
     serializeSharedPayload,
 } from '../utils/sharedResources.js';
+import { buildAggregatePaceTemperament } from '../lib/examInsightSignals.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -2269,8 +2270,14 @@ const buildExamPersona = ({
     retryRate,
     weakTopics,
     latestAttempt,
+    paceTemperament,
 }) => {
     const weakTopicLabel = weakTopics[0]?.topic || 'your weakest topics';
+    const temperament = paceTemperament || null;
+    const isRushingTemperament = temperament?.key === 'rushing'
+        && (temperament.confidence === 'medium' || temperament.confidence === 'high');
+    const isNaturalFast = temperament?.key === 'natural-fast'
+        && (temperament.confidence === 'medium' || temperament.confidence === 'high');
 
     if (totalAttempts < 2) {
         return {
@@ -2285,10 +2292,53 @@ const buildExamPersona = ({
                 'Take another mock exam this week to establish a baseline.',
                 'Link the exam to a class so weak-topic recommendations stay specific.',
             ],
+            paceTemperament: temperament,
         };
     }
 
-    if (averageScore != null && averageScore >= 80 && averagePaceSeconds != null && averagePaceSeconds <= 75) {
+    const retakeWithoutLift = retryRate >= 0.5 && (trendDelta == null || trendDelta < 5);
+    const rushingBand = isRushingTemperament
+        && averageScore != null
+        && averageScore >= 60
+        && averageScore < 80;
+    const shouldCrammingLoop = (averageScore != null && averageScore < 60)
+        || (trendDelta != null && trendDelta <= -8)
+        || retakeWithoutLift
+        || rushingBand;
+
+    if (shouldCrammingLoop) {
+        const rushingDescription = isRushingTemperament
+            ? 'You are finishing quickly, but harder questions and fast misses suggest you may be moving on before ideas fully land.'
+            : 'You are putting attempts on the board, but the results suggest you may be repeating tests faster than you are closing knowledge gaps.';
+        return {
+            key: isRushingTemperament ? 'cramming-loop-rushing' : 'cramming-loop',
+            label: 'Cramming Loop',
+            description: rushingDescription,
+            evidence: [
+                averageScore != null ? `${formatEvidencePercent(averageScore)} average score` : 'Low recent performance',
+                isRushingTemperament && temperament?.evidence?.[0]
+                    ? temperament.evidence[0]
+                    : retryRate > 0 ? `${formatEvidencePercent(retryRate * 100)} retake rate` : 'Trend slipping',
+            ],
+            improvements: [
+                isRushingTemperament
+                    ? `Slow down on ${weakTopicLabel} with a focused exam before another full retake.`
+                    : `Pause full retakes and generate a focused exam for ${weakTopicLabel}.`,
+                latestAttempt?.mock_exams?.title
+                    ? `Review the misses from ${latestAttempt.mock_exams.title} before taking it again.`
+                    : 'Review one recent attempt before starting another full exam.',
+            ],
+            paceTemperament: temperament,
+        };
+    }
+
+    if (
+        isNaturalFast
+        && averageScore != null
+        && averageScore >= 80
+        && averagePaceSeconds != null
+        && averagePaceSeconds <= 75
+    ) {
         return {
             key: 'fast-and-accurate',
             label: 'Fast & Accurate',
@@ -2296,15 +2346,17 @@ const buildExamPersona = ({
             evidence: [
                 `${formatEvidencePercent(averageScore)} average score`,
                 `${Math.round(averagePaceSeconds)}s per question`,
+                ...(temperament?.evidence?.filter((item) => item.includes('hard')) || []),
             ],
             improvements: [
                 `Rotate in focused exams on ${weakTopicLabel} so your fastest lane stays honest.`,
                 'Retake a recent exam only after reviewing mistakes once to keep practice challenging.',
             ],
+            paceTemperament: temperament,
         };
     }
 
-    if (totalAttempts >= 4 && trendDelta != null && trendDelta >= 8) {
+    if (totalAttempts >= 4 && trendDelta != null && trendDelta >= 8 && !isRushingTemperament) {
         return {
             key: 'steady-climber',
             label: 'Steady Climber',
@@ -2317,40 +2369,31 @@ const buildExamPersona = ({
                 `Lock in the gains with one focused exam on ${weakTopicLabel}.`,
                 'Keep spacing attempts instead of bunching multiple retakes into one sitting.',
             ],
+            paceTemperament: temperament,
         };
     }
 
-    const retakeWithoutLift = retryRate >= 0.5 && (trendDelta == null || trendDelta < 5);
-    if ((averageScore != null && averageScore < 60) || (trendDelta != null && trendDelta <= -8) || retakeWithoutLift) {
-        return {
-            key: 'cramming-loop',
-            label: 'Cramming Loop',
-            description: 'You are putting attempts on the board, but the results suggest you may be repeating tests faster than you are closing knowledge gaps.',
-            evidence: [
-                averageScore != null ? `${formatEvidencePercent(averageScore)} average score` : 'Low recent performance',
-                retryRate > 0 ? `${formatEvidencePercent(retryRate * 100)} retake rate` : 'Trend slipping',
-            ],
-            improvements: [
-                `Pause full retakes and generate a focused exam for ${weakTopicLabel}.`,
-                latestAttempt?.mock_exams?.title
-                    ? `Review the misses from ${latestAttempt.mock_exams.title} before taking it again.`
-                    : 'Review one recent attempt before starting another full exam.',
-            ],
-        };
-    }
+    const deliberateDescription = temperament?.key === 'deliberate'
+        ? 'You take more time per question and keep accuracy reasonably controlled — a solid base for targeted improvement.'
+        : temperament?.key === 'slow'
+            ? 'Your pacing is slower and scores are still building. Extra review before timed runs can help accuracy catch up.'
+            : 'Your exam results are stable and reasonably controlled, which is a good base for more targeted improvement.';
 
     return {
         key: 'deliberate-builder',
         label: 'Deliberate Builder',
-        description: 'Your exam results are stable and reasonably controlled, which is a good base for more targeted improvement.',
+        description: deliberateDescription,
         evidence: [
             `${formatEvidencePercent(averageScore || 0)} average score`,
             trendDelta == null ? 'Trend still forming' : `${trendDelta >= 0 ? '+' : ''}${Math.round(trendDelta)} pt trend`,
         ],
         improvements: [
-            `Use focused exams to chip away at ${weakTopicLabel}.`,
+            isRushingTemperament
+                ? 'Add a short review pass between questions on your next timed attempt.'
+                : `Use focused exams to chip away at ${weakTopicLabel}.`,
             'Keep one full-length exam in the mix so your pacing stays realistic.',
         ],
+        paceTemperament: temperament,
     };
 };
 
@@ -2371,7 +2414,9 @@ const createEmptyExamInsights = () => ({
             'Generate your first mock exam to start tracking your exam habits.',
             'Link the exam to a class so future weak-topic suggestions stay specific.',
         ],
+        paceTemperament: null,
     },
+    paceTemperament: null,
     habits: {
         retryRate: 0,
         strongestStudyDay: null,
@@ -2520,6 +2565,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         }));
 
     const latestAttempt = sortedAttempts[0] || null;
+    const paceTemperament = buildAggregatePaceTemperament(sortedAttempts, averageScore);
     const persona = buildExamPersona({
         totalAttempts: sortedAttempts.length,
         averageScore,
@@ -2528,6 +2574,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         retryRate,
         weakTopics,
         latestAttempt,
+        paceTemperament,
     });
 
     const recommendedActions = [];
@@ -2550,7 +2597,14 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         });
     }
 
-    if (latestAttempt?.exam_id) {
+    const isRushingTemperament = paceTemperament?.key === 'rushing'
+        && (paceTemperament.confidence === 'medium' || paceTemperament.confidence === 'high');
+    const latestExamRetakeCount = latestAttempt?.exam_id
+        ? sortedAttempts.filter((attempt) => attempt.exam_id === latestAttempt.exam_id).length
+        : 0;
+    const suppressRetake = isRushingTemperament && latestExamRetakeCount >= 1;
+
+    if (latestAttempt?.exam_id && !suppressRetake) {
         const latestAttemptPct = getAttemptPercentage(latestAttempt);
         recommendedActions.push({
             id: 'retake-latest-exam',
@@ -2571,6 +2625,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
             averagePaceSeconds,
             trendDelta,
         },
+        paceTemperament,
         persona,
         habits: {
             retryRate,

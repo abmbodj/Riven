@@ -300,7 +300,16 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
         return <ExamInsightsSkeleton />;
     }
 
-    const { summary, persona, habits, weakTopics, recentAttempts, recommendedActions } = insights;
+    const {
+        summary,
+        persona,
+        paceTemperament,
+        habits,
+        weakTopics,
+        recentAttempts,
+        recommendedActions,
+    } = insights;
+    const displayTemperament = paceTemperament || persona?.paceTemperament;
 
     if ((summary?.totalAttempts || 0) === 0) {
         const primaryAction = recommendedActions[0];
@@ -375,6 +384,41 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
                     <p className="mt-4 max-w-prose text-sm leading-6 text-claude-secondary">
                         {persona.description}
                     </p>
+
+                    {displayTemperament?.label ? (
+                        <div
+                            className="mt-4 rounded-2xl border border-claude-border/40 bg-claude-surface/40 px-4 py-3"
+                            data-testid="pace-temperament-chip"
+                        >
+                            <p className="text-xs font-medium text-claude-secondary">
+                                Pace pattern
+                                {displayTemperament.confidence === 'low' ? ' (forming)' : ''}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-claude-text">
+                                {displayTemperament.label}
+                            </p>
+                            {displayTemperament.description ? (
+                                <p className="mt-1.5 text-xs leading-5 text-claude-secondary">
+                                    {displayTemperament.description}
+                                </p>
+                            ) : null}
+                            {displayTemperament.confidence === 'low' ? (
+                                <p className="mt-2 text-xs leading-5 text-claude-secondary/90">
+                                    Complete another timed attempt for a more reliable pace read.
+                                </p>
+                            ) : null}
+                            {(displayTemperament.evidence || []).length > 0 ? (
+                                <ul className="mt-2 flex flex-col gap-1 text-xs text-claude-secondary">
+                                    {displayTemperament.evidence.slice(0, 2).map((item) => (
+                                        <li key={item} className="flex items-center gap-2">
+                                            <span className="h-1 w-1 shrink-0 rounded-full bg-claude-accent/60" aria-hidden />
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
+                        </div>
+                    ) : null}
 
                     {(persona.evidence || []).length > 0 ? (
                         <ul className="mt-4 flex flex-col gap-1.5 text-xs text-claude-secondary sm:flex-row sm:flex-wrap sm:gap-x-4">

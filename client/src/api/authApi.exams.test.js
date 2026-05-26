@@ -20,6 +20,10 @@ vi.mock('../lib/supabaseClient', () => ({
 
 import { supabase } from '../lib/supabaseClient';
 import * as authApi from './authApi';
+import {
+  buildAggregatePaceTemperament,
+  computeRushIndex,
+} from '../lib/examInsightSignals.js';
 
 const buildAttempt = ({
   id,
@@ -31,6 +35,7 @@ const buildAttempt = ({
   classId = 'class-bio',
   title = 'Biology Mock',
   examMode = 'standard',
+  answers = null,
 }) => ({
   id,
   exam_id: examId,
@@ -38,12 +43,77 @@ const buildAttempt = ({
   total,
   duration_seconds: durationSeconds,
   completed_at: completedAt,
+  answers,
   mock_exams: {
     id: examId,
     class_id: classId,
     title,
     exam_mode: examMode,
   },
+});
+
+/** Build per-question answers for pace temperament tests */
+const makeTimedAnswers = ({
+  total,
+  correctCount,
+  perQuestionSeconds = 50,
+  hardCount = 4,
+  hardCorrectCount = null,
+  rushIncorrect = false,
+}) => {
+  const resolvedHardCorrect = hardCorrectCount ?? Math.min(hardCount, correctCount);
+  const answers = [];
+  let correctRemaining = correctCount;
+  let hardCorrectRemaining = resolvedHardCorrect;
+
+  for (let index = 0; index < total; index += 1) {
+    const isHard = index < hardCount;
+    const isCorrect = correctRemaining > 0;
+    if (isCorrect) correctRemaining -= 1;
+
+    const hardIsCorrect = isHard && hardCorrectRemaining > 0;
+    if (hardIsCorrect) hardCorrectRemaining -= 1;
+    const finalCorrect = isHard ? hardIsCorrect : isCorrect;
+
+    const baseMs = perQuestionSeconds * 1000;
+    let timeMs = baseMs;
+    if (!finalCorrect && rushIncorrect) {
+      timeMs = Math.round(baseMs * 0.35);
+    } else if (!finalCorrect) {
+      timeMs = Math.round(baseMs * 1.6);
+    } else if (finalCorrect && isHard) {
+      timeMs = Math.round(baseMs * 1.05);
+    }
+
+    answers.push({
+      question: `Q${index + 1}`,
+      type: 'mcq',
+      topic: 'Topic',
+      difficulty: isHard ? 'hard' : 'medium',
+      isCorrect: finalCorrect,
+      time_ms: timeMs,
+    });
+  }
+
+  return answers;
+};
+
+const naturalFastAnswers = (total = 20) => makeTimedAnswers({
+  total,
+  correctCount: Math.round(total * 0.85),
+  perQuestionSeconds: 50,
+  hardCount: 6,
+  hardCorrectCount: 5,
+  rushIncorrect: false,
+});
+
+const rushingAnswers = (total = 20) => makeTimedAnswers({
+  total,
+  correctCount: Math.round(total * 0.7),
+  perQuestionSeconds: 45,
+  hardCount: 8,
+  hardCorrectCount: 2,
+  rushIncorrect: true,
 });
 
 const queueExamInsightsTables = ({ attempts = [], mastery = [], classes = [], masteryClassId = null }) => {
@@ -144,10 +214,27 @@ describe('authApi exam insights', () => {
   });
 
   it('classifies a fast and accurate exam taker at the threshold', async () => {
+    const answers = naturalFastAnswers(20);
     queueExamInsightsTables({
       attempts: [
-        buildAttempt({ id: 'a2', examId: 'exam-2', score: 16, total: 20, completedAt: '2026-03-22T16:00:00.000Z', durationSeconds: 1200 }),
-        buildAttempt({ id: 'a1', examId: 'exam-1', score: 16, total: 20, completedAt: '2026-03-20T16:00:00.000Z', durationSeconds: 1800 }),
+        buildAttempt({
+          id: 'a2',
+          examId: 'exam-2',
+          score: 16,
+          total: 20,
+          completedAt: '2026-03-22T16:00:00.000Z',
+          durationSeconds: 1000,
+          answers,
+        }),
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-1',
+          score: 16,
+          total: 20,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 1000,
+          answers,
+        }),
       ],
       mastery: [],
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
@@ -156,8 +243,251 @@ describe('authApi exam insights', () => {
     const insights = await authApi.getExamInsights();
 
     expect(insights.summary.averageScore).toBe(80);
-    expect(insights.summary.averagePaceSeconds).toBe(75);
+    expect(insights.paceTemperament.key).toBe('natural-fast');
     expect(insights.persona.label).toBe('Fast & Accurate');
+  });
+
+  it('labels rushing temperament and avoids Fast & Accurate for fast mediocre accuracy', async () => {
+    const answers = rushingAnswers(20);
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({
+          id: 'a2',
+          examId: 'exam-2',
+          score: 14,
+          total: 20,
+          completedAt: '2026-03-22T16:00:00.000Z',
+          durationSeconds: 900,
+          answers,
+        }),
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-1',
+          score: 14,
+          total: 20,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 900,
+          answers,
+        }),
+      ],
+      mastery: [],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.paceTemperament.key).toBe('rushing');
+    expect(insights.persona.label).toBe('Cramming Loop');
+    expect(insights.persona.label).not.toBe('Fast & Accurate');
+  });
+
+  it('classifies fast inaccurate attempts as rushing with Cramming Loop persona', async () => {
+    const answers = makeTimedAnswers({
+      total: 20,
+      correctCount: 11,
+      perQuestionSeconds: 40,
+      hardCount: 8,
+      hardCorrectCount: 2,
+      rushIncorrect: true,
+    });
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({
+          id: 'a2',
+          examId: 'exam-2',
+          score: 11,
+          total: 20,
+          completedAt: '2026-03-22T16:00:00.000Z',
+          durationSeconds: 800,
+          answers,
+        }),
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-1',
+          score: 11,
+          total: 20,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 800,
+          answers,
+        }),
+      ],
+      mastery: [],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.paceTemperament.key).toBe('rushing');
+    expect(insights.persona.label).toBe('Cramming Loop');
+  });
+
+  it('classifies deliberate strong pacing separately from rushing', async () => {
+    const answers = makeTimedAnswers({
+      total: 20,
+      correctCount: 17,
+      perQuestionSeconds: 100,
+      hardCount: 5,
+      hardCorrectCount: 4,
+      rushIncorrect: false,
+    });
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({
+          id: 'a2',
+          examId: 'exam-2',
+          score: 17,
+          total: 20,
+          completedAt: '2026-03-22T16:00:00.000Z',
+          durationSeconds: 2000,
+          answers,
+        }),
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-1',
+          score: 17,
+          total: 20,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 2000,
+          answers,
+        }),
+      ],
+      mastery: [],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.paceTemperament.key).toBe('deliberate');
+    expect(insights.persona.label).toBe('Deliberate Builder');
+  });
+
+  it('flags retake memorization when second attempt is faster without score lift', async () => {
+    const slowAnswers = makeTimedAnswers({
+      total: 10,
+      correctCount: 6,
+      perQuestionSeconds: 90,
+      hardCount: 3,
+      hardCorrectCount: 1,
+    });
+    const fastAnswers = makeTimedAnswers({
+      total: 10,
+      correctCount: 7,
+      perQuestionSeconds: 40,
+      hardCount: 3,
+      hardCorrectCount: 2,
+    });
+    const attempts = [
+      buildAttempt({
+        id: 'a2',
+        examId: 'exam-repeat',
+        score: 7,
+        total: 10,
+        completedAt: '2026-03-22T16:00:00.000Z',
+        durationSeconds: 400,
+        answers: fastAnswers,
+      }),
+      buildAttempt({
+        id: 'a1',
+        examId: 'exam-repeat',
+        score: 6,
+        total: 10,
+        completedAt: '2026-03-20T16:00:00.000Z',
+        durationSeconds: 900,
+        answers: slowAnswers,
+      }),
+    ];
+
+    const temperament = buildAggregatePaceTemperament(attempts, 65);
+    expect(temperament.metrics.hasMemorizationRetakes).toBe(true);
+    expect(temperament.key).not.toBe('natural-fast');
+  });
+
+  it('uses active pace from time_ms when duration_seconds is missing', async () => {
+    const answers = naturalFastAnswers(10);
+    const attempts = [
+      buildAttempt({
+        id: 'a2',
+        examId: 'exam-2',
+        score: 9,
+        total: 10,
+        completedAt: '2026-03-22T16:00:00.000Z',
+        durationSeconds: null,
+        answers,
+      }),
+      buildAttempt({
+        id: 'a1',
+        examId: 'exam-1',
+        score: 9,
+        total: 10,
+        completedAt: '2026-03-20T16:00:00.000Z',
+        durationSeconds: null,
+        answers,
+      }),
+    ];
+
+    const temperament = buildAggregatePaceTemperament(attempts, 90);
+    expect(temperament.key).toBe('natural-fast');
+    expect(temperament.metrics.averagePaceSeconds).toBeLessThanOrEqual(75);
+  });
+
+  it('returns low confidence temperament for a single timed attempt', async () => {
+    const answers = rushingAnswers(20);
+    const temperament = buildAggregatePaceTemperament(
+      [
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-1',
+          score: 14,
+          total: 20,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 900,
+          answers,
+        }),
+      ],
+      70,
+    );
+    expect(temperament.confidence).toBe('low');
+    expect(temperament.key).toBe('rushing');
+  });
+
+  it('suppresses retake CTA when rushing and the latest exam was already retaken', async () => {
+    const answers = rushingAnswers(10);
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({
+          id: 'a2',
+          examId: 'exam-repeat',
+          score: 6,
+          total: 10,
+          completedAt: '2026-03-22T16:00:00.000Z',
+          durationSeconds: 450,
+          answers,
+        }),
+        buildAttempt({
+          id: 'a1',
+          examId: 'exam-repeat',
+          score: 7,
+          total: 10,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          durationSeconds: 500,
+          answers,
+        }),
+      ],
+      mastery: [],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+    const retakeAction = insights.recommendedActions.find((action) => action.kind === 'retake_exam');
+
+    expect(insights.paceTemperament.key).toBe('rushing');
+    expect(retakeAction).toBeUndefined();
+  });
+
+  it('computes a high rush index when misses are faster than correct answers', () => {
+    const answers = rushingAnswers(20);
+    const rushIndex = computeRushIndex(answers);
+    expect(rushIndex).toBeGreaterThanOrEqual(0.35);
   });
 
   it('classifies a steady climber when recent performance clears the baseline by eight points', async () => {
