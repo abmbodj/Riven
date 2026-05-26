@@ -142,7 +142,6 @@ export default function ExamsLibrary() {
     const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'exams'
     const [insights, setInsights] = useState(null);
     const [insightsLoading, setInsightsLoading] = useState(true);
-    const [selectedInsightsClassId, setSelectedInsightsClassId] = useState(null);
 
     // Generate form
     const [genSource, setGenSource] = useState('note');
@@ -174,10 +173,10 @@ export default function ExamsLibrary() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    const loadInsights = useCallback(async (classId = null) => {
+    const loadInsights = useCallback(async () => {
         setInsightsLoading(true);
         try {
-            const nextInsights = await api.getExamInsights({ classId });
+            const nextInsights = await api.getExamInsights();
             setInsights(nextInsights);
         } catch (err) {
             toast.error(err?.message || 'Failed to load exam insights');
@@ -188,8 +187,8 @@ export default function ExamsLibrary() {
     }, [toast]);
 
     useEffect(() => {
-        loadInsights(selectedInsightsClassId);
-    }, [loadInsights, selectedInsightsClassId]);
+        loadInsights();
+    }, [loadInsights]);
 
     const {
         isSelectMode, selectedIds, selectedCount, isAllSelected,
@@ -209,11 +208,11 @@ export default function ExamsLibrary() {
             await api.bulkDeleteMockExams(ids);
             toast.success(`${ids.length} exam${ids.length === 1 ? '' : 's'} deleted`);
             loadData();
-            loadInsights(selectedInsightsClassId);
+            loadInsights();
         } catch (err) {
             toast.error(err?.message || 'Failed to delete some exams');
             loadData();
-            loadInsights(selectedInsightsClassId);
+            loadInsights();
         }
     };
 
@@ -333,7 +332,7 @@ export default function ExamsLibrary() {
             await api.deleteMockExam(deleteConfirm.item.id);
             toast.success('Exam deleted');
             loadData();
-            loadInsights(selectedInsightsClassId);
+            loadInsights();
         } catch (err) {
             toast.error(err?.message || 'Failed to delete');
         }
@@ -548,38 +547,6 @@ export default function ExamsLibrary() {
             <div className="px-1">
                 {activeTab === 'insights' ? (
                     <div className="space-y-4 pb-20">
-                        <div
-                            className="glass-panel rounded-[28px] px-4 py-3 sm:px-5"
-                            data-testid="exam-class-filters"
-                        >
-                            <p className="mb-2.5 text-xs font-medium text-claude-secondary">Filter by class</p>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedInsightsClassId(null)}
-                                    className={`tap-action rounded-full border px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-wide transition-[color,background-color,border-color] duration-200 ${selectedInsightsClassId == null ? 'border-claude-accent bg-claude-accent/15 text-claude-accent' : 'border-claude-border/60 bg-claude-bg/15 text-claude-secondary hover:border-claude-accent/35 hover:text-claude-accent'}`}
-                                >
-                                    All classes
-                                </button>
-                                {(insights?.classOptions || []).map((classOption) => (
-                                    <button
-                                        key={classOption.id}
-                                        type="button"
-                                        onClick={() => setSelectedInsightsClassId(classOption.id)}
-                                        className={`tap-action inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-wide transition-[color,background-color,border-color] duration-200 ${selectedInsightsClassId === classOption.id ? 'border-claude-accent bg-claude-accent/15 text-claude-accent' : 'border-claude-border/60 bg-claude-bg/15 text-claude-secondary hover:border-claude-accent/35 hover:text-claude-accent'}`}
-                                    >
-                                        <span
-                                            className="h-2.5 w-2.5 rounded-full ring-1 ring-claude-border/40"
-                                            style={{ backgroundColor: classOption.color || 'var(--border-color)' }}
-                                            aria-hidden="true"
-                                        />
-                                        <span>{classOption.name}</span>
-                                        <span className="text-claude-secondary/70">({classOption.attemptCount})</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
                         <ExamAnalytics
                             insights={insights}
                             loading={insightsLoading}

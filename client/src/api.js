@@ -275,6 +275,8 @@ export const api = {
     getExamInsights: ({ classId = null } = {}) => isLoggedIn()
         ? serverApi.getExamInsights({ classId })
         : Promise.resolve({
+            hubReady: false,
+            minAttemptsRequired: 3,
             summary: {
                 totalAttempts: 0,
                 averageScore: null,
@@ -285,7 +287,7 @@ export const api = {
             persona: {
                 key: 'getting-started',
                 label: 'Getting Started',
-                description: 'Your mock exam hub will start filling in after a couple of completed attempts.',
+                description: 'Your mock exam hub will start filling in after three completed mock exams.',
                 evidence: [],
                 improvements: [],
             },

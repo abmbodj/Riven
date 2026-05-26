@@ -24,7 +24,31 @@ import {
   buildAggregatePaceTemperament,
   buildStrengthInsights,
   computeRushIndex,
+  MIN_HUB_INSIGHT_ATTEMPTS,
 } from '../lib/examInsightSignals.js';
+
+const padAttemptsToHubMinimum = (attempts) => {
+  if (attempts.length >= MIN_HUB_INSIGHT_ATTEMPTS) return attempts;
+  const padded = [...attempts];
+  while (padded.length < MIN_HUB_INSIGHT_ATTEMPTS) {
+    const template = padded[padded.length - 1];
+    padded.push(
+      buildAttempt({
+        id: `pad-${padded.length}`,
+        examId: template.exam_id || template.mock_exams?.id || `exam-pad-${padded.length}`,
+        score: template.score,
+        total: template.total,
+        completedAt: `2026-03-${18 + padded.length}T16:00:00.000Z`,
+        durationSeconds: template.duration_seconds,
+        classId: template.mock_exams?.class_id,
+        title: template.mock_exams?.title,
+        examMode: template.mock_exams?.exam_mode,
+        answers: template.answers,
+      }),
+    );
+  }
+  return padded;
+};
 
 const buildAttempt = ({
   id,
@@ -145,12 +169,51 @@ describe('authApi exam insights', () => {
 
     const insights = await authApi.getExamInsights();
 
+    expect(insights.hubReady).toBe(false);
+    expect(insights.minAttemptsRequired).toBe(MIN_HUB_INSIGHT_ATTEMPTS);
     expect(insights.summary.totalAttempts).toBe(0);
     expect(insights.persona.label).toBe('Getting Started');
     expect(insights.recommendedActions[0]).toMatchObject({
       kind: 'generate_standard',
       label: 'Generate your first mock exam',
     });
+  });
+
+  it('returns collecting hub payload with one completed attempt', async () => {
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({ id: 'a1', examId: 'exam-1', score: 8, total: 10, completedAt: '2026-03-20T16:00:00.000Z' }),
+      ],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.hubReady).toBe(false);
+    expect(insights.summary.totalAttempts).toBe(1);
+    expect(insights.summary.averageScore).toBeNull();
+    expect(insights.persona.key).toBe('getting-started');
+    expect(insights.paceTemperament).toBeNull();
+    expect(insights.strengthInsights.level).toBe('forming');
+    expect(insights.strengthInsights.strengths).toHaveLength(0);
+  });
+
+  it('returns collecting hub payload with two completed attempts', async () => {
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({ id: 'a2', examId: 'exam-2', score: 7, total: 10, completedAt: '2026-03-22T16:00:00.000Z' }),
+        buildAttempt({ id: 'a1', examId: 'exam-1', score: 6, total: 10, completedAt: '2026-03-20T16:00:00.000Z' }),
+      ],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.hubReady).toBe(false);
+    expect(insights.summary.totalAttempts).toBe(2);
+    expect(insights.persona.key).toBe('getting-started');
+    expect(insights.strengthInsights.level).toBe('forming');
+    expect(insights.recentAttempts).toHaveLength(2);
   });
 
   it('aggregates summary metrics and habits from all historical attempts', async () => {
@@ -165,6 +228,7 @@ describe('authApi exam insights', () => {
 
     const insights = await authApi.getExamInsights();
 
+    expect(insights.hubReady).toBe(true);
     expect(insights.summary.totalAttempts).toBe(3);
     expect(insights.summary.averageScore).toBeCloseTo(73.333, 2);
     expect(insights.summary.bestScore).toBe(90);
@@ -177,7 +241,7 @@ describe('authApi exam insights', () => {
     expect(insights.recentAttempts).toHaveLength(3);
   });
 
-  it('filters summary data by class while keeping all linked class options', async () => {
+  it('uses global attempt count for hub readiness even when classId is passed', async () => {
     queueExamInsightsTables({
       attempts: [
         buildAttempt({ id: 'bio-1', examId: 'exam-b1', score: 9, total: 10, completedAt: '2026-03-22T16:00:00.000Z', classId: 'class-bio', title: 'Bio Mock' }),
@@ -191,8 +255,9 @@ describe('authApi exam insights', () => {
 
     const insights = await authApi.getExamInsights({ classId: 'class-chem' });
 
-    expect(insights.summary.totalAttempts).toBe(1);
-    expect(insights.summary.averageScore).toBe(50);
+    expect(insights.hubReady).toBe(false);
+    expect(insights.summary.totalAttempts).toBe(2);
+    expect(insights.summary.averageScore).toBeNull();
     expect(insights.classOptions.map((option) => option.name)).toEqual(['Biology', 'Chemistry']);
     expect(insights).not.toHaveProperty('weakTopics');
   });
@@ -200,7 +265,7 @@ describe('authApi exam insights', () => {
   it('classifies a fast and accurate exam taker at the threshold', async () => {
     const answers = naturalFastAnswers(20);
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({
           id: 'a2',
           examId: 'exam-2',
@@ -219,7 +284,7 @@ describe('authApi exam insights', () => {
           durationSeconds: 1000,
           answers,
         }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -235,7 +300,7 @@ describe('authApi exam insights', () => {
   it('labels rushing temperament and avoids Fast & Accurate for fast mediocre accuracy', async () => {
     const answers = rushingAnswers(20);
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({
           id: 'a2',
           examId: 'exam-2',
@@ -254,7 +319,7 @@ describe('authApi exam insights', () => {
           durationSeconds: 900,
           answers,
         }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -277,7 +342,7 @@ describe('authApi exam insights', () => {
       rushIncorrect: true,
     });
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({
           id: 'a2',
           examId: 'exam-2',
@@ -296,7 +361,7 @@ describe('authApi exam insights', () => {
           durationSeconds: 800,
           answers,
         }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -316,7 +381,7 @@ describe('authApi exam insights', () => {
       rushIncorrect: false,
     });
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({
           id: 'a2',
           examId: 'exam-2',
@@ -335,7 +400,7 @@ describe('authApi exam insights', () => {
           durationSeconds: 2000,
           answers,
         }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -440,7 +505,7 @@ describe('authApi exam insights', () => {
   it('suppresses retake CTA when rushing and the latest exam was already retaken', async () => {
     const answers = rushingAnswers(10);
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({
           id: 'a2',
           examId: 'exam-repeat',
@@ -459,7 +524,7 @@ describe('authApi exam insights', () => {
           durationSeconds: 500,
           answers,
         }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
@@ -516,7 +581,9 @@ describe('authApi exam insights', () => {
 
     const insights = await authApi.getExamInsights();
 
-    expect(insights.summary.averageScore).toBe(90);
+    expect(insights.hubReady).toBe(false);
+    expect(insights.summary.totalAttempts).toBe(1);
+    expect(insights.summary.averageScore).toBeNull();
     expect(insights.persona.key).toBe('getting-started');
     expect(insights.strengthInsights.level).toBe('forming');
   });
@@ -560,16 +627,17 @@ describe('authApi exam insights', () => {
 
   it('emits only generic class-aware recommendation payloads for the hub', async () => {
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({ id: 'a1', examId: 'exam-1', score: 6, total: 10, completedAt: '2026-03-20T16:00:00.000Z', classId: 'class-bio', title: 'Cell Unit Exam' }),
         buildAttempt({ id: 'a2', examId: 'exam-2', score: 7, total: 10, completedAt: '2026-03-22T16:00:00.000Z', classId: 'class-bio', title: 'Membranes Quiz' }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 
     const insights = await authApi.getExamInsights();
     const standardAction = insights.recommendedActions.find((action) => action.kind === 'generate_standard');
 
+    expect(insights.hubReady).toBe(true);
     expect(insights).not.toHaveProperty('weakTopics');
     expect(insights.recommendedActions.some((action) => action.kind === 'generate_focused')).toBe(false);
     expect(standardAction).toMatchObject({
@@ -583,10 +651,10 @@ describe('authApi exam insights', () => {
 
   it('keeps persona copy free of topic wording', async () => {
     queueExamInsightsTables({
-      attempts: [
+      attempts: padAttemptsToHubMinimum([
         buildAttempt({ id: 'a2', examId: 'exam-2', score: 7, total: 10, completedAt: '2026-03-22T16:00:00.000Z' }),
         buildAttempt({ id: 'a1', examId: 'exam-1', score: 7, total: 10, completedAt: '2026-03-20T16:00:00.000Z' }),
-      ],
+      ]),
       classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
     });
 

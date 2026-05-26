@@ -80,6 +80,8 @@ vi.mock('../components/ui/PricingModal', () => ({
 const { api } = await import('../api');
 
 const baseInsights = {
+  hubReady: true,
+  minAttemptsRequired: 3,
   summary: {
     totalAttempts: 6,
     averageScore: 72,
@@ -139,6 +141,8 @@ const baseInsights = {
 };
 
 const emptyInsights = {
+  hubReady: false,
+  minAttemptsRequired: 3,
   summary: {
     totalAttempts: 0,
     averageScore: null,
@@ -244,43 +248,48 @@ describe('ExamsLibrary insights hub', () => {
     expect(screen.getAllByRole('button', { name: /note/i }).length).toBeGreaterThan(0);
   });
 
-  it('refetches insights when a class filter chip is selected', async () => {
-    api.getExamInsights.mockImplementation(({ classId } = {}) => {
-      if (classId === 'class-chem') {
-        return Promise.resolve({
-          ...baseInsights,
-          persona: {
-            ...baseInsights.persona,
-            label: 'Chemistry Builder',
-          },
-          summary: {
-            ...baseInsights.summary,
-            totalAttempts: 2,
-          },
-          recentAttempts: [
-            {
-              ...baseInsights.recentAttempts[0],
-              title: 'Chemistry Practice Mock',
-              classId: 'class-chem',
-            },
-          ],
-        });
-      }
+  it('does not render class filter chips on the insights hub', async () => {
+    renderLibrary();
 
-      return Promise.resolve(baseInsights);
+    expect(await screen.findByTestId('exam-insights-hub')).toBeInTheDocument();
+    expect(screen.queryByTestId('exam-class-filters')).not.toBeInTheDocument();
+    expect(api.getExamInsights).toHaveBeenCalledWith();
+  });
+
+  it('shows collecting progress when the hub is not ready yet', async () => {
+    api.getExamInsights.mockResolvedValue({
+      ...emptyInsights,
+      summary: { ...emptyInsights.summary, totalAttempts: 2 },
+      persona: {
+        ...emptyInsights.persona,
+        description: 'Complete 1 more mock exam to unlock persona, pace, and trend insights.',
+      },
+      recentAttempts: [
+        {
+          id: 'attempt-1',
+          examId: 'exam-1',
+          completedAt: '2026-03-22T16:00:00.000Z',
+          score: 7,
+          total: 10,
+          percentage: 70,
+          title: 'Biology Practice Mock',
+        },
+      ],
+      recommendedActions: [
+        {
+          id: 'next-mock',
+          kind: 'generate_standard',
+          label: 'Take another timed mock',
+          description: 'One more exam unlocks your full profile.',
+        },
+      ],
     });
 
     renderLibrary();
 
-    expect(await screen.findByText('Deliberate Builder')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /chemistry\s*\(2\)/i }));
-
-    await waitFor(() => {
-      expect(api.getExamInsights).toHaveBeenLastCalledWith({ classId: 'class-chem' });
-    });
-    expect(await screen.findByText('Chemistry Builder')).toBeInTheDocument();
-    expect(screen.getByText('Chemistry Practice Mock')).toBeInTheDocument();
+    expect(await screen.findByText(/building your exam profile/i)).toBeInTheDocument();
+    expect(screen.getByTestId('hub-collecting-progress')).toHaveTextContent('2 of 3 mock exams completed');
+    expect(screen.queryByText('Deliberate Builder')).not.toBeInTheDocument();
   });
 
   it('renders persona copy and summary cards from mocked insight data', async () => {

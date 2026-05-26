@@ -16,7 +16,11 @@ import {
     normalizeSharedPayload,
     serializeSharedPayload,
 } from '../utils/sharedResources.js';
-import { buildAggregatePaceTemperament, buildStrengthInsights } from '../lib/examInsightSignals.js';
+import {
+    buildAggregatePaceTemperament,
+    buildStrengthInsights,
+    MIN_HUB_INSIGHT_ATTEMPTS,
+} from '../lib/examInsightSignals.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -2277,14 +2281,14 @@ const buildExamPersona = ({
     const isNaturalFast = temperament?.key === 'natural-fast'
         && (temperament.confidence === 'medium' || temperament.confidence === 'high');
 
-    if (totalAttempts < 2) {
+    if (totalAttempts < MIN_HUB_INSIGHT_ATTEMPTS) {
         return {
             key: 'getting-started',
             label: 'Getting Started',
-            description: 'You are still building a useful exam pattern. A couple more attempts will reveal pace, pressure points, and score trends.',
+            description: 'You are still building a useful exam pattern. A few more attempts will reveal pace, pressure points, and score trends.',
             evidence: [
                 `${totalAttempts} completed attempt${totalAttempts === 1 ? '' : 's'}`,
-                'Need 2+ attempts for trend data',
+                `Need ${MIN_HUB_INSIGHT_ATTEMPTS}+ attempts for trend data`,
             ],
             improvements: [
                 'Take another mock exam this week to establish a baseline.',
@@ -2418,7 +2422,116 @@ const buildExamPersona = ({
     };
 };
 
+const mapRecentExamAttempt = (attempt) => ({
+    id: attempt.id,
+    examId: attempt.exam_id,
+    completedAt: attempt.completed_at,
+    durationSeconds: Number(attempt.duration_seconds || 0) || null,
+    score: Number(attempt.score || 0),
+    total: Number(attempt.total || 0),
+    percentage: getAttemptPercentage(attempt),
+    title: attempt?.mock_exams?.title || 'Exam',
+    classId: attempt?.mock_exams?.class_id || null,
+    examMode: attempt?.mock_exams?.exam_mode || 'standard',
+});
+
+const buildExamRecommendedActions = ({
+    sortedAttempts,
+    classOptions,
+    classId = null,
+    retryRate = 0,
+    paceTemperament = null,
+}) => {
+    const latestAttempt = sortedAttempts[0] || null;
+    const recommendedActions = [];
+    const standardActionClassId = classId || latestAttempt?.mock_exams?.class_id || null;
+    const standardActionClass = classOptions.find((option) => option.id === standardActionClassId) || null;
+
+    recommendedActions.push({
+        id: 'generate-next-exam',
+        kind: 'generate_standard',
+        label: standardActionClass?.name ? `Build another ${standardActionClass.name} exam` : 'Build a fresh mock exam',
+        description: retryRate >= 0.5
+            ? 'Use a fresh exam to break the retake loop.'
+            : 'Keep your signal clean with a new mock exam.',
+        payload: {
+            ...(standardActionClassId ? { classId: standardActionClassId } : {}),
+            ...(standardActionClass?.name ? { title: `${standardActionClass.name} Mock Exam` } : {}),
+        },
+    });
+
+    const isRushingTemperament = paceTemperament?.key === 'rushing'
+        && (paceTemperament.confidence === 'medium' || paceTemperament.confidence === 'high');
+    const latestExamRetakeCount = latestAttempt?.exam_id
+        ? sortedAttempts.filter((attempt) => attempt.exam_id === latestAttempt.exam_id).length
+        : 0;
+    const suppressRetake = isRushingTemperament && latestExamRetakeCount >= 1;
+
+    if (latestAttempt?.exam_id && !suppressRetake) {
+        const latestAttemptPct = getAttemptPercentage(latestAttempt);
+        recommendedActions.push({
+            id: 'retake-latest-exam',
+            kind: 'retake_exam',
+            examId: latestAttempt.exam_id,
+            label: latestAttempt?.mock_exams?.title ? `Retake ${latestAttempt.mock_exams.title}` : 'Retake your latest exam',
+            description: latestAttemptPct != null
+                ? `Your latest result was ${latestAttemptPct}%. Try it again after a quick review.`
+                : 'Run the latest exam again after reviewing your misses.',
+        });
+    }
+
+    return recommendedActions;
+};
+
+const buildCollectingExamInsights = ({ sortedAttempts, classOptions, classId = null }) => {
+    const totalAttempts = sortedAttempts.length;
+    const remaining = MIN_HUB_INSIGHT_ATTEMPTS - totalAttempts;
+
+    return {
+        hubReady: false,
+        minAttemptsRequired: MIN_HUB_INSIGHT_ATTEMPTS,
+        summary: {
+            totalAttempts,
+            averageScore: null,
+            bestScore: null,
+            averagePaceSeconds: null,
+            trendDelta: null,
+        },
+        persona: {
+            key: 'getting-started',
+            label: 'Getting Started',
+            description: `Complete ${remaining} more mock exam${remaining === 1 ? '' : 's'} to unlock persona, pace, and trend insights.`,
+            evidence: [
+                `${totalAttempts} of ${MIN_HUB_INSIGHT_ATTEMPTS} completed attempts`,
+                `Need ${MIN_HUB_INSIGHT_ATTEMPTS}+ attempts for reliable trend data`,
+            ],
+            improvements: [
+                'Take another timed mock exam to build your profile.',
+                'Link exams to a class so future recommendations stay organized by subject.',
+            ],
+            paceTemperament: null,
+            strengths: [],
+        },
+        paceTemperament: null,
+        strengthInsights: {
+            level: 'forming',
+            affirmation: `Complete ${remaining} more mock${remaining === 1 ? '' : 's'} for a full performance read.`,
+            strengths: [],
+        },
+        habits: {
+            retryRate: 0,
+            strongestStudyDay: null,
+            averageDurationMinutes: null,
+        },
+        recentAttempts: sortedAttempts.slice(0, 8).map(mapRecentExamAttempt),
+        recommendedActions: buildExamRecommendedActions({ sortedAttempts, classOptions, classId }),
+        classOptions,
+    };
+};
+
 const createEmptyExamInsights = () => ({
+    hubReady: false,
+    minAttemptsRequired: MIN_HUB_INSIGHT_ATTEMPTS,
     summary: {
         totalAttempts: 0,
         averageScore: null,
@@ -2429,7 +2542,7 @@ const createEmptyExamInsights = () => ({
     persona: {
         key: 'getting-started',
         label: 'Getting Started',
-        description: 'Your mock exam hub will start filling in after a couple of completed attempts.',
+        description: 'Your mock exam hub will start filling in after three completed mock exams.',
         evidence: ['0 completed attempts', 'No trend yet'],
         improvements: [
             'Generate your first mock exam to start tracking your exam habits.',
@@ -2478,11 +2591,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
         getClasses(),
     ]);
 
-    const relevantAttempts = classId
-        ? attempts.filter((attempt) => attempt?.mock_exams?.class_id === classId)
-        : attempts;
-
-    const sortedAttempts = [...relevantAttempts].sort(
+    const sortedAttempts = [...attempts].sort(
         (left, right) => new Date(right.completed_at) - new Date(left.completed_at),
     );
 
@@ -2508,6 +2617,10 @@ export const getExamInsights = async ({ classId = null } = {}) => {
             ...createEmptyExamInsights(),
             classOptions,
         };
+    }
+
+    if (sortedAttempts.length < MIN_HUB_INSIGHT_ATTEMPTS) {
+        return buildCollectingExamInsights({ sortedAttempts, classOptions, classId });
     }
 
     const attemptsAscending = [...sortedAttempts].reverse();
@@ -2600,44 +2713,17 @@ export const getExamInsights = async ({ classId = null } = {}) => {
     });
     persona.strengthInsights = strengthInsights;
 
-    const recommendedActions = [];
-    const standardActionClassId = classId || latestAttempt?.mock_exams?.class_id || null;
-    const standardActionClass = classOptions.find((option) => option.id === standardActionClassId) || null;
-
-    recommendedActions.push({
-        id: 'generate-next-exam',
-        kind: 'generate_standard',
-        label: standardActionClass?.name ? `Build another ${standardActionClass.name} exam` : 'Build a fresh mock exam',
-        description: retryRate >= 0.5
-            ? 'Use a fresh exam to break the retake loop.'
-            : 'Keep your signal clean with a new mock exam.',
-        payload: {
-            ...(standardActionClassId ? { classId: standardActionClassId } : {}),
-            ...(standardActionClass?.name ? { title: `${standardActionClass.name} Mock Exam` } : {}),
-        },
+    const recommendedActions = buildExamRecommendedActions({
+        sortedAttempts,
+        classOptions,
+        classId,
+        retryRate,
+        paceTemperament,
     });
 
-    const isRushingTemperament = paceTemperament?.key === 'rushing'
-        && (paceTemperament.confidence === 'medium' || paceTemperament.confidence === 'high');
-    const latestExamRetakeCount = latestAttempt?.exam_id
-        ? sortedAttempts.filter((attempt) => attempt.exam_id === latestAttempt.exam_id).length
-        : 0;
-    const suppressRetake = isRushingTemperament && latestExamRetakeCount >= 1;
-
-    if (latestAttempt?.exam_id && !suppressRetake) {
-        const latestAttemptPct = getAttemptPercentage(latestAttempt);
-        recommendedActions.push({
-            id: 'retake-latest-exam',
-            kind: 'retake_exam',
-            examId: latestAttempt.exam_id,
-            label: latestAttempt?.mock_exams?.title ? `Retake ${latestAttempt.mock_exams.title}` : 'Retake your latest exam',
-            description: latestAttemptPct != null
-                ? `Your latest result was ${latestAttemptPct}%. Try it again after a quick review.`
-                : 'Run the latest exam again after reviewing your misses.',
-        });
-    }
-
     return {
+        hubReady: true,
+        minAttemptsRequired: MIN_HUB_INSIGHT_ATTEMPTS,
         summary: {
             totalAttempts: sortedAttempts.length,
             averageScore,
@@ -2653,18 +2739,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
             strongestStudyDay,
             averageDurationMinutes,
         },
-        recentAttempts: sortedAttempts.slice(0, 8).map((attempt) => ({
-            id: attempt.id,
-            examId: attempt.exam_id,
-            completedAt: attempt.completed_at,
-            durationSeconds: Number(attempt.duration_seconds || 0) || null,
-            score: Number(attempt.score || 0),
-            total: Number(attempt.total || 0),
-            percentage: getAttemptPercentage(attempt),
-            title: attempt?.mock_exams?.title || 'Exam',
-            classId: attempt?.mock_exams?.class_id || null,
-            examMode: attempt?.mock_exams?.exam_mode || 'standard',
-        })),
+        recentAttempts: sortedAttempts.slice(0, 8).map(mapRecentExamAttempt),
         recommendedActions,
         classOptions,
     };

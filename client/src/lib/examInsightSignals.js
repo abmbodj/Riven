@@ -3,6 +3,8 @@ export const P_FAST = 75;
 export const P_SLOW = 120;
 export const R_RUSH = 0.35;
 export const MIN_ATTEMPTS_HIGH_CONFIDENCE = 3;
+/** Minimum completed mock attempts before the Insights Hub shows full persona/trend analytics */
+export const MIN_HUB_INSIGHT_ATTEMPTS = 3;
 export const MIN_TIMING_COVERAGE = 0.8;
 export const IDLE_PAUSE_RATIO = 1.4;
 export const RETAKE_PACE_GAIN_WITHOUT_SCORE = 15;
@@ -350,10 +352,10 @@ export const buildStrengthInsights = ({
         strengths.push(text);
     };
 
-    if (totalAttempts < 2 || personaKey === 'getting-started') {
+    if (totalAttempts < MIN_HUB_INSIGHT_ATTEMPTS || personaKey === 'getting-started') {
         return {
             level: 'forming',
-            affirmation: 'Complete another mock to unlock a fuller performance read.',
+            affirmation: 'Complete more mocks to unlock a fuller performance read.',
             strengths: [],
         };
     }

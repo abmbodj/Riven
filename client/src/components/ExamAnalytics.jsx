@@ -401,7 +401,11 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
         strengthInsights: displayStrengthInsights,
     });
 
-    if ((summary?.totalAttempts || 0) === 0) {
+    const totalAttempts = summary?.totalAttempts || 0;
+    const minAttemptsRequired = insights.minAttemptsRequired ?? 3;
+    const hubReady = insights.hubReady ?? totalAttempts >= minAttemptsRequired;
+
+    if (totalAttempts === 0) {
         const primaryAction = recommendedActions[0];
         const secondaryActions = recommendedActions.slice(1);
 
@@ -419,7 +423,7 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
                         Learn your exam pattern
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                        After a couple of mock exams, this hub shows your pacing, score trends, and the habits that shape your results.
+                        After three mock exams, this hub shows your pacing, score trends, and the habits that shape your results.
                     </p>
                     {primaryAction ? (
                         <div className="mt-6 flex justify-center">
@@ -434,6 +438,87 @@ export default function ExamAnalytics({ insights, loading, onAction }) {
                         </div>
                     ) : null}
                 </div>
+            </section>
+        );
+    }
+
+    if (!hubReady) {
+        const primaryAction = recommendedActions[0];
+        const secondaryActions = recommendedActions.slice(1);
+        const remaining = Math.max(minAttemptsRequired - totalAttempts, 0);
+
+        return (
+            <section
+                className="glass-panel rounded-[28px] p-6 sm:p-8"
+                data-testid="exam-insights-hub"
+            >
+                <div className="mx-auto max-w-xl text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-claude-accent/20 bg-claude-accent/10 text-claude-accent">
+                        <BarChart3 className="h-6 w-6" />
+                    </div>
+                    <p className="mt-4 text-xs font-medium text-claude-secondary">Insights Hub</p>
+                    <h2 className="mt-2 font-display text-[1.75rem] font-bold italic leading-tight text-claude-text sm:text-[2rem]">
+                        Building your exam profile
+                    </h2>
+                    <p
+                        className="mt-3 text-sm font-medium text-claude-text"
+                        data-testid="hub-collecting-progress"
+                    >
+                        {totalAttempts} of {minAttemptsRequired} mock exams completed
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                        {persona?.description || (
+                            remaining === 1
+                                ? 'Complete one more timed mock to unlock your exam persona, pace read, strength signals, and score trends.'
+                                : `Complete ${remaining} more timed mocks to unlock your exam persona, pace read, strength signals, and score trends.`
+                        )}
+                    </p>
+                    {primaryAction ? (
+                        <div className="mt-6 flex justify-center">
+                            <ActionButton action={primaryAction} onAction={onAction} primary />
+                        </div>
+                    ) : null}
+                    {secondaryActions.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                            {secondaryActions.map((action) => (
+                                <ActionButton key={action.id} action={action} onAction={onAction} />
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+
+                {recentAttempts.length > 0 ? (
+                    <div className="mx-auto mt-8 max-w-xl">
+                        <p className="text-xs font-medium text-claude-secondary">Recent attempts</p>
+                        <ul className="mt-3 divide-y divide-claude-border/30">
+                            {recentAttempts.map((attempt) => (
+                                <li key={attempt.id}>
+                                    <Link
+                                        to={`/exam/${attempt.examId}`}
+                                        className="tap-action group -mx-1 flex min-h-[72px] items-center gap-3 rounded-xl px-1 py-3 transition-[color,background-color,border-color] duration-200 hover:bg-claude-bg/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                    >
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-claude-accent/20 bg-claude-accent/10">
+                                            <span className="font-display text-base font-bold text-claude-accent">
+                                                {attempt.percentage != null ? `${attempt.percentage}%` : '--'}
+                                            </span>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate font-serif text-sm font-bold italic text-claude-text transition-colors group-hover:text-claude-accent">
+                                                {attempt.title}
+                                            </p>
+                                            <p className="mt-1.5 text-[10px] font-mono uppercase tracking-wide text-claude-secondary">
+                                                {attempt.score}/{attempt.total} correct
+                                            </p>
+                                        </div>
+                                        <p className="shrink-0 text-[10px] font-mono text-claude-secondary">
+                                            {formatDate(attempt.completedAt)}
+                                        </p>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : null}
             </section>
         );
     }
