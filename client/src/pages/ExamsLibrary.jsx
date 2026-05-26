@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -139,7 +139,10 @@ export default function ExamsLibrary() {
     const [generating, setGenerating] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-    const [activeTab, setActiveTab] = useState('exams'); // 'exams' | 'analytics'
+    const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'exams'
+    const [insights, setInsights] = useState(null);
+    const [insightsLoading, setInsightsLoading] = useState(true);
+    const [selectedInsightsClassId, setSelectedInsightsClassId] = useState(null);
 
     // Generate form
     const [genSource, setGenSource] = useState('note');
@@ -147,6 +150,9 @@ export default function ExamsLibrary() {
     const [selectedGuide, setSelectedGuide] = useState(null);
     const [genFile, setGenFile] = useState(null);
     const [genTitle, setGenTitle] = useState('');
+    const [genExamMode, setGenExamMode] = useState('standard');
+    const [genWeakTopics, setGenWeakTopics] = useState([]);
+    const [genClassOverrideId, setGenClassOverrideId] = useState(null);
 
     const loadData = useCallback(async () => {
         try {
@@ -170,6 +176,23 @@ export default function ExamsLibrary() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
+    const loadInsights = useCallback(async (classId = null) => {
+        setInsightsLoading(true);
+        try {
+            const nextInsights = await api.getExamInsights({ classId });
+            setInsights(nextInsights);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to load exam insights');
+            setInsights(null);
+        } finally {
+            setInsightsLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        loadInsights(selectedInsightsClassId);
+    }, [loadInsights, selectedInsightsClassId]);
+
     const {
         isSelectMode, selectedIds, selectedCount, isAllSelected,
         enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
@@ -188,11 +211,25 @@ export default function ExamsLibrary() {
             await api.bulkDeleteMockExams(ids);
             toast.success(`${ids.length} exam${ids.length === 1 ? '' : 's'} deleted`);
             loadData();
+            loadInsights(selectedInsightsClassId);
         } catch (err) {
             toast.error(err?.message || 'Failed to delete some exams');
             loadData();
+            loadInsights(selectedInsightsClassId);
         }
     };
+
+    const openGenerateModal = useCallback((preset = {}) => {
+        setShowGenerateModal(true);
+        setGenSource('note');
+        setSelectedNote(null);
+        setSelectedGuide(null);
+        setGenFile(null);
+        setGenTitle(preset.title || '');
+        setGenExamMode(preset.examMode || 'standard');
+        setGenWeakTopics(Array.isArray(preset.weakTopics) ? preset.weakTopics : []);
+        setGenClassOverrideId(preset.classId || null);
+    }, []);
 
     const handleFileChange = (e) => {
         const file = e.target.files?.[0];
@@ -219,12 +256,29 @@ export default function ExamsLibrary() {
         return texts.join('\n');
     };
 
+    const generationClass = useMemo(
+        () => (genClassOverrideId ? classes.find(c => c.id === genClassOverrideId) || null : null),
+        [classes, genClassOverrideId]
+    );
+
+    const visibleNotes = useMemo(() => {
+        if (!genClassOverrideId) return notes;
+        const matching = notes.filter((note) => note.class_id === genClassOverrideId);
+        return matching.length > 0 ? matching : notes;
+    }, [notes, genClassOverrideId]);
+
+    const visibleGuides = useMemo(() => {
+        if (!genClassOverrideId) return guides;
+        const matching = guides.filter((guide) => guide.class_id === genClassOverrideId);
+        return matching.length > 0 ? matching : guides;
+    }, [guides, genClassOverrideId]);
+
     const handleGenerate = async () => {
         let noteText = '';
         let file = null;
         let sourceType = 'notes';
         let sourceId = null;
-        let classId = null;
+        let classId = genClassOverrideId || null;
 
         if (genSource === 'note' && selectedNote) {
             const note = notes.find(n => n.id === selectedNote);
@@ -254,7 +308,20 @@ export default function ExamsLibrary() {
             const classData = classId ? classes.find(c => c.id === classId) : null;
             const className = classData?.name || null;
             const subject = classData?.subject || null;
-            const result = await api.generateAiExam(noteText || null, file, genTitle || 'AI Mock Exam', sourceType, sourceId, classId, className, { subject });
+            const result = await api.generateAiExam(
+                noteText || null,
+                file,
+                genTitle || 'AI Mock Exam',
+                sourceType,
+                sourceId,
+                classId,
+                className,
+                {
+                    examMode: genExamMode,
+                    weakTopics: genWeakTopics,
+                    subject,
+                }
+            );
             toast.success(`Generated ${result.question_count} questions!`);
             setShowGenerateModal(false);
             navigate(`/exam/${result.exam_id}`);
@@ -271,10 +338,29 @@ export default function ExamsLibrary() {
             await api.deleteMockExam(deleteConfirm.item.id);
             toast.success('Exam deleted');
             loadData();
+            loadInsights(selectedInsightsClassId);
         } catch (err) {
             toast.error(err?.message || 'Failed to delete');
         }
     };
+
+    const handleInsightAction = useCallback((action) => {
+        if (!action) return;
+
+        if (action.kind === 'retake_exam' && action.examId) {
+            navigate(`/exam/${action.examId}`);
+            return;
+        }
+
+        if (action.kind === 'generate_focused') {
+            openGenerateModal(action.payload || {});
+            return;
+        }
+
+        if (action.kind === 'generate_standard') {
+            openGenerateModal();
+        }
+    }, [navigate, openGenerateModal]);
 
     if (loading) return (
         <div className="space-y-4 pt-4">
@@ -328,6 +414,31 @@ export default function ExamsLibrary() {
                                     <input type="text" value={genTitle} onChange={e => setGenTitle(e.target.value)} placeholder="AI Mock Exam" className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" style={{ fontSize: '16px' }} />
                                 </div>
 
+                                {(genExamMode !== 'standard' || genWeakTopics.length > 0 || generationClass) ? (
+                                    <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/10 p-4">
+                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">
+                                            {genExamMode === 'focused' ? 'Focused setup' : 'Exam context'}
+                                        </p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {genExamMode !== 'standard' ? (
+                                                <span className="rounded-full border border-claude-accent/25 bg-claude-bg/30 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-text">
+                                                    {genExamMode}
+                                                </span>
+                                            ) : null}
+                                            {generationClass ? (
+                                                <span className="rounded-full border border-claude-accent/25 bg-claude-bg/30 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-text">
+                                                    {generationClass.name}
+                                                </span>
+                                            ) : null}
+                                            {genWeakTopics.map((topic) => (
+                                                <span key={topic} className="rounded-full border border-claude-accent/25 bg-claude-bg/30 px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-text">
+                                                    {topic}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Source</label>
                                     <div className="flex gap-2">
@@ -343,12 +454,12 @@ export default function ExamsLibrary() {
                                         ))}
                                     </div>
                                 </div>
-
+                                
                                 {genSource === 'note' && (
                                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                                        {notes.length === 0 ? (
+                                        {visibleNotes.length === 0 ? (
                                             <p className="text-claude-secondary italic font-serif text-sm text-center py-4">No notes yet</p>
-                                        ) : notes.map(note => (
+                                        ) : visibleNotes.map(note => (
                                             <button key={note.id} onClick={() => setSelectedNote(note.id)} className={`w-full p-3 rounded-xl text-left border transition-all ${selectedNote === note.id ? 'bg-claude-accent/10 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-text'}`}>
                                                 <span className="font-serif italic text-sm">{note.title || 'Untitled'}</span>
                                             </button>
@@ -358,9 +469,9 @@ export default function ExamsLibrary() {
 
                                 {genSource === 'guide' && (
                                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                                        {guides.length === 0 ? (
+                                        {visibleGuides.length === 0 ? (
                                             <p className="text-claude-secondary italic font-serif text-sm text-center py-4">No guides yet</p>
-                                        ) : guides.map(guide => (
+                                        ) : visibleGuides.map(guide => (
                                             <button key={guide.id} onClick={() => setSelectedGuide(guide.id)} className={`w-full p-3 rounded-xl text-left border transition-all ${selectedGuide === guide.id ? 'bg-claude-accent/10 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-text'}`}>
                                                 <span className="font-serif italic text-sm">{guide.title}</span>
                                             </button>
@@ -427,7 +538,7 @@ export default function ExamsLibrary() {
                         </button>
                     ))}
                     <button
-                        onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNote(null); setSelectedGuide(null); setGenFile(null); setGenTitle(''); }}
+                        onClick={() => openGenerateModal()}
                         className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -438,24 +549,58 @@ export default function ExamsLibrary() {
             {/* Tab switcher */}
             <div className="flex items-center gap-2 px-1 mb-6">
                 <button
+                    onClick={() => handleTabChange('insights')}
+                    className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'insights' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                >
+                    <BarChart3 className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                    Insights
+                </button>
+                <button
                     onClick={() => handleTabChange('exams')}
                     className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'exams' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                 >
                     <ClipboardCheck className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
                     Exams ({exams.length})
                 </button>
-                <button
-                    onClick={() => handleTabChange('analytics')}
-                    className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'analytics' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
-                >
-                    <BarChart3 className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
-                    Analytics
-                </button>
             </div>
 
             {/* Content */}
             <div className="px-1">
-                {activeTab === 'exams' ? (
+                {activeTab === 'insights' ? (
+                    <div className="space-y-4 pb-20">
+                        <div className="flex flex-wrap gap-2" data-testid="exam-class-filters">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedInsightsClassId(null)}
+                                className={`tap-action rounded-full border px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] transition-colors ${selectedInsightsClassId == null ? 'border-claude-accent bg-claude-accent/15 text-claude-accent' : 'border-claude-border/60 bg-claude-bg/15 text-claude-secondary hover:text-claude-accent'}`}
+                            >
+                                All classes
+                            </button>
+                            {(insights?.classOptions || []).map((classOption) => (
+                                <button
+                                    key={classOption.id}
+                                    type="button"
+                                    onClick={() => setSelectedInsightsClassId(classOption.id)}
+                                    className={`tap-action inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] transition-colors ${selectedInsightsClassId === classOption.id ? 'border-claude-accent bg-claude-accent/15 text-claude-accent' : 'border-claude-border/60 bg-claude-bg/15 text-claude-secondary hover:text-claude-accent'}`}
+                                >
+                                    <span
+                                        className="h-2.5 w-2.5 rounded-full"
+                                        style={{ backgroundColor: classOption.color || 'var(--border-color)' }}
+                                        aria-hidden="true"
+                                    />
+                                    <span>{classOption.name}</span>
+                                    <span className="text-claude-secondary/70">({classOption.attemptCount})</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <ExamAnalytics
+                            insights={insights}
+                            loading={insightsLoading}
+                            onAction={handleInsightAction}
+                        />
+                    </div>
+                ) : (
                     exams.length === 0 ? (
                         <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
                             <ClipboardCheck className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
@@ -478,8 +623,6 @@ export default function ExamsLibrary() {
                             ))}
                         </div>
                     )
-                ) : (
-                    <ExamAnalytics />
                 )}
             </div>
 

@@ -2248,15 +2248,351 @@ export const upsertTopicMastery = async (classId, topicBreakdown) => {
     return results;
 };
 
+const getAttemptPercentage = (attempt) => {
+    const total = Number(attempt?.total || 0);
+    if (total <= 0) return null;
+    return Math.round((Number(attempt?.score || 0) / total) * 100);
+};
+
+const averageNumbers = (values) => {
+    if (!Array.isArray(values) || values.length === 0) return null;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const formatEvidencePercent = (value) => `${Math.round(value)}%`;
+
+const buildExamPersona = ({
+    totalAttempts,
+    averageScore,
+    averagePaceSeconds,
+    trendDelta,
+    retryRate,
+    weakTopics,
+    latestAttempt,
+}) => {
+    const weakTopicLabel = weakTopics[0]?.topic || 'your weakest topics';
+
+    if (totalAttempts < 2) {
+        return {
+            key: 'getting-started',
+            label: 'Getting Started',
+            description: 'You are still building a useful exam pattern. A couple more attempts will reveal pace, pressure points, and weak topics.',
+            evidence: [
+                `${totalAttempts} completed attempt${totalAttempts === 1 ? '' : 's'}`,
+                'Need 2+ attempts for trend data',
+            ],
+            improvements: [
+                'Take another mock exam this week to establish a baseline.',
+                'Link the exam to a class so weak-topic recommendations stay specific.',
+            ],
+        };
+    }
+
+    if (averageScore != null && averageScore >= 80 && averagePaceSeconds != null && averagePaceSeconds <= 75) {
+        return {
+            key: 'fast-and-accurate',
+            label: 'Fast & Accurate',
+            description: 'You move quickly without letting accuracy slip, which usually means your recall is holding up under pressure.',
+            evidence: [
+                `${formatEvidencePercent(averageScore)} average score`,
+                `${Math.round(averagePaceSeconds)}s per question`,
+            ],
+            improvements: [
+                `Rotate in focused exams on ${weakTopicLabel} so your fastest lane stays honest.`,
+                'Retake a recent exam only after reviewing mistakes once to keep practice challenging.',
+            ],
+        };
+    }
+
+    if (totalAttempts >= 4 && trendDelta != null && trendDelta >= 8) {
+        return {
+            key: 'steady-climber',
+            label: 'Steady Climber',
+            description: 'Your recent exams are meaningfully stronger than your early baseline, so your practice loop is translating into better results.',
+            evidence: [
+                `Recent trend +${Math.round(trendDelta)} pts`,
+                `${formatEvidencePercent(averageScore || 0)} average score`,
+            ],
+            improvements: [
+                `Lock in the gains with one focused exam on ${weakTopicLabel}.`,
+                'Keep spacing attempts instead of bunching multiple retakes into one sitting.',
+            ],
+        };
+    }
+
+    const retakeWithoutLift = retryRate >= 0.5 && (trendDelta == null || trendDelta < 5);
+    if ((averageScore != null && averageScore < 60) || (trendDelta != null && trendDelta <= -8) || retakeWithoutLift) {
+        return {
+            key: 'cramming-loop',
+            label: 'Cramming Loop',
+            description: 'You are putting attempts on the board, but the results suggest you may be repeating tests faster than you are closing knowledge gaps.',
+            evidence: [
+                averageScore != null ? `${formatEvidencePercent(averageScore)} average score` : 'Low recent performance',
+                retryRate > 0 ? `${formatEvidencePercent(retryRate * 100)} retake rate` : 'Trend slipping',
+            ],
+            improvements: [
+                `Pause full retakes and generate a focused exam for ${weakTopicLabel}.`,
+                latestAttempt?.mock_exams?.title
+                    ? `Review the misses from ${latestAttempt.mock_exams.title} before taking it again.`
+                    : 'Review one recent attempt before starting another full exam.',
+            ],
+        };
+    }
+
+    return {
+        key: 'deliberate-builder',
+        label: 'Deliberate Builder',
+        description: 'Your exam results are stable and reasonably controlled, which is a good base for more targeted improvement.',
+        evidence: [
+            `${formatEvidencePercent(averageScore || 0)} average score`,
+            trendDelta == null ? 'Trend still forming' : `${trendDelta >= 0 ? '+' : ''}${Math.round(trendDelta)} pt trend`,
+        ],
+        improvements: [
+            `Use focused exams to chip away at ${weakTopicLabel}.`,
+            'Keep one full-length exam in the mix so your pacing stays realistic.',
+        ],
+    };
+};
+
+const createEmptyExamInsights = () => ({
+    summary: {
+        totalAttempts: 0,
+        averageScore: null,
+        bestScore: null,
+        averagePaceSeconds: null,
+        trendDelta: null,
+    },
+    persona: {
+        key: 'getting-started',
+        label: 'Getting Started',
+        description: 'Your mock exam hub will start filling in after a couple of completed attempts.',
+        evidence: ['0 completed attempts', 'No trend yet'],
+        improvements: [
+            'Generate your first mock exam to start tracking your exam habits.',
+            'Link the exam to a class so future weak-topic suggestions stay specific.',
+        ],
+    },
+    habits: {
+        retryRate: 0,
+        strongestStudyDay: null,
+        averageDurationMinutes: null,
+    },
+    recentAttempts: [],
+    weakTopics: [],
+    recommendedActions: [
+        {
+            id: 'generate-first-exam',
+            kind: 'generate_standard',
+            label: 'Generate your first mock exam',
+            description: 'Start with one practice run so the hub can learn your pattern.',
+        },
+    ],
+    classOptions: [],
+});
+
 export const getAllExamAttempts = async (classId) => {
     let query = supabase
         .from('exam_attempts')
-        .select('*, mock_exams!inner(class_id, title)')
+        .select('*, mock_exams!inner(id, class_id, title, exam_mode)')
         .order('completed_at', { ascending: false });
     if (classId) query = query.eq('mock_exams.class_id', classId);
     const { data, error } = await query;
     if (error) _sbThrow(error);
     return data || [];
+};
+
+export const getExamInsights = async ({ classId = null } = {}) => {
+    const [attempts, mastery, classes] = await Promise.all([
+        getAllExamAttempts(),
+        getTopicMastery(classId || null),
+        getClasses(),
+    ]);
+
+    const relevantAttempts = classId
+        ? attempts.filter((attempt) => attempt?.mock_exams?.class_id === classId)
+        : attempts;
+
+    const sortedAttempts = [...relevantAttempts].sort(
+        (left, right) => new Date(right.completed_at) - new Date(left.completed_at),
+    );
+
+    const classAttemptCounts = attempts.reduce((counts, attempt) => {
+        const attemptClassId = attempt?.mock_exams?.class_id;
+        if (!attemptClassId) return counts;
+        counts.set(attemptClassId, (counts.get(attemptClassId) || 0) + 1);
+        return counts;
+    }, new Map());
+
+    const classOptions = classes
+        .filter((classItem) => classAttemptCounts.has(classItem.id))
+        .map((classItem) => ({
+            id: classItem.id,
+            name: classItem.name,
+            color: classItem.color,
+            attemptCount: classAttemptCounts.get(classItem.id) || 0,
+        }))
+        .sort((left, right) => right.attemptCount - left.attemptCount || left.name.localeCompare(right.name));
+
+    if (sortedAttempts.length === 0) {
+        return {
+            ...createEmptyExamInsights(),
+            classOptions,
+        };
+    }
+
+    const attemptsAscending = [...sortedAttempts].reverse();
+    const scoredPercentages = sortedAttempts
+        .map((attempt) => getAttemptPercentage(attempt))
+        .filter((value) => value != null);
+    const bestScore = scoredPercentages.length > 0 ? Math.max(...scoredPercentages) : null;
+    const averageScore = averageNumbers(scoredPercentages);
+
+    const durationAttempts = sortedAttempts.filter((attempt) => (
+        Number(attempt?.duration_seconds || 0) > 0 && Number(attempt?.total || 0) > 0
+    ));
+    const totalDurationSeconds = durationAttempts.reduce((sum, attempt) => sum + Number(attempt.duration_seconds || 0), 0);
+    const totalQuestionsTimed = durationAttempts.reduce((sum, attempt) => sum + Number(attempt.total || 0), 0);
+    const averagePaceSeconds = totalQuestionsTimed > 0 ? totalDurationSeconds / totalQuestionsTimed : null;
+    const averageDurationMinutes = durationAttempts.length > 0
+        ? averageNumbers(durationAttempts.map((attempt) => Number(attempt.duration_seconds || 0) / 60))
+        : null;
+
+    const earliestThreeAverage = averageNumbers(
+        attemptsAscending.slice(0, 3).map((attempt) => getAttemptPercentage(attempt)).filter((value) => value != null),
+    );
+    const recentThreeAverage = averageNumbers(
+        sortedAttempts.slice(0, 3).map((attempt) => getAttemptPercentage(attempt)).filter((value) => value != null),
+    );
+    const trendDelta = earliestThreeAverage != null && recentThreeAverage != null
+        ? recentThreeAverage - earliestThreeAverage
+        : null;
+
+    const uniqueExamIds = new Set();
+    let retakeCount = 0;
+    sortedAttempts.forEach((attempt) => {
+        const examId = attempt?.exam_id;
+        if (!examId) return;
+        if (uniqueExamIds.has(examId)) {
+            retakeCount += 1;
+            return;
+        }
+        uniqueExamIds.add(examId);
+    });
+    const retryRate = sortedAttempts.length > 0 ? retakeCount / sortedAttempts.length : 0;
+
+    const weekdayStats = sortedAttempts.reduce((map, attempt) => {
+        const date = new Date(attempt.completed_at);
+        if (Number.isNaN(date.getTime())) return map;
+
+        const key = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const current = map.get(key) || { label: key, scores: [], attempts: 0 };
+        const percentage = getAttemptPercentage(attempt);
+
+        if (percentage != null) current.scores.push(percentage);
+        current.attempts += 1;
+        map.set(key, current);
+        return map;
+    }, new Map());
+
+    const strongestStudyDay = [...weekdayStats.values()]
+        .map((item) => ({
+            day: item.label,
+            averageScore: averageNumbers(item.scores),
+            attempts: item.attempts,
+        }))
+        .sort((left, right) => {
+            const scoreDiff = (right.averageScore ?? -1) - (left.averageScore ?? -1);
+            if (scoreDiff !== 0) return scoreDiff;
+            return right.attempts - left.attempts;
+        })[0] || null;
+
+    const weakTopics = (mastery || [])
+        .slice()
+        .sort((left, right) => Number(left.mastery_score || 0) - Number(right.mastery_score || 0))
+        .slice(0, 5)
+        .map((topic) => ({
+            id: topic.id,
+            topic: topic.topic,
+            masteryScore: Number(topic.mastery_score || 0),
+            totalSeen: Number(topic.total_seen || 0),
+            totalCorrect: Number(topic.total_correct || 0),
+            classId: topic.class_id || null,
+        }));
+
+    const latestAttempt = sortedAttempts[0] || null;
+    const persona = buildExamPersona({
+        totalAttempts: sortedAttempts.length,
+        averageScore,
+        averagePaceSeconds,
+        trendDelta,
+        retryRate,
+        weakTopics,
+        latestAttempt,
+    });
+
+    const recommendedActions = [];
+    const focusedActionClassId = classId || weakTopics[0]?.classId || latestAttempt?.mock_exams?.class_id || null;
+    const focusedActionClass = classOptions.find((option) => option.id === focusedActionClassId) || null;
+    const focusedWeakTopics = weakTopics.slice(0, 3).map((topic) => topic.topic).filter(Boolean);
+
+    if (focusedWeakTopics.length > 0) {
+        recommendedActions.push({
+            id: 'generate-focused-exam',
+            kind: 'generate_focused',
+            label: focusedActionClass?.name ? `Build a focused ${focusedActionClass.name} exam` : 'Build a focused weak-topic exam',
+            description: `Target ${focusedWeakTopics.join(', ')} next.`,
+            payload: {
+                examMode: 'focused',
+                classId: focusedActionClassId,
+                weakTopics: focusedWeakTopics,
+                title: focusedActionClass?.name ? `Focused ${focusedActionClass.name} Check-In` : 'Focused Weak Topic Check-In',
+            },
+        });
+    }
+
+    if (latestAttempt?.exam_id) {
+        const latestAttemptPct = getAttemptPercentage(latestAttempt);
+        recommendedActions.push({
+            id: 'retake-latest-exam',
+            kind: 'retake_exam',
+            examId: latestAttempt.exam_id,
+            label: latestAttempt?.mock_exams?.title ? `Retake ${latestAttempt.mock_exams.title}` : 'Retake your latest exam',
+            description: latestAttemptPct != null
+                ? `Your latest result was ${latestAttemptPct}%. Try it again after a quick review.`
+                : 'Run the latest exam again after reviewing your misses.',
+        });
+    }
+
+    return {
+        summary: {
+            totalAttempts: sortedAttempts.length,
+            averageScore,
+            bestScore,
+            averagePaceSeconds,
+            trendDelta,
+        },
+        persona,
+        habits: {
+            retryRate,
+            strongestStudyDay,
+            averageDurationMinutes,
+        },
+        recentAttempts: sortedAttempts.slice(0, 8).map((attempt) => ({
+            id: attempt.id,
+            examId: attempt.exam_id,
+            completedAt: attempt.completed_at,
+            durationSeconds: Number(attempt.duration_seconds || 0) || null,
+            score: Number(attempt.score || 0),
+            total: Number(attempt.total || 0),
+            percentage: getAttemptPercentage(attempt),
+            title: attempt?.mock_exams?.title || 'Exam',
+            classId: attempt?.mock_exams?.class_id || null,
+            examMode: attempt?.mock_exams?.exam_mode || 'standard',
+        })),
+        weakTopics,
+        recommendedActions,
+        classOptions,
+    };
 };
 
 const parseJsonish = (value) => {

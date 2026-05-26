@@ -272,6 +272,33 @@ export const api = {
     getAllExamAttempts: (classId) => isLoggedIn()
         ? serverApi.getAllExamAttempts(classId)
         : Promise.resolve([]),
+    getExamInsights: ({ classId = null } = {}) => isLoggedIn()
+        ? serverApi.getExamInsights({ classId })
+        : Promise.resolve({
+            summary: {
+                totalAttempts: 0,
+                averageScore: null,
+                bestScore: null,
+                averagePaceSeconds: null,
+                trendDelta: null,
+            },
+            persona: {
+                key: 'getting-started',
+                label: 'Getting Started',
+                description: 'Your mock exam hub will start filling in after a couple of completed attempts.',
+                evidence: [],
+                improvements: [],
+            },
+            habits: {
+                retryRate: 0,
+                strongestStudyDay: null,
+                averageDurationMinutes: null,
+            },
+            recentAttempts: [],
+            weakTopics: [],
+            recommendedActions: [],
+            classOptions: [],
+        }),
 
     // ============ TOPIC MASTERY ============
     getTopicMastery: (classId) => isLoggedIn()
