@@ -12,7 +12,7 @@ import DeleteAccountModal from '../components/DeleteAccountModal';
 import FeedbackModal from '../components/FeedbackModal';
 import PricingModal from '../components/ui/PricingModal';
 import { useRevenueCat } from '../hooks/useRevenueCat';
-import { canvasIcalUrlSchema } from '../schemas/forms';
+import { canvasIcalUrlSchema, getCanvasIcalValidationHint } from '../schemas/forms';
 import { checkNotificationPermissions, requestNotificationPermissions, scheduleAssignmentNotifications } from '../utils/notifications';
 import { checkPushPermissions, isNativeIos, registerPushNotifications, requestPushPermissions } from '../utils/pushNotifications.js';
 
@@ -144,6 +144,7 @@ export default function Settings() {
             ? 'Pro'
             : 'Free';
     const securitySummary = user?.twoFAEnabled ? '2FA enabled' : 'Password only';
+    const canvasValidationHint = getCanvasIcalValidationHint(canvasForm.url);
 
     // --- Data loading ---
     useEffect(() => {
@@ -565,6 +566,7 @@ export default function Settings() {
                         formErrors={formErrors}
                         setFormErrors={setFormErrors}
                         canvasNotice={canvasNotice}
+                        canvasValidationHint={canvasValidationHint}
                         connectingCanvas={connectingCanvas}
                         onConnectCanvas={handleConnectCanvas}
                         onDisconnectCanvas={handleDisconnectCanvas}

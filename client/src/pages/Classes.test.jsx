@@ -13,6 +13,8 @@ vi.mock('../api', () => ({
     getClasses: vi.fn(),
     getSchedule: vi.fn(),
     getCanvasSettings: vi.fn(),
+    connectCanvas: vi.fn(),
+    syncCanvas: vi.fn(),
     deleteClass: vi.fn(),
     previewCanvasSemesterCleanup: vi.fn(),
     archiveCanvasSemesterClasses: vi.fn(),
@@ -86,6 +88,11 @@ beforeEach(() => {
     autoSyncEnabled: false,
     lastSyncAt: null,
     lastAutoSyncError: '',
+  });
+  api.connectCanvas.mockResolvedValue(undefined);
+  api.syncCanvas.mockResolvedValue({
+    classesAdded: 0,
+    assignmentsAdded: 0,
   });
   api.deleteClass.mockResolvedValue({ message: 'Class deleted' });
   api.previewCanvasSemesterCleanup.mockResolvedValue({
@@ -166,5 +173,20 @@ describe('Classes page actions', () => {
       expect(api.deleteClass).toHaveBeenCalledWith('class-1');
       expect(api.deleteClass).toHaveBeenCalledWith('class-2');
     });
+  });
+
+  it('shows the compact Canvas guide in the new class modal', async () => {
+    renderClasses();
+
+    expect(await screen.findByText('Biology')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /add class/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /canvas sync/i }));
+
+    expect(await screen.findByText('Import from Canvas')).toBeInTheDocument();
+    expect(screen.getByTestId('canvas-ical-guide-compact')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /need help finding it/i }));
+    expect(screen.getByText('Open Canvas Calendar')).toBeInTheDocument();
+    expect(screen.getByText('Copy the Link')).toBeInTheDocument();
   });
 });

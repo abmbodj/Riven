@@ -17,6 +17,7 @@ import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { buildDefaultClassTimeRow, isValidTimeRange } from '../utils/classTime';
 import { inferSubject, SUBJECT_VALUES } from '../utils/subjectInference';
+import CanvasIcalGuide from '../components/canvas/CanvasIcalGuide';
 import CanvasSemesterCleanupModal from '../components/canvas/CanvasSemesterCleanupModal';
 import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
@@ -752,6 +753,7 @@ export default function Classes() {
                                                                 <p className="text-xs font-mono text-claude-secondary">
                                                                     Connect your Canvas Calendar feed to instantly auto-fill your classes and assignments.
                                                                 </p>
+                                                                <CanvasIcalGuide compact />
                                                                 <input
                                                                     type="url"
                                                                     placeholder="Canvas Calendar Link (.ics)"

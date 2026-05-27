@@ -1,6 +1,7 @@
 import React from 'react';
 import { Archive, Network, Lock, RefreshCw, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import CanvasIcalGuide from '../../canvas/CanvasIcalGuide';
 import SectionHeader from '../SectionHeader';
 import SectionCard from '../SectionCard';
 import StatusNotice from '../StatusNotice';
@@ -42,6 +43,7 @@ export default function IntegrationsSection({
     formErrors,
     setFormErrors,
     canvasNotice,
+    canvasValidationHint,
     connectingCanvas,
     onConnectCanvas,
     onDisconnectCanvas,
@@ -135,11 +137,6 @@ export default function IntegrationsSection({
                                     exit={{ opacity: 0, height: 0 }}
                                     className="space-y-4 pt-2"
                                 >
-                                    <StatusNotice
-                                        title="How this works"
-                                        detail="Copy your Canvas Calendar Feed, paste the .ics link here, then connect once to enable manual sync and 12-hour auto-sync."
-                                    />
-
                                     <div className="space-y-3">
                                         <motion.div animate={formErrors.url ? { x: [-5, 5, -5, 5, 0] } : {}} transition={{ duration: 0.4 }}>
                                             <input
@@ -150,15 +147,12 @@ export default function IntegrationsSection({
                                                     setCanvasForm(prev => ({ ...prev, url: e.target.value }));
                                                     if (formErrors.url) setFormErrors(prev => ({ ...prev, url: false }));
                                                 }}
+                                                aria-describedby={canvasValidationHint ? 'canvas-ical-validation-hint' : undefined}
                                                 className={`w-full bg-claude-bg border ${formErrors.url ? 'border-red-400 focus:border-red-500 bg-red-500/5' : 'border-claude-secondary/20 focus:border-blue-400/50'} rounded-xl px-4 py-3.5 text-sm text-claude-text placeholder-claude-secondary/40 font-mono focus:outline-none transition-colors shadow-inner`}
                                             />
                                         </motion.div>
-                                    </div>
 
-                                    <div className="rounded-2xl border border-blue-400/15 bg-blue-400/5 px-4 py-3">
-                                        <p className="text-[10px] font-mono text-claude-secondary/80 leading-relaxed text-center">
-                                            Go to Canvas Calendar, open `Calendar Feed`, then paste the `.ics` link here.
-                                        </p>
+                                        <CanvasIcalGuide validationHint={canvasValidationHint} />
                                     </div>
 
                                     <p className="text-[10px] font-mono text-claude-secondary/60 leading-relaxed text-center px-2">

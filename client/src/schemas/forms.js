@@ -90,3 +90,38 @@ export const canvasIcalUrlSchema = z
     .refine((v) => v.includes('/feeds/calendars/'), {
         message: 'Invalid link. Be sure it comes from your Canvas Calendar Feed.',
     });
+
+export const classifyCanvasIcalUrl = (value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return 'empty';
+
+    let parsed;
+    try {
+        parsed = new URL(trimmed);
+    } catch {
+        return 'non_canvas_url';
+    }
+
+    const normalized = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+    const isCanvasLike = normalized.includes('canvas');
+    const hasFeedPath = parsed.pathname.toLowerCase().includes('/feeds/calendars/');
+    const hasIcsSuffix = /\.ics($|[?#])/i.test(trimmed);
+
+    if (hasFeedPath && !hasIcsSuffix) return 'missing_ics_suffix';
+    if (isCanvasLike && !hasFeedPath) return 'missing_feed_path';
+    if (!isCanvasLike) return 'non_canvas_url';
+    return 'valid';
+};
+
+export const getCanvasIcalValidationHint = (value) => {
+    switch (classifyCanvasIcalUrl(value)) {
+        case 'missing_feed_path':
+            return 'This looks like a Canvas page URL, not the Calendar Feed link. Check Step 2 above.';
+        case 'missing_ics_suffix':
+            return 'Make sure you copied the full link — it should end in .ics';
+        case 'non_canvas_url':
+            return 'This doesn\'t look like a Canvas link. The URL should come from your Canvas Calendar page.';
+        default:
+            return null;
+    }
+};

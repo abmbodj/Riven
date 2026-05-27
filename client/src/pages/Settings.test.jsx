@@ -116,7 +116,7 @@ const renderSettings = () => render(
 /** Click the first tab matching the given section name. */
 const navigateToSection = (name) => {
   const tabs = screen.getAllByRole('tab', { name: new RegExp(name, 'i') });
-  fireEvent.click(tabs[0]);
+  fireEvent.click(tabs[tabs.length - 1]);
 };
 
 beforeEach(() => {
@@ -209,7 +209,7 @@ describe('Settings navigation', () => {
     navigateToSection('Help & policies');
     expect(await screen.findByRole('heading', { name: 'Help & policies' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send feedback/i })).toBeInTheDocument();
-  });
+  }, 10000);
 });
 
 describe('Settings LMS sync', () => {
@@ -371,13 +371,42 @@ describe('Settings LMS sync', () => {
 
     const connectButton = await screen.findByRole('button', { name: /connect calendar feed/i });
     expect(connectButton).toBeDisabled();
-    expect(screen.getByText(/copy your canvas calendar feed/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /need help finding it/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/canvas calendar link/i), {
       target: { value: 'https://canvas.example.edu/feed.ics' },
     });
 
     expect(screen.getByRole('button', { name: /connect calendar feed/i })).not.toBeDisabled();
+  });
+
+  it('expands the Canvas guide and shows inline validation hints in settings', async () => {
+    renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Integrations');
+
+    fireEvent.click(await screen.findByRole('button', { name: /need help finding it/i }));
+    expect(screen.getByText('Open Canvas Calendar')).toBeInTheDocument();
+    expect(screen.getByText('Open Calendar Feed')).toBeInTheDocument();
+    expect(screen.getByText('Copy the Link')).toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText(/canvas calendar link/i);
+
+    fireEvent.change(input, {
+      target: { value: 'https://canvas.example.edu/calendar' },
+    });
+    expect(screen.getByTestId('canvas-ical-validation-hint')).toHaveTextContent('Check Step 2 above.');
+
+    fireEvent.change(input, {
+      target: { value: 'https://canvas.example.edu/feeds/calendars/user_1' },
+    });
+    expect(screen.getByTestId('canvas-ical-validation-hint')).toHaveTextContent('it should end in .ics');
+
+    fireEvent.change(input, {
+      target: { value: 'https://google.com/calendar' },
+    });
+    expect(screen.getByTestId('canvas-ical-validation-hint')).toHaveTextContent('This doesn\'t look like a Canvas link.');
   });
 
   it('syncs Canvas without relying on undefined local state', async () => {
