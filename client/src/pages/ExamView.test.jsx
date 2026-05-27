@@ -1,5 +1,5 @@
-import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import React, { StrictMode } from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ExamView from './ExamView.jsx';
@@ -95,18 +95,37 @@ describe('ExamView results layout', () => {
     expect(await screen.findByText('Which organelle produces ATP?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /mitochondria/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /next question/i }));
-
     expect(await screen.findByText('Which phase comes right after metaphase?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /anaphase/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /see results/i }));
 
     expect(await screen.findByText('Topic Breakdown')).toBeInTheDocument();
 
     expect(screen.getByTestId('exam-results-scroll')).toHaveClass('overflow-y-auto');
-    expect(screen.getByTestId('exam-results-layout')).toHaveClass('xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]');
+    expect(screen.getByTestId('exam-results-layout')).toHaveClass('xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]');
     expect(screen.getByTestId('topic-breakdown-grid')).toHaveClass('lg:grid-cols-2');
     expect(screen.getByText('2 topics')).toBeInTheDocument();
+  });
+
+  it('saves exactly one attempt when results mount in StrictMode', async () => {
+    render(
+      <StrictMode>
+        <MemoryRouter initialEntries={['/exams/exam-7']}>
+          <Routes>
+            <Route path="/exams/:id" element={<ExamView />} />
+          </Routes>
+        </MemoryRouter>
+      </StrictMode>
+    );
+
+    expect(await screen.findByText('Which organelle produces ATP?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /mitochondria/i }));
+    expect(await screen.findByText('Which phase comes right after metaphase?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /anaphase/i }));
+
+    await waitFor(() => {
+      expect(api.createExamAttempt).toHaveBeenCalledTimes(1);
+    });
   });
 });

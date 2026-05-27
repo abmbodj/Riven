@@ -377,7 +377,7 @@ export default function ExamsLibrary() {
             <ConfirmModal
                 isOpen={deleteConfirm.show}
                 title="Delete exam?"
-                message="This mock exam and its attempts will be permanently deleted."
+                message="This removes the mock exam from your library. Completed attempts stay in Insights Hub."
                 onConfirm={() => { handleDelete(); setDeleteConfirm({ show: false, item: null }); }}
                 onCancel={() => setDeleteConfirm({ show: false, item: null })}
             />

@@ -52,6 +52,7 @@ export default function ExamView() {
     const examStartTime = useRef(Date.now());
     const questionStartTime = useRef(Date.now());
     const textareaRef = useRef(null);
+    const attemptSaveStartedRef = useRef(false);
 
     useEffect(() => {
         const load = async () => {
@@ -60,6 +61,7 @@ export default function ExamView() {
                 setExam(data);
                 examStartTime.current = Date.now();
                 questionStartTime.current = Date.now();
+                attemptSaveStartedRef.current = false;
             } catch {
                 toast.error('Failed to load exam');
                 navigate('/exams');
@@ -220,10 +222,13 @@ export default function ExamView() {
         setElapsedSeconds(0);
         examStartTime.current = Date.now();
         questionStartTime.current = Date.now();
+        attemptSaveStartedRef.current = false;
     };
 
-    const handleSaveAttempt = async () => {
-        if (savingAttempt || attemptSaved) return;
+    const handleSaveAttempt = useCallback(async () => {
+        if (attemptSaveStartedRef.current || attemptSaved) return;
+
+        attemptSaveStartedRef.current = true;
         setSavingAttempt(true);
         try {
             const durationSeconds = Math.round((Date.now() - examStartTime.current) / 1000);
@@ -232,6 +237,9 @@ export default function ExamView() {
             await api.createExamAttempt(exam.id, score, exam.questions.length, answers, {
                 durationSeconds,
                 topicBreakdown,
+                examTitle: exam.title,
+                classId: exam.class_id,
+                examMode: exam.exam_mode,
             });
 
             if (exam.class_id && Object.keys(topicBreakdown).length > 0) {
@@ -244,11 +252,17 @@ export default function ExamView() {
 
             setAttemptSaved(true);
         } catch (err) {
+            attemptSaveStartedRef.current = false;
             toast.error(err?.message || 'Failed to save attempt');
         } finally {
             setSavingAttempt(false);
         }
-    };
+    }, [answers, attemptSaved, exam, score, toast]);
+
+    useEffect(() => {
+        if (!showResults || attemptSaved) return;
+        void handleSaveAttempt();
+    }, [attemptSaved, handleSaveAttempt, showResults]);
 
     const toggleFlag = () => {
         setFlaggedIndices(prev => {
@@ -286,8 +300,6 @@ export default function ExamView() {
                 elapsedSeconds={elapsedSeconds}
                 flaggedIndices={flaggedIndices}
                 onRetake={handleRetake}
-                onSave={handleSaveAttempt}
-                savingAttempt={savingAttempt}
                 attemptSaved={attemptSaved}
             />
         );

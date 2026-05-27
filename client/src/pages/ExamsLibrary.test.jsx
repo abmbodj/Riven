@@ -66,7 +66,12 @@ vi.mock('../hooks/useSelection', () => ({
 }));
 
 vi.mock('../components/ConfirmModal', () => ({
-  default: () => null,
+  default: ({ isOpen, title, message }) => (isOpen ? (
+    <div>
+      <div>{title}</div>
+      <div>{message}</div>
+    </div>
+  ) : null),
 }));
 
 vi.mock('../components/BulkActionBar', () => ({
@@ -306,5 +311,19 @@ describe('ExamsLibrary insights hub', () => {
     expect(within(nextSteps).getByText('Keep the streak measured')).toBeInTheDocument();
     expect(within(hub).getByText('Build another Biology exam')).toBeInTheDocument();
     expect(within(hub).queryByText(/cell signaling/i)).not.toBeInTheDocument();
+  });
+
+  it('explains that deleting an exam keeps completed attempts in insights', async () => {
+    renderLibrary();
+
+    expect(await screen.findByText('Biology Practice Mock')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /exams \(1\)/i }));
+    expect(await screen.findByLabelText(/enter selection mode/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button').find((button) =>
+      button.querySelector('.lucide-trash2')));
+
+    expect(await screen.findByText('Delete exam?')).toBeInTheDocument();
+    expect(screen.getByText('This removes the mock exam from your library. Completed attempts stay in Insights Hub.')).toBeInTheDocument();
   });
 });

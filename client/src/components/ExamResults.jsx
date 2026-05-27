@@ -48,7 +48,6 @@ export default function ExamResults({
     elapsedSeconds,
     flaggedIndices,
     onRetake,
-    onSave,
     attemptSaved,
 }) {
     const navigate = useNavigate();
@@ -58,13 +57,6 @@ export default function ExamResults({
 
     const percentage = Math.round((score / exam.questions.length) * 100);
     const band = gradeBand(percentage);
-
-    // Auto-save on mount
-    useEffect(() => {
-        if (!attemptSaved) {
-            onSave();
-        }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Show subtle "Saved" badge once saved
     useEffect(() => {

@@ -61,20 +61,25 @@ const buildAttempt = ({
   title = 'Biology Mock',
   examMode = 'standard',
   answers = null,
+  liveExam = true,
 }) => ({
   id,
   exam_id: examId,
+  exam_source_id: examId,
   score,
   total,
   duration_seconds: durationSeconds,
   completed_at: completedAt,
   answers,
-  mock_exams: {
+  exam_title: title,
+  class_id: classId,
+  exam_mode: examMode,
+  mock_exams: liveExam ? {
     id: examId,
     class_id: classId,
     title,
     exam_mode: examMode,
-  },
+  } : null,
 });
 
 /** Build per-question answers for pace temperament tests */
@@ -533,6 +538,47 @@ describe('authApi exam insights', () => {
 
     expect(insights.paceTemperament.key).toBe('rushing');
     expect(retakeAction).toBeUndefined();
+  });
+
+  it('preserves deleted exam attempts in insights and omits retake for missing exams', async () => {
+    queueExamInsightsTables({
+      attempts: [
+        buildAttempt({
+          id: 'deleted-1',
+          examId: null,
+          score: 8,
+          total: 10,
+          completedAt: '2026-03-22T16:00:00.000Z',
+          classId: 'class-bio',
+          title: 'Deleted Biology Mock',
+          examMode: 'focused',
+          liveExam: false,
+        }),
+        buildAttempt({
+          id: 'live-1',
+          examId: 'exam-1',
+          score: 7,
+          total: 10,
+          completedAt: '2026-03-20T16:00:00.000Z',
+          classId: 'class-bio',
+          title: 'Live Biology Mock',
+        }),
+      ],
+      classes: [{ id: 'class-bio', name: 'Biology', color: '#7a9e72' }],
+    });
+
+    const insights = await authApi.getExamInsights();
+
+    expect(insights.summary.totalAttempts).toBe(2);
+    expect(insights.recentAttempts[0]).toMatchObject({
+      title: 'Deleted Biology Mock',
+      classId: 'class-bio',
+      examMode: 'focused',
+    });
+    expect(insights.classOptions).toEqual([
+      expect.objectContaining({ id: 'class-bio', attemptCount: 2 }),
+    ]);
+    expect(insights.recommendedActions.some((action) => action.kind === 'retake_exam')).toBe(false);
   });
 
   it('computes a high rush index when misses are faster than correct answers', () => {

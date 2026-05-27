@@ -2156,14 +2156,30 @@ export const deleteMockExam = async (id) => {
 
 // --- Exam Attempts (PostgREST) ---
 
-export const createExamAttempt = async (examId, score, total, answers, { durationSeconds, topicBreakdown } = {}) => {
+export const createExamAttempt = async (
+    examId,
+    score,
+    total,
+    answers,
+    {
+        durationSeconds,
+        topicBreakdown,
+        examTitle = null,
+        classId = null,
+        examMode = 'standard',
+    } = {},
+) => {
     const userId = await getAppUserId();
     const insertData = {
         user_id: userId,
         exam_id: examId,
+        exam_source_id: examId,
         score,
         total,
         answers: answers || [],
+        exam_title: examTitle,
+        class_id: classId,
+        exam_mode: examMode || 'standard',
     };
     if (durationSeconds != null) insertData.duration_seconds = durationSeconds;
     if (topicBreakdown) insertData.topic_breakdown = topicBreakdown;
@@ -2265,6 +2281,13 @@ const averageNumbers = (values) => {
 };
 
 const formatEvidencePercent = (value) => `${Math.round(value)}%`;
+
+const getAttemptLiveExam = (attempt) => attempt?.mock_exams || null;
+const getAttemptTitle = (attempt) => getAttemptLiveExam(attempt)?.title || attempt?.exam_title || 'Exam';
+const getAttemptClassId = (attempt) => getAttemptLiveExam(attempt)?.class_id || attempt?.class_id || null;
+const getAttemptExamMode = (attempt) => getAttemptLiveExam(attempt)?.exam_mode || attempt?.exam_mode || 'standard';
+const getAttemptSourceExamId = (attempt) => attempt?.exam_source_id || attempt?.exam_id || getAttemptLiveExam(attempt)?.id || null;
+const getAttemptLiveExamId = (attempt) => getAttemptLiveExam(attempt)?.id || null;
 
 const buildExamPersona = ({
     totalAttempts,
@@ -2424,15 +2447,15 @@ const buildExamPersona = ({
 
 const mapRecentExamAttempt = (attempt) => ({
     id: attempt.id,
-    examId: attempt.exam_id,
+    examId: getAttemptSourceExamId(attempt),
     completedAt: attempt.completed_at,
     durationSeconds: Number(attempt.duration_seconds || 0) || null,
     score: Number(attempt.score || 0),
     total: Number(attempt.total || 0),
     percentage: getAttemptPercentage(attempt),
-    title: attempt?.mock_exams?.title || 'Exam',
-    classId: attempt?.mock_exams?.class_id || null,
-    examMode: attempt?.mock_exams?.exam_mode || 'standard',
+    title: getAttemptTitle(attempt),
+    classId: getAttemptClassId(attempt),
+    examMode: getAttemptExamMode(attempt),
 });
 
 const buildExamRecommendedActions = ({
@@ -2444,7 +2467,7 @@ const buildExamRecommendedActions = ({
 }) => {
     const latestAttempt = sortedAttempts[0] || null;
     const recommendedActions = [];
-    const standardActionClassId = classId || latestAttempt?.mock_exams?.class_id || null;
+    const standardActionClassId = classId || getAttemptClassId(latestAttempt) || null;
     const standardActionClass = classOptions.find((option) => option.id === standardActionClassId) || null;
 
     recommendedActions.push({
@@ -2462,18 +2485,20 @@ const buildExamRecommendedActions = ({
 
     const isRushingTemperament = paceTemperament?.key === 'rushing'
         && (paceTemperament.confidence === 'medium' || paceTemperament.confidence === 'high');
-    const latestExamRetakeCount = latestAttempt?.exam_id
-        ? sortedAttempts.filter((attempt) => attempt.exam_id === latestAttempt.exam_id).length
+    const latestSourceExamId = getAttemptSourceExamId(latestAttempt);
+    const latestLiveExamId = getAttemptLiveExamId(latestAttempt);
+    const latestExamRetakeCount = latestSourceExamId
+        ? sortedAttempts.filter((attempt) => getAttemptSourceExamId(attempt) === latestSourceExamId).length
         : 0;
     const suppressRetake = isRushingTemperament && latestExamRetakeCount >= 1;
 
-    if (latestAttempt?.exam_id && !suppressRetake) {
+    if (latestLiveExamId && !suppressRetake) {
         const latestAttemptPct = getAttemptPercentage(latestAttempt);
         recommendedActions.push({
             id: 'retake-latest-exam',
             kind: 'retake_exam',
-            examId: latestAttempt.exam_id,
-            label: latestAttempt?.mock_exams?.title ? `Retake ${latestAttempt.mock_exams.title}` : 'Retake your latest exam',
+            examId: latestLiveExamId,
+            label: `Retake ${getAttemptTitle(latestAttempt)}`,
             description: latestAttemptPct != null
                 ? `Your latest result was ${latestAttemptPct}%. Try it again after a quick review.`
                 : 'Run the latest exam again after reviewing your misses.',
@@ -2577,12 +2602,13 @@ const createEmptyExamInsights = () => ({
 export const getAllExamAttempts = async (classId) => {
     let query = supabase
         .from('exam_attempts')
-        .select('*, mock_exams!inner(id, class_id, title, exam_mode)')
+        .select('*, mock_exams(id, class_id, title, exam_mode)')
         .order('completed_at', { ascending: false });
-    if (classId) query = query.eq('mock_exams.class_id', classId);
     const { data, error } = await query;
     if (error) _sbThrow(error);
-    return data || [];
+    const attempts = data || [];
+    if (!classId) return attempts;
+    return attempts.filter((attempt) => getAttemptClassId(attempt) === classId);
 };
 
 export const getExamInsights = async ({ classId = null } = {}) => {
@@ -2596,7 +2622,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
     );
 
     const classAttemptCounts = attempts.reduce((counts, attempt) => {
-        const attemptClassId = attempt?.mock_exams?.class_id;
+        const attemptClassId = getAttemptClassId(attempt);
         if (!attemptClassId) return counts;
         counts.set(attemptClassId, (counts.get(attemptClassId) || 0) + 1);
         return counts;
@@ -2653,7 +2679,7 @@ export const getExamInsights = async ({ classId = null } = {}) => {
     const uniqueExamIds = new Set();
     let retakeCount = 0;
     sortedAttempts.forEach((attempt) => {
-        const examId = attempt?.exam_id;
+        const examId = getAttemptSourceExamId(attempt);
         if (!examId) return;
         if (uniqueExamIds.has(examId)) {
             retakeCount += 1;
