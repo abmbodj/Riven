@@ -232,7 +232,7 @@ export const getAiLimitStatus = ({ user, now = new Date() }) => {
     isPremium,
     remaining,
     max,
-    characterLimit: isPremium ? 50000 : 15000,
+    characterLimit: isPremium ? 100000 : 30000,
     flashcardRange: isPremium ? [5, 40] : [5, 15],
     canWatchAd: !isPremium && remaining === 0,
     count,
