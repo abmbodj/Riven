@@ -14,6 +14,10 @@ vi.mock('../../hooks/useMobileVisualBudget', () => ({
     useMobileVisualBudget: () => useMobileVisualBudgetMock(),
 }));
 
+vi.mock('../../utils/onboardingGate', () => ({
+    isMobileOnboardingEligible: () => false,
+}));
+
 describe('GardenLanding', () => {
     beforeEach(() => {
         useGSAPMock.mockReset();

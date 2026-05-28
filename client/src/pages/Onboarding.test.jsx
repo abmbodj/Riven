@@ -103,7 +103,7 @@ describe('Onboarding', () => {
         expect(layout.className).not.toContain('overflow-y-auto');
         expect(screen.queryByText(/riven mobile setup/i)).not.toBeInTheDocument();
 
-        const examOption = screen.getByRole('button', { name: /practice for exams faster/i });
+        const examOption = screen.getByRole('button', { name: /get exam-ready faster/i });
         fireEvent.click(examOption);
 
         expect(examOption).toHaveAttribute('aria-pressed', 'true');

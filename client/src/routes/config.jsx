@@ -91,12 +91,13 @@ export const routesConfig = [
   { path: '/reset-password', element: <ResetPassword /> },
   { path: '/privacy', element: <PrivacyPolicy /> },
   { path: '/terms', element: <TermsOfService /> },
+  // Onboarding doubles as the logged-out mobile signup funnel, so it stays public.
+  { path: '/onboarding', element: <Onboarding /> },
 
   // Protected Routes
   {
     element: <ProtectedRoute />,
     children: [
-      { path: '/onboarding', element: <Onboarding /> },
       { path: '/dashboard', element: <Home mode="dashboard" /> },
       { path: '/decks/library', element: <DeckLibrary /> },
       { path: '/notes', element: <NotesLibrary /> },

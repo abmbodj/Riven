@@ -61,6 +61,14 @@ export function isMobileOnboardingEligible() {
 }
 
 /**
+ * Gate the logged-out onboarding funnel: the personalize-first flow that ends in account
+ * creation. Only mobile-eligible clients run it; desktop web keeps the classic signup form.
+ */
+export function canUseOnboardingFunnel() {
+    return isMobileOnboardingEligible();
+}
+
+/**
  * Gate post-auth onboarding: only on mobile-eligible clients, while the account has never
  * completed onboarding (`onboardingCompletedAt` is explicitly null from API). Legacy
  * payloads without the field skip the gate; client storage remembers completion if the DB

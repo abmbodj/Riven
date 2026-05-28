@@ -21,7 +21,7 @@ const AppleIcon = () => (
     </svg>
 );
 
-export default function OAuthButtons({ onError, keepSignedIn }) {
+export default function OAuthButtons({ onError, keepSignedIn, onBeforeRedirect }) {
     const { startGoogleOAuth, signInWithGoogle, signInWithApple } = useAuth();
     const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
     const [isLoadingApple, setIsLoadingApple] = useState(false);
@@ -41,6 +41,8 @@ export default function OAuthButtons({ onError, keepSignedIn }) {
                 const idToken = await signInWithNativeGoogle();
                 await signInWithGoogle(idToken, authOptions);
             } else {
+                // Web Google leaves the page; let callers persist in-progress state first.
+                onBeforeRedirect?.('google');
                 await startGoogleOAuth(authOptions);
                 return;
             }

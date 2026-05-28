@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Camera, X, Upload, Trash2 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import { UIContext } from '../context/UIContext';
+import { fileToResizedDataUrl } from '../utils/imageResize';
 
 export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
     const [preview, setPreview] = useState(null);
@@ -16,76 +17,20 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
         return () => showBottomNav();
     }, [hideNav, showBottomNav]);
 
-    const handleFileSelect = (e) => {
+    const handleFileSelect = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-            setError('Please select an image file');
-            return;
-        }
-
-        // Validate file size (max 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            setError('Image must be less than 2MB');
-            return;
-        }
-
         setError('');
         setLoading(true);
-
-        // Convert to base64 data URL
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            // If the image is a GIF, skip canvas resizing so we don't lose animation
-            if (file.type === 'image/gif') {
-                setPreview(event.target.result);
-                setLoading(false);
-                return;
-            }
-
-            // Resize static images to max 512x512 for better quality while being storage efficient
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const maxSize = 512;
-                let { width, height } = img;
-
-                if (width > height) {
-                    if (width > maxSize) {
-                        height = (height * maxSize) / width;
-                        width = maxSize;
-                    }
-                } else {
-                    if (height > maxSize) {
-                        width = (width * maxSize) / height;
-                        height = maxSize;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                // Convert to WebP / JPEG at higher quality
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-                setPreview(dataUrl);
-                setLoading(false);
-            };
-            img.onerror = () => {
-                setError('Failed to process image');
-                setLoading(false);
-            };
-            img.src = event.target.result;
-        };
-        reader.onerror = () => {
-            setError('Failed to read file');
+        try {
+            const dataUrl = await fileToResizedDataUrl(file);
+            setPreview(dataUrl);
+        } catch (err) {
+            setError(err.message || 'Failed to process image');
+        } finally {
             setLoading(false);
-        };
-        reader.readAsDataURL(file);
+        }
     };
 
     const handleSave = () => {

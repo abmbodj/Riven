@@ -18,6 +18,9 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../../hooks/useGSAP';
 import { useMobileVisualBudget } from '../../hooks/useMobileVisualBudget';
+import { isMobileOnboardingEligible } from '../../utils/onboardingGate';
+
+const prefetchOnboarding = () => { import('../../pages/Onboarding.jsx'); };
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -142,6 +145,10 @@ const pricingPlans = [
 
 export default function GardenLanding() {
     const lightBudget = useMobileVisualBudget();
+    // Mobile/native users get the personalize-first signup funnel; desktop keeps the form.
+    const useFunnel = isMobileOnboardingEligible();
+    const primaryCtaTo = useFunnel ? '/onboarding' : '/account?mode=signup';
+    const primaryCtaLabel = useFunnel ? 'Get started' : 'Sign Up';
 
     const { container } = useGSAP(({ container: scope }) => {
         // 1. Ambient Tree Swaying — always animate oaks, skip others on mobile
@@ -492,10 +499,12 @@ export default function GardenLanding() {
                         className="mt-12 flex flex-col sm:flex-row gap-4 w-full max-w-sm lg:max-w-md"
                     >
                         <Link
-                            to="/account?mode=signup"
+                            to={primaryCtaTo}
+                            onMouseEnter={useFunnel ? prefetchOnboarding : undefined}
+                            onTouchStart={useFunnel ? prefetchOnboarding : undefined}
                             className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#deb96a] px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#162a31] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-[#ebc97e] hover:shadow-[0_0_20px_rgba(222,185,106,0.4)] hover:-translate-y-0.5"
                         >
-                            Sign Up
+                            {primaryCtaLabel}
                         </Link>
                         <Link
                             to="/account?mode=login"
@@ -537,7 +546,9 @@ export default function GardenLanding() {
                                 exams, assignments, and class context stay connected instead of becoming another tab maze.
                             </p>
                             <Link
-                                to="/account?mode=signup"
+                                to={primaryCtaTo}
+                                onMouseEnter={useFunnel ? prefetchOnboarding : undefined}
+                                onTouchStart={useFunnel ? prefetchOnboarding : undefined}
                                 className="inline-flex w-fit items-center gap-3 rounded-lg border border-[#deb96a]/35 bg-[#deb96a]/10 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#deb96a] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-[#deb96a]/60 hover:bg-[#deb96a]/16"
                             >
                                 Start with Riven
