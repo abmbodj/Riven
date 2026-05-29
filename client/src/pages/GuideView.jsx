@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import RiverMascot from '../components/study/RiverMascot.jsx';
 import { UIContext } from '../context/UIContext.jsx';
 import {
     ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
-    evaluateTutorCardResponse,
+    gradeTutorCardResponseAsync,
     getGuideMasterySnapshot,
     normalizeGuideData,
     normalizeGuideStudyState,
@@ -219,6 +219,16 @@ const getFeedbackState = (outcome) => {
     return 'gentle-correct';
 };
 
+// Warm, coaching-first labels so a miss reads as guidance, not a test verdict.
+const OUTCOME_LABELS = {
+    correct: 'Got it',
+    partial: 'On the right track',
+    incorrect: "Let's refine this",
+    misconception: 'Common mix-up',
+    empty: "Let's start somewhere",
+};
+const getOutcomeLabel = (outcome) => OUTCOME_LABELS[outcome] || null;
+
 const getFeedbackCaption = (currentCard, result) => {
     if (!result) return getTeachCaption(currentCard);
     if (result.outcome === 'correct') {
@@ -377,11 +387,35 @@ function DesktopBoardTeacher({
         perchTop: 184,
         perchWidth: 184,
     }));
+    const syncRafRef = useRef(0);
 
-    useEffect(() => {
-        let raf = 0;
+    const setPlacementIfChanged = useCallback((nextPlacement) => {
+        setPlacement((current) => {
+            const numericKeys = [
+                'boardWidth',
+                'boardHeight',
+                'teacherWidth',
+                'left',
+                'top',
+                'stickStartX',
+                'stickStartY',
+                'pointerEndX',
+                'pointerEndY',
+                'perchLeft',
+                'perchTop',
+                'perchWidth',
+            ];
 
-        const measure = () => {
+            const changedNumber = numericKeys.some((key) => Math.abs((current[key] || 0) - (nextPlacement[key] || 0)) > 0.5);
+            if (!changedNumber && current.path === nextPlacement.path) {
+                return current;
+            }
+
+            return nextPlacement;
+        });
+    }, []);
+
+    const measurePlacement = useCallback(() => {
             const board = boardRef.current;
             const target = targetRef.current;
             const boardRect = board?.getBoundingClientRect?.();
@@ -436,7 +470,7 @@ function DesktopBoardTeacher({
                 : edgeWithinRig - perchWidth + 34;
             const perchTop = teacherWidth * 0.82;
 
-            setPlacement({
+            setPlacementIfChanged({
                 boardWidth,
                 boardHeight,
                 teacherWidth,
@@ -451,20 +485,48 @@ function DesktopBoardTeacher({
                 perchTop,
                 perchWidth,
             });
+    }, [boardRef, sectionIndex, setPlacementIfChanged, side, targetRef]);
+
+    useLayoutEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const cancelSync = () => {
+            if (syncRafRef.current) {
+                cancelAnimationFrame(syncRafRef.current);
+                syncRafRef.current = 0;
+            }
         };
 
-        const scheduleMeasure = () => {
-            cancelAnimationFrame(raf);
-            raf = requestAnimationFrame(measure);
+        const startSyncLoop = (durationMs = 520) => {
+            cancelSync();
+            const start = performance.now();
+
+            const tick = (now) => {
+                measurePlacement();
+                if (now - start < durationMs) {
+                    syncRafRef.current = requestAnimationFrame(tick);
+                } else {
+                    syncRafRef.current = 0;
+                }
+            };
+
+            syncRafRef.current = requestAnimationFrame(tick);
         };
 
-        scheduleMeasure();
-        window.addEventListener('resize', scheduleMeasure);
+        const handleViewportChange = () => {
+            startSyncLoop(260);
+        };
+
+        startSyncLoop();
+        window.addEventListener('resize', handleViewportChange);
+        window.addEventListener('scroll', handleViewportChange, true);
+
         return () => {
-            cancelAnimationFrame(raf);
-            window.removeEventListener('resize', scheduleMeasure);
+            cancelSync();
+            window.removeEventListener('resize', handleViewportChange);
+            window.removeEventListener('scroll', handleViewportChange, true);
         };
-    }, [activeSection?.key, activeSection?.type, boardRef, revealIndex, sectionIndex, side, targetRef]);
+    }, [activeSection?.key, activeSection?.type, measurePlacement, revealIndex, sectionIndex]);
 
     const stickGeometry = useMemo(() => {
         const startX = placement.stickStartX;
@@ -515,152 +577,159 @@ function DesktopBoardTeacher({
             data-river-side={side}
             data-testid="desktop-board-teacher"
         >
-            <svg
-                aria-hidden="true"
-                className="absolute inset-0 z-20 h-full w-full overflow-visible"
-                viewBox={`0 0 ${placement.boardWidth} ${placement.boardHeight}`}
-                preserveAspectRatio="none"
-            >
-                <defs>
-                    <linearGradient id="river-pointer-wood" x1="0%" x2="100%" y1="0%" y2="0%">
-                        <stop offset="0%" stopColor="#6f3f22" />
-                        <stop offset="42%" stopColor="#b8783e" />
-                        <stop offset="72%" stopColor="#d29a58" />
-                        <stop offset="100%" stopColor="#7b4525" />
-                    </linearGradient>
-                </defs>
-                <g data-testid="desktop-board-teacher-pointer">
-                    <motion.path
-                        key={`stick-shadow-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
-                        d={stickGeometry.bodyPath}
-                        fill="rgba(27,16,10,0.38)"
-                        initial={reduceMotion ? false : { opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.3, ease: PANEL_EASE }}
-                        style={{
-                            transform: 'translate3d(1.2px, 1.8px, 0)',
-                        }}
-                    />
-                    <motion.path
-                        key={`stick-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
-                        data-testid="desktop-board-teacher-stick"
-                        d={stickGeometry.bodyPath}
-                        fill="url(#river-pointer-wood)"
-                        stroke="rgba(67,37,21,0.86)"
-                        strokeWidth="0.55"
-                        initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.34, ease: PANEL_EASE }}
-                        style={{
-                            filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.26))',
-                            transformBox: 'fill-box',
-                            transformOrigin: side === 'left' ? 'left center' : 'right center',
-                        }}
-                    />
-                    <motion.path
-                        key={`stick-highlight-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
-                        d={stickGeometry.grainPath}
-                        fill="none"
-                        stroke="rgba(83,42,18,0.36)"
-                        strokeWidth="0.65"
-                        strokeLinecap="round"
-                        initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
-                        animate={{ pathLength: 1, opacity: 0.82 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.5, ease: PANEL_EASE }}
-                    />
-                    <motion.path
-                        key={`tip-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
-                        data-testid="desktop-board-teacher-stick-tip"
-                        d={stickGeometry.tipBandPath}
-                        fill="rgba(66,38,22,0.96)"
-                        initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.32, ease: PANEL_EASE, delay: 0.05 }}
-                        style={{
-                            transformBox: 'fill-box',
-                            transformOrigin: 'center',
-                        }}
-                    />
-                    <motion.circle
-                        key={`handle-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
-                        data-testid="desktop-board-teacher-stick-handle"
-                        cx={placement.stickStartX}
-                        cy={placement.stickStartY}
-                        r={stickGeometry.handleRadius}
-                        fill="rgba(83,48,28,0.96)"
-                        stroke="rgba(214,150,79,0.55)"
-                        strokeWidth="0.8"
-                        initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.28, ease: PANEL_EASE }}
-                        style={{
-                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.32))',
-                            transformBox: 'fill-box',
-                            transformOrigin: 'center',
-                        }}
-                    />
-                </g>
-            </svg>
-
             <motion.div
-                className="absolute left-0 top-0 z-30"
-                data-testid="desktop-board-teacher-rig"
-                style={{ width: placement.teacherWidth }}
-                initial={reduceMotion ? false : { opacity: 0, x: placement.left, y: placement.top + 10 }}
-                animate={{ opacity: 1, x: placement.left, y: placement.top }}
-                transition={{ duration: reduceMotion ? 0 : 0.58, ease: PANEL_EASE }}
+                className="absolute inset-0 z-20 overflow-visible"
+                data-testid="desktop-board-teacher-unit"
+                data-river-lockstep="true"
+                animate={reduceMotion
+                    ? { x: 0, y: 0, rotate: 0, scale: 1 }
+                    : { x: [0, 1.2, 0], y: [0, -1.2, 0], rotate: [0, -0.7, 0], scale: [1, 1.006, 1] }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: PANEL_EASE }}
+                style={{ transformOrigin: `${placement.stickStartX}px ${placement.stickStartY}px` }}
             >
-                <div
-                    data-testid="desktop-board-teacher-perch"
-                    className="absolute z-0 h-[20px] overflow-visible rounded-[0.42rem] border"
-                    style={{
-                        width: placement.perchWidth,
-                        transform: `translate3d(${placement.perchLeft}px, ${placement.perchTop}px, 0)`,
-                        borderColor: 'rgba(222,185,106,0.28)',
-                        background: 'linear-gradient(180deg,rgba(126,84,55,0.98),rgba(72,44,29,0.98))',
-                        boxShadow: '0 12px 18px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,234,189,0.24), inset 0 -4px 7px rgba(0,0,0,0.28)',
-                    }}
+                <svg
+                    aria-hidden="true"
+                    className="absolute inset-0 z-20 h-full w-full overflow-visible"
+                    viewBox={`0 0 ${placement.boardWidth} ${placement.boardHeight}`}
+                    preserveAspectRatio="none"
                 >
-                    <span
-                        aria-hidden="true"
-                        className="absolute left-[12%] top-[-12px] h-[20px] w-[72%] rounded-full"
-                        style={{ background: 'radial-gradient(ellipse,rgba(0,0,0,0.34),transparent 72%)' }}
-                    />
-                    <span
-                        aria-hidden="true"
-                        className="absolute inset-x-3 top-[4px] h-px"
-                        style={{ background: 'linear-gradient(90deg,transparent,rgba(255,235,190,0.34),transparent)' }}
-                    />
-                    <span
-                        aria-hidden="true"
-                        className="absolute bottom-[-5px] h-[7px] w-[26px] rounded-b-md"
-                        style={{
-                            [side === 'left' ? 'left' : 'right']: '18px',
-                            background: 'linear-gradient(180deg,rgba(76,47,31,0.92),rgba(35,22,16,0.96))',
-                        }}
-                    />
-                </div>
+                    <defs>
+                        <linearGradient id="river-pointer-wood" x1="0%" x2="100%" y1="0%" y2="0%">
+                            <stop offset="0%" stopColor="#6f3f22" />
+                            <stop offset="42%" stopColor="#b8783e" />
+                            <stop offset="72%" stopColor="#d29a58" />
+                            <stop offset="100%" stopColor="#7b4525" />
+                        </linearGradient>
+                    </defs>
+                    <g data-testid="desktop-board-teacher-pointer">
+                        <motion.path
+                            key={`stick-shadow-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                            d={stickGeometry.bodyPath}
+                            fill="rgba(27,16,10,0.38)"
+                            initial={reduceMotion ? false : { opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.3, ease: PANEL_EASE }}
+                            style={{
+                                transform: 'translate3d(1.2px, 1.8px, 0)',
+                            }}
+                        />
+                        <motion.path
+                            key={`stick-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                            data-testid="desktop-board-teacher-stick"
+                            d={stickGeometry.bodyPath}
+                            fill="url(#river-pointer-wood)"
+                            stroke="rgba(67,37,21,0.86)"
+                            strokeWidth="0.55"
+                            initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.34, ease: PANEL_EASE }}
+                            style={{
+                                filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.26))',
+                                transformBox: 'fill-box',
+                                transformOrigin: side === 'left' ? 'left center' : 'right center',
+                            }}
+                        />
+                        <motion.path
+                            key={`stick-highlight-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                            d={stickGeometry.grainPath}
+                            fill="none"
+                            stroke="rgba(83,42,18,0.36)"
+                            strokeWidth="0.65"
+                            strokeLinecap="round"
+                            initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+                            animate={{ pathLength: 1, opacity: 0.82 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.5, ease: PANEL_EASE }}
+                        />
+                        <motion.path
+                            key={`tip-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                            data-testid="desktop-board-teacher-stick-tip"
+                            d={stickGeometry.tipBandPath}
+                            fill="rgba(66,38,22,0.96)"
+                            initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.32, ease: PANEL_EASE, delay: 0.05 }}
+                            style={{
+                                transformBox: 'fill-box',
+                                transformOrigin: 'center',
+                            }}
+                        />
+                        <motion.circle
+                            key={`handle-${activeSection?.key || 'section'}-${revealIndex}-${side}`}
+                            data-testid="desktop-board-teacher-stick-handle"
+                            cx={placement.stickStartX}
+                            cy={placement.stickStartY}
+                            r={stickGeometry.handleRadius}
+                            fill="rgba(83,48,28,0.96)"
+                            stroke="rgba(214,150,79,0.55)"
+                            strokeWidth="0.8"
+                            initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.28, ease: PANEL_EASE }}
+                            style={{
+                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.32))',
+                                transformBox: 'fill-box',
+                                transformOrigin: 'center',
+                            }}
+                        />
+                    </g>
+                </svg>
 
                 <motion.div
-                    className="relative z-10"
-                    animate={reduceMotion
-                        ? { x: 0, y: 0, rotate: 0, scale: 1 }
-                        : { x: [0, 1.2, 0], y: [0, -1.2, 0], rotate: [0, -0.7, 0], scale: [1, 1.006, 1] }}
-                    transition={reduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: PANEL_EASE }}
-                    style={{ transformOrigin: '50% 84%' }}
+                    className="absolute left-0 top-0 z-30"
+                    data-testid="desktop-board-teacher-rig"
+                    style={{ width: placement.teacherWidth }}
+                    initial={reduceMotion ? false : { opacity: 0, x: placement.left, y: placement.top + 10 }}
+                    animate={{ opacity: 1, x: placement.left, y: placement.top }}
+                    transition={{ duration: reduceMotion ? 0 : 0.58, ease: PANEL_EASE }}
                 >
                     <div
+                        data-testid="desktop-board-teacher-perch"
+                        className="absolute z-0 h-[20px] overflow-visible rounded-[0.42rem] border"
                         style={{
-                            transform: side === 'right' ? 'scaleX(-1)' : undefined,
-                            transformOrigin: 'center',
+                            width: placement.perchWidth,
+                            transform: `translate3d(${placement.perchLeft}px, ${placement.perchTop}px, 0)`,
+                            borderColor: 'rgba(222,185,106,0.28)',
+                            background: 'linear-gradient(180deg,rgba(126,84,55,0.98),rgba(72,44,29,0.98))',
+                            boxShadow: '0 12px 18px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,234,189,0.24), inset 0 -4px 7px rgba(0,0,0,0.28)',
                         }}
                     >
-                        <RiverMascot
-                            state={state}
-                            compact
-                            variant="board-teacher"
-                            className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.34)]"
+                        <span
+                            aria-hidden="true"
+                            className="absolute left-[12%] top-[-12px] h-[20px] w-[72%] rounded-full"
+                            style={{ background: 'radial-gradient(ellipse,rgba(0,0,0,0.34),transparent 72%)' }}
                         />
+                        <span
+                            aria-hidden="true"
+                            className="absolute inset-x-3 top-[4px] h-px"
+                            style={{ background: 'linear-gradient(90deg,transparent,rgba(255,235,190,0.34),transparent)' }}
+                        />
+                        <span
+                            aria-hidden="true"
+                            className="absolute bottom-[-5px] h-[7px] w-[26px] rounded-b-md"
+                            style={{
+                                [side === 'left' ? 'left' : 'right']: '18px',
+                                background: 'linear-gradient(180deg,rgba(76,47,31,0.92),rgba(35,22,16,0.96))',
+                            }}
+                        />
+                    </div>
+
+                    <div
+                        className="relative z-10"
+                        style={{ transformOrigin: '50% 84%' }}
+                    >
+                        <div
+                            style={{
+                                transform: side === 'right' ? 'scaleX(-1)' : undefined,
+                                transformOrigin: 'center',
+                            }}
+                        >
+                            <RiverMascot
+                                state={state}
+                                compact
+                                variant="board-teacher"
+                                className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.34)]"
+                            />
+                        </div>
                     </div>
                 </motion.div>
             </motion.div>
@@ -1181,8 +1250,17 @@ export default function GuideView() {
         if (!guideData || !currentCard || submitting) return;
 
         setSubmitting(true);
+        // River "reads" the answer while the conceptual grader runs, so the
+        // async grade reads as the tutor considering the response, not a freeze.
+        setRiverState('thinking');
+        setRiverCaption('Let me read that over...');
         try {
-            const evaluation = evaluateTutorCardResponse(guideData, currentCard, answer);
+            const evaluation = await gradeTutorCardResponseAsync(
+                guideData,
+                currentCard,
+                answer,
+                api.gradeTutorAnswer,
+            );
             const nowIso = new Date().toISOString();
             const cardState = buildDefaultCardState(currentCardState);
             const conceptState = studyState.concept_mastery?.[currentCard.concept_id] || {
@@ -1390,8 +1468,15 @@ export default function GuideView() {
         if (!guideData || !currentCard || submitting || !refinedAnswer.trim()) return;
 
         setSubmitting(true);
+        setRiverState('thinking');
+        setRiverCaption('Let me read that over...');
         try {
-            const evaluation = evaluateTutorCardResponse(guideData, currentCard, refinedAnswer);
+            const evaluation = await gradeTutorCardResponseAsync(
+                guideData,
+                currentCard,
+                refinedAnswer,
+                api.gradeTutorAnswer,
+            );
             const nowIso = new Date().toISOString();
             const cardState = buildDefaultCardState(currentCardState);
             const conceptState = studyState.concept_mastery?.[currentCard.concept_id] || {
@@ -3188,16 +3273,16 @@ export default function GuideView() {
                                         >
                                             <div className="flex items-center gap-3">
                                                 <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River&apos;s response</p>
-                                                {result.outcome && result.outcome !== 'revealed' ? (
+                                                {getOutcomeLabel(result.outcome) ? (
                                                     <span
-                                                        className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
+                                                        className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
                                                         style={{
                                                             color: '#efe4d1',
                                                             backgroundColor: `${poseAccent}26`,
                                                             border: `1px solid ${poseAccent}4a`,
                                                         }}
                                                     >
-                                                        {result.outcome}
+                                                        {getOutcomeLabel(result.outcome)}
                                                     </span>
                                                 ) : null}
                                             </div>
@@ -3211,10 +3296,33 @@ export default function GuideView() {
                                             </div>
                                         )}
 
+                                        {result.matchedTags?.length ? (
+                                            <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(143,178,124,0.32)', backgroundColor: 'rgba(143,178,124,0.1)' }}>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(167,196,150,0.85)' }}>
+                                                    You showed
+                                                </p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {result.matchedTags.map((tag) => (
+                                                        <span
+                                                            key={tag}
+                                                            className="rounded-full px-3 py-1.5 text-xs"
+                                                            style={{
+                                                                border: '1px solid rgba(143,178,124,0.4)',
+                                                                backgroundColor: 'rgba(143,178,124,0.18)',
+                                                                color: '#eaf2e2',
+                                                            }}
+                                                        >
+                                                            {tag.replace(/-/g, ' ')}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
+
                                         {result.missingTags?.length ? (
                                             <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
                                                 <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>
-                                                    Hold onto these anchors
+                                                    Worth adding
                                                 </p>
                                                 <div className="mt-3 flex flex-wrap gap-2">
                                                     {result.missingTags.map((tag) => (
@@ -3333,16 +3441,16 @@ export default function GuideView() {
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>River&apos;s feedback</p>
-                                                    {result.outcome && result.outcome !== 'revealed' ? (
+                                                    {getOutcomeLabel(result.outcome) ? (
                                                         <span
-                                                            className="rounded-full px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em]"
+                                                            className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
                                                             style={{
                                                                 color: '#efe4d1',
                                                                 backgroundColor: `${poseAccent}26`,
                                                                 border: `1px solid ${poseAccent}4a`,
                                                             }}
                                                         >
-                                                            {result.outcome}
+                                                            {getOutcomeLabel(result.outcome)}
                                                         </span>
                                                     ) : null}
                                                 </div>
@@ -3356,6 +3464,35 @@ export default function GuideView() {
                                                 </div>
                                             )}
 
+                                            {result.matchedTags?.length ? (
+                                                <div
+                                                    className="rounded-[1.4rem] border p-4"
+                                                    style={{
+                                                        borderColor: 'rgba(143,178,124,0.32)',
+                                                        backgroundColor: 'rgba(143,178,124,0.1)',
+                                                    }}
+                                                >
+                                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(167,196,150,0.85)' }}>
+                                                        You showed
+                                                    </p>
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {result.matchedTags.map((tag) => (
+                                                            <span
+                                                                key={tag}
+                                                                className="rounded-full px-3 py-1.5 text-xs"
+                                                                style={{
+                                                                    border: '1px solid rgba(143,178,124,0.4)',
+                                                                    backgroundColor: 'rgba(143,178,124,0.18)',
+                                                                    color: '#eaf2e2',
+                                                                }}
+                                                            >
+                                                                {tag.replace(/-/g, ' ')}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
                                             {result.missingTags?.length ? (
                                                 <div
                                                     className="rounded-[1.4rem] border p-4"
@@ -3365,7 +3502,7 @@ export default function GuideView() {
                                                     }}
                                                 >
                                                     <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.72)' }}>
-                                                        Concepts to revisit
+                                                        Worth adding
                                                     </p>
                                                     <div className="mt-3 flex flex-wrap gap-2">
                                                         {result.missingTags.map((tag) => (

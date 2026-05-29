@@ -536,7 +536,9 @@ describe('GuideView', () => {
     const boardFrame = within(teach).getByTestId('river-board-frame');
     const boardSurface = within(teach).getByTestId('river-board-surface');
     const boardContent = within(teach).getByTestId('river-board-content');
+    const teacherUnit = within(teach).getByTestId('desktop-board-teacher-unit');
     expect(boardTeacher).toBeInTheDocument();
+    expect(teacherUnit).toHaveAttribute('data-river-lockstep', 'true');
     expect(boardFrame).not.toContainElement(boardTeacher);
     expect(boardSurface).not.toContainElement(boardTeacher);
     expect(boardContent.className).not.toContain('lg:px-[10rem]');
@@ -555,8 +557,11 @@ describe('GuideView', () => {
     expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick-handle')).toBeInTheDocument();
     expect(within(boardTeacher).queryByTestId('desktop-board-teacher-chalk-dot')).not.toBeInTheDocument();
     expect(teacherRig.getAttribute('style') || '').not.toContain('clip-path');
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick').closest('[data-testid="desktop-board-teacher-unit"]')).toBe(teacherUnit);
+    expect(teacherRig.closest('[data-testid="desktop-board-teacher-unit"]')).toBe(teacherUnit);
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-variant', 'board-teacher');
+    const pointerPathBefore = woodenStick.getAttribute('d');
 
     let activeTarget = teach.querySelector('[data-current-teach-target="true"]');
     expect(activeTarget).toHaveTextContent(/A system design is a map/i);
@@ -574,6 +579,7 @@ describe('GuideView', () => {
       activeTarget = teach.querySelector('[data-current-teach-target="true"]');
       expect(activeTarget).toHaveTextContent(/campus map/i);
     });
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick').getAttribute('d')).not.toBe(pointerPathBefore);
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
   });
 

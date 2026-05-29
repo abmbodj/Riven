@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     evaluateTutorCardResponse,
+    gradeTutorCardResponseAsync,
     getGuideMasterySnapshot,
     getSessionDelta,
     isActiveRecallGuide,
@@ -282,7 +283,7 @@ describe('normalizeGuideData', () => {
             }),
         }));
         expect(guideData.evaluation_rules).toEqual(expect.objectContaining({
-            pass_threshold: 0.5,
+            pass_threshold: 0.4,
             partial_advances: true,
         }));
         expect(guideData.sections.map((section) => section.id)).toEqual(['concept-mitosis', 'concept-cytokinesis']);
@@ -522,6 +523,90 @@ describe('evaluateTutorCardResponse', () => {
         );
         expect(result.outcome).toBe('correct');
         expect(result.score).toBe(1);
+    });
+});
+
+describe('gradeTutorCardResponseAsync', () => {
+    const guideData = normalizeGuideData(makeGuideData());
+    const card = guideData.cards[0];
+
+    it('short-circuits empty answers locally without calling the LLM grader', async () => {
+        let called = false;
+        const gradeFn = async () => { called = true; return {}; };
+        const result = await gradeTutorCardResponseAsync(guideData, card, 'idk', gradeFn);
+        expect(result.outcome).toBe('empty');
+        expect(called).toBe(false);
+    });
+
+    it('short-circuits explicit misconceptions locally without calling the LLM grader', async () => {
+        let called = false;
+        const gradeFn = async () => { called = true; return {}; };
+        const result = await gradeTutorCardResponseAsync(
+            guideData, card,
+            'It makes four daughter cells with half the chromosomes.',
+            gradeFn,
+        );
+        expect(result.outcome).toBe('misconception');
+        expect(called).toBe(false);
+    });
+
+    it('maps a conceptual LLM grade onto the evaluation shape', async () => {
+        const gradeFn = async () => ({
+            outcome: 'correct',
+            score: 0.95,
+            matchedIdeas: ['two-daughter-cells', 'identical-genetic-material'],
+            missingIdeas: [],
+            misconceptionId: null,
+            feedback: 'Exactly right, phrased your own way.',
+            nudge: null,
+        });
+        // Wording that the strict keyword matcher would not credit as correct.
+        const result = await gradeTutorCardResponseAsync(
+            guideData, card,
+            'A parent cell duplicates and divides into a pair of clones carrying the same genome.',
+            gradeFn,
+        );
+        expect(result.outcome).toBe('correct');
+        expect(result.shouldAdvance).toBe(true);
+        expect(result.feedback).toBe('Exactly right, phrased your own way.');
+        expect(result.followUpQuestion).toBeNull();
+        expect(result.cue).toEqual(guideData.river.cue_map.mastery);
+    });
+
+    it('maps a partial LLM grade with a Socratic nudge', async () => {
+        const gradeFn = async () => ({
+            outcome: 'partial',
+            score: 0.5,
+            matchedIdeas: ['two-daughter-cells'],
+            missingIdeas: ['identical-genetic-material'],
+            misconceptionId: null,
+            feedback: 'Good start on the cell count.',
+            nudge: 'What does the DNA in each new cell look like?',
+        });
+        const result = await gradeTutorCardResponseAsync(
+            guideData, card, 'You end up with two new cells.', gradeFn,
+        );
+        expect(result.outcome).toBe('partial');
+        expect(result.shouldAdvance).toBe(true); // score 0.5 >= pass_threshold 0.4
+        expect(result.missingTags).toContain('identical-genetic-material');
+        expect(result.followUpQuestion).toBe('What does the DNA in each new cell look like?');
+    });
+
+    it('falls back to the local grader when the LLM call fails', async () => {
+        const gradeFn = async () => { throw new Error('network down'); };
+        const result = await gradeTutorCardResponseAsync(
+            guideData, card, 'Mitosis makes two cells with the same DNA.', gradeFn,
+        );
+        // Local fallback still recognizes this as correct.
+        expect(result.outcome).toBe('correct');
+        expect(result.shouldAdvance).toBe(true);
+    });
+
+    it('falls back to the local grader when no grader function is provided', async () => {
+        const result = await gradeTutorCardResponseAsync(
+            guideData, card, 'Mitosis makes two cells with the same DNA.',
+        );
+        expect(result.outcome).toBe('correct');
     });
 });
 

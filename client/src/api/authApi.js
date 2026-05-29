@@ -1754,6 +1754,9 @@ export const generateAiExam = (notes, file, title, sourceType, sourceId, classId
 export const gradeShortAnswer = (question, studentAnswer, correctAnswer, gradingRubric) =>
     edgeFunctionFetch('grade-answer', { body: { question, studentAnswer, correctAnswer, gradingRubric } });
 
+export const gradeTutorAnswer = (payload) =>
+    edgeFunctionFetch('grade-tutor-answer', { body: payload });
+
 export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName, className, subject } = {}) =>
     edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className, subject } });
 

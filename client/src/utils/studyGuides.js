@@ -497,12 +497,16 @@ const normalizeEvaluationRules = (value) => {
 
     return {
         score_bands: {
-            correct: clampNumber(scoreBands.correct, { min: 0, max: 1, fallback: 0.7 }),
-            partial: clampNumber(scoreBands.partial, { min: 0, max: 1, fallback: 0.25 }),
+            // Balanced mastery gate: forgiving on wording while still requiring
+            // genuine understanding. Lowered from 0.7 so paraphrased answers that
+            // cover the core ideas register as correct, but high enough that an
+            // answer missing a required idea stays "partial", not "correct".
+            correct: clampNumber(scoreBands.correct, { min: 0, max: 1, fallback: 0.6 }),
+            partial: clampNumber(scoreBands.partial, { min: 0, max: 1, fallback: 0.2 }),
         },
         pass_threshold: clampNumber(
             raw.pass_threshold ?? raw.passThreshold,
-            { min: 0, max: 1, fallback: 0.5 },
+            { min: 0, max: 1, fallback: 0.4 },
         ),
         partial_advances: normalizeBoolean(
             raw.partial_advances ?? raw.partialAdvances,
@@ -850,8 +854,10 @@ const wordOverlapRatio = (candidate, answer) => {
 /** Check if `answer` matches `candidate` via substring OR fuzzy word overlap. */
 const fuzzyIncludes = (answer, candidate) => {
     if (answer.includes(candidate)) return true;
-    // Accept if ≥75% of the candidate's content words appear in the answer
-    return wordOverlapRatio(candidate, answer) >= 0.75;
+    // Accept if ≥60% of the candidate's content words appear in the answer.
+    // Lenient on purpose: this local matcher is the offline fallback for the
+    // LLM grader, so it should err toward recognizing understanding.
+    return wordOverlapRatio(candidate, answer) >= 0.6;
 };
 
 const getTagCandidates = (guideData, tag) => {
@@ -1036,6 +1042,118 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
                 : pickFeedbackText(card?.feedback?.incorrect, 'Reset around the main idea and try again.'),
         cue,
     };
+};
+
+const LLM_GRADE_TIMEOUT_MS = 12000;
+
+const raceWithTimeout = (promise, ms) => Promise.race([
+    promise,
+    new Promise((_, reject) => { setTimeout(() => reject(new Error('grade-timeout')), ms); }),
+]);
+
+/**
+ * Maps the LLM grader's JSON response onto the local evaluation result shape so
+ * the rest of the session (mastery scoring, transitions, River cues) is unchanged.
+ * Falls back to the deterministic local result if the LLM payload is unusable.
+ */
+const mapLlmGradeToEvaluation = (normalizedGuideData, card, llm, fallback) => {
+    const allowed = new Set(['correct', 'partial', 'incorrect', 'misconception']);
+    if (!llm || !allowed.has(llm.outcome)) return fallback;
+
+    const { outcome } = llm;
+    const score = typeof llm.score === 'number'
+        ? Math.min(1, Math.max(0, llm.score))
+        : (outcome === 'correct' ? 1 : outcome === 'partial' ? 0.5 : 0);
+
+    const passThreshold = normalizedGuideData.evaluation_rules.pass_threshold;
+    const partialAdvances = normalizedGuideData.evaluation_rules.partial_advances;
+    const shouldAdvance = outcome === 'correct'
+        || (outcome === 'partial' && partialAdvances && score >= passThreshold);
+
+    const cueMap = normalizedGuideData.river.cue_map;
+    const cue = outcome === 'correct'
+        ? cueMap.mastery
+        : outcome === 'partial'
+            ? cueMap.encourage
+            : cueMap['gentle-correct'];
+
+    const matchedTags = Array.isArray(llm.matchedIdeas) ? llm.matchedIdeas : [];
+    const missingTags = Array.isArray(llm.missingIdeas) && llm.missingIdeas.length
+        ? llm.missingIdeas
+        : (outcome === 'correct' ? [] : (card?.required_idea_tags || []));
+
+    const cardFeedback = outcome === 'correct'
+        ? card?.feedback?.correct
+        : outcome === 'partial'
+            ? card?.feedback?.partial
+            : card?.feedback?.incorrect;
+    const feedback = (typeof llm.feedback === 'string' && llm.feedback.trim())
+        ? llm.feedback.trim()
+        : pickFeedbackText(cardFeedback, outcome === 'correct' ? 'That is correct.' : 'Let us refine this together.');
+
+    const followUpQuestion = outcome === 'correct'
+        ? null
+        : (typeof llm.nudge === 'string' && llm.nudge.trim())
+            ? llm.nudge.trim()
+            : buildFollowUpQuestion(card, missingTags);
+
+    return {
+        outcome,
+        score,
+        shouldAdvance,
+        matchedTags,
+        missingTags,
+        misconceptionId: outcome === 'misconception' ? (llm.misconceptionId || null) : null,
+        followUpQuestion,
+        feedback,
+        cue,
+    };
+};
+
+/**
+ * Conceptual answer grading for the tutor session.
+ *
+ * Strategy: run the cheap deterministic local checks first (empty answers and
+ * explicit misconception triggers short-circuit with no network call). For
+ * everything else, grade conceptually via the injected LLM grader (`gradeFn`,
+ * e.g. `api.gradeTutorAnswer`) which understands paraphrases and synonyms. If
+ * the LLM call fails, times out, or no grader is provided, we fall back to the
+ * (now loosened) local matcher so grading never blocks the session.
+ */
+export const gradeTutorCardResponseAsync = async (guideData, cardLike, answer, gradeFn) => {
+    const localResult = evaluateTutorCardResponse(guideData, cardLike, answer);
+
+    // Empty + explicit misconception are certain and cheap: never spend an LLM call.
+    if (localResult.outcome === 'empty' || localResult.outcome === 'misconception') {
+        return localResult;
+    }
+    if (typeof gradeFn !== 'function') {
+        return localResult;
+    }
+
+    const normalizedGuideData = normalizeGuideData(guideData);
+    if (!normalizedGuideData) return localResult;
+    const card = normalizedGuideData.cards.find((item) => item.id === cardLike?.id) || cardLike;
+    if (!card) return localResult;
+
+    try {
+        const misconceptions = (normalizedGuideData.evaluation_rules.misconception_rules || [])
+            .filter((rule) => (card.misconception_tags || []).includes(rule.id) || rule.concept_id === card.concept_id)
+            .map((rule) => ({ id: rule.id, description: rule.correction || '' }));
+
+        const llm = await raceWithTimeout(gradeFn({
+            prompt: card.prompt || '',
+            targetAnswer: card.target_answer || '',
+            requiredIdeas: card.required_idea_tags || [],
+            optionalIdeas: card.optional_idea_tags || [],
+            misconceptions,
+            studentAnswer: normalizeText(answer, ''),
+        }), LLM_GRADE_TIMEOUT_MS);
+
+        return mapLlmGradeToEvaluation(normalizedGuideData, card, llm, localResult);
+    } catch {
+        return localResult;
+    }
 };
 
 const getConceptCards = (guideData, conceptId) => (
