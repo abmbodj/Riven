@@ -2,6 +2,12 @@ import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
+const DEFAULT_HEADER_COPY = {
+    compactEyebrow: 'Schedule view',
+    defaultEyebrow: 'Calendar view',
+    allFilterLabel: 'All',
+};
+
 function formatRangeLabel(anchorDate, view) {
     const date = new Date(anchorDate);
     if (view === 'day') {
@@ -71,7 +77,9 @@ export default function CalendarHeader({
     onFilterToggle,
     eyebrow,
     density = 'comfortable',
+    copy,
 }) {
+    const calendarCopy = { ...DEFAULT_HEADER_COPY, ...copy };
     const rangeLabel = formatRangeLabel(anchorDate, view);
     const inCurrentRange = isCurrentRange(anchorDate, view);
     const compactMode = view === 'week' || view === 'day';
@@ -99,7 +107,7 @@ export default function CalendarHeader({
 
                     <div className="min-w-0 flex-1">
                         <div className={`font-mono uppercase text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[7px] tracking-[0.16em]' : 'text-[7px] tracking-[0.18em]') : 'text-[9px] tracking-[0.22em]'}`}>
-                            {eyebrow || (compactMode ? 'Schedule view' : 'Calendar view')}
+                            {eyebrow || (compactMode ? calendarCopy.compactEyebrow : calendarCopy.defaultEyebrow)}
                         </div>
                         <motion.div
                             key={`${view}-${rangeLabel}`}
@@ -154,7 +162,7 @@ export default function CalendarHeader({
                             className={`flex overflow-x-auto hide-scrollbar sm:flex-wrap sm:overflow-visible ${tightDensity ? 'gap-1' : 'gap-1.5'}`}
                         >
                             <FilterPill
-                                label="All"
+                                label={calendarCopy.allFilterLabel}
                                 active={activeFilters.length === 0}
                                 onClick={() => onFilterToggle('all')}
                                 compact={tightDensity}

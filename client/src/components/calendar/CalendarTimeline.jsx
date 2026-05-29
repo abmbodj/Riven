@@ -15,6 +15,25 @@ import {
     resolveTimelineWindow,
 } from './calendarTimeline.utils';
 
+const DEFAULT_TIMELINE_COPY = {
+    railDayEyebrow: 'Focus',
+    railWeekEyebrow: 'Week',
+    railTitle: 'Schedule',
+    allDayLaneLabel: 'All day',
+    allDayCountSingular: 'all day',
+    allDayCountPlural: 'all day',
+    emptyAllDayLabel: 'Nothing due',
+    allDayAssignmentSubtitle: 'All day due',
+    timedAssignmentSubtitle: 'Due',
+    classFallbackTitle: 'Class',
+    classFallbackName: 'Class',
+    defaultSourceName: 'General',
+    ariaClassLabel: 'Class',
+    ariaMeetupLabel: 'Study session',
+    ariaAssignmentLabel: 'Assignment',
+    scrollHint: 'Scroll for earlier and later hours',
+};
+
 function isAllDayAssignment(dueDate) {
     return dueDate.getHours() === 0 && dueDate.getMinutes() === 0;
 }
@@ -51,6 +70,10 @@ function formatEventTimeRange(startMinutes, endMinutes) {
     return `${formatEventTime(startMinutes)} - ${formatEventTime(endMinutes)}`;
 }
 
+function formatCountLabel(count, singular, plural) {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function buildTodayMap(visibleDates) {
     const today = new Date();
     return Object.fromEntries(
@@ -69,9 +92,11 @@ export default function CalendarTimeline({
     onDaySelect,
     density = 'comfortable',
     fitMode = 'default',
+    copy,
 }) {
     const scrollRef = useRef(null);
     const [now, setNow] = useState(() => new Date());
+    const timelineCopy = useMemo(() => ({ ...DEFAULT_TIMELINE_COPY, ...copy }), [copy]);
 
     useEffect(() => {
         const interval = window.setInterval(() => {
@@ -120,9 +145,9 @@ export default function CalendarTimeline({
                 title: assignment.title,
                 subtitle: assignment.assignment_type && assignment.assignment_type !== 'assignment'
                     ? assignment.assignment_type
-                    : 'All day due',
+                    : timelineCopy.allDayAssignmentSubtitle,
                 color: classMap[assignment.class_id]?.color || 'var(--accent-color)',
-                className: classMap[assignment.class_id]?.name || 'General',
+                className: classMap[assignment.class_id]?.name || timelineCopy.defaultSourceName,
                 date: dueDate,
             });
         }
@@ -132,7 +157,7 @@ export default function CalendarTimeline({
         });
 
         return map;
-    }, [activeFilters, assignments, classMap, showAssignments, visibleDates]);
+    }, [activeFilters, assignments, classMap, showAssignments, timelineCopy, visibleDates]);
 
     const timedEventsByDate = useMemo(() => {
         const map = {};
@@ -149,13 +174,13 @@ export default function CalendarTimeline({
                     map[key].push({
                         kind: 'class',
                         id: `class-${slot.id}-${date.toISOString()}`,
-                        title: cls?.name || 'Class',
+                        title: cls?.name || timelineCopy.classFallbackTitle,
                         subtitle: cls?.room || formatEventTimeRange(
                             getMinutesSinceStart(slot.start_time),
                             getMinutesSinceStart(slot.end_time),
                         ),
                         color: cls?.color || 'var(--accent-color)',
-                        className: cls?.name || 'Class',
+                        className: cls?.name || timelineCopy.classFallbackName,
                         date,
                         startMinutes: getMinutesSinceStart(slot.start_time),
                         endMinutes: getMinutesSinceStart(slot.end_time),
@@ -181,9 +206,9 @@ export default function CalendarTimeline({
                     title: assignment.title,
                     subtitle: assignment.assignment_type && assignment.assignment_type !== 'assignment'
                         ? assignment.assignment_type
-                        : 'Due',
+                        : timelineCopy.timedAssignmentSubtitle,
                     color: classMap[assignment.class_id]?.color || 'var(--accent-color)',
-                    className: classMap[assignment.class_id]?.name || 'General',
+                    className: classMap[assignment.class_id]?.name || timelineCopy.defaultSourceName,
                     date: dueDate,
                     startMinutes: (dueDate.getHours() * 60) + dueDate.getMinutes(),
                     endMinutes: (getAssignmentEndDate(assignment, dueDate).getHours() * 60) + getAssignmentEndDate(assignment, dueDate).getMinutes(),
@@ -196,7 +221,7 @@ export default function CalendarTimeline({
         }
 
         return map;
-    }, [activeFilters, assignments, classMap, scheduleSlots, showAssignments, showClasses, visibleDates]);
+    }, [activeFilters, assignments, classMap, scheduleSlots, showAssignments, showClasses, timelineCopy, visibleDates]);
 
     const timedEvents = useMemo(() => Object.values(timedEventsByDate).flat(), [timedEventsByDate]);
     const timelineWindow = useMemo(
@@ -254,10 +279,10 @@ export default function CalendarTimeline({
                 >
                     <div className={`sticky top-0 left-0 z-40 border-b border-r border-claude-border/20 bg-[color:color-mix(in_srgb,var(--surface-color)_92%,transparent)] backdrop-blur-xl ${compactHeaders || tightDensity ? 'px-2.5 py-2' : 'px-3 py-3'}`}>
                         <div className={`font-mono uppercase text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[7px] tracking-[0.16em]' : 'text-[8px] tracking-[0.2em]') : 'text-[9px] tracking-[0.24em]'}`}>
-                            {view === 'day' ? 'Focus' : 'Week'}
+                            {view === 'day' ? timelineCopy.railDayEyebrow : timelineCopy.railWeekEyebrow}
                         </div>
                         <div className={`mt-0.5 font-serif italic font-bold text-claude-text ${compactHeaders || tightDensity ? (denseDensity ? 'text-[0.85rem] leading-tight' : 'text-[0.9rem] leading-tight') : 'text-sm'}`}>
-                            Schedule
+                            {timelineCopy.railTitle}
                         </div>
                     </div>
 
@@ -299,7 +324,11 @@ export default function CalendarTimeline({
                                     </div>
                                     <div className="min-w-0 text-right">
                                         <div className={`truncate font-mono uppercase text-claude-secondary ${(compactHeaders || tightDensity) ? (denseDensity ? 'text-[6px] tracking-[0.12em]' : 'text-[7px] tracking-[0.14em]') : 'text-[9px] tracking-[0.2em]'}`}>
-                                            {allDayItems.length} all day
+                                            {formatCountLabel(
+                                                allDayItems.length,
+                                                timelineCopy.allDayCountSingular,
+                                                timelineCopy.allDayCountPlural,
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -312,7 +341,7 @@ export default function CalendarTimeline({
                         style={{ top: dayHeaderHeight, minHeight: allDayRowHeight }}
                     >
                         <div className={`font-mono uppercase text-claude-secondary ${tightDensity ? (denseDensity ? 'text-[6px] tracking-[0.14em]' : 'text-[7px] tracking-[0.16em]') : 'text-[9px] tracking-[0.22em]'}`}>
-                            All day
+                            {timelineCopy.allDayLaneLabel}
                         </div>
                     </div>
 
@@ -362,7 +391,7 @@ export default function CalendarTimeline({
                                     )}
                                     {events.length === 0 && (
                                         <span className={`truncate font-mono uppercase tracking-[0.18em] text-claude-secondary/70 ${tightDensity ? (denseDensity ? 'text-[6px]' : 'text-[7px]') : 'text-[9px]'}`}>
-                                            Nothing due
+                                            {timelineCopy.emptyAllDayLabel}
                                         </span>
                                     )}
                                 </div>
@@ -466,7 +495,7 @@ export default function CalendarTimeline({
                                                 backgroundColor: event.kind === 'class' ? `${event.color}22` : `${event.color}12`,
                                                 borderColor: event.kind === 'class' ? `${event.color}50` : `${event.color}36`,
                                             }}
-                                            aria-label={`${event.kind === 'class' ? 'Class' : event.kind === 'meetup' ? 'Study session' : 'Assignment'} ${event.title} on ${formatDateHeader(date, false)}`}
+                                            aria-label={`${event.kind === 'class' ? timelineCopy.ariaClassLabel : event.kind === 'meetup' ? timelineCopy.ariaMeetupLabel : timelineCopy.ariaAssignmentLabel} ${event.title} on ${formatDateHeader(date, false)}`}
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
@@ -512,7 +541,7 @@ export default function CalendarTimeline({
                     {!fitWeekdayView && (
                         <span className="inline-flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-full bg-claude-border/80" />
-                            Scroll for earlier and later hours
+                            {timelineCopy.scrollHint}
                         </span>
                     )}
                     <span>

@@ -63,6 +63,35 @@ const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:
 const schedulePanelClass = 'glass-panel-premium rounded-[1.5rem] border border-white/10 shadow-[0_18px_42px_rgba(3,7,11,0.2)]';
 const scheduleSoftPanelClass = 'guide-shell rounded-[1.1rem] border border-white/10 bg-white/[0.03]';
 const scheduleChipClass = 'rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.14em]';
+const GROUP_CALENDAR_HEADER_COPY = {
+    compactEyebrow: 'Shared windows',
+    defaultEyebrow: 'Group planning',
+    allFilterLabel: 'All',
+};
+const GROUP_CALENDAR_GRID_COPY = {
+    assignmentSingular: 'study session',
+    assignmentPlural: 'study sessions',
+    scheduleSingular: 'availability block',
+    schedulePlural: 'availability blocks',
+};
+const GROUP_CALENDAR_TIMELINE_COPY = {
+    railDayEyebrow: 'Today',
+    railWeekEyebrow: 'Overlap',
+    railTitle: 'Shared windows',
+    allDayLaneLabel: 'Session lane',
+    allDayCountSingular: 'session',
+    allDayCountPlural: 'sessions',
+    emptyAllDayLabel: 'No sessions yet',
+    allDayAssignmentSubtitle: 'Session',
+    timedAssignmentSubtitle: 'Session',
+    classFallbackTitle: 'Availability',
+    classFallbackName: 'Shared availability',
+    defaultSourceName: 'Study group',
+    ariaClassLabel: 'Availability block',
+    ariaMeetupLabel: 'Study session',
+    ariaAssignmentLabel: 'Study session',
+    scrollHint: 'Scan shared openings earlier and later',
+};
 
 function createDefaultComposerDate(selectedDate = new Date()) {
     const base = startOfDay(selectedDate);
@@ -346,7 +375,7 @@ function DayDetailSurface({
     const denseDensity = density === 'dense';
     const fitWeekdayView = fitMode === 'group-weekday';
     const suggestionCopy = suggestionMode === 'fallback'
-        ? 'Best nearby openings this month.'
+        ? 'Nearby openings with the strongest group overlap this month.'
         : 'Best overlap windows for this day.';
 
     return (
@@ -381,12 +410,12 @@ function DayDetailSurface({
                 </div>
             </div>
 
-            {/* Best Times panel */}
+            {/* Best overlap panel */}
             <div className={`mt-2 ${scheduleSoftPanelClass} ${fitWeekdayView ? 'p-1.5' : denseDensity ? 'p-2' : 'p-2.5'}`}>
                 <div className="flex items-center gap-2">
                     <Sparkles className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
                     <span className={`font-mono font-bold uppercase tracking-[0.14em] text-claude-accent ${denseDensity ? 'text-[8px]' : 'text-[9px]'}`}>
-                        Best Times
+                        Best Overlap
                     </span>
                 </div>
 
@@ -828,7 +857,7 @@ export default function GroupScheduleHub({
 
     return (
         <div data-testid="group-schedule-hub" className="space-y-3">
-            {/* Shared Availability — text-reduced header */}
+            {/* Shared availability controls */}
             <section className={`${schedulePanelClass} p-2.5 md:p-3`}>
                 <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
@@ -839,7 +868,7 @@ export default function GroupScheduleHub({
                             </span>
                         </div>
                         <h2 className="mt-1 font-display text-[1.15rem] font-bold italic leading-tight tracking-tight text-claude-text md:text-[1.35rem]">
-                            Keep your schedule visible to {group?.name || 'this group'} on your terms.
+                            Plan sessions around {group?.name || 'this group'} without exposing more than you choose.
                         </h2>
                     </div>
 
@@ -869,8 +898,9 @@ export default function GroupScheduleHub({
                         classes={calendarSources}
                         activeFilters={activeFilters}
                         onFilterToggle={handleFilterToggle}
-                        eyebrow="Group calendar"
+                        eyebrow="Shared windows"
                         density={scheduleDensity}
+                        copy={GROUP_CALENDAR_HEADER_COPY}
                     />
 
                     <AnimatePresence mode="wait" initial={false}>
@@ -892,6 +922,7 @@ export default function GroupScheduleHub({
                                     selectedDay={selectedDate}
                                     onDaySelect={handleDaySelect}
                                     density={scheduleDensity}
+                                    copy={GROUP_CALENDAR_GRID_COPY}
                                 />
                             </motion.div>
                         )}
@@ -915,6 +946,7 @@ export default function GroupScheduleHub({
                                     onDaySelect={handleDaySelect}
                                     density={scheduleDensity}
                                     fitMode={timelineFitMode}
+                                    copy={GROUP_CALENDAR_TIMELINE_COPY}
                                 />
                             </motion.div>
                         )}

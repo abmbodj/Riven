@@ -42,6 +42,8 @@ export default function GroupDetails() {
     const [scheduleLoading, setScheduleLoading] = useState(true);
     const [scheduleComposerRequestKey, setScheduleComposerRequestKey] = useState(0);
     const scheduleRangeRef = useRef(null);
+    const scheduleRequestIdRef = useRef(0);
+    const lastScheduleErrorToastRef = useRef({ key: '', at: 0 });
     const hasAnimatedRef = useRef(false);
 
     const currentUserId = user?.id;
@@ -104,11 +106,14 @@ export default function GroupDetails() {
     }, [id, navigate]);
 
     const loadGroupSchedule = useCallback(async (rangeStart, rangeEnd, { showLoader = false } = {}) => {
+        const requestId = scheduleRequestIdRef.current + 1;
+        scheduleRequestIdRef.current = requestId;
         const previousRange = scheduleRangeRef.current;
         const nextRange = {
             start: rangeStart instanceof Date ? rangeStart : new Date(rangeStart),
             end: rangeEnd instanceof Date ? rangeEnd : new Date(rangeEnd),
         };
+        const rangeKey = `${toDateIdentity(nextRange.start)}:${toDateIdentity(nextRange.end)}`;
 
         scheduleRangeRef.current = nextRange;
         if (showLoader || !previousRange?.loadedOnce) {
@@ -117,14 +122,27 @@ export default function GroupDetails() {
 
         try {
             const payload = await api.getGroupScheduleCalendar(id, nextRange.start, nextRange.end);
+            if (requestId !== scheduleRequestIdRef.current) return;
             setGroupSchedule(payload || { members: [], schedule_slots: [], meetups: [] });
             scheduleRangeRef.current = { ...nextRange, loadedOnce: true };
         } catch (err) {
+            if (requestId !== scheduleRequestIdRef.current) return;
             console.error('Failed to load group schedule', err);
-            toast.error(err.message || 'Failed to load the group calendar');
+            const message = err.message || 'Failed to load the group calendar';
+            const toastKey = `${rangeKey}:${message}`;
+            const now = Date.now();
+            const lastToast = lastScheduleErrorToastRef.current;
+
+            if (lastToast.key !== toastKey || now - lastToast.at > 5000) {
+                toast.error(message);
+                lastScheduleErrorToastRef.current = { key: toastKey, at: now };
+            }
+
             setGroupSchedule((current) => current || { members: [], schedule_slots: [], meetups: [] });
         } finally {
-            setScheduleLoading(false);
+            if (requestId === scheduleRequestIdRef.current) {
+                setScheduleLoading(false);
+            }
         }
     }, [id, toast]);
 

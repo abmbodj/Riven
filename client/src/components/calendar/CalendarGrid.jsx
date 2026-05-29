@@ -1,6 +1,13 @@
 import React, { useMemo } from 'react';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DEFAULT_GRID_COPY = {
+    gridLabel: 'Monthly calendar',
+    assignmentSingular: 'assignment',
+    assignmentPlural: 'assignments',
+    scheduleSingular: 'class session',
+    schedulePlural: 'class sessions',
+};
 
 // Build a 42-cell grid (6 weeks) starting from the Sunday before month start
 function buildMonthGrid(viewMonth) {
@@ -24,6 +31,10 @@ function isSameDay(a, b) {
         a.getDate() === b.getDate();
 }
 
+function pluralizeCount(count, singular, plural) {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export default function CalendarGrid({
     anchorDate,
     assignments,
@@ -34,8 +45,10 @@ export default function CalendarGrid({
     selectedDay,
     onDaySelect,
     density = 'comfortable',
+    copy,
 }) {
     const today = new Date();
+    const calendarCopy = { ...DEFAULT_GRID_COPY, ...copy };
     const compactDensity = density === 'compact';
     const denseDensity = density === 'dense';
     const tightDensity = compactDensity || denseDensity;
@@ -84,7 +97,7 @@ export default function CalendarGrid({
     }, [classes]);
 
     return (
-        <div role="grid" aria-label="Monthly calendar">
+        <div role="grid" aria-label={calendarCopy.gridLabel}>
             {/* Weekday headers */}
             <div className={`grid grid-cols-7 ${tightDensity ? 'mb-0.5' : 'mb-1'}`}>
                 {WEEKDAY_LABELS.map((d) => (
@@ -123,6 +136,7 @@ export default function CalendarGrid({
                             scheduleCount={scheduleCount}
                             classColorMap={classColorMap}
                             compact={tightDensity}
+                            copy={calendarCopy}
                             onClick={() => onDaySelect(date)}
                         />
                     );
@@ -132,12 +146,12 @@ export default function CalendarGrid({
     );
 }
 
-function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots, overflow, scheduleCount, classColorMap, compact, onClick }) {
+function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots, overflow, scheduleCount, classColorMap, compact, copy, onClick }) {
     const dateNum = date.getDate();
     const ariaLabel = [
         date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
-        assignments.length > 0 ? `${assignments.length} assignment${assignments.length > 1 ? 's' : ''}` : null,
-        scheduleCount > 0 ? `${scheduleCount} class session${scheduleCount > 1 ? 's' : ''}` : null,
+        assignments.length > 0 ? pluralizeCount(assignments.length, copy.assignmentSingular, copy.assignmentPlural) : null,
+        scheduleCount > 0 ? pluralizeCount(scheduleCount, copy.scheduleSingular, copy.schedulePlural) : null,
     ].filter(Boolean).join(', ');
 
     return (

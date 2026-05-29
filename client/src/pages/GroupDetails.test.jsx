@@ -341,6 +341,34 @@ describe('GroupDetails upload flow', () => {
     expect(screen.queryByText('Next 7 Days')).not.toBeInTheDocument();
   });
 
+  it('dedupes repeated schedule load errors for the same visible range', async () => {
+    let meetupHandlers;
+    const timeoutError = new Error('canceling statement due to statement timeout');
+
+    authApi.subscribeToGroupMeetupEvents.mockImplementationOnce((_groupId, handlers) => {
+      meetupHandlers = handlers;
+      return vi.fn();
+    });
+    api.getGroupScheduleCalendar.mockRejectedValue(timeoutError);
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith('canceling statement due to statement timeout');
+    });
+    expect(mockToast.error.mock.calls.filter(([message]) => message === timeoutError.message)).toHaveLength(1);
+
+    await act(async () => {
+      meetupHandlers.onChanged();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(api.getGroupScheduleCalendar).toHaveBeenCalledTimes(2);
+    });
+    expect(mockToast.error.mock.calls.filter(([message]) => message === timeoutError.message)).toHaveLength(1);
+  });
+
   it('updates the selected-day surface when a calendar day is tapped', async () => {
     const now = new Date();
     const targetDay = Math.min(now.getDate() + 2, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
@@ -352,7 +380,7 @@ describe('GroupDetails upload flow', () => {
       day: 'numeric',
     }).format(targetStart);
 
-    api.getGroupScheduleCalendar.mockResolvedValueOnce({
+    api.getGroupScheduleCalendar.mockResolvedValue({
       my_share_mode: 'busy_free',
       members: [],
       schedule_slots: [],
@@ -386,10 +414,100 @@ describe('GroupDetails upload flow', () => {
     ));
 
     expect(targetCell).toBeTruthy();
+    expect(targetCell).toHaveAttribute('aria-label', expect.stringContaining('1 study session'));
     fireEvent.click(targetCell);
 
     expect(await within(daySurface).findByText('Calendar redesign session')).toBeInTheDocument();
     expect(within(daySurface).getByText(targetLabel)).toBeInTheDocument();
+  });
+
+  it('uses Study Hub schedule language for month, week, and day views', async () => {
+    const now = new Date();
+    const sessionStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 30, 0, 0);
+    const sessionEnd = new Date(sessionStart.getTime() + (60 * 60 * 1000));
+    const todayLabel = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }).format(sessionStart);
+    const sessionTimeRange = `${new Intl.DateTimeFormat([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(sessionStart)} - ${new Intl.DateTimeFormat([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(sessionEnd)}`;
+
+    api.getGroupScheduleCalendar.mockResolvedValue({
+      my_share_mode: 'full',
+      members: [
+        {
+          id: 'visible-user',
+          username: 'visible',
+          display_name: 'Visible Member',
+          share_mode: 'full',
+        },
+      ],
+      schedule_slots: [
+        {
+          id: 'visible-slot',
+          user_id: 'visible-user',
+          member_name: 'Visible Member',
+          day_of_week: now.getDay(),
+          start_time: '09:00',
+          end_time: '10:00',
+          visibility_mode: 'full',
+          class_name: 'Bio review block',
+          class_is_archived: false,
+        },
+      ],
+      meetups: [
+        {
+          id: 'meetup-language',
+          topic: 'Calendar redesign session',
+          start_at: sessionStart.toISOString(),
+          end_at: sessionEnd.toISOString(),
+          status: 'scheduled',
+          attendee_count: 2,
+          attendees: [],
+          attendee_ids: ['user-1', 'visible-user'],
+          is_joined: true,
+          is_creator: false,
+        },
+      ],
+    });
+
+    renderGroupDetails();
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('group-schedule-hub').length).toBeGreaterThan(0);
+    });
+
+    const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
+    const monthGrid = within(primaryHub).getByRole('grid', { name: /monthly calendar/i });
+    const todayCell = within(monthGrid).getAllByRole('gridcell').find((cell) => (
+      cell.getAttribute('aria-label')?.includes(todayLabel)
+    ));
+
+    expect(todayCell).toBeTruthy();
+    expect(todayCell).toHaveAttribute('aria-label', expect.stringContaining('1 study session'));
+    expect(todayCell).toHaveAttribute('aria-label', expect.stringContaining('1 availability block'));
+
+    fireEvent.click(within(primaryHub).getByRole('tab', { name: /week/i }));
+    const weekTimeline = await within(primaryHub).findByTestId('calendar-timeline');
+
+    expect(within(weekTimeline).queryByText('Nothing due')).not.toBeInTheDocument();
+    expect(within(weekTimeline).getAllByText('No sessions yet').length).toBeGreaterThan(0);
+    expect(within(weekTimeline).getByLabelText(/Study session Calendar redesign session/i)).toBeInTheDocument();
+    expect(within(weekTimeline).getByText(sessionTimeRange)).toBeInTheDocument();
+    expect(within(weekTimeline).queryByText(new RegExp(`Due ${sessionTimeRange.split(' - ')[0]}`))).not.toBeInTheDocument();
+
+    fireEvent.click(within(primaryHub).getByRole('tab', { name: /^day$/i }));
+    const dayTimeline = await within(primaryHub).findByTestId('calendar-timeline');
+
+    expect(within(dayTimeline).queryByText('Nothing due')).not.toBeInTheDocument();
+    expect(within(dayTimeline).getAllByText('No sessions yet').length).toBeGreaterThan(0);
+    expect(within(dayTimeline).getByLabelText(/Study session Calendar redesign session/i)).toBeInTheDocument();
   });
 
   it('keeps month, week, and day on the same compact calendar shell', async () => {
@@ -400,24 +518,28 @@ describe('GroupDetails upload flow', () => {
     });
 
     const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
     expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'comfortable');
 
     fireEvent.click(within(primaryHub).getByRole('tab', { name: /week/i }));
 
     const weekTimeline = await within(primaryHub).findByTestId('calendar-timeline');
     expect(weekTimeline).toHaveAttribute('data-density', 'compact');
-    expect(weekTimeline).toHaveAttribute('data-fit-mode', 'default');
+    expect(weekTimeline).toHaveAttribute('data-fit-mode', 'group-weekday');
+    expect(within(weekTimeline).queryByText('Nothing due')).not.toBeInTheDocument();
+    expect(within(weekTimeline).getAllByText('No sessions yet').length).toBeGreaterThan(0);
     expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'comfortable');
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
 
     fireEvent.click(within(primaryHub).getByRole('tab', { name: /^day$/i }));
 
     const dayTimeline = await within(primaryHub).findByTestId('calendar-timeline');
     expect(dayTimeline).toHaveAttribute('data-density', 'compact');
-    expect(dayTimeline).toHaveAttribute('data-fit-mode', 'default');
+    expect(dayTimeline).toHaveAttribute('data-fit-mode', 'group-weekday');
+    expect(within(dayTimeline).queryByText('Nothing due')).not.toBeInTheDocument();
+    expect(within(dayTimeline).getAllByText('No sessions yet').length).toBeGreaterThan(0);
     expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-density', 'comfortable');
-    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'default');
+    expect(within(primaryHub).getByTestId('group-schedule-day-surface')).toHaveAttribute('data-fit-mode', 'group-weekday');
   });
 
   it('wraps group calendar filters on desktop instead of requiring horizontal scroll', async () => {
