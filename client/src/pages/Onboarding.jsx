@@ -19,41 +19,41 @@ const CHOICE_STEPS = [
     {
         id: 'focus',
         type: 'choice',
-        eyebrow: 'Choose a lane',
-        title: { lead: 'What should Riven', highlight: 'help with', tail: 'first?' },
-        description: 'Pick the outcome you want to make progress on right away.',
+        eyebrow: 'Your goal',
+        title: { lead: 'What brings you', highlight: 'to Riven', tail: '?' },
+        description: 'Pick the one that matches where you are right now.',
         options: [
-            { id: 'cards', eyebrow: 'Outcome', label: 'Turn class material into flashcards', shortLabel: 'Flashcards' },
-            { id: 'habit', eyebrow: 'Rhythm', label: 'Build a steadier study habit', shortLabel: 'Consistency' },
-            { id: 'exams', eyebrow: 'Practice', label: 'Get exam-ready faster', shortLabel: 'Exam prep' },
-            { id: 'organize', eyebrow: 'Clarity', label: 'Keep every class organized', shortLabel: 'Organization' },
+            { id: 'cards', eyebrow: 'Flashcards', label: 'I want to turn my notes into flashcard decks', shortLabel: 'Flashcards' },
+            { id: 'habit', eyebrow: 'Habit', label: 'I need to build a consistent study routine', shortLabel: 'Routine' },
+            { id: 'exams', eyebrow: 'Exams', label: 'I have an upcoming exam I need to ace', shortLabel: 'Exam prep' },
+            { id: 'organize', eyebrow: 'Organization', label: 'My study material is all over the place', shortLabel: 'Organization' },
         ],
     },
     {
         id: 'material',
         type: 'choice',
-        eyebrow: 'Bring your material in',
-        title: { lead: 'What do you usually', highlight: 'study from', tail: '?' },
-        description: 'Choose the source you reach for most often.',
+        eyebrow: 'Your toolkit',
+        title: { lead: 'What do you', highlight: 'usually study', tail: 'from?' },
+        description: 'Choose whatever you reach for most.',
         options: [
-            { id: 'audio', eyebrow: 'Capture', label: 'Lecture audio', shortLabel: 'Audio' },
-            { id: 'slides', eyebrow: 'Upload', label: 'Slides and syllabi', shortLabel: 'Slides' },
-            { id: 'notes', eyebrow: 'Write', label: 'Reading notes', shortLabel: 'Notes' },
-            { id: 'existing', eyebrow: 'Reuse', label: 'Decks and questions I already have', shortLabel: 'Existing sets' },
+            { id: 'audio', eyebrow: 'Audio', label: 'Lecture recordings or podcasts', shortLabel: 'Audio' },
+            { id: 'slides', eyebrow: 'Files', label: 'Slides, PDFs, or syllabi', shortLabel: 'Slides' },
+            { id: 'notes', eyebrow: 'Notes', label: 'My handwritten or typed notes', shortLabel: 'Notes' },
+            { id: 'existing', eyebrow: 'Sets', label: 'Decks and practice sets I already made', shortLabel: 'Existing sets' },
         ],
     },
     {
         id: 'friction',
         type: 'choice',
-        eyebrow: 'Tune your first screen',
-        title: { lead: 'What throws off', highlight: 'your study', tail: 'rhythm?' },
-        description: 'Tell us the friction you want cleared first.',
-        finalPrimary: 'Go to Today',
+        eyebrow: 'Your roadblock',
+        title: { lead: 'What gets in the way of', highlight: 'actually studying', tail: '?' },
+        description: 'Be honest — we built features for exactly this.',
+        finalPrimary: 'Take me to Riven',
         options: [
-            { id: 'starting', eyebrow: 'Momentum', label: 'I miss the moment to start', shortLabel: 'Starting' },
-            { id: 'scatter', eyebrow: 'Signal', label: 'My material gets scattered', shortLabel: 'Scattered material' },
-            { id: 'review', eyebrow: 'Recall', label: 'I forget what to review next', shortLabel: 'Review order' },
-            { id: 'switching', eyebrow: 'Context', label: 'I bounce between too many classes', shortLabel: 'Context switching' },
+            { id: 'starting', eyebrow: 'Starting', label: 'Finding the motivation to begin', shortLabel: 'Getting started' },
+            { id: 'scatter', eyebrow: 'Organization', label: 'Keeping all my material in one place', shortLabel: 'Scattered material' },
+            { id: 'review', eyebrow: 'Recall', label: 'Knowing what to review and when', shortLabel: 'Review order' },
+            { id: 'switching', eyebrow: 'Focus', label: 'Juggling too many classes at once', shortLabel: 'Context switching' },
         ],
     },
 ];
@@ -248,11 +248,14 @@ export default function Onboarding() {
     }, [isFunnel, step, stepCount, finishToDashboard]);
 
     const goBack = useCallback(async () => {
-        if (step <= 0) return;
+        if (step === 0) {
+            navigate(isFunnel ? '/' : '/dashboard', { replace: true });
+            return;
+        }
         const previous = step - 1;
         if (isFunnel) { setStep(previous); return; }
         try { await persist({ nextStep: previous }); setStep(previous); } catch { /* handled */ }
-    }, [isFunnel, persist, step]);
+    }, [isFunnel, navigate, persist, step]);
 
     const goNext = useCallback(async () => {
         trackOnboarding('onboarding_continue', { fromStep: step });
@@ -375,8 +378,8 @@ export default function Onboarding() {
                         <button
                             type="button"
                             onClick={() => !primaryBusy && goBack()}
-                            disabled={primaryBusy || safeStep === 0}
-                            aria-label="Go back"
+                            disabled={primaryBusy}
+                            aria-label={safeStep === 0 ? 'Close onboarding' : 'Go back'}
                             className={`touch-target rounded-full border border-white/10 bg-white/[0.05] text-botanical-parchment transition-all duration-200 hover:border-white/15 hover:bg-white/[0.08] disabled:opacity-30 ${compactHeight ? 'h-10 w-10' : 'h-11 w-11'}`}
                         >
                             <ArrowLeft className="h-5 w-5" strokeWidth={2.2} />
