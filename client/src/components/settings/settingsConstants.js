@@ -24,7 +24,7 @@ export const SETTINGS_SECTIONS = [
     { id: 'security', label: 'Security', icon: Shield, tone: 'default' },
     { id: 'plan', label: 'Plan & access', icon: CreditCard, tone: 'accent' },
     { id: 'integrations', label: 'Integrations', icon: Network, tone: 'info' },
-    { id: 'ai', label: 'Riven AI', icon: Sparkles, tone: 'warning' },
+    { id: 'ai', label: 'Study Tools', icon: Sparkles, tone: 'warning' },
     { id: 'notifications', label: 'Notifications', icon: Bell, tone: 'default' },
     { id: 'safety', label: 'Safety controls', icon: UserMinus, tone: 'default' },
     { id: 'help', label: 'Help & policies', icon: Mail, tone: 'default' },

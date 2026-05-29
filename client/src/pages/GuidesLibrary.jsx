@@ -821,7 +821,7 @@ export default function GuidesLibrary() {
                         <span className="text-[10px] font-mono font-bold uppercase tracking-widest">Study</span>
                     </Link>
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
-                        <span className="px-1.5 py-0.5 bg-[#f59e0b] text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">AI</span>
+                        <span className="px-1.5 py-0.5 bg-[#f59e0b] text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Tutor</span>
                     </div>
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Tutor Sessions</h1>
                     <p className="mt-2 text-sm text-claude-secondary">River-led active recall that turns setup answers, notes, or files into a one-card training flow.</p>

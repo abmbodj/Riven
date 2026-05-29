@@ -81,7 +81,7 @@ const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkT
                     <div className="space-y-5 text-left">
                         {[
                             { icon: BookOpen, label: 'Smart flashcards with spaced repetition' },
-                            { icon: Sparkles, label: 'AI-powered deck generation' },
+                            { icon: Sparkles, label: 'Deck generation from notes and files' },
                             { icon: Leaf, label: 'Watch your knowledge garden grow' },
                         ].map((feature, i) => (
                             <div key={i} className="flex items-center gap-4 group">

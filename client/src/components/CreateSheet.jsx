@@ -17,7 +17,7 @@ const CREATE_ITEMS = [
         id: 'ai',
         icon: Sparkles,
         label: 'Generate from Notes',
-        description: 'AI-powered deck creation',
+        description: 'Create a deck from notes or files',
         route: '/create?mode=ai',
         accent: true,
     },

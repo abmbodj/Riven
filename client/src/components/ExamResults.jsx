@@ -393,7 +393,7 @@ export default function ExamResults({
                                                             </div>
                                                             {ans?.feedback && (
                                                                 <div className="p-3 rounded-xl border border-claude-border text-sm font-body text-claude-text">
-                                                                    <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1 text-claude-secondary">AI Feedback</span>
+                                                                    <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1 text-claude-secondary">Feedback</span>
                                                                     <SubjectRenderer content={ans.feedback} />
                                                                 </div>
                                                             )}

@@ -679,7 +679,7 @@ export default function Classes() {
                                         <div className="flex p-1 glass-panel rounded-xl mb-6 max-w-full overflow-x-auto hide-scrollbar">
                                             {[
                                                 { id: 'manual', label: 'Manual', icon: BookOpen },
-                                                { id: 'ai', label: 'AI Syllabus', icon: Sparkles },
+                                                { id: 'ai', label: 'Syllabus Upload', icon: Sparkles },
                                                 { id: 'canvas', label: 'Canvas Sync', icon: Network }
                                             ].map(method => {
                                                 const isActive = creationMethod === method.id;
@@ -787,9 +787,9 @@ export default function Classes() {
                                                     </div>
                                                     <div className="relative z-10">
                                                         <h4 className="font-serif italic font-bold text-lg text-claude-text flex items-center gap-2 mb-2">
-                                                            <Sparkles className="w-4 h-4 text-claude-accent" /> Auto-fill with AI
+                                                            <Sparkles className="w-4 h-4 text-claude-accent" /> Auto-fill from syllabus
                                                         </h4>
-                                                        <p className="text-xs font-mono text-claude-secondary mb-4">Upload your syllabus (PDF or Image) and let AI extract the class details, schedule, and assignments automatically.</p>
+                                                        <p className="text-xs font-mono text-claude-secondary mb-4">Upload your syllabus (PDF or image) to pull in class details, schedule, and assignments automatically.</p>
 
                                                         {aiFilePreview ? (
                                                             <div className="flex items-center justify-between glass-panel rounded-xl p-3 mb-3">

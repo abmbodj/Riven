@@ -314,7 +314,7 @@ export default function CreateDeck() {
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                         <span className="rounded-full border border-claude-border bg-claude-bg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
-                            {mode === 'manual' ? 'Build manually' : 'AI workflow'}
+                            {mode === 'manual' ? 'Build manually' : 'Guided workflow'}
                         </span>
                         <span className="rounded-full border border-claude-border bg-claude-bg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
                             {selectedClassData?.name || 'No class linked'}
@@ -440,7 +440,7 @@ export default function CreateDeck() {
                                         }}
                                     >
                                         <Wand2 className="w-3 h-3" />
-                                        {aiLimits.remaining}/{aiLimits.max} generations
+                                        {aiLimits.remaining}/{aiLimits.max} study generations
                                     </div>
                                 </div>
                             )}

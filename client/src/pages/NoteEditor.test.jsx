@@ -346,7 +346,7 @@ describe('NoteEditor', () => {
 
     renderNoteEditor();
 
-    expect(await screen.findByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+    expect(await screen.findByText(/lecture captured - enhance your notes/i)).toBeInTheDocument();
 
     clickBannerDismissButton(/enhance/i);
 
@@ -355,7 +355,7 @@ describe('NoteEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: /keep audio/i }));
 
     expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
-    expect(screen.getByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+    expect(screen.getByText(/lecture captured - enhance your notes/i)).toBeInTheDocument();
     expect(api.deleteNoteAudio).not.toHaveBeenCalled();
     expect(recorderMock.reset).not.toHaveBeenCalled();
   });
@@ -367,7 +367,7 @@ describe('NoteEditor', () => {
 
     renderNoteEditor();
 
-    expect(await screen.findByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+    expect(await screen.findByText(/lecture captured - enhance your notes/i)).toBeInTheDocument();
 
     clickBannerDismissButton(/enhance/i);
     fireEvent.click(screen.getByRole('button', { name: /discard audio/i }));
@@ -378,7 +378,7 @@ describe('NoteEditor', () => {
     });
 
     expect(api.deleteNoteAudio).not.toHaveBeenCalled();
-    expect(screen.queryByText(/lecture captured - enhance your notes with ai/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lecture captured - enhance your notes/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
   });
 
@@ -391,7 +391,7 @@ describe('NoteEditor', () => {
 
     renderNoteEditor();
 
-    expect(await screen.findByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+    expect(await screen.findByText(/lecture captured - enhance your notes/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /enhance/i }));
 
@@ -450,7 +450,7 @@ describe('NoteEditor', () => {
 
     expect(screen.getByDisplayValue('Cell Respiration Notes')).toBeInTheDocument();
     expect(screen.getByText('Importing into note')).toBeInTheDocument();
-    expect(screen.queryByText('AI Enhancement Preview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enhancement Preview')).not.toBeInTheDocument();
     expect(screen.getByTestId('note-editor-content-readonly')).toHaveTextContent('Preview enhancement section');
 
     await act(async () => {
@@ -459,7 +459,7 @@ describe('NoteEditor', () => {
     await flushAsync(4);
 
     expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes from polling reconciliation.');
-    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced');
     expect(recorderMock.setProcessingState).toHaveBeenCalledWith('complete');
     expect(api.getAiJob).toHaveBeenCalledTimes(2);
     expect(api.getNote).toHaveBeenCalledTimes(2);
@@ -511,7 +511,7 @@ describe('NoteEditor', () => {
     await flushAsync(6);
 
     expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes resolved from the persisted checkpoint.');
-    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced');
     expect(recorderMock.setProcessingState).toHaveBeenCalledWith('complete');
     expect(api.getNote).toHaveBeenCalledTimes(2);
 
@@ -586,7 +586,7 @@ describe('NoteEditor', () => {
     await flushAsync(6);
 
     expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes resolved after the saving grace window.');
-    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced');
     expect(api.getAiJob).toHaveBeenCalledTimes(3);
     expect(api.getNote).toHaveBeenCalledTimes(4);
 
@@ -631,7 +631,7 @@ describe('NoteEditor', () => {
       expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes loaded from the saved note row.');
     });
     expect(screen.queryByText('Importing into note')).not.toBeInTheDocument();
-    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced');
   });
 
   it('shows active enhancement content in the main editor without rendering a separate preview card', async () => {
@@ -664,7 +664,7 @@ describe('NoteEditor', () => {
     await flushAsync(6);
 
     expect(screen.getByText('Importing into note')).toBeInTheDocument();
-    expect(screen.queryByText('AI Enhancement Preview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enhancement Preview')).not.toBeInTheDocument();
     expect(screen.getByTestId('note-editor-content-readonly')).toHaveTextContent('Streaming note import content');
   });
 

@@ -32,13 +32,13 @@ vi.mock('../../api', () => ({
 }));
 
 describe('PricingModal AI messaging', () => {
-  it('describes current Riven AI capabilities instead of the old unlimited-generations copy', () => {
+  it('describes current premium study capabilities instead of the old unlimited-generations copy', () => {
     render(<PricingModal isOpen={true} onClose={vi.fn()} currentTier="free" />);
 
-    expect(screen.getByText(/premium themes plus riven ai for decks, classes, guides, mock exams, youtube tools, and note enhancement/i)).toBeInTheDocument();
-    expect(screen.getByText(/riven ai across decks, classes, guides, mock exams, youtube study tools, and audio note enhancement/i)).toBeInTheDocument();
+    expect(screen.getByText(/premium themes plus guided tools for decks, classes, guides, mock exams, youtube tools, and note enhancement/i)).toBeInTheDocument();
+    expect(screen.getByText(/guided tools across decks, classes, guides, mock exams, youtube study tools, and audio note enhancement/i)).toBeInTheDocument();
     expect(screen.getByText(/decks, classes, guides, exams, youtube, and note enhancement/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/riven ai for decks, classes, guides, exams, youtube, and notes/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/guided study tools for decks, classes, guides, exams, youtube, and notes/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/unlimited ai generations/i)).not.toBeInTheDocument();
   });
 });

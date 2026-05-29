@@ -121,6 +121,16 @@ describe('EditProfile', () => {
         expect(within(mobileSaveBar).getByRole('button', { name: /^save$/i })).toBeInTheDocument();
     });
 
+    it('keeps the desktop publish card interactive inside the hero overlay', () => {
+        renderEditProfile();
+
+        const publishStateLabels = screen.getAllByText('Publish State');
+        const desktopPublishCard = publishStateLabels[0].closest('div[class*="pointer-events-auto"]');
+
+        expect(desktopPublishCard).not.toBeNull();
+        expect(within(desktopPublishCard).getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+    });
+
     it('opens the avatar picker from the media action button', () => {
         renderEditProfile();
 

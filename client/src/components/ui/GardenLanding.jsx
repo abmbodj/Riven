@@ -72,10 +72,10 @@ const productScreenshotSlots = [
         bullets: ['Class pages hold the learning context', 'Assignments and materials stay close', 'Canvas import can reduce manual setup'],
     },
     {
-        eyebrow: 'AI study material',
+        eyebrow: 'Guided study material',
         title: 'Generate guides and practice from material that already knows the subject.',
-        body: 'The AI layer is strongest when it starts from the class, note, deck, or source you selected instead of from a blank prompt.',
-        placeholder: 'AI study screenshot placeholder',
+        body: 'Riven works best when it starts from the class, note, deck, or source you selected instead of from a blank prompt.',
+        placeholder: 'Study material screenshot placeholder',
         assetPath: '/landing/riven-ai.png',
         accent: '#d89a76',
         Icon: WandSparkles,
@@ -124,8 +124,8 @@ const pricingPlans = [
         eyebrow: 'Most Popular',
         price: '$5.99',
         cadence: '/mo',
-        body: 'Open up the deeper AI and theme experience for regular weekly studying.',
-        features: ['Riven AI across notes, decks, guides, exams, and YouTube tools', 'Unlimited hearts and the full theme library', 'Ad-free study flow with fewer interruptions', 'Better fit for students using Riven every week'],
+        body: 'Open up deeper study tools and the full theme experience for regular weekly studying.',
+        features: ['Guided tools across notes, decks, guides, exams, and YouTube', 'Unlimited hearts and the full theme library', 'Ad-free study flow with fewer interruptions', 'Better fit for students using Riven every week'],
         cta: 'Support Riven',
         accent: '#deb96a',
         featured: true,
@@ -734,7 +734,7 @@ export default function GardenLanding() {
                             Start free, then stay when the rhythm clicks.
                         </h2>
                         <p className="mx-auto mt-6 max-w-2xl font-sans text-sm leading-7 text-[#b7ccce] sm:text-[15px]">
-                            Every plan keeps the same foundation. Paid tiers remove friction, open up the deeper AI and theme experience,
+                            Every plan keeps the same foundation. Paid tiers remove friction, open up deeper study tools and theme options,
                             and make Riven easier to live in every day.
                         </p>
                     </motion.div>

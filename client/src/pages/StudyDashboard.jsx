@@ -31,7 +31,7 @@ const MODULES = [
     },
     {
         title: 'Mock Exams',
-        description: 'Test your knowledge with AI quizzes',
+        description: 'Test your knowledge with practice quizzes',
         icon: ClipboardCheck,
         to: '/exams',
         color: '#ec4899',

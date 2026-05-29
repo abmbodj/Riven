@@ -73,7 +73,7 @@ export default function AccountTab({ user, isOwner, toggleSimulateFree, toast })
                                     Simulate Free User
                                 </h3>
                                 <p className="text-[11px] text-claude-secondary leading-relaxed">
-                                    Toggle to experience Riven as a free-tier user — limited hearts, AI caps, theme locks, and group restrictions apply.
+                                    Toggle to experience Riven as a free-tier user — limited hearts, generation caps, theme locks, and group restrictions apply.
                                 </p>
                             </div>
                             <button

@@ -306,7 +306,7 @@ export default function ExamsLibrary() {
             const result = await api.generateAiExam(
                 noteText || null,
                 file,
-                genTitle || 'AI Mock Exam',
+                genTitle || 'Practice Mock Exam',
                 sourceType,
                 sourceId,
                 classId,
@@ -400,7 +400,7 @@ export default function ExamsLibrary() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Title</label>
-                                    <input type="text" value={genTitle} onChange={e => setGenTitle(e.target.value)} placeholder="AI Mock Exam" className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" style={{ fontSize: '16px' }} />
+                                    <input type="text" value={genTitle} onChange={e => setGenTitle(e.target.value)} placeholder="Practice Mock Exam" className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" style={{ fontSize: '16px' }} />
                                 </div>
 
                                 {generationClass ? (

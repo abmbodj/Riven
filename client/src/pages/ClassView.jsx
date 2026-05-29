@@ -276,7 +276,7 @@ export default function ClassView() {
             const result = await api.generateAiDeck(
                 assignForm.description,
                 aiFile,
-                `${assignForm.title} - AI ✨`,
+                `${assignForm.title} - Practice Deck`,
                 id,
                 cls?.name || null
             );
@@ -764,7 +764,7 @@ export default function ClassView() {
                                         ) : (
                                             <>
                                                 <Sparkles className="w-4 h-4 group-hover:text-yellow-300 transition-colors" />
-                                                Generate AI Flashcards
+                                                Generate Flashcards
                                             </>
                                         )}
                                     </button>

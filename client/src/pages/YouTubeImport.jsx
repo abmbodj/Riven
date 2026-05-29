@@ -650,7 +650,7 @@ export default function YouTubeImport() {
                                 animate={{ opacity: 1 }}
                                 className="font-mono text-[10px] uppercase tracking-[0.14em] text-claude-secondary text-center"
                             >
-                                Uses {selectedTypes.length} AI generation{selectedTypes.length > 1 ? 's' : ''}
+                                Uses {selectedTypes.length} study generation{selectedTypes.length > 1 ? 's' : ''}
                             </motion.p>
                         )}
 

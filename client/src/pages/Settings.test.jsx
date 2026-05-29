@@ -201,9 +201,9 @@ describe('Settings navigation', () => {
     // Default: Security
     expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
 
-    // Navigate to Riven AI
-    navigateToSection('Riven AI');
-    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+    // Navigate to Study Tools
+    navigateToSection('Study Tools');
+    expect(await screen.findByRole('heading', { name: 'Study Tools' })).toBeInTheDocument();
 
     // Navigate to Help & policies
     navigateToSection('Help & policies');
@@ -233,9 +233,9 @@ describe('Settings LMS sync', () => {
     navigateToSection('Integrations');
     expect(await screen.findByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
 
-    // Navigate to Riven AI
-    navigateToSection('Riven AI');
-    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+    // Navigate to Study Tools
+    navigateToSection('Study Tools');
+    expect(await screen.findByRole('heading', { name: 'Study Tools' })).toBeInTheDocument();
 
     // Navigate to Notifications
     navigateToSection('Notifications');
@@ -312,24 +312,24 @@ describe('Settings LMS sync', () => {
     renderSettings();
     await waitFor(() => expect(api.listAiJobs).toHaveBeenCalledWith({ limit: 20 }));
 
-    navigateToSection('Riven AI');
+    navigateToSection('Study Tools');
 
-    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Study Tools' })).toBeInTheDocument();
     expect(screen.getByText('Recent usage')).toBeInTheDocument();
     expect(screen.getByText('Flashcard deck')).toBeInTheDocument();
     expect(screen.getByText('18 cards created')).toBeInTheDocument();
     expect(screen.queryByText('YouTube source')).not.toBeInTheDocument();
   });
 
-  it('shows the empty history state when no AI activity exists', async () => {
+  it('shows the empty history state when no study tool activity exists', async () => {
     api.listAiJobs.mockResolvedValue([]);
 
     renderSettings();
     await waitFor(() => expect(api.listAiJobs).toHaveBeenCalledWith({ limit: 20 }));
 
-    navigateToSection('Riven AI');
+    navigateToSection('Study Tools');
 
-    expect(await screen.findByText('No AI activity yet')).toBeInTheDocument();
+    expect(await screen.findByText('No study tool activity yet')).toBeInTheDocument();
   });
 
   it('blocks empty feedback submissions in the composer modal', async () => {
@@ -560,9 +560,9 @@ describe('Settings LMS sync', () => {
     renderSettings();
     await waitFor(() => expect(api.getAILimits).toHaveBeenCalled());
 
-    navigateToSection('Riven AI');
+    navigateToSection('Study Tools');
 
-    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Study Tools' })).toBeInTheDocument();
     expect(screen.getByText('Every 12 hours')).toBeInTheDocument();
     expect(screen.getByText('~10,000 words')).toBeInTheDocument();
     expect(screen.getByText('50,000 chars max')).toBeInTheDocument();

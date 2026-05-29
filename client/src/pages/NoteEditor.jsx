@@ -31,7 +31,7 @@ const ENHANCEMENT_SAVING_POLL_MS = 1500;
 const ENHANCEMENT_LOCAL_COMPLETION_GRACE_POLLS = 2;
 
 const ENHANCEMENT_PHASE_LABELS = {
-    accepted: 'Accepted AI job',
+    accepted: 'Accepted enhancement job',
     uploading_audio: 'Uploading lecture audio',
     fetching_audio: 'Fetching lecture audio',
     processing_media: 'Preparing lecture audio',
@@ -368,7 +368,7 @@ export default function NoteEditor() {
         recorder.setProcessingState('complete');
         stopEnhancementTracking();
         logEnhancementMetrics(completionJob);
-        toast.success('Notes enhanced with AI');
+        toast.success('Notes enhanced');
 
         if (backgroundRefresh) {
             void refreshResolvedEnhancementNote(completionJob, fallbackNoteId).then((persistedNote) => {
@@ -553,7 +553,7 @@ export default function NoteEditor() {
             recorder.setProcessingState('complete');
             stopEnhancementTracking();
             logEnhancementMetrics(job);
-            toast.success('Notes enhanced with AI');
+            toast.success('Notes enhanced');
             return;
         }
 
@@ -1080,7 +1080,7 @@ export default function NoteEditor() {
             const stream = await api.generateAiDeckStream(
                 text,
                 null,
-                `${titleRef.current || 'Note'} - AI`,
+                `${titleRef.current || 'Note'} - Practice Deck`,
                 classId,
                 selectedClassName,
             );
@@ -1472,7 +1472,7 @@ export default function NoteEditor() {
                                     <span className="text-[11px] font-mono text-claude-text">
                                         {recorder.duration < 10
                                             ? 'Recording may be too short for reliable notes'
-                                            : 'Lecture captured - enhance your notes with AI'}
+                                            : 'Lecture captured - enhance your notes'}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">

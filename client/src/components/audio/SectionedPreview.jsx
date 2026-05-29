@@ -45,7 +45,7 @@ export default function SectionedPreview({ sections = [], sectionsTotal = 0, sta
       <div className="px-4 py-3 border-b border-claude-border/20 flex items-center justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent">
-            AI Enhancement Preview
+            Enhancement Preview
           </p>
           <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-claude-secondary mt-1">
             {progressLabel}

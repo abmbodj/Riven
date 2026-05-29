@@ -482,7 +482,7 @@ export default function EditProfile() {
                                         </div>
                                     </div>
 
-                                    <div className="hidden min-w-[320px] items-center gap-4 rounded-[1.75rem] border border-white/10 bg-claude-bg/50 p-4 backdrop-blur-md lg:flex">
+                                    <div className="pointer-events-auto hidden min-w-[320px] items-center gap-4 rounded-[1.75rem] border border-white/10 bg-claude-bg/50 p-4 backdrop-blur-md lg:flex">
                                         <div className="min-w-0 flex-1">
                                             <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/55">
                                                 Publish State

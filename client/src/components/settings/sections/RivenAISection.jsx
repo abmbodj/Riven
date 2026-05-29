@@ -38,8 +38,8 @@ export default function RivenAISection({ aiLimits, history }) {
         <div className="space-y-4">
             <SectionHeader
                 eyebrow="Workspace"
-                title="Riven AI"
-                description="Track your allowance and the study tools it powers."
+                title="Study Tools"
+                description="Track your allowance and the features it powers."
                 tone="warning"
             />
             <SectionCard tone="warning" className="flex flex-col space-y-4 p-5 sm:p-6 xl:p-5">
@@ -125,7 +125,7 @@ export default function RivenAISection({ aiLimits, history }) {
 
                 {history?.error && (
                     <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.04] px-4 py-3 text-[11px] font-mono uppercase tracking-[0.12em] text-red-600">
-                        Couldn&apos;t load AI history right now.
+                        Couldn&apos;t load usage history right now.
                     </div>
                 )}
 
@@ -135,7 +135,7 @@ export default function RivenAISection({ aiLimits, history }) {
                     </div>
                 ) : historyItems.length === 0 ? (
                     <div className="rounded-[1.15rem] border border-claude-secondary/10 bg-claude-bg/45 p-4">
-                        <p className="text-sm font-medium text-claude-text">No AI activity yet</p>
+                        <p className="text-sm font-medium text-claude-text">No study tool activity yet</p>
                         <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.12em] text-claude-secondary">
                             Generate a deck, guide, exam, or import to start your history.
                         </p>
