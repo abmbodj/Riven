@@ -488,7 +488,7 @@ export default function GroupScheduleHub({
     const titleIdRef = useRef(`group-meetup-composer-title-${Math.random().toString(36).slice(2, 9)}`);
     const scheduleDensity = 'compact';
     const denseDensity = scheduleDensity === 'dense';
-    const timelineFitMode = 'default';
+    const timelineFitMode = 'group-weekday';
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
