@@ -964,7 +964,6 @@ export default function GroupDetails() {
                             </div>
                         </div>
                     </div>
-                </div>
             </div>
 
             {/* --- MOBILE VIEW --- */}
