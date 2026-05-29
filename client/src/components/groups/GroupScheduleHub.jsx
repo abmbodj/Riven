@@ -818,7 +818,7 @@ export default function GroupScheduleHub({
         return (
             <div data-testid="group-schedule-hub" className="space-y-4">
                 <div className="h-20 rounded-[1.9rem] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] animate-pulse" />
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_360px]">
+                <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.55fr)_320px]">
                     <div className="h-[400px] rounded-[2rem] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] animate-pulse" />
                     <div className="h-[400px] rounded-[2rem] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] animate-pulse" />
                 </div>
@@ -849,7 +849,7 @@ export default function GroupScheduleHub({
                 </div>
             </section>
 
-            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.55fr)_320px] xl:grid-cols-[minmax(0,1.7fr)_340px]">
+            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.55fr)_320px]">
                 {/* Calendar section */}
                 <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-2.5 md:p-3`}>
                     <CalendarHeader
@@ -873,34 +873,52 @@ export default function GroupScheduleHub({
                         density={scheduleDensity}
                     />
 
-                    {view === 'month' && (
-                        <CalendarGrid
-                            anchorDate={anchorDate}
-                            assignments={groupMeetupAssignments}
-                            scheduleSlots={groupScheduleSlots}
-                            classes={calendarSources}
-                            activeFilters={activeFilters}
-                            contentMode={contentMode}
-                            selectedDay={selectedDate}
-                            onDaySelect={handleDaySelect}
-                            density={scheduleDensity}
-                        />
-                    )}
+                    <AnimatePresence mode="wait" initial={false}>
+                        {view === 'month' && (
+                            <motion.div
+                                key="month"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.12 }}
+                            >
+                                <CalendarGrid
+                                    anchorDate={anchorDate}
+                                    assignments={groupMeetupAssignments}
+                                    scheduleSlots={groupScheduleSlots}
+                                    classes={calendarSources}
+                                    activeFilters={activeFilters}
+                                    contentMode={contentMode}
+                                    selectedDay={selectedDate}
+                                    onDaySelect={handleDaySelect}
+                                    density={scheduleDensity}
+                                />
+                            </motion.div>
+                        )}
 
-                    {(view === 'week' || view === 'day') && (
-                        <CalendarTimeline
-                            anchorDate={anchorDate}
-                            view={view}
-                            assignments={groupMeetupAssignments}
-                            scheduleSlots={groupScheduleSlots}
-                            classes={calendarSources}
-                            activeFilters={activeFilters}
-                            contentMode={contentMode}
-                            onDaySelect={handleDaySelect}
-                            density={scheduleDensity}
-                            fitMode={timelineFitMode}
-                        />
-                    )}
+                        {(view === 'week' || view === 'day') && (
+                            <motion.div
+                                key={view}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.12 }}
+                            >
+                                <CalendarTimeline
+                                    anchorDate={anchorDate}
+                                    view={view}
+                                    assignments={groupMeetupAssignments}
+                                    scheduleSlots={groupScheduleSlots}
+                                    classes={calendarSources}
+                                    activeFilters={activeFilters}
+                                    contentMode={contentMode}
+                                    onDaySelect={handleDaySelect}
+                                    density={scheduleDensity}
+                                    fitMode={timelineFitMode}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </section>
 
                 {/* Day detail — inline below calendar on mobile, sidebar on desktop */}

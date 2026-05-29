@@ -42,6 +42,7 @@ export default function GroupDetails() {
     const [scheduleLoading, setScheduleLoading] = useState(true);
     const [scheduleComposerRequestKey, setScheduleComposerRequestKey] = useState(0);
     const scheduleRangeRef = useRef(null);
+    const hasAnimatedRef = useRef(false);
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
@@ -193,29 +194,28 @@ export default function GroupDetails() {
     const { container } = useGSAP(() => {
         if (loading || !group) return;
 
-        // Animate Header
-        gsap.fromTo('.gsap-header',
-            { y: -20, opacity: 0 },
-            { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
-        );
+        // Entry animations fire only once — re-running fromTo starts at opacity:0
+        // and causes a visible flash every time secondary data (files, decks) loads
+        if (!hasAnimatedRef.current) {
+            hasAnimatedRef.current = true;
 
-        // Animate Left Column items
-        gsap.fromTo('.gsap-left-item',
-            { x: -30, opacity: 0 },
-            { x: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.1 }
-        );
-
-        // Animate Right Column items (Decks, Library)
-        gsap.fromTo('.gsap-right-item',
-            { y: 30, opacity: 0 },
-            { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
-        );
-
-        // Mobile list items
-        gsap.fromTo('.gsap-mobile-item',
-            { y: 20, opacity: 0 },
-            { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out', delay: 0.1 }
-        );
+            gsap.fromTo('.gsap-header',
+                { y: -20, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
+            );
+            gsap.fromTo('.gsap-left-item',
+                { x: -30, opacity: 0 },
+                { x: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.1 }
+            );
+            gsap.fromTo('.gsap-right-item',
+                { y: 30, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
+            );
+            gsap.fromTo('.gsap-mobile-item',
+                { y: 20, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out', delay: 0.1 }
+            );
+        }
 
         // GSAP Micro-interactions
         const cards = gsap.utils.toArray('.gsap-hover-card');
@@ -785,24 +785,22 @@ export default function GroupDetails() {
                     ))}
                 </div>
 
-                {activeTab === 'schedule' ? (
-                    <div data-testid="group-schedule-scroll" className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2 pb-10 no-scrollbar">
-                        <GroupScheduleHub
-                            group={group}
-                            calendarData={groupSchedule}
-                            loading={scheduleLoading}
-                            isAdmin={isAdmin}
-                            composerRequestKey={scheduleComposerRequestKey}
-                            onRangeChange={handleScheduleRangeChange}
-                            onSetShareMode={handleSetShareMode}
-                            onCreateMeetup={handleCreateMeetup}
-                            onJoinMeetup={handleJoinMeetup}
-                            onLeaveMeetup={handleLeaveMeetup}
-                            onCancelMeetup={handleCancelMeetup}
-                        />
-                    </div>
-                ) : (
-                    <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
+                <div data-testid="group-schedule-scroll" className={`flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2 pb-10 no-scrollbar ${activeTab !== 'schedule' ? 'hidden' : ''}`}>
+                    <GroupScheduleHub
+                        group={group}
+                        calendarData={groupSchedule}
+                        loading={scheduleLoading}
+                        isAdmin={isAdmin}
+                        composerRequestKey={scheduleComposerRequestKey}
+                        onRangeChange={handleScheduleRangeChange}
+                        onSetShareMode={handleSetShareMode}
+                        onCreateMeetup={handleCreateMeetup}
+                        onJoinMeetup={handleJoinMeetup}
+                        onLeaveMeetup={handleLeaveMeetup}
+                        onCancelMeetup={handleCancelMeetup}
+                    />
+                </div>
+                <div className={`flex-1 grid grid-cols-12 gap-6 min-h-0 ${activeTab !== 'resources' ? 'hidden' : ''}`}>
                         <div className="col-span-4 flex flex-col gap-5 overflow-y-auto pr-2 no-scrollbar">
                             <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
@@ -966,7 +964,7 @@ export default function GroupDetails() {
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
             </div>
 
             {/* --- MOBILE VIEW --- */}
@@ -1013,7 +1011,7 @@ export default function GroupDetails() {
                         ))}
                     </div>
 
-                    {activeTab === 'schedule' ? (
+                    <div className={activeTab !== 'schedule' ? 'hidden' : ''}>
                         <GroupScheduleHub
                             group={group}
                             calendarData={groupSchedule}
@@ -1027,7 +1025,8 @@ export default function GroupDetails() {
                             onLeaveMeetup={handleLeaveMeetup}
                             onCancelMeetup={handleCancelMeetup}
                         />
-                    ) : (
+                    </div>
+                    <div className={activeTab !== 'resources' ? 'hidden' : ''}>
                         <>
                             <div
                                 onClick={handleCopyCode}
@@ -1165,7 +1164,7 @@ export default function GroupDetails() {
                                 </div>
                             </div>
                         </>
-                    )}
+                    </div>
                 </div>
 
             </div>
