@@ -245,6 +245,33 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
+    useEffect(() => {
+        if (!user?.id) return undefined;
+
+        const refreshEntitlements = () => {
+            refreshUser().catch((error) => {
+                console.warn('[AuthContext] Foreground refresh failed:', error);
+            });
+        };
+
+        const handleWindowFocus = () => {
+            refreshEntitlements();
+        };
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                refreshEntitlements();
+            }
+        };
+
+        window.addEventListener('focus', handleWindowFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('focus', handleWindowFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [refreshUser, user?.id]);
+
     const saveOnboardingProgress = useCallback(async (payload) => {
         const updatedUser = await authApi.updateOnboardingProgress(payload);
         if (payload?.markComplete && updatedUser?.id) {
@@ -296,11 +323,39 @@ export function AuthProvider({ children }) {
             console.warn('[AuthContext] Simulate-free refresh failed:', error);
         }
 
-        setUser(prev => prev ? {
-            ...prev,
-            subscription_tier: result.subscription_tier ?? prev.subscription_tier,
-            simulate_free_tier: result.simulate_free_tier ?? prev.simulate_free_tier,
-        } : prev);
+        setUser(prev => {
+            if (!prev) return prev;
+
+            const nextSimulateFree = result.simulate_free_tier ?? prev.simulate_free_tier;
+            const baseTier = prev.base_subscription_tier || prev.subscription_tier || 'free';
+            let premiumAccessSource = 'free';
+
+            if (prev.role === 'owner' && !nextSimulateFree) {
+                premiumAccessSource = 'owner_included';
+            } else if (prev.role === 'admin' && !nextSimulateFree) {
+                premiumAccessSource = 'admin_included';
+            } else if (prev.role === 'friends') {
+                premiumAccessSource = 'friends_included';
+            } else if (baseTier === 'lifetime') {
+                premiumAccessSource = 'lifetime';
+            } else if (baseTier === 'supporter') {
+                premiumAccessSource = 'subscription';
+            }
+
+            const effectiveTier = premiumAccessSource === 'subscription'
+                ? 'supporter'
+                : premiumAccessSource === 'free'
+                    ? 'free'
+                    : 'lifetime';
+
+            return {
+                ...prev,
+                base_subscription_tier: baseTier,
+                premium_access_source: premiumAccessSource,
+                subscription_tier: effectiveTier,
+                simulate_free_tier: nextSimulateFree,
+            };
+        });
         return result;
     }, []);
 

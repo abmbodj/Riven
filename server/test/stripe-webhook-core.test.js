@@ -26,8 +26,11 @@ describe('Stripe webhook core processor', () => {
         persistence = {
             updateUserFromCheckout: vi.fn(),
             getSubscriptionTierByCustomerId: vi.fn(),
+            getUserBillingStateByCustomerId: vi.fn(),
+            getUserBillingStateByEmail: vi.fn(),
             downgradeUserByCustomerId: vi.fn(),
             downgradeUserByEmail: vi.fn(),
+            createUserNotification: vi.fn(),
         };
 
         logger = {
@@ -176,7 +179,12 @@ describe('Stripe webhook core processor', () => {
     });
 
     it('skips subscription deletion downgrades when another subscription remains', async () => {
-        persistence.getSubscriptionTierByCustomerId.mockResolvedValue('supporter');
+        persistence.getUserBillingStateByCustomerId.mockResolvedValue({
+            id: 11,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'supporter',
+        });
         stripe.subscriptions.list.mockImplementation(({ status }) =>
             Promise.resolve({ data: status === 'active' ? [{ id: 'sub_still_here' }] : [] }),
         );
@@ -200,7 +208,12 @@ describe('Stripe webhook core processor', () => {
     });
 
     it('skips subscription deletion downgrades for lifetime users', async () => {
-        persistence.getSubscriptionTierByCustomerId.mockResolvedValue('lifetime');
+        persistence.getUserBillingStateByCustomerId.mockResolvedValue({
+            id: 12,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'lifetime',
+        });
 
         const result = await processStripeWebhookEvent({
             event: {
@@ -220,17 +233,106 @@ describe('Stripe webhook core processor', () => {
         expect(persistence.downgradeUserByCustomerId).not.toHaveBeenCalled();
     });
 
-    it('falls back to customer email when customer-id downgrade misses', async () => {
-        persistence.getSubscriptionTierByCustomerId.mockResolvedValue('free');
+    it('creates a subscription-expired notification when paid access actually ends', async () => {
+        persistence.getUserBillingStateByCustomerId.mockResolvedValue({
+            id: 13,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'supporter',
+        });
         stripe.subscriptions.list.mockResolvedValue({ data: [] });
-        persistence.downgradeUserByCustomerId.mockResolvedValue(false);
-        stripe.customers.retrieve.mockResolvedValue({ email: 'test@example.com' });
+        persistence.downgradeUserByCustomerId.mockResolvedValue({
+            id: 13,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'free',
+        });
 
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'customer.subscription.deleted',
                 data: {
                     object: {
+                        id: 'sub_expired',
+                        customer: 'cus_expired',
+                    },
+                },
+            },
+            stripe,
+            persistence,
+            logger,
+        });
+
+        expect(result).toEqual({
+            outcome: 'subscription-delete-downgraded-by-customer-id',
+            notified: true,
+        });
+        expect(persistence.createUserNotification).toHaveBeenCalledWith(expect.objectContaining({
+            userId: 13,
+            kind: 'subscription_expired',
+        }));
+    });
+
+    it('does not create an expiration notice when privileged access stays active', async () => {
+        persistence.getUserBillingStateByCustomerId.mockResolvedValue({
+            id: 14,
+            role: 'admin',
+            simulate_free_tier: false,
+            subscription_tier: 'supporter',
+        });
+        stripe.subscriptions.list.mockResolvedValue({ data: [] });
+        persistence.downgradeUserByCustomerId.mockResolvedValue({
+            id: 14,
+            role: 'admin',
+            simulate_free_tier: false,
+            subscription_tier: 'free',
+        });
+
+        const result = await processStripeWebhookEvent({
+            event: {
+                type: 'customer.subscription.deleted',
+                data: {
+                    object: {
+                        id: 'sub_admin_expired',
+                        customer: 'cus_admin_expired',
+                    },
+                },
+            },
+            stripe,
+            persistence,
+            logger,
+        });
+
+        expect(result).toEqual({
+            outcome: 'subscription-delete-downgraded-by-customer-id',
+            notified: false,
+        });
+        expect(persistence.createUserNotification).not.toHaveBeenCalled();
+    });
+
+    it('falls back to customer email when customer-id downgrade misses', async () => {
+        persistence.getUserBillingStateByCustomerId.mockResolvedValue({
+            id: 15,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'supporter',
+        });
+        stripe.subscriptions.list.mockResolvedValue({ data: [] });
+        persistence.downgradeUserByCustomerId.mockResolvedValue(null);
+        stripe.customers.retrieve.mockResolvedValue({ email: 'test@example.com' });
+        persistence.downgradeUserByEmail.mockResolvedValue({
+            id: 15,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'free',
+        });
+
+        const result = await processStripeWebhookEvent({
+            event: {
+                type: 'customer.subscription.deleted',
+                data: {
+                    object: {
+                        id: 'sub_email_fallback',
                         customer: 'cus_email_fallback',
                     },
                 },
@@ -240,7 +342,31 @@ describe('Stripe webhook core processor', () => {
             logger,
         });
 
-        expect(result).toEqual({ outcome: 'subscription-delete-downgraded-by-email' });
+        expect(result).toEqual({
+            outcome: 'subscription-delete-downgraded-by-email',
+            notified: true,
+        });
         expect(persistence.downgradeUserByEmail).toHaveBeenCalledWith('test@example.com');
+    });
+
+    it('marks cancel-at-period-end updates as scheduled cancellations without downgrading', async () => {
+        const result = await processStripeWebhookEvent({
+            event: {
+                type: 'customer.subscription.updated',
+                data: {
+                    object: {
+                        id: 'sub_cancel_later',
+                        cancel_at_period_end: true,
+                    },
+                },
+            },
+            stripe,
+            persistence,
+            logger,
+        });
+
+        expect(result).toEqual({ outcome: 'subscription-update-scheduled-cancel' });
+        expect(persistence.downgradeUserByCustomerId).not.toHaveBeenCalled();
+        expect(persistence.createUserNotification).not.toHaveBeenCalled();
     });
 });

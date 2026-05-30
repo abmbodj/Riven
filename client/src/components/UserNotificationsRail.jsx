@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import Bell from 'lucide-react/dist/esm/icons/bell';
 import X from 'lucide-react/dist/esm/icons/x';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -13,6 +14,13 @@ const NOTIFICATION_STYLES = {
         iconTone: 'text-claude-accent',
         eyebrow: 'Feedback update',
         Icon: MessageSquare,
+    },
+    subscription_expired: {
+        border: 'border-amber-400/25',
+        background: 'bg-amber-400/10',
+        iconTone: 'text-amber-400',
+        eyebrow: 'Billing update',
+        Icon: Sparkles,
     },
     default: {
         border: 'border-blue-400/20',

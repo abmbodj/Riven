@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-    LogOut, Edit3, Settings, User, Mail,
-    MessageCircle, Users, ChevronRight, Leaf, Shield, Crown, Sparkles, Award
+    LogOut, Edit3, Settings, User,
+    MessageCircle, Users, ChevronRight, Leaf, Shield, Crown, Sparkles
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getManagementPortalUrl } from '../../api/stripe';
@@ -25,6 +25,50 @@ const containerVariants = {
 const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
+
+const PREMIUM_ACCESS_COPY = {
+    owner_included: {
+        title: 'Premium Access Included',
+        description: 'Included with your owner role. There is no recurring plan to manage.',
+        accent: 'amber',
+    },
+    admin_included: {
+        title: 'Premium Access Included',
+        description: 'Included with your staff role. There is no recurring plan to manage.',
+        accent: 'amber',
+    },
+    friends_included: {
+        title: 'Premium Access Included',
+        description: 'Included with your friends access. There is no recurring plan to manage.',
+        accent: 'emerald',
+    },
+    lifetime: {
+        title: 'Lifetime Access Active',
+        description: 'You have lifetime premium access with no recurring subscription to manage.',
+        accent: 'amber',
+    },
+};
+
+const PREMIUM_ACCESS_ACCENTS = {
+    amber: {
+        hover: 'lg:hover:bg-amber-500/[0.04] lg:hover:border-amber-500/20 lg:hover:shadow-[0_8px_32px_rgba(245,158,11,0.12)]',
+        gradient: 'from-amber-500/10',
+        iconWrap: 'bg-amber-500/10 border-amber-500/20 lg:group-hover:bg-amber-500/20',
+        icon: 'text-amber-500',
+        title: 'group-hover:text-amber-400',
+        description: 'lg:group-hover:text-amber-400/70',
+        chevron: 'group-hover:text-amber-400',
+    },
+    emerald: {
+        hover: 'lg:hover:bg-emerald-500/[0.04] lg:hover:border-emerald-500/20 lg:hover:shadow-[0_8px_32px_rgba(16,185,129,0.12)]',
+        gradient: 'from-emerald-500/10',
+        iconWrap: 'bg-emerald-500/10 border-emerald-500/20 lg:group-hover:bg-emerald-500/20',
+        icon: 'text-emerald-400',
+        title: 'group-hover:text-emerald-400',
+        description: 'lg:group-hover:text-emerald-400/70',
+        chevron: 'group-hover:text-emerald-400',
+    },
 };
 
 const ProfileView = () => {
@@ -65,6 +109,18 @@ const ProfileView = () => {
         toast.success('Signed out');
         signOut();
     };
+
+    const canManageSubscription = Boolean(user?.has_manageable_subscription);
+    const premiumAccessCopy = user?.premium_access_source
+        ? PREMIUM_ACCESS_COPY[user.premium_access_source] || null
+        : null;
+    const premiumAccent = premiumAccessCopy
+        ? PREMIUM_ACCESS_ACCENTS[premiumAccessCopy.accent] || PREMIUM_ACCESS_ACCENTS.amber
+        : null;
+    const showIncludedPremiumAccess = !canManageSubscription
+        && user?.subscription_tier
+        && user.subscription_tier !== 'free'
+        && premiumAccessCopy;
 
     if (!user) return <div className="min-h-screen flex items-center justify-center bg-claude-bg"><LoadingSpinner /></div>;
 
@@ -285,7 +341,7 @@ const ProfileView = () => {
                                 <ChevronRight className="w-5 h-5 text-claude-secondary/30 lg:text-claude-border group-hover:text-claude-accent lg:group-hover:text-claude-text group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                             </Link>
 
-                            {user?.subscription_tier && user.subscription_tier !== 'free' && (
+                            {canManageSubscription && (
                                 <button
                                     onClick={() => {
                                         haptics.medium();
@@ -310,6 +366,26 @@ const ProfileView = () => {
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-claude-secondary/30 group-hover:text-indigo-400 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                                 </button>
+                            )}
+
+                            {showIncludedPremiumAccess && (
+                                <div className={`w-full flex items-center gap-4 p-4 border-b border-white/8 transition-all group relative profile-mobile-glass-row lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:translate-x-1 ${premiumAccent.hover}`}>
+                                    <div className={`absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r ${premiumAccent.gradient} to-transparent pointer-events-none lg:rounded-[1.5rem]`} />
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 border relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] ${premiumAccent.iconWrap}`}>
+                                        <Crown className={`w-5 h-5 ${premiumAccent.icon}`} />
+                                    </div>
+                                    <div className="flex-1 text-left relative z-10">
+                                        <p className={`font-display tracking-wide text-[16px] text-claude-text transition-colors ${premiumAccent.title}`}>
+                                            {premiumAccessCopy.title}
+                                        </p>
+                                        <p className={`text-[11px] font-mono text-claude-secondary transition-colors ${premiumAccent.description}`}>
+                                            {premiumAccessCopy.description}
+                                        </p>
+                                    </div>
+                                    <span className={`relative z-10 rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary/75 ${premiumAccent.chevron}`}>
+                                        Included
+                                    </span>
+                                </div>
                             )}
 
                             <button

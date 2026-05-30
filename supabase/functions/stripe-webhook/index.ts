@@ -14,6 +14,8 @@ type CheckoutUpdatePayload = {
   stripeSubscriptionId: string | null;
 };
 
+const USER_BILLING_STATE_SELECT = 'id, email, role, simulate_free_tier, subscription_tier';
+
 const statusError = (status: number, message: string) => {
   const error = new Error(message) as Error & { status?: number };
   error.status = status;
@@ -99,26 +101,81 @@ const persistence = {
     return data?.subscription_tier || null;
   },
 
+  async getUserBillingStateByCustomerId(stripeCustomerId: string) {
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin
+      .from('users')
+      .select(USER_BILLING_STATE_SELECT)
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  },
+
+  async getUserBillingStateByEmail(email: string) {
+    const admin = getSupabaseAdmin();
+    const normalizedEmail = email.toLowerCase();
+    const { data, error } = await admin
+      .from('users')
+      .select(USER_BILLING_STATE_SELECT)
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  },
+
   async downgradeUserByCustomerId(stripeCustomerId: string) {
     const admin = getSupabaseAdmin();
     const { data, error } = await admin
       .from('users')
       .update({ subscription_tier: 'free' })
       .eq('stripe_customer_id', stripeCustomerId)
-      .select('id')
+      .select(USER_BILLING_STATE_SELECT)
       .maybeSingle();
 
     if (error) throw error;
-    return Boolean(data?.id);
+    return data || null;
   },
 
   async downgradeUserByEmail(email: string) {
     const admin = getSupabaseAdmin();
     const normalizedEmail = email.toLowerCase();
-    const { error } = await admin
+    const { data, error } = await admin
       .from('users')
       .update({ subscription_tier: 'free' })
-      .eq('email', normalizedEmail);
+      .eq('email', normalizedEmail)
+      .select(USER_BILLING_STATE_SELECT)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  },
+
+  async createUserNotification({
+    userId,
+    kind,
+    title,
+    content,
+    metadata,
+  }: {
+    userId: number;
+    kind: string;
+    title: string;
+    content: string;
+    metadata?: Record<string, unknown> | null;
+  }) {
+    const admin = getSupabaseAdmin();
+    const { error } = await admin
+      .from('user_notifications')
+      .insert([{
+        user_id: userId,
+        kind,
+        title,
+        content,
+        metadata: metadata ?? {},
+      }]);
 
     if (error) throw error;
   },

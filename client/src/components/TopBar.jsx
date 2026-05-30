@@ -8,6 +8,7 @@ import Bell from 'lucide-react/dist/esm/icons/bell';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
 import UserNotificationsRail from './UserNotificationsRail';
+import SubscriptionExpiredModal from './SubscriptionExpiredModal';
 
 const ROUTE_TITLES = [
     { prefix: '/dashboard', title: 'Today' },
@@ -81,13 +82,14 @@ export default function TopBar({ onOpenCommandPalette }) {
     }, [notifPanelOpen, closeNotifPanel]);
 
     return (
-        <header
-            role="banner"
-            className="sticky top-0 z-30 bg-claude-surface/80 backdrop-blur-sm border-b border-claude-border/30"
-        >
-            {/* Safe area spacer — pushes bar below status bar */}
-            <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-            <div className="h-10 md:h-12 flex items-center justify-between px-4">
+        <>
+            <header
+                role="banner"
+                className="sticky top-0 z-30 bg-claude-surface/80 backdrop-blur-sm border-b border-claude-border/30"
+            >
+                {/* Safe area spacer — pushes bar below status bar */}
+                <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+                <div className="h-10 md:h-12 flex items-center justify-between px-4">
             {/* Left: hamburger (mobile) / sidebar toggle (desktop) */}
             <div className="flex items-center">
                 {/* Mobile: hamburger → drawer */}
@@ -192,7 +194,9 @@ export default function TopBar({ onOpenCommandPalette }) {
                     </Link>
                 )}
             </div>
-            </div>
-        </header>
+                </div>
+            </header>
+            {isLoggedIn ? <SubscriptionExpiredModal /> : null}
+        </>
     );
 }

@@ -5,6 +5,41 @@ const resolveEntityId = (value) => {
   return null;
 };
 
+const hasEffectivePremiumAccess = (user) => {
+  if (!user) return false;
+  if ((user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier) return true;
+  if (user.role === 'friends') return true;
+  return user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+};
+
+const maybeCreateSubscriptionExpiredNotification = async ({
+  previousUser,
+  nextUser,
+  persistence,
+  provider,
+  externalCustomerId = null,
+  externalSubscriptionId = null,
+}) => {
+  if (!previousUser?.id || previousUser.subscription_tier !== 'supporter') return false;
+  if (hasEffectivePremiumAccess(nextUser)) return false;
+
+  await persistence.createUserNotification({
+    userId: Number(previousUser.id),
+    kind: 'subscription_expired',
+    title: 'Your Pro access has ended',
+    content: 'Your billing period has ended, so paid Pro features are no longer active on this account.',
+    metadata: {
+      source: provider,
+      previousTier: previousUser.subscription_tier,
+      currentTier: nextUser?.subscription_tier || 'free',
+      externalCustomerId,
+      externalSubscriptionId,
+    },
+  });
+
+  return true;
+};
+
 /**
  * True if the customer still has any subscription that grants access (active or trialing).
  */
@@ -133,8 +168,8 @@ export const processStripeWebhookEvent = async ({
         return { outcome: 'subscription-delete-missing-customer' };
       }
 
-      const currentTier = await persistence.getSubscriptionTierByCustomerId(stripeCustomerId);
-      if (currentTier === 'lifetime') {
+      const previousUser = await persistence.getUserBillingStateByCustomerId(stripeCustomerId);
+      if (previousUser?.subscription_tier === 'lifetime') {
         logger.info('[Stripe Webhook] Skipping downgrade — user is on lifetime plan.');
         return { outcome: 'subscription-delete-skipped-lifetime' };
       }
@@ -151,18 +186,52 @@ export const processStripeWebhookEvent = async ({
       }
 
       const downgradedByCustomerId = await persistence.downgradeUserByCustomerId(stripeCustomerId);
-      if (downgradedByCustomerId) {
-        return { outcome: 'subscription-delete-downgraded-by-customer-id' };
+      if (downgradedByCustomerId?.id) {
+        const notified = await maybeCreateSubscriptionExpiredNotification({
+          previousUser,
+          nextUser: downgradedByCustomerId,
+          persistence,
+          provider: 'stripe',
+          externalCustomerId: stripeCustomerId,
+          externalSubscriptionId: subscription.id || null,
+        });
+        return {
+          outcome: 'subscription-delete-downgraded-by-customer-id',
+          notified,
+        };
       }
 
       const customer = await stripe.customers.retrieve(stripeCustomerId);
       if (customer && !customer.deleted && customer.email) {
         logger.info(`[Stripe Webhook] ID match failed, falling back to email ${customer.email}`);
-        await persistence.downgradeUserByEmail(customer.email);
-        return { outcome: 'subscription-delete-downgraded-by-email' };
+        const previousUserByEmail = previousUser || await persistence.getUserBillingStateByEmail(customer.email);
+        const downgradedByEmail = await persistence.downgradeUserByEmail(customer.email);
+        const notified = await maybeCreateSubscriptionExpiredNotification({
+          previousUser: previousUserByEmail,
+          nextUser: downgradedByEmail,
+          persistence,
+          provider: 'stripe',
+          externalCustomerId: stripeCustomerId,
+          externalSubscriptionId: subscription.id || null,
+        });
+        return {
+          outcome: 'subscription-delete-downgraded-by-email',
+          notified,
+        };
       }
 
       return { outcome: 'subscription-delete-no-match' };
+    }
+
+    case 'customer.subscription.updated': {
+      const subscription = event.data.object;
+
+      if (subscription.cancel_at_period_end) {
+        logger.info(`[Stripe Webhook] Subscription ${subscription.id} scheduled to cancel at period end.`);
+        return { outcome: 'subscription-update-scheduled-cancel' };
+      }
+
+      return { outcome: 'subscription-update-ignored' };
     }
 
     case 'invoice.payment_failed': {

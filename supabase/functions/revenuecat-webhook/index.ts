@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
+import { processRevenueCatWebhookEvent } from '../_shared/revenuecatWebhookCore.mjs';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -21,28 +22,87 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
  * Docs: https://www.revenuecat.com/docs/integrations/webhooks/
  */
 
-/** Map RC event type → subscription_tier.  Returns null = no change needed. */
-function tierFromEvent(type: string): string | null {
-  switch (type) {
-    case 'INITIAL_PURCHASE':
-    case 'RENEWAL':
-    case 'NON_RENEWING_PURCHASE':
-    case 'UNCANCELLATION':
-    case 'TRANSFER':
-      return 'supporter';
+const USER_STATE_SELECT = 'id, role, simulate_free_tier, subscription_tier';
 
-    case 'CANCELLATION':
-    case 'EXPIRATION':
-    case 'BILLING_ISSUE':
-      return 'free';
+type UserLookup = {
+  matchType: 'supabase_auth_id' | 'id';
+  matchValue: string | number;
+  user: Record<string, unknown>;
+};
 
-    // No tier change for these events
-    case 'SUBSCRIBER_ALIAS':
-    case 'PRODUCT_CHANGE':
-    default:
-      return null;
+const resolveUserLookup = async (admin: ReturnType<typeof getSupabaseAdmin>, appUserId: string) => {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appUserId);
+  if (isUuid) {
+    const { data, error } = await admin
+      .from('users')
+      .select(USER_STATE_SELECT)
+      .eq('supabase_auth_id', appUserId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data?.id) {
+      return { matchType: 'supabase_auth_id', matchValue: appUserId, user: data } satisfies UserLookup;
+    }
   }
-}
+
+  if (/^\d+$/.test(appUserId)) {
+    const numericId = parseInt(appUserId, 10);
+    const { data, error } = await admin
+      .from('users')
+      .select(USER_STATE_SELECT)
+      .eq('id', numericId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data?.id) {
+      return { matchType: 'id', matchValue: numericId, user: data } satisfies UserLookup;
+    }
+  }
+
+  return null;
+};
+
+const updateUserTier = async (
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  lookup: { matchType: 'supabase_auth_id' | 'id'; matchValue: string | number },
+  nextTier: string,
+) => {
+  const query = admin
+    .from('users')
+    .update({ subscription_tier: nextTier })
+    .select(USER_STATE_SELECT)
+    .maybeSingle();
+
+  const { data, error } = lookup.matchType === 'supabase_auth_id'
+    ? await query.eq('supabase_auth_id', lookup.matchValue)
+    : await query.eq('id', lookup.matchValue);
+
+  if (error) throw error;
+  return data || null;
+};
+
+const createSubscriptionExpiredNotification = async (
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  payload: {
+    userId: number;
+    kind: string;
+    title: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+  },
+) => {
+  const { error } = await admin
+    .from('user_notifications')
+    .insert([{
+      user_id: payload.userId,
+      kind: payload.kind,
+      title: payload.title,
+      content: payload.content,
+      metadata: payload.metadata ?? {},
+    }]);
+
+  if (error) throw error;
+};
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
@@ -79,56 +139,36 @@ serve(async (request: Request) => {
     const { type, app_user_id: appUserId } = event as { type: string; app_user_id: string };
     console.log(`[revenuecat-webhook] Received event: ${type} for user: ${appUserId}`);
 
-    // ── Resolve target tier ───────────────────────────────────────────────
-    const newTier = tierFromEvent(type);
-    if (newTier === null) {
-      console.info(`[revenuecat-webhook] No tier change needed for event: ${type}`);
-      return jsonResponse({ received: true }, {}, request);
-    }
-
     // ── Update user ───────────────────────────────────────────────────────
     // appUserId = the value passed to Purchases.configure({ appUserID }) in useRevenueCat.js
     // This is the Supabase auth UUID, so look up by supabase_auth_id first.
     const admin = getSupabaseAdmin();
+    const persistence = {
+      async getUserByAppUserId(targetAppUserId: string) {
+        const resolvedUser = await resolveUserLookup(admin, targetAppUserId);
+        return resolvedUser?.user || null;
+      },
+      async updateUserTierByAppUserId(targetAppUserId: string, nextTier: string) {
+        const resolvedUser = await resolveUserLookup(admin, targetAppUserId);
+        if (!resolvedUser) return null;
+        return updateUserTier(admin, resolvedUser, nextTier);
+      },
+      async createUserNotification(payload: {
+        userId: number;
+        kind: string;
+        title: string;
+        content: string;
+        metadata?: Record<string, unknown>;
+      }) {
+        return createSubscriptionExpiredNotification(admin, payload);
+      },
+    };
 
-    let updated = false;
-
-    // 1. Try supabase_auth_id (primary — UUID from Supabase auth)
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appUserId);
-    if (isUuid) {
-      const { data: byAuthId, error: authIdError } = await admin
-        .from('users')
-        .update({ subscription_tier: newTier })
-        .eq('supabase_auth_id', appUserId)
-        .select('id')
-        .maybeSingle();
-
-      if (authIdError) throw authIdError;
-      if (byAuthId?.id) {
-        updated = true;
-        console.info(`[revenuecat-webhook] ✅ Updated user ${appUserId} (supabase_auth_id) → ${newTier}`);
-      }
-    }
-
-    // 2. Fallback: numeric users.id (legacy / test app user IDs)
-    if (!updated && /^\d+$/.test(appUserId)) {
-      const { data: byId, error: byIdError } = await admin
-        .from('users')
-        .update({ subscription_tier: newTier })
-        .eq('id', parseInt(appUserId, 10))
-        .select('id')
-        .maybeSingle();
-
-      if (byIdError) throw byIdError;
-      if (byId?.id) {
-        updated = true;
-        console.info(`[revenuecat-webhook] ✅ Updated user ${appUserId} (numeric id) → ${newTier}`);
-      }
-    }
-
-    if (!updated) {
-      console.error(`[revenuecat-webhook] ❌ User not found: ${appUserId}`);
-    }
+    await processRevenueCatWebhookEvent({
+      event,
+      persistence,
+      logger: console,
+    });
 
     return jsonResponse({ received: true }, {}, request);
   } catch (error: unknown) {

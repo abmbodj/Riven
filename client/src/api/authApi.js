@@ -1338,6 +1338,8 @@ const SELF_PROFILE_SELECT = [
     'created_at',
     'two_fa_enabled',
     'subscription_tier',
+    'stripe_customer_id',
+    'stripe_subscription_id',
     'simulate_free_tier',
     'email_verified',
     'onboarding_completed_at',
@@ -3597,9 +3599,29 @@ const mapFriendRow = (row) => {
 
 const mapOwnUserRow = (row) => {
     const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
-    const effectiveTier = (role === 'owner' || role === 'admin') && !row.simulate_free_tier
-        ? 'lifetime'
-        : (row.subscription_tier || 'free');
+    const baseTier = row.subscription_tier || 'free';
+    const hasStripeBilling = Boolean(row.stripe_customer_id || row.stripe_subscription_id);
+    let premiumAccessSource = 'free';
+
+    if (role === 'owner' && !row.simulate_free_tier) {
+        premiumAccessSource = 'owner_included';
+    } else if (role === 'admin' && !row.simulate_free_tier) {
+        premiumAccessSource = 'admin_included';
+    } else if (role === 'friends') {
+        premiumAccessSource = 'friends_included';
+    } else if (baseTier === 'lifetime') {
+        premiumAccessSource = 'lifetime';
+    } else if (baseTier === 'supporter') {
+        premiumAccessSource = 'subscription';
+    }
+
+    const effectiveTier = premiumAccessSource === 'subscription'
+        ? 'supporter'
+        : premiumAccessSource === 'free'
+            ? 'free'
+            : 'lifetime';
+    const hasManageableSubscription = premiumAccessSource === 'subscription'
+        && (Capacitor.isNativePlatform() || hasStripeBilling);
 
     const base = {
         id: row.id,
@@ -3617,7 +3639,12 @@ const mapOwnUserRow = (row) => {
         isOwner,
         createdAt: row.created_at || null,
         twoFAEnabled: Boolean(row.two_fa_enabled),
+        base_subscription_tier: baseTier,
         subscription_tier: effectiveTier,
+        stripe_customer_id: row.stripe_customer_id || null,
+        stripe_subscription_id: row.stripe_subscription_id || null,
+        premium_access_source: premiumAccessSource,
+        has_manageable_subscription: hasManageableSubscription,
         simulate_free_tier: Boolean(row.simulate_free_tier),
         email_verified: Boolean(row.email_verified),
     };
