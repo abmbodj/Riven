@@ -26,7 +26,10 @@ function formatTime(dateStr) {
 }
 
 function buildItems(messages) {
-    const items = [];
+    // Two-pass: first pass computes isFirstInRun, second patches isLastInRun.
+    // Avatar shows on the LAST message in a run (Discord-style bottom anchor);
+    // sender name shows on the FIRST message in a run.
+    const raw = [];
     let lastDateKey = null;
     let lastSenderId = null;
     let lastSentAt = null;
@@ -35,18 +38,27 @@ function buildItems(messages) {
         const msg = messages[i];
         const dateKey = new Date(msg.createdAt).toDateString();
         if (dateKey !== lastDateKey) {
-            items.push({ type: 'divider', id: `divider-${dateKey}`, label: formatDateDivider(msg.createdAt) });
+            raw.push({ type: 'divider', id: `divider-${dateKey}`, label: formatDateDivider(msg.createdAt) });
             lastDateKey = dateKey;
             lastSenderId = null;
             lastSentAt = null;
         }
         const gap = lastSentAt ? (new Date(msg.createdAt) - new Date(lastSentAt)) : Infinity;
         const isFirstInRun = msg.senderId !== lastSenderId || gap > RUN_GAP_MS;
-        items.push({ type: 'message', id: msg.id, msg, isFirstInRun });
+        raw.push({ type: 'message', id: msg.id, msg, isFirstInRun, isLastInRun: false });
         lastSenderId = msg.senderId;
         lastSentAt = msg.createdAt;
     }
-    return items;
+
+    // Back-fill isLastInRun: a message is last-in-run when the next message item
+    // starts a new run or is a divider (day boundary).
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i].type !== 'message') continue;
+        const next = raw[i + 1];
+        raw[i].isLastInRun = !next || next.type === 'divider' || next.isFirstInRun;
+    }
+
+    return raw;
 }
 
 export default function GroupChatPanel({ groupId, members, currentUserId }) {
@@ -79,13 +91,21 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     }, [members]);
 
     const hydrateSender = useCallback((msg) => {
-        if (msg.senderUsername) return msg;
         const member = memberMap.get(Number(msg.senderId));
+        if (!member) return msg;
         return {
             ...msg,
-            senderUsername: member?.username || null,
-            senderAvatar: member?.avatar || null,
+            senderUsername: msg.senderUsername || member.username || null,
+            senderDisplayName: member.display_name || member.username || null,
+            senderAvatar: msg.senderAvatar || member.avatar || null,
         };
+    }, [memberMap]);
+
+    // Re-hydrate when memberMap populates (members may arrive after messages on cold load)
+    useEffect(() => {
+        if (memberMap.size === 0) return;
+        setMessages(prev => prev.map(hydrateSender));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [memberMap]);
 
     // Flat items array for virtualizer (dividers + messages)
@@ -243,12 +263,14 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
         if (!text || sending) return;
         setSending(true);
         const optimisticId = `optimistic-${Date.now()}`;
+        const me = memberMap.get(Number(currentUserId));
         const optimistic = {
             id: optimisticId,
             groupId,
             senderId: currentUserId,
-            senderUsername: memberMap.get(Number(currentUserId))?.username || null,
-            senderAvatar: memberMap.get(Number(currentUserId))?.avatar || null,
+            senderUsername: me?.username || null,
+            senderDisplayName: me?.display_name || me?.username || null,
+            senderAvatar: me?.avatar || null,
             content: text,
             isEdited: false,
             createdAt: new Date().toISOString(),
@@ -455,7 +477,7 @@ function DateDivider({ label }) {
 }
 
 function MessageRow({ item, isNew, editingId, editContent, editInputRef, onEditChange, onEditSubmit, onEditCancel, contextMenuId, onContextMenu, onStartEdit, onDelete }) {
-    const { msg, isFirstInRun } = item;
+    const { msg, isFirstInRun, isLastInRun } = item;
     const isMine = msg.isMine;
     const isEditing = editingId === msg.id;
     const showMenu = contextMenuId === msg.id;
@@ -468,19 +490,19 @@ function MessageRow({ item, isNew, editingId, editContent, editInputRef, onEditC
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
             className={`flex items-end gap-2 mb-1 ${isMine ? 'flex-row-reverse' : ''} ${isFirstInRun ? 'mt-3' : 'mt-0.5'}`}
         >
-            {/* Avatar column (others only) */}
+            {/* Avatar column — shown on the last message in a run (Discord-style bottom anchor) */}
             <div className="w-7 shrink-0 self-end mb-0.5">
-                {!isMine && isFirstInRun ? (
+                {isLastInRun ? (
                     <Avatar src={msg.senderAvatar} size="xs" />
                 ) : null}
             </div>
 
             {/* Bubble + context menu wrapper */}
             <div className={`relative flex flex-col gap-0.5 max-w-[min(82%,28rem)] ${isMine ? 'items-end' : 'items-start'}`}>
-                {/* Sender name — first in run, others only */}
-                {!isMine && isFirstInRun && msg.senderUsername && (
+                {/* Sender name — first in run */}
+                {isFirstInRun && (msg.senderDisplayName || msg.senderUsername) && (
                     <span className="text-xs font-semibold text-claude-secondary/80 px-1 mb-0.5">
-                        {msg.senderUsername}
+                        {msg.senderDisplayName || msg.senderUsername}
                     </span>
                 )}
 
