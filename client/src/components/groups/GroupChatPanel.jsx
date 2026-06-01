@@ -543,7 +543,9 @@ function MessageRow({ item, isNew, editingId, editContent, editInputRef, onEditC
                     {/* 3-dot menu trigger (own messages only) */}
                     {isMine && !isEditing && (
                         <button
+                            type="button"
                             onClick={(e) => onContextMenu(e, msg.id)}
+                            aria-label={`Open options for message: ${msg.content}`}
                             className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-claude-border/40 transition-opacity text-claude-secondary"
                         >
                             <MoreVertical className="w-3.5 h-3.5" />
@@ -559,9 +561,10 @@ function MessageRow({ item, isNew, editingId, editContent, editInputRef, onEditC
                                 exit={{ opacity: 0, scale: 0.92, y: -4 }}
                                 transition={{ duration: 0.1 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className={`absolute bottom-full mb-1.5 z-20 min-w-[130px] rounded-xl bg-claude-surface border border-claude-border/60 shadow-xl overflow-hidden ${isMine ? 'right-0' : 'left-0'}`}
+                                className={`absolute top-1/2 z-20 min-w-[130px] -translate-y-1/2 rounded-xl bg-claude-surface border border-claude-border/60 shadow-xl overflow-hidden ${isMine ? 'right-full mr-2' : 'left-full ml-2'}`}
                             >
                                 <button
+                                    type="button"
                                     onClick={() => onStartEdit(msg)}
                                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-claude-text hover:bg-claude-border/30 transition-colors"
                                 >
@@ -569,6 +572,7 @@ function MessageRow({ item, isNew, editingId, editContent, editInputRef, onEditC
                                     Edit
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => onDelete(msg.id)}
                                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                                 >

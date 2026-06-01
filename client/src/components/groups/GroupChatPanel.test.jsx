@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GroupChatPanel from './GroupChatPanel.jsx';
 
@@ -103,5 +103,40 @@ describe('GroupChatPanel', () => {
     expect(firstRow).not.toHaveTextContent(firstTime);
     expect(secondRow).toHaveTextContent(secondTime);
     expect(screen.getAllByText(secondTime)).toHaveLength(1);
+  });
+
+  it('opens the top message menu beside the bubble instead of above it', async () => {
+    authApi.getGroupMessages.mockResolvedValue([
+      {
+        id: 'm1',
+        senderId: 42,
+        senderUsername: 'me',
+        senderDisplayName: 'me',
+        senderAvatar: 'avatar-me',
+        content: 'top message',
+        createdAt: '2026-06-01T17:00:00',
+        isMine: true,
+        isEdited: false,
+      },
+    ]);
+
+    const { container } = render(
+      <GroupChatPanel
+        groupId="group-1"
+        currentUserId={42}
+        members={[{ id: 42, username: 'me', display_name: 'me', avatar: 'avatar-me' }]}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /open options for message: top message/i }));
+
+    const editButton = await screen.findByRole('button', { name: 'Edit' });
+    const menu = editButton.closest('div.absolute');
+
+    expect(menu).not.toBeNull();
+    expect(menu.className).toContain('top-1/2');
+    expect(menu.className).toContain('right-full');
+    expect(menu.className).not.toContain('bottom-full');
+    expect(container).toHaveTextContent('Delete');
   });
 });
