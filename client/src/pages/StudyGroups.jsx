@@ -123,8 +123,10 @@ export default function StudyGroups() {
 
     // Pre-warm the detail bundle for the first few groups (during idle time) so
     // opening one is instant. Only warms groups not already cached.
+    // Skip on cold start (seededGroups === null) — no cache to build on yet,
+    // and firing 25 requests would saturate the connection pool on iOS Capacitor.
     useEffect(() => {
-        if (groups.length === 0) return;
+        if (groups.length === 0 || !seededGroups) return;
         const targets = groups.slice(0, 5).filter(g => !cache.peek(groupKeys.info(g.id)));
         if (targets.length === 0) return;
 

@@ -135,7 +135,9 @@ export default function GroupDetails() {
         if (seeded) {
             setGroupSchedule(seeded);
             setScheduleLoading(false);
-        } else if (showLoader || !previousRange?.loadedOnce) {
+        } else {
+            // Always show the loader when this range has no cached data — avoids
+            // a silent stale-data hang when navigating to an uncached month/week/day.
             setScheduleLoading(true);
         }
 
@@ -144,6 +146,25 @@ export default function GroupDetails() {
             if (requestId !== scheduleRequestIdRef.current) return;
             setGroupSchedule(payload || { members: [], schedule_slots: [], meetups: [] });
             scheduleRangeRef.current = { ...nextRange, loadedOnce: true };
+
+            // Pre-warm adjacent months so prev/next navigation is instant.
+            // Only applies to month-view ranges (≥35 days); week/day ranges skip.
+            const rangeDays = Math.round((nextRange.end - nextRange.start) / 86400000);
+            if (rangeDays >= 35) {
+                const warmAdjacentMonth = (monthOffset) => {
+                    const anchor = new Date(nextRange.start.getTime() + 15 * 86400000);
+                    anchor.setMonth(anchor.getMonth() + monthOffset);
+                    const { start, end } = getVisibleMonthRange(anchor);
+                    if (!cache.peek(groupKeys.schedule(id, start, end))) {
+                        api.getGroupScheduleCalendar(id, start, end).catch(() => {});
+                    }
+                };
+                if (typeof requestIdleCallback === 'function') {
+                    requestIdleCallback(() => { warmAdjacentMonth(-1); warmAdjacentMonth(1); });
+                } else {
+                    setTimeout(() => { warmAdjacentMonth(-1); warmAdjacentMonth(1); }, 0);
+                }
+            }
         } catch (err) {
             if (requestId !== scheduleRequestIdRef.current) return;
             console.error('Failed to load group schedule', err);
