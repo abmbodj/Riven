@@ -323,13 +323,18 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
 
     if (loading) {
         return (
-            <div className="flex-1 flex flex-col gap-4 px-4 pt-4 overflow-hidden">
-                {[false, true, false].map((mine, i) => (
-                    <div key={i} className={`flex items-end gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                        {!mine && <div className="w-7 h-7 rounded-full bg-claude-border/40 animate-pulse shrink-0" />}
-                        <div className={`h-10 rounded-2xl bg-claude-border/30 animate-pulse ${mine ? 'w-48 ml-auto' : 'w-56'}`} />
-                    </div>
-                ))}
+            <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full border-2 border-claude-secondary/30 border-t-claude-secondary animate-spin" />
+                </div>
+                <ChatInput
+                    inputRef={inputRef}
+                    value={input}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onSend={handleSend}
+                    sending={sending}
+                />
             </div>
         );
     }
