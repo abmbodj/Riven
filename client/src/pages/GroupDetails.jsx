@@ -17,6 +17,7 @@ import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
 import { supabase } from '../lib/supabaseClient';
 import GroupScheduleHub from '../components/groups/GroupScheduleHub.jsx';
+import GroupChatPanel from '../components/groups/GroupChatPanel.jsx';
 import { getVisibleMonthRange } from '../components/groups/groupScheduleUtils.js';
 import { scheduleMeetupNotifications } from '../utils/notifications.js';
 import { cache } from '../utils/cache';
@@ -846,6 +847,7 @@ export default function GroupDetails() {
                     {[
                         { key: 'schedule', label: 'Schedule' },
                         { key: 'resources', label: 'Resources' },
+                        { key: 'chat', label: 'Chat' },
                     ].map((tab) => (
                         <button
                             key={tab.key}
@@ -1041,6 +1043,9 @@ export default function GroupDetails() {
                             </div>
                         </div>
                     </div>
+                <div className={`flex-1 min-h-0 flex flex-col ${activeTab !== 'chat' ? 'hidden' : ''}`}>
+                    <GroupChatPanel groupId={id} members={members} currentUserId={currentUserId} />
+                </div>
             </div>
 
             {/* --- MOBILE VIEW --- */}
@@ -1071,6 +1076,7 @@ export default function GroupDetails() {
                         {[
                             { key: 'schedule', label: 'Schedule' },
                             { key: 'resources', label: 'Resources' },
+                            { key: 'chat', label: 'Chat' },
                         ].map((tab) => (
                             <button
                                 key={tab.key}
@@ -1242,6 +1248,11 @@ export default function GroupDetails() {
                         </>
                     </div>
                 </div>
+                {activeTab === 'chat' && (
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                        <GroupChatPanel groupId={id} members={members} currentUserId={currentUserId} />
+                    </div>
+                )}
 
             </div>
 

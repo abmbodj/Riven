@@ -622,4 +622,144 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
         }
     });
 
+    // Group chat messages
+
+    // GET /api/groups/:id/messages?before=<uuid>&limit=50
+    router.get('/:id/messages', async (req, res) => {
+        const { id } = req.params;
+        const { before, limit } = req.query;
+        const pageLimit = Math.min(parseInt(limit, 10) || 50, 100);
+        try {
+            const memberCheck = await db.queryOne(
+                'SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            let rows;
+            if (before) {
+                rows = await db.query(
+                    `SELECT gm.id, gm.group_id, gm.sender_id, gm.content, gm.is_edited, gm.created_at,
+                            u.username AS sender_username, u.avatar AS sender_avatar
+                     FROM group_messages gm
+                     JOIN users u ON u.id = gm.sender_id
+                     WHERE gm.group_id = $1
+                       AND gm.created_at < (SELECT m2.created_at FROM group_messages m2 WHERE m2.id = $2)
+                     ORDER BY gm.created_at DESC
+                     LIMIT $3`,
+                    [id, before, pageLimit]
+                );
+            } else {
+                rows = await db.query(
+                    `SELECT gm.id, gm.group_id, gm.sender_id, gm.content, gm.is_edited, gm.created_at,
+                            u.username AS sender_username, u.avatar AS sender_avatar
+                     FROM group_messages gm
+                     JOIN users u ON u.id = gm.sender_id
+                     WHERE gm.group_id = $1
+                     ORDER BY gm.created_at DESC
+                     LIMIT $2`,
+                    [id, pageLimit]
+                );
+            }
+            res.json(rows || []);
+        } catch (error) {
+            console.error('Error fetching group messages:', error);
+            res.status(500).json({ error: 'Failed to fetch messages' });
+        }
+    });
+
+    // POST /api/groups/:id/messages  { content }
+    router.post('/:id/messages', async (req, res) => {
+        const { id } = req.params;
+        const { content } = req.body;
+        if (!content || typeof content !== 'string' || content.trim().length === 0) {
+            return res.status(400).json({ error: 'Message content is required' });
+        }
+        if (content.length > 4000) {
+            return res.status(400).json({ error: 'Message cannot exceed 4000 characters' });
+        }
+        try {
+            const memberCheck = await db.queryOne(
+                'SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            const row = await db.queryOne(
+                `INSERT INTO group_messages (group_id, sender_id, content)
+                 VALUES ($1, $2, $3)
+                 RETURNING id, group_id, sender_id, content, is_edited, created_at`,
+                [id, req.user.id, content.trim()]
+            );
+            const user = await db.queryOne('SELECT username, avatar FROM users WHERE id = $1', [req.user.id]);
+            res.status(201).json({ ...row, sender_username: user?.username, sender_avatar: user?.avatar });
+        } catch (error) {
+            console.error('Error sending group message:', error);
+            res.status(500).json({ error: 'Failed to send message' });
+        }
+    });
+
+    // PATCH /api/groups/:id/messages/:msgId  { content }
+    router.patch('/:id/messages/:msgId', async (req, res) => {
+        const { id, msgId } = req.params;
+        const { content } = req.body;
+        if (!content || typeof content !== 'string' || content.trim().length === 0) {
+            return res.status(400).json({ error: 'Message content is required' });
+        }
+        if (content.length > 4000) {
+            return res.status(400).json({ error: 'Message cannot exceed 4000 characters' });
+        }
+        try {
+            const msg = await db.queryOne(
+                'SELECT sender_id FROM group_messages WHERE id = $1 AND group_id = $2',
+                [msgId, id]
+            );
+            if (!msg) return res.status(404).json({ error: 'Message not found' });
+            if (String(msg.sender_id) !== String(req.user.id)) {
+                return res.status(403).json({ error: 'You can only edit your own messages' });
+            }
+            const updated = await db.queryOne(
+                `UPDATE group_messages
+                 SET content = $1, is_edited = true, updated_at = now()
+                 WHERE id = $2
+                 RETURNING id, group_id, sender_id, content, is_edited, created_at`,
+                [content.trim(), msgId]
+            );
+            res.json(updated);
+        } catch (error) {
+            console.error('Error editing group message:', error);
+            res.status(500).json({ error: 'Failed to edit message' });
+        }
+    });
+
+    // DELETE /api/groups/:id/messages/:msgId
+    router.delete('/:id/messages/:msgId', async (req, res) => {
+        const { id, msgId } = req.params;
+        try {
+            const msg = await db.queryOne(
+                'SELECT sender_id, group_id FROM group_messages WHERE id = $1 AND group_id = $2',
+                [msgId, id]
+            );
+            if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+            const isOwner = String(msg.sender_id) === String(req.user.id);
+            if (!isOwner) {
+                // Admins may also delete
+                const memberCheck = await db.queryOne(
+                    'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                    [id, req.user.id]
+                );
+                if (!memberCheck || memberCheck.role !== 'admin') {
+                    return res.status(403).json({ error: 'You can only delete your own messages' });
+                }
+            }
+
+            await db.execute('DELETE FROM group_messages WHERE id = $1', [msgId]);
+            res.json({ message: 'Message deleted' });
+        } catch (error) {
+            console.error('Error deleting group message:', error);
+            res.status(500).json({ error: 'Failed to delete message' });
+        }
+    });
+
 }

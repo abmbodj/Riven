@@ -568,6 +568,20 @@ export const api = {
     getSessionResults: (sessionId) => isLoggedIn() ? serverApi.getSessionResults(sessionId) : Promise.reject(new Error('Must be logged in')),
     endGroupSession: (sessionId) => isLoggedIn() ? serverApi.endGroupSession(sessionId) : Promise.reject(new Error('Must be logged in')),
 
+    // Group chat
+    getGroupMessages: (groupId, opts) => isLoggedIn()
+        ? serverApi.getGroupMessages(groupId, opts)
+        : Promise.resolve([]),
+    sendGroupMessage: (groupId, content) => isLoggedIn()
+        ? serverApi.sendGroupMessage(groupId, content)
+        : Promise.reject(new Error('Must be logged in')),
+    editGroupMessage: (groupId, messageId, content) => isLoggedIn()
+        ? serverApi.editGroupMessage(groupId, messageId, content)
+        : Promise.reject(new Error('Must be logged in')),
+    deleteGroupMessage: (groupId, messageId) => isLoggedIn()
+        ? serverApi.deleteGroupMessage(groupId, messageId)
+        : Promise.reject(new Error('Must be logged in')),
+
     // ============ FRIENDS & MESSAGES ============
     getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),
     acceptSharedResource: (messageId) => isLoggedIn()

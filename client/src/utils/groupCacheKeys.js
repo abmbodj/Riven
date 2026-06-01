@@ -22,6 +22,8 @@ export const groupKeys = {
     sessions: (id) => `group-sessions:${id}`,
     joinedMeetups: (start, end) => `joined-meetups:${isoDate(start)}:${isoDate(end)}`,
 
+    messages: (id) => `group-messages:${id}`,
+
     // Prefixes for bulk invalidation via cache.deletePrefix(...)
     filesPrefix: (id) => `group-files:${id}:`,
     schedulePrefix: (id) => `group-schedule:${id}:`,

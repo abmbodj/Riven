@@ -4579,6 +4579,110 @@ export const subscribeToCramSession = (sessionId, handlers = {}) => {
     return () => supabase.removeChannel(channel);
 };
 
+// ============ GROUP CHAT ============
+
+const mapGroupMessageRow = (row, currentUserId) => ({
+    id: row.id,
+    groupId: row.group_id,
+    senderId: row.sender_id,
+    senderUsername: row.sender_username || null,
+    senderAvatar: row.sender_avatar || null,
+    content: row.content,
+    isEdited: Boolean(row.is_edited),
+    createdAt: row.created_at,
+    isMine: Number(row.sender_id) === Number(currentUserId),
+});
+
+export const getGroupMessages = async (groupId, { before, limit = 50 } = {}) => {
+    const currentUserId = await getAppUserId();
+    const data = await callGroupRpc('list_group_messages', {
+        target_group_id: groupId,
+        before_id: before || null,
+        page_limit: Math.min(limit, 100),
+    });
+    return (data || []).map((row) => mapGroupMessageRow(row, currentUserId));
+};
+
+export const sendGroupMessage = async (groupId, content) => {
+    const currentUserId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('group_messages')
+        .insert({ group_id: groupId, sender_id: currentUserId, content: content.trim() })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return mapGroupMessageRow(
+        { ...data, sender_username: null, sender_avatar: null },
+        currentUserId
+    );
+};
+
+export const editGroupMessage = async (groupId, messageId, content) => {
+    const currentUserId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('group_messages')
+        .update({ content: content.trim(), is_edited: true, updated_at: new Date().toISOString() })
+        .eq('id', messageId)
+        .eq('group_id', groupId)
+        .eq('sender_id', currentUserId)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return mapGroupMessageRow(
+        { ...data, sender_username: null, sender_avatar: null },
+        currentUserId
+    );
+};
+
+export const deleteGroupMessage = async (groupId, messageId) => {
+    const currentUserId = await getAppUserId();
+    const { error } = await supabase
+        .from('group_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('group_id', groupId)
+        .eq('sender_id', currentUserId);
+    if (error) _sbThrow(error);
+};
+
+export const subscribeToGroupMessages = (groupId, currentUserId, handlers = {}) => {
+    const channel = supabase
+        .channel(`group_messages_${groupId}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'group_messages',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            handlers.onInsert?.(mapGroupMessageRow(
+                { ...payload.new, sender_username: null, sender_avatar: null },
+                currentUserId
+            ));
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'group_messages',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            handlers.onUpdate?.(mapGroupMessageRow(
+                { ...payload.new, sender_username: null, sender_avatar: null },
+                currentUserId
+            ));
+        })
+        .on('postgres_changes', {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'group_messages',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            handlers.onDelete?.(payload.old.id);
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
+
 // ============ ADMIN ENDPOINTS ============
 
 const callAdminEndpoint = ({ method = 'GET', action, query, body }) =>
