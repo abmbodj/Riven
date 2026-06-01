@@ -436,6 +436,7 @@ function DashboardHome() {
     const [assignments, setAssignments] = useState([]);
     const [decks, setDecks] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [archivedClassCount, setArchivedClassCount] = useState(0);
     const [notes, setNotes] = useState([]);
     const [guides, setGuides] = useState([]);
     const [exams, setExams] = useState([]);
@@ -546,6 +547,7 @@ function DashboardHome() {
                 const activeClassIds = new Set((classesData || [])
                     .filter((classItem) => !classItem.is_archived)
                     .map((classItem) => classItem.id));
+                const activeClasses = (classesData || []).filter((classItem) => !classItem.is_archived);
                 const visibleAssignments = (assignData || []).filter((assignment) => (
                     assignment.status !== 'Archived'
                     && (!assignment.class_id || activeClassIds.has(assignment.class_id))
@@ -553,7 +555,8 @@ function DashboardHome() {
 
                 setAssignments(visibleAssignments);
                 setDecks(decksData || []);
-                setClasses((classesData || []).filter((classItem) => !classItem.is_archived));
+                setClasses(activeClasses);
+                setArchivedClassCount(Math.max(0, (classesData || []).length - activeClasses.length));
                 setNotes(notesData || []);
                 setGuides(guidesData || []);
                 setStudyCoach(coachData || null);
@@ -994,8 +997,8 @@ function DashboardHome() {
                         </div>
 
                         {/* Class snapshot: desktop only, fills left-column vertical space */}
-                        {classes.length > 0 && (
-                            <div className="gsap-hero-row mt-5 hidden border-t border-claude-border/30 pt-4 lg:block">
+                        <div className="gsap-hero-row mt-5 hidden border-t border-claude-border/30 pt-4 lg:block">
+                            {classes.length > 0 ? (
                                 <div className="space-y-0.5">
                                     {classes.slice(0, 4).map((classItem) => {
                                         const insight = classInsights.get(classItem.id);
@@ -1035,8 +1038,61 @@ function DashboardHome() {
                                         </Link>
                                     )}
                                 </div>
-                            </div>
-                        )}
+                            ) : (
+                                <div
+                                    className="rounded-[24px] border border-dashed p-4"
+                                    style={{
+                                        borderColor: 'color-mix(in srgb, var(--border-color) 82%, var(--accent-color) 18%)',
+                                        background: 'linear-gradient(180deg, color-mix(in srgb, var(--surface-color) 72%, transparent) 0%, color-mix(in srgb, var(--bg-color) 68%, var(--surface-color)) 100%)',
+                                        boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--text-color) 7%, transparent)'
+                                    }}
+                                >
+                                    <div
+                                        className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl border"
+                                        style={{
+                                            borderColor: 'color-mix(in srgb, var(--border-color) 78%, var(--accent-color) 22%)',
+                                            backgroundColor: 'color-mix(in srgb, var(--surface-color) 88%, var(--accent-color) 12%)',
+                                            color: 'color-mix(in srgb, var(--accent-color) 62%, var(--secondary-text-color))'
+                                        }}
+                                    >
+                                        <Calendar className="h-4 w-4" />
+                                    </div>
+                                    <h2 className="font-serif text-xl font-bold italic text-claude-text">
+                                        {archivedClassCount > 0 ? 'No active classes right now' : 'No active classes yet'}
+                                    </h2>
+                                    <p
+                                        className="mt-2 max-w-md text-sm leading-relaxed"
+                                        style={{ color: 'color-mix(in srgb, var(--secondary-text-color) 88%, var(--text-color) 12%)' }}
+                                    >
+                                        {archivedClassCount > 0
+                                            ? 'Your past courses are still saved in Classes. Add or sync the next one to bring planning, assignments, and due dates back into focus.'
+                                            : 'Add a class to unlock assignment tracking, planning, and due dates across your dashboard.'}
+                                    </p>
+                                    <div className="mt-4 flex items-center gap-3">
+                                        <Link
+                                            to="/classes"
+                                            className="tap-action inline-flex items-center gap-2 rounded-2xl border px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] transition-[transform,border-color,color,background-color] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                            style={{
+                                                borderColor: 'color-mix(in srgb, var(--border-color) 72%, var(--accent-color) 28%)',
+                                                backgroundColor: 'color-mix(in srgb, var(--bg-color) 58%, var(--surface-color))',
+                                                color: 'color-mix(in srgb, var(--accent-color) 58%, var(--text-color) 42%)'
+                                            }}
+                                        >
+                                            {archivedClassCount > 0 ? 'View classes' : 'Add first class'}
+                                            <ArrowRight className="h-3.5 w-3.5" />
+                                        </Link>
+                                        <p
+                                            className="text-[10px] font-mono font-bold uppercase tracking-[0.18em]"
+                                            style={{ color: 'color-mix(in srgb, var(--secondary-text-color) 82%, var(--accent-color) 18%)' }}
+                                        >
+                                            {archivedClassCount > 0
+                                                ? `${archivedClassCount} past ${archivedClassCount === 1 ? 'course stays' : 'courses stay'} in Classes`
+                                                : 'Manual setup and Canvas sync live in Classes'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {/* QueueChips: mobile horizontal scroll only */}
                         <div className="gsap-hero-row -mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1 hide-scrollbar lg:hidden">

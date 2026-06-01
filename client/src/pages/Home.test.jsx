@@ -209,6 +209,36 @@ describe('DashboardHome analytics repositioning', () => {
     expect(within(screen.getByTestId('weekly-summary')).getByText('2')).toBeInTheDocument();
     expect(within(screen.getByTestId('weekly-summary')).getByText('Due This Week')).toBeInTheDocument();
     expect(api.getWeeklySummary).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Biology').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/no active classes yet/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a desktop hero empty state when there are no active classes', async () => {
+    await renderDashboard();
+
+    expect(screen.getByText(/no active classes yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/unlock assignment tracking, planning, and due dates/i)).toBeInTheDocument();
+    expect(screen.getByText(/manual setup and canvas sync live in classes/i)).toBeInTheDocument();
+
+    const addFirstClassLink = screen.getByRole('link', { name: /add first class/i });
+    expect(addFirstClassLink).toHaveAttribute('href', '/classes');
+  });
+
+  it('adapts the empty state for returning users with only archived classes', async () => {
+    api.getClasses.mockResolvedValue([
+      { id: 11, name: 'Biology', color: '#7a9e72', is_archived: true },
+      { id: 12, name: 'History', color: '#cf8f43', is_archived: true },
+    ]);
+
+    await renderDashboard();
+
+    expect(screen.getByText(/no active classes right now/i)).toBeInTheDocument();
+    expect(screen.getByText(/your past courses are still saved in classes/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 past courses stay in classes/i)).toBeInTheDocument();
+
+    const viewClassesLink = screen.getByRole('link', { name: /view classes/i });
+    expect(viewClassesLink).toHaveAttribute('href', '/classes');
+    expect(screen.queryByRole('link', { name: /add first class/i })).not.toBeInTheDocument();
   });
 
   it('shows the study coach module with cram urgency, xp, and one-tap guide suggestions', async () => {
