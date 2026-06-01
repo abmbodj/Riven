@@ -73,6 +73,12 @@ const routeImportMap = {
   '/groups': () => import('../pages/StudyGroups.jsx'),
 };
 
+// Optional data warm-up alongside the code prefetch, so hovering a nav item also
+// primes its data into the cache. Dynamic import avoids eagerly coupling routes->api.
+const routeDataPrefetch = {
+  '/groups': () => import('../api').then(m => m.api.getGroups()).catch(() => {}),
+};
+
 const prefetched = new Set();
 
 export function prefetchRoute(path) {
@@ -81,6 +87,7 @@ export function prefetchRoute(path) {
   if (!basePath || prefetched.has(basePath)) return;
   prefetched.add(basePath);
   routeImportMap[basePath]?.();
+  routeDataPrefetch[basePath]?.();
 }
 
 export const routesConfig = [

@@ -9,15 +9,23 @@ import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
 import PricingModal from '../components/ui/PricingModal';
+import { cache } from '../utils/cache';
+import { groupKeys } from '../utils/groupCacheKeys';
+import { getVisibleMonthRange } from '../components/groups/groupScheduleUtils.js';
 
 export default function StudyGroups() {
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
+    const { user } = useAuth();
 
-    const [groups, setGroups] = useState([]);
+    // Seed the first paint from the persisted cache so revisits never flash a skeleton.
+    cache.ensureUser(user?.id);
+    const seededGroups = cache.peek(groupKeys.groups());
+
+    const [groups, setGroups] = useState(seededGroups || []);
     const [classes, setClasses] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!seededGroups);
     const [refreshing, setRefreshing] = useState(false);
     const [activeSessions, setActiveSessions] = useState({});
 
@@ -33,7 +41,6 @@ export default function StudyGroups() {
     const classDropdownRef = useRef(null);
 
     // Auth & Monetization
-    const { user } = useAuth();
     const [pricingOpen, setPricingOpen] = useState(false);
 
     useEffect(() => {
@@ -112,6 +119,32 @@ export default function StudyGroups() {
         );
 
         return () => unsubscribers.forEach(unsub => unsub());
+    }, [groups]);
+
+    // Pre-warm the detail bundle for the first few groups (during idle time) so
+    // opening one is instant. Only warms groups not already cached.
+    useEffect(() => {
+        if (groups.length === 0) return;
+        const targets = groups.slice(0, 5).filter(g => !cache.peek(groupKeys.info(g.id)));
+        if (targets.length === 0) return;
+
+        const { start, end } = getVisibleMonthRange(new Date());
+        const warm = () => {
+            targets.forEach((group) => {
+                api.getGroupInfo(group.id).catch(() => {});
+                api.getGroupMembers(group.id).catch(() => {});
+                api.getGroupDecks(group.id).catch(() => {});
+                api.getGroupFolders(group.id).catch(() => {});
+                api.getGroupScheduleCalendar(group.id, start, end).catch(() => {});
+            });
+        };
+
+        const hasIdle = typeof requestIdleCallback === 'function';
+        const handle = hasIdle ? requestIdleCallback(warm, { timeout: 2000 }) : setTimeout(warm, 0);
+        return () => {
+            if (hasIdle) cancelIdleCallback(handle);
+            else clearTimeout(handle);
+        };
     }, [groups]);
 
     const handleCreate = async (e) => {

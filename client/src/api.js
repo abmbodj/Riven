@@ -1,6 +1,7 @@
 import * as db from './db/indexedDB';
 import * as serverApi from './api/authApi';
 import { cache } from './utils/cache';
+import { groupKeys } from './utils/groupCacheKeys';
 
 // Check if user is logged in (has valid token)
 const isLoggedIn = () => !!serverApi.getToken();
@@ -11,6 +12,32 @@ const CACHE_TTL = {
     short: 10000,   // 10s - for frequently changing data
     medium: 60000,  // 60s - for semi-static data (tags, folders)
     long: 300000    // 5m - for rarely changing data
+};
+
+// Persisted stale-while-revalidate read: callers still receive a Promise of fresh
+// data, while group pages seed their first paint instantly from cache.peek(key).
+const swrRead = (key, fn) => cache.swr(key, fn, { persist: true }).revalidate();
+
+// Run a mutation, then drop the affected cache seeds so the next read/seed is correct.
+const mutate = (fn, invalidate) => fn().then((res) => { invalidate(); return res; });
+
+// Full cache sweep for a group the user no longer has (delete/leave).
+const invalidateGroup = (id) => {
+    cache.delete(groupKeys.groups());
+    cache.delete(groupKeys.info(id));
+    cache.delete(groupKeys.members(id));
+    cache.delete(groupKeys.decks(id));
+    cache.delete(groupKeys.folders(id));
+    cache.delete(groupKeys.share(id));
+    cache.delete(groupKeys.sessions(id));
+    cache.deletePrefix(groupKeys.filesPrefix(id));
+    cache.deletePrefix(groupKeys.schedulePrefix(id));
+};
+
+// Meetup mutations only carry a meetupId, so we can't target one group's schedule.
+const invalidateMeetups = () => {
+    cache.deletePrefix(groupKeys.allSchedulesPrefix());
+    cache.deletePrefix(groupKeys.joinedMeetupsPrefix());
 };
 
 // Hybrid API - uses server when logged in, IndexedDB otherwise
@@ -427,58 +454,115 @@ export const api = {
         : db.deleteTheme(id),
 
     // ============ STUDY GROUPS ============
-    getGroups: () => isLoggedIn() ? serverApi.getGroups() : Promise.resolve([]),
-    createGroup: (name, classId) => isLoggedIn() ? serverApi.createGroup(name, classId) : Promise.reject(new Error('Must be logged in')),
-    getGroupInfo: (id) => isLoggedIn() ? serverApi.getGroup(id) : Promise.reject(new Error('Must be logged in')),
-    updateGroup: (id, updates) => isLoggedIn() ? serverApi.updateGroup(id, updates) : Promise.reject(new Error('Must be logged in')),
-    deleteGroup: (id) => isLoggedIn() ? serverApi.deleteGroup(id) : Promise.reject(new Error('Must be logged in')),
-    joinGroup: (joinCode) => isLoggedIn() ? serverApi.joinGroup(joinCode) : Promise.reject(new Error('Must be logged in')),
-    leaveGroup: (id) => isLoggedIn() ? serverApi.leaveGroup(id) : Promise.reject(new Error('Must be logged in')),
-    getGroupMembers: (id) => isLoggedIn() ? serverApi.getGroupMembers(id) : Promise.resolve([]),
-    removeGroupMember: (id, userId) => isLoggedIn() ? serverApi.removeGroupMember(id, userId) : Promise.reject(new Error('Must be logged in')),
-    getGroupDecks: (id) => isLoggedIn() ? serverApi.getGroupDecks(id) : Promise.resolve([]),
-    shareDeckToGroup: (id, deckId) => isLoggedIn() ? serverApi.shareDeckToGroup(id, deckId) : Promise.reject(new Error('Must be logged in')),
-    removeDeckFromGroup: (id, deckId) => isLoggedIn() ? serverApi.removeDeckFromGroup(id, deckId) : Promise.reject(new Error('Must be logged in')),
+    // Reads are persisted + stale-while-revalidate so pages paint instantly from
+    // cache.peek(...) and refresh silently. Mutations invalidate the affected seeds.
+    getGroups: () => isLoggedIn()
+        ? swrRead(groupKeys.groups(), () => serverApi.getGroups())
+        : Promise.resolve([]),
+    createGroup: (name, classId) => isLoggedIn()
+        ? mutate(() => serverApi.createGroup(name, classId), () => cache.delete(groupKeys.groups()))
+        : Promise.reject(new Error('Must be logged in')),
+    getGroupInfo: (id) => isLoggedIn()
+        ? swrRead(groupKeys.info(id), () => serverApi.getGroup(id))
+        : Promise.reject(new Error('Must be logged in')),
+    updateGroup: (id, updates) => isLoggedIn()
+        ? mutate(() => serverApi.updateGroup(id, updates), () => {
+            cache.delete(groupKeys.groups());
+            cache.delete(groupKeys.info(id));
+        })
+        : Promise.reject(new Error('Must be logged in')),
+    deleteGroup: (id) => isLoggedIn()
+        ? mutate(() => serverApi.deleteGroup(id), () => invalidateGroup(id))
+        : Promise.reject(new Error('Must be logged in')),
+    joinGroup: (joinCode) => isLoggedIn()
+        ? mutate(() => serverApi.joinGroup(joinCode), () => cache.delete(groupKeys.groups()))
+        : Promise.reject(new Error('Must be logged in')),
+    leaveGroup: (id) => isLoggedIn()
+        ? mutate(() => serverApi.leaveGroup(id), () => invalidateGroup(id))
+        : Promise.reject(new Error('Must be logged in')),
+    getGroupMembers: (id) => isLoggedIn()
+        ? swrRead(groupKeys.members(id), () => serverApi.getGroupMembers(id))
+        : Promise.resolve([]),
+    removeGroupMember: (id, userId) => isLoggedIn()
+        ? mutate(() => serverApi.removeGroupMember(id, userId), () => cache.delete(groupKeys.members(id)))
+        : Promise.reject(new Error('Must be logged in')),
+    getGroupDecks: (id) => isLoggedIn()
+        ? swrRead(groupKeys.decks(id), () => serverApi.getGroupDecks(id))
+        : Promise.resolve([]),
+    shareDeckToGroup: (id, deckId) => isLoggedIn()
+        ? mutate(() => serverApi.shareDeckToGroup(id, deckId), () => cache.delete(groupKeys.decks(id)))
+        : Promise.reject(new Error('Must be logged in')),
+    removeDeckFromGroup: (id, deckId) => isLoggedIn()
+        ? mutate(() => serverApi.removeDeckFromGroup(id, deckId), () => cache.delete(groupKeys.decks(id)))
+        : Promise.reject(new Error('Must be logged in')),
 
-    getGroupFolders: (id) => isLoggedIn() ? serverApi.getGroupFolders(id) : Promise.resolve([]),
-    createGroupFolder: (id, name) => isLoggedIn() ? serverApi.createGroupFolder(id, name) : Promise.reject(new Error('Must be logged in')),
-    renameGroupFolder: (id, folderId, name) => isLoggedIn() ? serverApi.renameGroupFolder(id, folderId, name) : Promise.reject(new Error('Must be logged in')),
-    deleteGroupFolder: (id, folderId) => isLoggedIn() ? serverApi.deleteGroupFolder(id, folderId) : Promise.reject(new Error('Must be logged in')),
+    getGroupFolders: (id) => isLoggedIn()
+        ? swrRead(groupKeys.folders(id), () => serverApi.getGroupFolders(id))
+        : Promise.resolve([]),
+    createGroupFolder: (id, name) => isLoggedIn()
+        ? mutate(() => serverApi.createGroupFolder(id, name), () => cache.delete(groupKeys.folders(id)))
+        : Promise.reject(new Error('Must be logged in')),
+    renameGroupFolder: (id, folderId, name) => isLoggedIn()
+        ? mutate(() => serverApi.renameGroupFolder(id, folderId, name), () => cache.delete(groupKeys.folders(id)))
+        : Promise.reject(new Error('Must be logged in')),
+    deleteGroupFolder: (id, folderId) => isLoggedIn()
+        ? mutate(() => serverApi.deleteGroupFolder(id, folderId), () => {
+            cache.delete(groupKeys.folders(id));
+            cache.deletePrefix(groupKeys.filesPrefix(id));
+        })
+        : Promise.reject(new Error('Must be logged in')),
 
-    getGroupFiles: (id, folderId) => isLoggedIn() ? serverApi.getGroupFiles(id, folderId) : Promise.resolve([]),
-    uploadGroupFile: (id, fileData) => isLoggedIn() ? serverApi.uploadGroupFile(id, fileData) : Promise.reject(new Error('Must be logged in')),
-    deleteGroupFile: (id, fileId) => isLoggedIn() ? serverApi.deleteGroupFile(id, fileId) : Promise.reject(new Error('Must be logged in')),
+    getGroupFiles: (id, folderId) => isLoggedIn()
+        ? swrRead(groupKeys.files(id, folderId), () => serverApi.getGroupFiles(id, folderId))
+        : Promise.resolve([]),
+    uploadGroupFile: (id, fileData) => isLoggedIn()
+        ? mutate(() => serverApi.uploadGroupFile(id, fileData), () => cache.deletePrefix(groupKeys.filesPrefix(id)))
+        : Promise.reject(new Error('Must be logged in')),
+    deleteGroupFile: (id, fileId) => isLoggedIn()
+        ? mutate(() => serverApi.deleteGroupFile(id, fileId), () => cache.deletePrefix(groupKeys.filesPrefix(id)))
+        : Promise.reject(new Error('Must be logged in')),
 
     getGroupScheduleCalendar: (id, rangeStart, rangeEnd) => isLoggedIn()
-        ? serverApi.getGroupScheduleCalendar(id, rangeStart, rangeEnd)
+        ? swrRead(groupKeys.schedule(id, rangeStart, rangeEnd), () => serverApi.getGroupScheduleCalendar(id, rangeStart, rangeEnd))
         : Promise.reject(new Error('Must be logged in')),
     getGroupScheduleShare: (id) => isLoggedIn()
-        ? serverApi.getGroupScheduleShare(id)
+        ? cache.wrap(groupKeys.share(id), () => serverApi.getGroupScheduleShare(id), CACHE_TTL.medium)
         : Promise.reject(new Error('Must be logged in')),
     setGroupScheduleShare: (id, visibilityMode) => isLoggedIn()
-        ? serverApi.setGroupScheduleShare(id, visibilityMode)
+        ? mutate(() => serverApi.setGroupScheduleShare(id, visibilityMode), () => {
+            cache.delete(groupKeys.share(id));
+            cache.deletePrefix(groupKeys.schedulePrefix(id));
+        })
         : Promise.reject(new Error('Must be logged in')),
     createGroupMeetup: (id, meetup) => isLoggedIn()
-        ? serverApi.createGroupMeetup(id, meetup)
+        ? mutate(() => serverApi.createGroupMeetup(id, meetup), () => {
+            cache.deletePrefix(groupKeys.schedulePrefix(id));
+            cache.deletePrefix(groupKeys.joinedMeetupsPrefix());
+        })
         : Promise.reject(new Error('Must be logged in')),
     updateGroupMeetup: (meetupId, updates) => isLoggedIn()
-        ? serverApi.updateGroupMeetup(meetupId, updates)
+        ? mutate(() => serverApi.updateGroupMeetup(meetupId, updates), invalidateMeetups)
         : Promise.reject(new Error('Must be logged in')),
     cancelGroupMeetup: (meetupId) => isLoggedIn()
-        ? serverApi.cancelGroupMeetup(meetupId)
+        ? mutate(() => serverApi.cancelGroupMeetup(meetupId), invalidateMeetups)
         : Promise.reject(new Error('Must be logged in')),
     joinGroupMeetup: (meetupId) => isLoggedIn()
-        ? serverApi.joinGroupMeetup(meetupId)
+        ? mutate(() => serverApi.joinGroupMeetup(meetupId), invalidateMeetups)
         : Promise.reject(new Error('Must be logged in')),
     leaveGroupMeetup: (meetupId) => isLoggedIn()
-        ? serverApi.leaveGroupMeetup(meetupId)
+        ? mutate(() => serverApi.leaveGroupMeetup(meetupId), invalidateMeetups)
         : Promise.reject(new Error('Must be logged in')),
     listJoinedGroupMeetups: (rangeStart, rangeEnd) => isLoggedIn()
-        ? serverApi.listJoinedGroupMeetups(rangeStart, rangeEnd)
+        ? cache.wrap(groupKeys.joinedMeetups(rangeStart, rangeEnd), () => serverApi.listJoinedGroupMeetups(rangeStart, rangeEnd), CACHE_TTL.short)
         : Promise.resolve([]),
-    // Cram Sessions
-    getGroupSessions: (id) => isLoggedIn() ? serverApi.getGroupSessions(id) : Promise.resolve([]),
-    startGroupSession: (id, deckId) => isLoggedIn() ? serverApi.startGroupSession(id, deckId) : Promise.reject(new Error('Must be logged in')),
+    // Cram Sessions — realtime is the source of truth, so sessions use a short
+    // in-memory cache only (never persisted: a stale "Live" badge would mislead).
+    getGroupSessions: (id) => isLoggedIn()
+        ? cache.wrap(groupKeys.sessions(id), () => serverApi.getGroupSessions(id), CACHE_TTL.short)
+        : Promise.resolve([]),
+    startGroupSession: (id, deckId) => isLoggedIn()
+        ? mutate(() => serverApi.startGroupSession(id, deckId), () => cache.delete(groupKeys.sessions(id)))
+        : Promise.reject(new Error('Must be logged in')),
     joinGroupSession: (sessionId) => isLoggedIn() ? serverApi.joinGroupSession(sessionId) : Promise.reject(new Error('Must be logged in')),
     respondToSessionCard: (sessionId, cardId, knewIt) => isLoggedIn() ? serverApi.respondToSessionCard(sessionId, cardId, knewIt) : Promise.reject(new Error('Must be logged in')),
     getSessionResults: (sessionId) => isLoggedIn() ? serverApi.getSessionResults(sessionId) : Promise.reject(new Error('Must be logged in')),

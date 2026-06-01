@@ -3,6 +3,7 @@ import * as authApi from '../api/authApi';
 import { supabase } from '../lib/supabaseClient';
 import { clearOnboardingDoneClient, markOnboardingDoneClient } from '../utils/onboardingGate';
 import { getStoredPushInstallationId } from '../utils/pushNotifications.js';
+import { cache } from '../utils/cache';
 import { AuthContext, AuthActionsContext, AuthStatusContext } from './authContextDef';
 
 // Re-export for convenience
@@ -203,6 +204,7 @@ export function AuthProvider({ children }) {
         authApi.setToken(null);
         setPendingTwoFactor(null);
         setUser(null);
+        cache.clearPersistent();
     }, []);
 
     const cancelPendingTwoFactor = useCallback(() => {
@@ -211,6 +213,7 @@ export function AuthProvider({ children }) {
         authApi.setToken(null);
         setPendingTwoFactor(null);
         setUser(null);
+        cache.clearPersistent();
     }, []);
 
     const updateProfile = useCallback(async (updates) => {
@@ -230,6 +233,7 @@ export function AuthProvider({ children }) {
         await authApi.deleteAccount(password);
         clearOnboardingDoneClient();
         setUser(null);
+        cache.clearPersistent();
     }, []);
 
     const refreshUser = useCallback(async () => {

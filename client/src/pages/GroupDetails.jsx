@@ -19,6 +19,8 @@ import { supabase } from '../lib/supabaseClient';
 import GroupScheduleHub from '../components/groups/GroupScheduleHub.jsx';
 import { getVisibleMonthRange } from '../components/groups/groupScheduleUtils.js';
 import { scheduleMeetupNotifications } from '../utils/notifications.js';
+import { cache } from '../utils/cache';
+import { groupKeys } from '../utils/groupCacheKeys';
 
 const toDateIdentity = (value) => {
     const date = value instanceof Date ? value : new Date(value);
@@ -33,13 +35,24 @@ export default function GroupDetails() {
     const toast = useToast();
     const { user } = useAuth();
     const { setContextToolbar, clearContextToolbar } = useContext(UIContext) || {};
-    const [group, setGroup] = useState(null);
-    const [members, setMembers] = useState([]);
-    const [sharedDecks, setSharedDecks] = useState([]);
-    const [loading, setLoading] = useState(true);
+
+    // Seed the first paint from the persisted cache so revisits render instantly
+    // (skeletons only appear on a true cold load with nothing cached).
+    cache.ensureUser(user?.id);
+    const initialScheduleRange = getVisibleMonthRange(new Date());
+    const seededInfo = cache.peek(groupKeys.info(id));
+    const seededMembers = cache.peek(groupKeys.members(id));
+    const seededDecks = cache.peek(groupKeys.decks(id));
+    const seededFolders = cache.peek(groupKeys.folders(id));
+    const seededSchedule = cache.peek(groupKeys.schedule(id, initialScheduleRange.start, initialScheduleRange.end));
+
+    const [group, setGroup] = useState(seededInfo || null);
+    const [members, setMembers] = useState(seededMembers || []);
+    const [sharedDecks, setSharedDecks] = useState(seededDecks || []);
+    const [loading, setLoading] = useState(!seededInfo);
     const [activeTab, setActiveTab] = useState('schedule');
-    const [groupSchedule, setGroupSchedule] = useState(null);
-    const [scheduleLoading, setScheduleLoading] = useState(true);
+    const [groupSchedule, setGroupSchedule] = useState(seededSchedule || null);
+    const [scheduleLoading, setScheduleLoading] = useState(!seededSchedule);
     const [scheduleComposerRequestKey, setScheduleComposerRequestKey] = useState(0);
     const scheduleRangeRef = useRef(null);
     const scheduleRequestIdRef = useRef(0);
@@ -53,7 +66,7 @@ export default function GroupDetails() {
     const [showShareDeckModal, setShowShareDeckModal] = useState(false);
 
     // Files & Folders
-    const [folders, setFolders] = useState([]);
+    const [folders, setFolders] = useState(seededFolders || []);
     const [files, setFiles] = useState([]);
     const [currentFolderId, setCurrentFolderId] = useState(null);
     const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
@@ -116,7 +129,13 @@ export default function GroupDetails() {
         const rangeKey = `${toDateIdentity(nextRange.start)}:${toDateIdentity(nextRange.end)}`;
 
         scheduleRangeRef.current = nextRange;
-        if (showLoader || !previousRange?.loadedOnce) {
+        // Seed instantly from cache for this range so the calendar never flashes a
+        // second skeleton; otherwise show the loader on the first load of the range.
+        const seeded = cache.peek(groupKeys.schedule(id, nextRange.start, nextRange.end));
+        if (seeded) {
+            setGroupSchedule(seeded);
+            setScheduleLoading(false);
+        } else if (showLoader || !previousRange?.loadedOnce) {
             setScheduleLoading(true);
         }
 
