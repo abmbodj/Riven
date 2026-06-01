@@ -358,14 +358,12 @@ export default function Messages() {
             return;
         }
 
-        loadConversations();
-
         if (userId) {
             loadMessages(userId);
         } else {
             setLoading(false);
         }
-    }, [isLoggedIn, userId, loadConversations, loadMessages, navigate]);
+    }, [isLoggedIn, userId, loadMessages, navigate]);
 
     useEffect(() => {
         if (!userId || !conversations.length) {
@@ -553,7 +551,9 @@ export default function Messages() {
 
         const handleNewMessage = (msg) => {
             const hydrated = hydrateThreadMessage(msg);
+            const otherUserId = hydrated.isMine ? hydrated.receiverId : hydrated.senderId;
 
+            // Append to active thread if it belongs here
             if (activeThreadUserId && (hydrated.senderId === activeThreadUserId || hydrated.receiverId === activeThreadUserId)) {
                 setMessages(prev => {
                     if (prev.find(m => m.id === hydrated.id)) return prev;
@@ -561,18 +561,59 @@ export default function Messages() {
                     messageCache.setMessages(userId, updated);
                     return updated;
                 });
-
-                if (hydrated.senderId === activeThreadUserId) {
-                    setIsTyping(false);
-                }
-            } else if (!userId) {
-                loadConversations();
+                if (hydrated.senderId === activeThreadUserId) setIsTyping(false);
             }
-            invalidateConversations();
+
+            // Update conversations list directly — no REST re-fetch
+            setConversations(prev => {
+                const existing = prev.find(c => String(c.userId) === String(otherUserId));
+                if (existing) {
+                    const updated = prev
+                        .map(c => String(c.userId) === String(otherUserId)
+                            ? {
+                                ...c,
+                                lastMessage: hydrated.content,
+                                lastMessageType: hydrated.messageType,
+                                lastMessageAt: hydrated.createdAt,
+                                isOwnMessage: hydrated.isMine,
+                                unreadCount: (!hydrated.isMine && String(otherUserId) !== String(userId))
+                                    ? c.unreadCount + 1
+                                    : c.unreadCount,
+                            }
+                            : c)
+                        .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+                    messageCache.setConversations(updated);
+                    return updated;
+                } else {
+                    // New conversation partner — fetch profile asynchronously
+                    authApi.getUserProfile(otherUserId).then(profile => {
+                        setConversations(prev2 => {
+                            if (prev2.find(c => String(c.userId) === String(otherUserId))) return prev2;
+                            const newConv = {
+                                userId: otherUserId,
+                                username: profile?.username ?? 'Unknown',
+                                avatar: profile?.avatar ?? null,
+                                lastMessage: hydrated.content,
+                                lastMessageType: hydrated.messageType,
+                                lastMessageAt: hydrated.createdAt,
+                                isOwnMessage: hydrated.isMine,
+                                unreadCount: hydrated.isMine ? 0 : 1,
+                            };
+                            const result = [newConv, ...prev2].sort(
+                                (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+                            );
+                            messageCache.setConversations(result);
+                            return result;
+                        });
+                    });
+                    return prev;
+                }
+            });
         };
 
         const handleMessageUpdated = (msg) => {
             const hydrated = hydrateThreadMessage(msg);
+            const otherUserId = hydrated.isMine ? hydrated.receiverId : hydrated.senderId;
 
             if (userId) {
                 setMessages(prev => {
@@ -580,10 +621,16 @@ export default function Messages() {
                     messageCache.setMessages(userId, updated);
                     return updated;
                 });
-            } else {
-                loadConversations();
             }
-            invalidateConversations();
+
+            // Update lastMessage in conversations if this was the most recent message
+            setConversations(prev =>
+                prev.map(c =>
+                    String(c.userId) === String(otherUserId) && c.lastMessageAt === hydrated.createdAt
+                        ? { ...c, lastMessage: hydrated.content }
+                        : c
+                )
+            );
         };
 
         const handleMessageDeleted = ({ id }) => {
@@ -593,13 +640,15 @@ export default function Messages() {
                     messageCache.setMessages(userId, updated);
                     return updated;
                 });
-            } else {
-                loadConversations();
             }
-            invalidateConversations();
+            // Re-fetch conversations to surface the new last message after deletion
+            loadConversations();
         };
 
         const unsubscribe = authApi.subscribeToMessages(user.id, {
+            onSubscribed: () => {
+                loadConversations();
+            },
             onInsert: handleNewMessage,
             onUpdate: handleMessageUpdated,
             onDelete: handleMessageDeleted,
@@ -608,7 +657,7 @@ export default function Messages() {
         return () => {
             unsubscribe();
         };
-    }, [chatUser, hydrateConversationMessages, invalidateConversations, loadConversations, user?.id, userId]);
+    }, [chatUser, hydrateConversationMessages, loadConversations, user?.id, userId]);
 
     useEffect(() => {
         if (!userId) {

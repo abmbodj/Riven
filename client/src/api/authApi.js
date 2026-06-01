@@ -4115,7 +4115,11 @@ export const subscribeToMessages = (currentUserId, handlers = {}) => {
             handlers.onDelete?.(mapMessageRow(payload.old, { id: currentUserId }));
         });
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+            handlers.onSubscribed?.();
+        }
+    });
     return () => supabase.removeChannel(channel);
 };
 
