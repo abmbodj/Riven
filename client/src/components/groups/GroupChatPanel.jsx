@@ -580,8 +580,8 @@ function MessageRow({ item, isNew, editingId, editContent, editInputRef, onEditC
                     </AnimatePresence>
                 </div>
 
-                {/* Timestamp — only on last message or first in run */}
-                {isFirstInRun && (
+                {/* Timestamp — anchored to the last message in a run */}
+                {isLastInRun && (
                     <span className="text-[10px] text-claude-secondary/50 px-1">
                         {formatTime(msg.createdAt)}
                     </span>
