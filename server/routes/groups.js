@@ -34,6 +34,23 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
                 return res.status(403).json({ error: 'Your account has been restricted from creating study groups.' });
             }
 
+            // Server-side enforcement of free-tier group limit
+            const groupCountRow = await db.queryOne(
+                'SELECT COUNT(*) AS count FROM group_members WHERE user_id = $1',
+                [req.user.id]
+            );
+            const userForTier = await db.queryOne(
+                'SELECT subscription_tier FROM users WHERE id = $1',
+                [req.user.id]
+            );
+            const tier = userForTier?.subscription_tier || 'free';
+            if (tier === 'free' && parseInt(groupCountRow?.count || '0', 10) >= 1) {
+                return res.status(403).json({
+                    error: 'Free accounts are limited to 1 study group. Upgrade to Pro for unlimited groups.',
+                    upgrade_required: true
+                });
+            }
+
             // Start transaction
             const client = await db.pool.connect();
             try {
@@ -405,6 +422,28 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
                 return res.status(403).json({ error: 'Only admins can delete folders' });
             }
 
+            // Clean up any files stored in this folder
+            const filesToDelete = await db.query(
+                'SELECT file_url FROM group_files WHERE folder_id = $1 AND group_id = $2',
+                [folderId, id]
+            );
+            const supabaseUrl = process.env.SUPABASE_URL;
+            const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            const bucketPrefix = '/storage/v1/object/public/group-files/';
+            if (supabaseUrl && serviceKey) {
+                for (const file of filesToDelete.rows) {
+                    if (file.file_url && file.file_url.includes(bucketPrefix)) {
+                        const storagePath = file.file_url.split(bucketPrefix)[1];
+                        if (storagePath) {
+                            await fetch(`${supabaseUrl}/storage/v1/object/group-files/${storagePath}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
+                            }).catch(err => console.warn('Storage cleanup warning:', err.message));
+                        }
+                    }
+                }
+            }
+
             await db.execute('DELETE FROM group_folders WHERE id = $1 AND group_id = $2', [folderId, id]);
             res.json({ message: 'Folder deleted' });
         } catch (error) {
@@ -420,6 +459,17 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
         try {
             const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
             if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const supabaseUrl = process.env.SUPABASE_URL;
+            const expectedPrefix = supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/group-files/${id}/` : null;
+            if (expectedPrefix && (!file_url || !file_url.startsWith(expectedPrefix))) {
+                return res.status(400).json({ error: 'Invalid file URL' });
+            }
+
+            if (folder_id) {
+                const folder = await db.queryOne('SELECT 1 FROM group_folders WHERE id = $1 AND group_id = $2', [folder_id, id]);
+                if (!folder) return res.status(400).json({ error: 'Invalid folder' });
+            }
 
             const newFile = await db.queryOne(
                 'INSERT INTO group_files (group_id, folder_id, name, file_url, file_type, uploaded_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
@@ -486,6 +536,9 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
             const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
             if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
 
+            const sharedDeck = await db.queryOne('SELECT 1 FROM group_decks WHERE group_id = $1 AND deck_id = $2', [id, deck_id]);
+            if (!sharedDeck) return res.status(403).json({ error: 'Deck is not shared with this group' });
+
             const newSession = await db.queryOne(
                 'INSERT INTO cram_sessions (group_id, deck_id, started_by) VALUES ($1, $2, $3) RETURNING *',
                 [id, deck_id, req.user.id]
@@ -526,6 +579,11 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
         if (!card_id || knew_it === undefined) return res.status(400).json({ error: 'Missing response data' });
 
         try {
+            const session = await db.queryOne('SELECT group_id, status FROM cram_sessions WHERE id = $1', [sessionId]);
+            if (!session || session.status !== 'active') return res.status(404).json({ error: 'Active session not found' });
+            const membership = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
+            if (!membership) return res.status(403).json({ error: 'Not a member of this group' });
+
             // Upsert response
             await db.query(`
                 INSERT INTO cram_responses (session_id, user_id, card_id, knew_it) 
@@ -548,7 +606,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
             const session = await db.queryOne('SELECT * FROM cram_sessions WHERE id = $1', [sessionId]);
             if (!session) return res.status(404).json({ error: 'Session not found' });
 
-            if (session.started_by != req.user.id) {
+            if (String(session.started_by) !== String(req.user.id)) {
                 const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
                 if (!memberCheck || memberCheck.role !== 'admin') {
                     return res.status(403).json({ error: 'Only the session starter or an admin can end the session' });

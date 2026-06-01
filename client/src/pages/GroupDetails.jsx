@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useContext, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Folder, FileText, Upload, CalendarPlus2, X, ChevronLeft, Users, Settings, Trash2, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
 import { UIContext } from '../context/UIContext';
@@ -38,13 +38,16 @@ export default function GroupDetails() {
 
     // Seed the first paint from the persisted cache so revisits render instantly
     // (skeletons only appear on a true cold load with nothing cached).
-    cache.ensureUser(user?.id);
-    const initialScheduleRange = getVisibleMonthRange(new Date());
-    const seededInfo = cache.peek(groupKeys.info(id));
-    const seededMembers = cache.peek(groupKeys.members(id));
-    const seededDecks = cache.peek(groupKeys.decks(id));
-    const seededFolders = cache.peek(groupKeys.folders(id));
-    const seededSchedule = cache.peek(groupKeys.schedule(id, initialScheduleRange.start, initialScheduleRange.end));
+    useMemo(() => { cache.ensureUser(user?.id); }, [user?.id]);
+    const initialScheduleRange = useMemo(() => getVisibleMonthRange(new Date()), []);
+    const seededInfo     = useMemo(() => cache.peek(groupKeys.info(id)), [id]);
+    const seededMembers  = useMemo(() => cache.peek(groupKeys.members(id)), [id]);
+    const seededDecks    = useMemo(() => cache.peek(groupKeys.decks(id)), [id]);
+    const seededFolders  = useMemo(() => cache.peek(groupKeys.folders(id)), [id]);
+    const seededSchedule = useMemo(
+        () => cache.peek(groupKeys.schedule(id, initialScheduleRange.start, initialScheduleRange.end)),
+        [id, initialScheduleRange]
+    );
 
     const [group, setGroup] = useState(seededInfo || null);
     const [members, setMembers] = useState(seededMembers || []);
@@ -249,6 +252,17 @@ export default function GroupDetails() {
         }
     }, [showShareDeckModal]);
 
+    useEffect(() => {
+        if (!activeMemberMenuId) return;
+        const handler = (e) => {
+            if (!e.target.closest('[data-member-menu]')) {
+                setActiveMemberMenuId(null);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [activeMemberMenuId]);
+
     const { container } = useGSAP(() => {
         if (loading || !group) return;
 
@@ -322,13 +336,10 @@ export default function GroupDetails() {
         if (!result.success) return toast.error(result.error.errors[0]?.message || 'Name is required');
 
         try {
-            await api.updateGroup(id, { name: result.data, class_id: editData.class_id || null });
+            const updated = await api.updateGroup(id, { name: result.data, class_id: editData.class_id || null });
+            if (updated) setGroup(updated);
             toast.success('Group updated');
             setShowSettings(false);
-
-            // Refresh only group info to get updated name/class
-            const groupRes = await api.getGroupInfo(id);
-            setGroup(groupRes);
         } catch (err) {
             toast.error(err.message || 'Failed to update');
         }
@@ -336,10 +347,9 @@ export default function GroupDetails() {
 
     const handleRegenerateCode = async () => {
         try {
-            await api.updateGroup(id, { regenerate_code: true, class_id: group?.class_id || null });
+            const updated = await api.updateGroup(id, { regenerate_code: true, class_id: group?.class_id || null });
+            if (updated) setGroup(updated);
             toast.success('Join code regenerated');
-            const groupRes = await api.getGroupInfo(id);
-            setGroup(groupRes);
         } catch (err) {
             toast.error(err.message || 'Failed to regenerate code');
         }
@@ -504,6 +514,13 @@ export default function GroupDetails() {
         try {
             const file = uploadData.file;
             if (!file) throw new Error('No file selected');
+
+            const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error('File must be under 50MB');
+                setUploadStep('form');
+                return;
+            }
 
             // Build a unique storage path
             const folder = currentFolderId || 'root';
@@ -682,6 +699,8 @@ export default function GroupDetails() {
             'Cancel Session',
             'This will cancel the scheduled study session for everyone in the group.',
             async () => {
+                const originalStatus = meetup.status; // capture before optimistic update
+
                 // Optimistic update
                 setGroupSchedule((prev) => prev ? ({
                     ...prev,
@@ -697,11 +716,11 @@ export default function GroupDetails() {
                         console.error('Failed to sync meetup notifications', error);
                     });
                 } catch (err) {
-                    // Revert on failure
+                    // Revert to original status on failure
                     setGroupSchedule((prev) => prev ? ({
                         ...prev,
                         meetups: prev.meetups.map((m) =>
-                            m.id === meetup.id ? { ...m, status: 'active' } : m,
+                            m.id === meetup.id ? { ...m, status: originalStatus } : m,
                         ),
                     }) : prev);
                     toast.error(err.message || 'Failed to cancel the session');
@@ -885,12 +904,12 @@ export default function GroupDetails() {
                                                 </div>
                                             </div>
                                             {member.id !== currentUserId && (
-                                                <div className="relative">
+                                                <div className="relative" data-member-menu>
                                                     <button onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)} className="p-1 hover:bg-claude-border rounded-lg text-claude-secondary transition-colors">
                                                         <MoreVertical className="w-4 h-4" />
                                                     </button>
                                                     {activeMemberMenuId === member.id && (
-                                                        <div className="absolute right-0 mt-1 w-32 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20">
+                                                        <div className="absolute right-0 mt-1 w-32 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20" data-member-menu>
                                                             {isAdmin && member.role !== 'admin' && (
                                                                 <button onClick={() => { handleRemoveMember(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10">Remove</button>
                                                             )}
@@ -1203,12 +1222,12 @@ export default function GroupDetails() {
                                                 </div>
                                             </div>
                                             {member.id !== currentUserId && (
-                                                <div className="relative">
+                                                <div className="relative" data-member-menu>
                                                     <button onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)} className="p-2 text-claude-secondary active:bg-claude-border/50 rounded-xl transition-colors">
                                                         <MoreVertical className="w-5 h-5" />
                                                     </button>
                                                     {activeMemberMenuId === member.id && (
-                                                        <div className="absolute right-0 bottom-full mb-2 w-40 bg-claude-bg border border-claude-border rounded-2xl shadow-xl overflow-hidden z-20">
+                                                        <div className="absolute right-0 bottom-full mb-2 w-40 bg-claude-bg border border-claude-border rounded-2xl shadow-xl overflow-hidden z-20" data-member-menu>
                                                             {isAdmin && member.role !== 'admin' && <button onClick={() => { handleRemoveMember(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-red-500 hover:bg-red-500/10 border-b border-claude-border/50 transition-colors">Remove</button>}
                                                             <button onClick={() => { handleBlockUser(member.id, member.username); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-red-500 hover:bg-red-500/10 border-b border-claude-border/50 transition-colors">Block</button>
                                                             <button onClick={() => { setReportingUserId(member.id); setIsReportModalOpen(true); setActiveMemberMenuId(null); }} className="w-full text-left px-5 py-3.5 text-sm font-bold text-claude-text hover:bg-claude-surface transition-colors">Report</button>
@@ -1370,6 +1389,10 @@ export default function GroupDetails() {
                                                 <input type="file" onChange={e => {
                                                     const file = e.target.files[0];
                                                     if (file) {
+                                                        if (file.size > 50 * 1024 * 1024) {
+                                                            toast.error('File must be under 50MB');
+                                                            return;
+                                                        }
                                                         let typeString = 'pdf';
                                                         if (file.type.includes('image')) typeString = 'image';
                                                         else if (file.type.includes('word') || file.name.endsWith('.docx')) typeString = 'docx';

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Users, Plus, RefreshCw, X, Link as LinkIcon, Calendar, ArrowRight, ChevronDown, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,8 +20,8 @@ export default function StudyGroups() {
     const { user } = useAuth();
 
     // Seed the first paint from the persisted cache so revisits never flash a skeleton.
-    cache.ensureUser(user?.id);
-    const seededGroups = cache.peek(groupKeys.groups());
+    useMemo(() => { cache.ensureUser(user?.id); }, [user?.id]);
+    const seededGroups = useMemo(() => cache.peek(groupKeys.groups()), []);
 
     const [groups, setGroups] = useState(seededGroups || []);
     const [classes, setClasses] = useState([]);
@@ -77,6 +77,8 @@ export default function StudyGroups() {
     }, [loadData]);
 
     // Subscribe to realtime session events for all groups
+    const subscriptionsRef = useRef(new Map()); // groupId -> unsubscribeFn
+
     useEffect(() => {
         if (groups.length === 0) return;
 
@@ -96,29 +98,45 @@ export default function StudyGroups() {
         };
         fetchAllSessions();
 
-        // Subscribe to each group's session events
-        const unsubscribers = groups.map((group) =>
-            authApi.subscribeToGroupSessionEvents(group.id, {
-                onStarted: () => {
-                    setActiveSessions(prev => ({
-                        ...prev,
-                        [group.id]: (prev[group.id] || 0) + 1,
-                    }));
-                },
-                onEnded: () => {
-                    setActiveSessions(prev => {
-                        const newCount = (prev[group.id] || 1) - 1;
-                        if (newCount <= 0) {
-                            const { [group.id]: _, ...rest } = prev;
-                            return rest;
-                        }
-                        return { ...prev, [group.id]: newCount };
-                    });
-                },
-            })
-        );
+        const currentGroupIds = new Set(groups.map(g => g.id));
 
-        return () => unsubscribers.forEach(unsub => unsub());
+        // Remove subscriptions for groups no longer in the list
+        for (const [groupId, unsub] of subscriptionsRef.current.entries()) {
+            if (!currentGroupIds.has(groupId)) {
+                unsub();
+                subscriptionsRef.current.delete(groupId);
+            }
+        }
+
+        // Add subscriptions only for newly-added groups (don't recreate existing ones)
+        for (const group of groups) {
+            if (!subscriptionsRef.current.has(group.id)) {
+                const unsub = authApi.subscribeToGroupSessionEvents(group.id, {
+                    onStarted: () => {
+                        setActiveSessions(prev => ({
+                            ...prev,
+                            [group.id]: (prev[group.id] || 0) + 1,
+                        }));
+                    },
+                    onEnded: () => {
+                        setActiveSessions(prev => {
+                            const newCount = (prev[group.id] || 1) - 1;
+                            if (newCount <= 0) {
+                                const { [group.id]: _, ...rest } = prev;
+                                return rest;
+                            }
+                            return { ...prev, [group.id]: newCount };
+                        });
+                    },
+                });
+                subscriptionsRef.current.set(group.id, unsub);
+            }
+        }
+
+        return () => {
+            for (const unsub of subscriptionsRef.current.values()) unsub();
+            subscriptionsRef.current.clear();
+        };
     }, [groups]);
 
     // Pre-warm the detail bundle for the first few groups (during idle time) so

@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
+import { GroupErrorBoundary } from '../components/ui/GroupErrorBoundary';
 
 // Lazy load pages
 const Home = lazy(() => import('../pages/Home.jsx'));
@@ -129,8 +130,8 @@ export const routesConfig = [
       { path: '/messages', element: <Messages /> },
       { path: '/messages/:userId', element: <Messages /> },
       { path: '/profile/:userId', element: <UserProfile /> },
-      { path: '/groups', element: <StudyGroups /> },
-      { path: '/groups/:id', element: <GroupDetails /> },
+      { path: '/groups', element: <GroupErrorBoundary><StudyGroups /></GroupErrorBoundary> },
+      { path: '/groups/:id', element: <GroupErrorBoundary><GroupDetails /></GroupErrorBoundary> },
       { path: '/groups/:groupId/cram/:sessionId', element: <GroupCram /> },
       { path: '/youtube', element: <YouTubeImport /> },
     ],

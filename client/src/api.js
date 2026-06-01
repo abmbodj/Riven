@@ -16,10 +16,10 @@ const CACHE_TTL = {
 
 // Persisted stale-while-revalidate read: callers still receive a Promise of fresh
 // data, while group pages seed their first paint instantly from cache.peek(key).
-const swrRead = (key, fn) => cache.swr(key, fn, { persist: true }).revalidate();
+const swrRead = (key, fn) => cache.swr(key, fn, { ttl: CACHE_TTL.medium, persist: true }).revalidate();
 
 // Run a mutation, then drop the affected cache seeds so the next read/seed is correct.
-const mutate = (fn, invalidate) => fn().then((res) => { invalidate(); return res; });
+const mutate = (fn, invalidate) => { invalidate(); return fn(); };
 
 // Full cache sweep for a group the user no longer has (delete/leave).
 const invalidateGroup = (id) => {

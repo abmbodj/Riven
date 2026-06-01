@@ -30,6 +30,7 @@ export class Cache {
         this._inflight = new Map();
         this._userId = null;
         this._loaded = false;
+        this._flushScheduled = false;
     }
 
     set(key, value, ttl = 60000) { // Default 60s TTL
@@ -48,7 +49,13 @@ export class Cache {
         return item.value;
     }
 
-    /** Non-mutating, TTL-respecting read across both in-memory and persisted maps. */
+    /**
+     * Synchronous TTL-respecting read across in-memory and persisted maps.
+     * Unlike `get`, this does NOT evict expired entries from `store` — it simply
+     * returns null if the entry is expired. Use for `useState` initializers where
+     * a synchronous peek is needed without side effects. `get` should be preferred
+     * when eviction-on-access behaviour is desired.
+     */
     peek(key) {
         const item = this.store.get(key) || this._persist.get(key);
         if (!item) return null;
@@ -117,6 +124,15 @@ export class Cache {
 
         this._persist = next;
         this._flush(); // rewrite under the current user (drops other-user data)
+    }
+
+    _scheduleFlush() {
+        if (this._flushScheduled) return;
+        this._flushScheduled = true;
+        queueMicrotask(() => {
+            this._flushScheduled = false;
+            this._flush();
+        });
     }
 
     _flush() {
@@ -208,6 +224,14 @@ export class Cache {
                     this.store.delete(key);
                 }
             }
+            let persistChanged = false;
+            for (const [key, item] of this._persist.entries()) {
+                if (now > item.expiresAt) {
+                    this._persist.delete(key);
+                    persistChanged = true;
+                }
+            }
+            if (persistChanged) this._scheduleFlush();
         }, intervalMs);
     }
 }
