@@ -141,21 +141,27 @@ export default function StudyGroups() {
 
     // Pre-warm the detail bundle for the first few groups (during idle time) so
     // opening one is instant. Only warms groups not already cached.
-    // Skip on cold start (seededGroups === null) — no cache to build on yet,
-    // and firing 25 requests would saturate the connection pool on iOS Capacitor.
+    // On a cold start (seededGroups === null) we warm conservatively — just the
+    // top 1-2 groups, and only the two calls that gate the visible shell
+    // (info + schedule) — so we don't saturate the connection pool on iOS
+    // Capacitor (the full bundle is ~5 calls/group). Warm sessions get the full
+    // bundle for the top 5.
     useEffect(() => {
-        if (groups.length === 0 || !seededGroups) return;
-        const targets = groups.slice(0, 5).filter(g => !cache.peek(groupKeys.info(g.id)));
+        if (groups.length === 0) return;
+        const cold = !seededGroups;
+        const limit = cold ? 2 : 5;
+        const targets = groups.slice(0, limit).filter(g => !cache.peek(groupKeys.info(g.id)));
         if (targets.length === 0) return;
 
         const { start, end } = getVisibleMonthRange(new Date());
         const warm = () => {
             targets.forEach((group) => {
                 api.getGroupInfo(group.id).catch(() => {});
+                api.getGroupScheduleCalendar(group.id, start, end).catch(() => {});
+                if (cold) return;
                 api.getGroupMembers(group.id).catch(() => {});
                 api.getGroupDecks(group.id).catch(() => {});
                 api.getGroupFolders(group.id).catch(() => {});
-                api.getGroupScheduleCalendar(group.id, start, end).catch(() => {});
             });
         };
 

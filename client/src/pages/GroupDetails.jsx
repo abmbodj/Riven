@@ -101,17 +101,17 @@ export default function GroupDetails() {
     const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
 
     const loadGroup = useCallback(async () => {
+        // Fire all four in parallel, but reveal the shell as soon as the core
+        // group info resolves instead of blocking on the slowest round-trip.
+        // The secondary loads settle in the background (each seeded from cache
+        // already), so a partial render is safe.
+        api.getGroupMembers(id).then(res => setMembers(res || [])).catch(err => console.error('Failed to load group members', err));
+        api.getGroupDecks(id).then(res => setSharedDecks(res || [])).catch(err => console.error('Failed to load group decks', err));
+        api.getGroupFolders(id).then(res => setFolders(res || [])).catch(err => console.error('Failed to load group folders', err));
+
         try {
-            const [groupRes, membersRes, decksRes, fetchedFolders] = await Promise.all([
-                api.getGroupInfo(id),
-                api.getGroupMembers(id),
-                api.getGroupDecks(id),
-                api.getGroupFolders(id),
-            ]);
+            const groupRes = await api.getGroupInfo(id);
             setGroup(groupRes);
-            setMembers(membersRes || []);
-            setSharedDecks(decksRes || []);
-            setFolders(fetchedFolders || []);
         } catch (err) {
             console.error(err);
             toast.error('Failed to load group details');

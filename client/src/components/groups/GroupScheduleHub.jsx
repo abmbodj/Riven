@@ -524,6 +524,10 @@ export default function GroupScheduleHub({
     const meetups = calendarData?.meetups ?? EMPTY_ARRAY;
     const myShareMode = calendarData?.my_share_mode || null;
     const visibleRange = useMemo(() => getCalendarVisibleRange(anchorDate, view), [anchorDate, view]);
+    // Always fetch at month-grid granularity. A month grid is a superset of any
+    // week/day within it (slots are recurring, meetups are filtered client-side),
+    // so switching month/week/day needs no new fetch.
+    const fetchRange = useMemo(() => getVisibleMonthRange(anchorDate), [anchorDate]);
 
     const calendarSources = useMemo(() => {
         const memberSources = members
@@ -622,8 +626,8 @@ export default function GroupScheduleHub({
     useBodyScrollLock(composerOpen);
 
     useEffect(() => {
-        onRangeChange?.(visibleRange.start, visibleRange.end);
-    }, [onRangeChange, visibleRange.end, visibleRange.start]);
+        onRangeChange?.(fetchRange.start, fetchRange.end);
+    }, [onRangeChange, fetchRange.end, fetchRange.start]);
 
     useEffect(() => {
         if (!composerRequestKey) return;
