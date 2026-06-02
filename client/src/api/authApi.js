@@ -4593,6 +4593,15 @@ const mapGroupMessageRow = (row, currentUserId) => ({
     isMine: Number(row.sender_id) === Number(currentUserId),
 });
 
+const sortGroupMessagesChronologically = (messages = []) => (
+    [...messages].sort((left, right) => {
+        const leftTime = new Date(left.createdAt).getTime();
+        const rightTime = new Date(right.createdAt).getTime();
+        if (leftTime !== rightTime) return leftTime - rightTime;
+        return String(left.id).localeCompare(String(right.id));
+    })
+);
+
 export const getGroupMessages = async (groupId, { before, limit = 50 } = {}) => {
     const currentUserId = await getAppUserId();
     const data = await callGroupRpc('list_group_messages', {
@@ -4600,7 +4609,7 @@ export const getGroupMessages = async (groupId, { before, limit = 50 } = {}) => 
         before_id: before || null,
         page_limit: Math.min(limit, 100),
     });
-    return (data || []).map((row) => mapGroupMessageRow(row, currentUserId));
+    return sortGroupMessagesChronologically((data || []).map((row) => mapGroupMessageRow(row, currentUserId)));
 };
 
 export const sendGroupMessage = async (groupId, content) => {
@@ -4681,6 +4690,67 @@ export const subscribeToGroupMessages = (groupId, currentUserId, handlers = {}) 
 
     channel.subscribe();
     return () => supabase.removeChannel(channel);
+};
+
+export const subscribeToGroupTypingPresence = (groupId, currentUserId, handlers = {}) => {
+    const normalizedCurrentUserId = Number(currentUserId);
+
+    if (!groupId || !Number.isInteger(normalizedCurrentUserId)) {
+        return {
+            startTyping: () => Promise.resolve(),
+            stopTyping: () => Promise.resolve(),
+            unsubscribe: () => {},
+        };
+    }
+
+    const channel = supabase.channel(`group_typing_${groupId}`, {
+        config: {
+            presence: {
+                key: `user-${normalizedCurrentUserId}`,
+            },
+        },
+    });
+
+    const syncTypingState = () => {
+        const state = channel.presenceState?.() || {};
+        const typingUserIds = [...new Set(
+            Object.values(state)
+                .flat()
+                .filter((presence) => (
+                    Number(presence?.userId) !== normalizedCurrentUserId
+                    && presence?.isTyping === true
+                ))
+                .map((presence) => Number(presence.userId))
+                .filter(Number.isInteger)
+        )];
+
+        handlers.onTypingUsersChange?.(typingUserIds);
+    };
+
+    channel.on('presence', { event: 'sync' }, syncTypingState);
+    channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            await channel.track({
+                userId: normalizedCurrentUserId,
+                isTyping: false,
+            });
+        }
+    });
+
+    return {
+        startTyping: () => channel.track({
+            userId: normalizedCurrentUserId,
+            isTyping: true,
+        }),
+        stopTyping: () => channel.track({
+            userId: normalizedCurrentUserId,
+            isTyping: false,
+        }),
+        unsubscribe: () => {
+            channel.untrack?.();
+            supabase.removeChannel(channel);
+        },
+    };
 };
 
 // ============ ADMIN ENDPOINTS ============

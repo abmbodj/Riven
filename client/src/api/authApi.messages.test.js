@@ -595,4 +595,100 @@ describe('authApi direct messages via Supabase', () => {
     expect(untrack).toHaveBeenCalledTimes(1);
     expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
   });
+
+  it('loads group messages chronologically even when the RPC returns newest first', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, username: 'avery', avatar: '/me.png' }));
+    supabase.rpc.mockResolvedValue({
+      data: [
+        {
+          id: 'newer',
+          group_id: 'group-1',
+          sender_id: 12,
+          sender_username: 'bianca',
+          sender_avatar: '/bianca.png',
+          content: 'newer',
+          is_edited: false,
+          created_at: '2026-06-01T17:05:00.000Z',
+        },
+        {
+          id: 'older',
+          group_id: 'group-1',
+          sender_id: 42,
+          sender_username: 'avery',
+          sender_avatar: '/me.png',
+          content: 'older',
+          is_edited: false,
+          created_at: '2026-06-01T17:00:00.000Z',
+        },
+      ],
+      error: null,
+    });
+
+    const messages = await authApi.getGroupMessages('group-1');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_group_messages', {
+      target_group_id: 'group-1',
+      before_id: null,
+      page_limit: 50,
+    });
+    expect(messages.map((message) => message.id)).toEqual(['older', 'newer']);
+  });
+
+  it('tracks group typing state through Supabase Presence', async () => {
+    const syncHandler = vi.fn();
+    const track = vi.fn().mockResolvedValue(undefined);
+    const untrack = vi.fn();
+    const presenceState = vi.fn(() => ({
+      'user-12': [{ userId: 12, isTyping: true }],
+      'user-42': [{ userId: 42, isTyping: true }],
+    }));
+    const subscribe = vi.fn((callback) => {
+      callback?.('SUBSCRIBED');
+      return channel;
+    });
+    const on = vi.fn().mockImplementation((_event, _config, handler) => {
+      syncHandler.mockImplementation(handler);
+      return channel;
+    });
+
+    const channel = { on, subscribe, track, untrack, presenceState };
+    supabase.channel.mockReturnValue(channel);
+
+    const onTypingUsersChange = vi.fn();
+    const typing = authApi.subscribeToGroupTypingPresence('group-1', 42, {
+      onTypingUsersChange,
+    });
+
+    await Promise.resolve();
+
+    expect(supabase.channel).toHaveBeenCalledWith('group_typing_group-1', expect.any(Object));
+    expect(track).toHaveBeenCalledWith({ userId: 42, isTyping: false });
+
+    syncHandler();
+    expect(onTypingUsersChange).toHaveBeenCalledWith([12]);
+    expect(typing.startTyping).toBeTypeOf('function');
+    expect(typing.stopTyping).toBeTypeOf('function');
+
+    await typing.startTyping();
+    await typing.stopTyping();
+
+    expect(track).toHaveBeenNthCalledWith(2, { userId: 42, isTyping: true });
+    expect(track).toHaveBeenNthCalledWith(3, { userId: 42, isTyping: false });
+
+    typing.unsubscribe();
+    expect(untrack).toHaveBeenCalledTimes(1);
+    expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
+  });
+
+  it('no-ops group typing presence when inputs are missing', async () => {
+    const typing = authApi.subscribeToGroupTypingPresence('', 'not-a-user', {
+      onTypingUsersChange: vi.fn(),
+    });
+
+    await expect(typing.startTyping()).resolves.toBeUndefined();
+    await expect(typing.stopTyping()).resolves.toBeUndefined();
+    typing.unsubscribe();
+
+    expect(supabase.channel).not.toHaveBeenCalled();
+  });
 });

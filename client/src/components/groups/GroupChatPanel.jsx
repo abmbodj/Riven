@@ -8,6 +8,93 @@ import Avatar from '../Avatar';
 import * as authApi from '../../api/authApi';
 
 const RUN_GAP_MS = 5 * 60 * 1000; // 5 minutes
+const GROUP_CHAT_CACHE_KEY = 'riven_group_chat_cache';
+const MAX_CACHED_GROUP_THREADS = 30;
+
+function sortMessagesChronologically(messages = []) {
+    return [...messages].sort((left, right) => {
+        const leftTime = new Date(left.createdAt).getTime();
+        const rightTime = new Date(right.createdAt).getTime();
+        if (leftTime !== rightTime) return leftTime - rightTime;
+        return String(left.id).localeCompare(String(right.id));
+    });
+}
+
+function mergeMessages(existing = [], incoming = []) {
+    const byId = new Map();
+    for (const message of existing) {
+        byId.set(message.id, message);
+    }
+    for (const message of incoming) {
+        byId.set(message.id, { ...(byId.get(message.id) || {}), ...message });
+    }
+    return sortMessagesChronologically([...byId.values()]);
+}
+
+function reconcileLatestPage(existing = [], fetched = []) {
+    if (fetched.length === 0) return sortMessagesChronologically(existing);
+    const oldestFetchedTime = Math.min(...fetched.map((message) => new Date(message.createdAt).getTime()));
+    const olderCachedMessages = existing.filter((message) => new Date(message.createdAt).getTime() < oldestFetchedTime);
+    return mergeMessages(olderCachedMessages, fetched);
+}
+
+const groupChatCache = {
+    _loaded: false,
+    messages: {},
+    times: {},
+    _hydrate() {
+        if (this._loaded || typeof sessionStorage === 'undefined') return;
+        this._loaded = true;
+        try {
+            const raw = sessionStorage.getItem(GROUP_CHAT_CACHE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            this.messages = parsed.messages || {};
+            this.times = parsed.times || {};
+        } catch {
+            this.messages = {};
+            this.times = {};
+        }
+    },
+    _persist() {
+        if (typeof sessionStorage === 'undefined') return;
+        try {
+            sessionStorage.setItem(GROUP_CHAT_CACHE_KEY, JSON.stringify({
+                messages: this.messages,
+                times: this.times,
+            }));
+        } catch {
+            // Cache is an optimization only.
+        }
+    },
+    _key(currentUserId, groupId) {
+        if (!currentUserId || !groupId) return null;
+        return `${currentUserId}:${groupId}`;
+    },
+    get(currentUserId, groupId) {
+        this._hydrate();
+        const key = this._key(currentUserId, groupId);
+        return key ? this.messages[key] || [] : [];
+    },
+    set(currentUserId, groupId, messages) {
+        this._hydrate();
+        const key = this._key(currentUserId, groupId);
+        if (!key) return;
+        this.messages[key] = sortMessagesChronologically(messages);
+        this.times[key] = Date.now();
+
+        const keys = Object.keys(this.messages);
+        if (keys.length > MAX_CACHED_GROUP_THREADS) {
+            const sortedKeys = keys.sort((left, right) => (this.times[left] || 0) - (this.times[right] || 0));
+            for (const staleKey of sortedKeys.slice(0, keys.length - MAX_CACHED_GROUP_THREADS)) {
+                delete this.messages[staleKey];
+                delete this.times[staleKey];
+            }
+        }
+
+        this._persist();
+    },
+};
 
 function formatDateDivider(dateStr) {
     const date = new Date(dateStr);
@@ -64,9 +151,10 @@ function buildItems(messages) {
 export default function GroupChatPanel({ groupId, members, currentUserId }) {
     const toast = useToast();
     const haptics = useHaptics();
+    const cachedInitialMessages = groupChatCache.get(currentUserId, groupId);
 
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [messages, setMessages] = useState(cachedInitialMessages);
+    const [loading, setLoading] = useState(cachedInitialMessages.length === 0);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const [input, setInput] = useState('');
@@ -75,6 +163,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     const [editContent, setEditContent] = useState('');
     const [contextMenuId, setContextMenuId] = useState(null);
     const [showNewMessagesPill, setShowNewMessagesPill] = useState(false);
+    const [typingUserIds, setTypingUserIds] = useState([]);
 
     const scrollParentRef = useRef(null);
     const isNearBottomRef = useRef(true);
@@ -82,6 +171,8 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     const inputRef = useRef(null);
     const editInputRef = useRef(null);
     const unsubRef = useRef(null);
+    const typingPresenceRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
 
     // Build sender lookup from members prop for realtime hydration
     const memberMap = useMemo(() => {
@@ -101,12 +192,25 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
         };
     }, [memberMap]);
 
-    // Re-hydrate when memberMap populates (members may arrive after messages on cold load)
-    useEffect(() => {
-        if (memberMap.size === 0) return;
-        setMessages(prev => prev.map(hydrateSender));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [memberMap]);
+    const updateMessages = useCallback((updater) => {
+        setMessages((previousMessages) => {
+            const nextMessages = typeof updater === 'function'
+                ? updater(previousMessages)
+                : updater;
+            const sortedMessages = sortMessagesChronologically(nextMessages);
+            groupChatCache.set(currentUserId, groupId, sortedMessages);
+            return sortedMessages;
+        });
+    }, [currentUserId, groupId]);
+
+    const typingNames = useMemo(() => (
+        typingUserIds
+            .map((userId) => {
+                const member = memberMap.get(Number(userId));
+                return member?.display_name || member?.username || null;
+            })
+            .filter(Boolean)
+    ), [memberMap, typingUserIds]);
 
     // Flat items array for virtualizer (dividers + messages)
     const items = useMemo(() => buildItems(messages), [messages]);
@@ -169,7 +273,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
             if (older.length < 50) setHasMore(false);
             if (older.length > 0) {
                 older.forEach(m => loadedIdsRef.current.add(m.id));
-                setMessages(prev => [...older.map(hydrateSender), ...prev]);
+                updateMessages(prev => mergeMessages(prev, older.map(hydrateSender)));
                 requestAnimationFrame(() => {
                     const el = scrollParentRef.current;
                     if (el) el.scrollTop += el.scrollHeight - prevHeight;
@@ -180,7 +284,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
         } finally {
             setLoadingMore(false);
         }
-    }, [hasMore, loadingMore, messages, groupId, toast, hydrateSender]);
+    }, [hasMore, loadingMore, messages, groupId, toast, hydrateSender, updateMessages]);
 
     useEffect(() => {
         const el = scrollParentRef.current;
@@ -199,10 +303,13 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     useEffect(() => {
         if (!groupId) return;
         let cancelled = false;
-        setLoading(true);
-        setMessages([]);
+        const cachedMessages = groupChatCache.get(currentUserId, groupId).map(hydrateSender);
+        setMessages(cachedMessages);
+        setLoading(cachedMessages.length === 0);
         setHasMore(true);
+        setTypingUserIds([]);
         loadedIdsRef.current.clear();
+        cachedMessages.forEach((message) => loadedIdsRef.current.add(message.id));
 
         authApi.getGroupMessages(groupId).then(data => {
             if (cancelled) return;
@@ -211,21 +318,29 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
                 loadedIdsRef.current.add(m.id);
                 return hydrateSender(m);
             });
-            setMessages(hydrated);
+            updateMessages(prev => cachedMessages.length > 0
+                ? reconcileLatestPage(prev, hydrated)
+                : hydrated
+            );
             setLoading(false);
         }).catch(() => {
-            if (!cancelled) { toast.error('Failed to load messages'); setLoading(false); }
+            if (!cancelled) {
+                if (cachedMessages.length === 0) {
+                    toast.error('Failed to load messages');
+                }
+                setLoading(false);
+            }
         });
 
         return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [groupId]);
+    }, [groupId, currentUserId]);
 
     // Re-hydrate sender info when members list loads (can arrive after messages)
     useEffect(() => {
         if (memberMap.size === 0) return;
-        setMessages(prev => prev.map(hydrateSender));
-    }, [memberMap, hydrateSender]);
+        updateMessages(prev => prev.map(hydrateSender));
+    }, [memberMap, hydrateSender, updateMessages]);
 
     // Realtime subscription
     useEffect(() => {
@@ -236,24 +351,72 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
                 const isNew = !loadedIdsRef.current.has(msg.id);
                 loadedIdsRef.current.add(msg.id);
                 if (!isNew) return;
-                setMessages(prev => {
-                    if (prev.find(m => m.id === msg.id)) return prev;
-                    return [...prev, hydrateSender(msg)];
-                });
+                updateMessages(prev => mergeMessages(prev, [hydrateSender(msg)]));
             },
             onUpdate: (msg) => {
-                setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, content: msg.content, isEdited: true } : m));
+                updateMessages(prev => mergeMessages(prev, [{ ...hydrateSender(msg), isEdited: true }]));
             },
             onDelete: (id) => {
-                setMessages(prev => prev.filter(m => m.id !== id));
+                updateMessages(prev => prev.filter(m => m.id !== id));
             },
         });
         return () => { unsubRef.current?.(); unsubRef.current = null; };
-    }, [groupId, currentUserId, hydrateSender]);
+    }, [groupId, currentUserId, hydrateSender, updateMessages]);
+
+    useEffect(() => {
+        if (!groupId || !currentUserId) {
+            setTypingUserIds([]);
+            return undefined;
+        }
+
+        setTypingUserIds([]);
+        const presence = authApi.subscribeToGroupTypingPresence(groupId, currentUserId, {
+            onTypingUsersChange: setTypingUserIds,
+        });
+        typingPresenceRef.current = presence;
+
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+            presence.stopTyping?.();
+            presence.unsubscribe?.();
+            if (typingPresenceRef.current === presence) {
+                typingPresenceRef.current = null;
+            }
+        };
+    }, [groupId, currentUserId]);
+
+    const stopTyping = useCallback(() => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+        typingPresenceRef.current?.stopTyping?.();
+    }, []);
+
+    const signalTyping = useCallback((value) => {
+        if (!value.trim()) {
+            stopTyping();
+            return;
+        }
+
+        typingPresenceRef.current?.startTyping?.();
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+            typingPresenceRef.current?.stopTyping?.();
+            typingTimeoutRef.current = null;
+        }, 2500);
+    }, [stopTyping]);
 
     // Auto-grow textarea
     const handleInputChange = (e) => {
-        setInput(e.target.value);
+        const nextValue = e.target.value;
+        setInput(nextValue);
+        signalTyping(nextValue);
         e.target.style.height = 'auto';
         e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
     };
@@ -261,6 +424,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     const handleSend = useCallback(async () => {
         const text = input.trim();
         if (!text || sending) return;
+        stopTyping();
         setSending(true);
         const optimisticId = `optimistic-${Date.now()}`;
         const me = memberMap.get(Number(currentUserId));
@@ -277,7 +441,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
             isMine: true,
         };
         loadedIdsRef.current.add(optimisticId);
-        setMessages(prev => [...prev, optimistic]);
+        updateMessages(prev => mergeMessages(prev, [optimistic]));
         setInput('');
         if (inputRef.current) { inputRef.current.style.height = 'auto'; }
         requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom('auto')));
@@ -285,14 +449,14 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
         try {
             const saved = await authApi.sendGroupMessage(groupId, text);
             loadedIdsRef.current.add(saved.id);
-            setMessages(prev => prev.map(m => m.id === optimisticId ? hydrateSender(saved) : m));
+            updateMessages(prev => mergeMessages(prev.filter(m => m.id !== optimisticId), [hydrateSender(saved)]));
         } catch {
-            setMessages(prev => prev.filter(m => m.id !== optimisticId));
+            updateMessages(prev => prev.filter(m => m.id !== optimisticId));
             toast.error('Failed to send message');
         } finally {
             setSending(false);
         }
-    }, [input, sending, groupId, currentUserId, memberMap, scrollToBottom, haptics, hydrateSender, toast]);
+    }, [input, sending, stopTyping, groupId, currentUserId, memberMap, updateMessages, scrollToBottom, haptics, hydrateSender, toast]);
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -311,25 +475,25 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     const submitEdit = async (msgId) => {
         const text = editContent.trim();
         if (!text) return;
-        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: text, isEdited: true } : m));
+        updateMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: text, isEdited: true } : m));
         setEditingId(null);
         try {
             await authApi.editGroupMessage(groupId, msgId, text);
         } catch {
             toast.error('Failed to edit message');
-            authApi.getGroupMessages(groupId).then(data => setMessages(data.map(hydrateSender)));
+            authApi.getGroupMessages(groupId).then(data => updateMessages(data.map(hydrateSender)));
         }
     };
 
     const handleDelete = async (msgId) => {
         setContextMenuId(null);
-        setMessages(prev => prev.filter(m => m.id !== msgId));
+        updateMessages(prev => prev.filter(m => m.id !== msgId));
         haptics?.light?.();
         try {
             await authApi.deleteGroupMessage(groupId, msgId);
         } catch {
             toast.error('Failed to delete message');
-            authApi.getGroupMessages(groupId).then(data => setMessages(data.map(hydrateSender)));
+            authApi.getGroupMessages(groupId).then(data => updateMessages(data.map(hydrateSender)));
         }
     };
 
@@ -349,6 +513,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
                 <div className="flex-1 flex items-center justify-center">
                     <div className="w-5 h-5 rounded-full border-2 border-claude-secondary/30 border-t-claude-secondary animate-spin" />
                 </div>
+                <TypingIndicator names={typingNames} />
                 <ChatInput
                     inputRef={inputRef}
                     value={input}
@@ -371,6 +536,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
                     <p className="text-sm text-claude-secondary">No messages yet</p>
                     <p className="text-xs text-claude-secondary/60">Start the conversation</p>
                 </div>
+                <TypingIndicator names={typingNames} />
                 <ChatInput
                     inputRef={inputRef}
                     value={input}
@@ -452,6 +618,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
             </AnimatePresence>
 
             {/* Input */}
+            <TypingIndicator names={typingNames} />
             <ChatInput
                 inputRef={inputRef}
                 value={input}
@@ -472,6 +639,22 @@ function DateDivider({ label }) {
             <div className="flex-1 h-px bg-claude-border/30" />
             <span className="text-xs text-claude-secondary/60 font-medium shrink-0">{label}</span>
             <div className="flex-1 h-px bg-claude-border/30" />
+        </div>
+    );
+}
+
+function TypingIndicator({ names }) {
+    if (!names.length) return null;
+
+    const label = names.length === 1
+        ? `${names[0]} is typing...`
+        : names.length === 2
+            ? `${names[0]} and ${names[1]} are typing...`
+            : 'Several people are typing...';
+
+    return (
+        <div className="shrink-0 px-4 pb-1 text-xs font-medium text-claude-secondary/70">
+            {label}
         </div>
     );
 }
