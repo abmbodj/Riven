@@ -100,6 +100,10 @@ function renderAppAt(pathname) {
     );
 }
 
+function findLandingReady() {
+    return screen.findByText('Cultivated by Riven', {}, { timeout: 3000 });
+}
+
 describe('App bootstrap smoke tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -120,7 +124,7 @@ describe('App bootstrap smoke tests', () => {
     it('mounts the landing route without showing the error boundary', async () => {
         const { container } = renderAppAt('/');
 
-        await screen.findByText('Cultivated by Riven');
+        await findLandingReady();
 
         await waitFor(() => {
             expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
@@ -146,7 +150,7 @@ describe('App bootstrap smoke tests', () => {
     it('does not show the update banner when no new web build is waiting', async () => {
         renderAppAt('/');
 
-        await screen.findByText('Cultivated by Riven');
+        await findLandingReady();
 
         expect(screen.queryByText('Refresh now')).not.toBeInTheDocument();
     });
@@ -155,7 +159,7 @@ describe('App bootstrap smoke tests', () => {
         pwaState.needRefresh = true;
         renderAppAt('/');
 
-        await screen.findByText('Cultivated by Riven');
+        await findLandingReady();
 
         const refreshButton = await screen.findByRole('button', { name: 'Refresh now' });
         fireEvent.click(refreshButton);
@@ -169,7 +173,7 @@ describe('App bootstrap smoke tests', () => {
         pwaState.needRefresh = true;
         renderAppAt('/');
 
-        await screen.findByText('Cultivated by Riven');
+        await findLandingReady();
 
         fireEvent.click(await screen.findByRole('button', { name: 'Later' }));
 

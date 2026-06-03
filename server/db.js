@@ -443,6 +443,10 @@ if (global.__TEST_DB_MOCK__) {
                     font_family_body TEXT DEFAULT 'Lora',
                     effect_preset TEXT DEFAULT 'none',
                     effect_intensity TEXT DEFAULT 'soft',
+                    background_style TEXT DEFAULT 'solid',
+                    gradient_colors JSONB DEFAULT '[]'::jsonb,
+                    gradient_angle INTEGER DEFAULT 135,
+                    gradient_intensity TEXT DEFAULT 'medium',
                     is_active INTEGER DEFAULT 0,
                     is_default INTEGER DEFAULT 0
                 )
@@ -460,6 +464,18 @@ if (global.__TEST_DB_MOCK__) {
             `).catch(() => { });
             await client.query(`
                 ALTER TABLE themes ADD COLUMN IF NOT EXISTS effect_intensity TEXT DEFAULT 'soft'
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS background_style TEXT DEFAULT 'solid'
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS gradient_colors JSONB DEFAULT '[]'::jsonb
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS gradient_angle INTEGER DEFAULT 135
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS gradient_intensity TEXT DEFAULT 'medium'
             `).catch(() => { });
 
             // Shared decks table

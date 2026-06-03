@@ -3355,7 +3355,14 @@ export const getThemes = async () => {
 
             const updates = {};
             for (const field of THEME_VISUAL_FIELDS) {
-                if ((existing[field] || null) !== (preset[field] || null)) {
+                const existingValue = Array.isArray(existing[field])
+                    ? JSON.stringify(existing[field])
+                    : (existing[field] || null);
+                const presetValue = Array.isArray(preset[field])
+                    ? JSON.stringify(preset[field])
+                    : (preset[field] || null);
+
+                if (existingValue !== presetValue) {
                     updates[field] = preset[field];
                 }
             }
@@ -3408,6 +3415,10 @@ export const createTheme = async (themeData) => {
         font_family_body: themeData.font_family_body || 'Lora',
         effect_preset: themeData.effect_preset || 'none',
         effect_intensity: themeData.effect_intensity || 'soft',
+        background_style: themeData.background_style || 'solid',
+        gradient_colors: Array.isArray(themeData.gradient_colors) ? themeData.gradient_colors : [],
+        gradient_angle: Number.isFinite(Number(themeData.gradient_angle)) ? Number(themeData.gradient_angle) : 135,
+        gradient_intensity: themeData.gradient_intensity || 'medium',
         is_active: 0,
         is_default: 0,
     };
@@ -3434,6 +3445,10 @@ export const updateTheme = async (id, themeData) => {
     if (themeData.font_family_body !== undefined) updates.font_family_body = themeData.font_family_body;
     if (themeData.effect_preset !== undefined) updates.effect_preset = themeData.effect_preset;
     if (themeData.effect_intensity !== undefined) updates.effect_intensity = themeData.effect_intensity;
+    if (themeData.background_style !== undefined) updates.background_style = themeData.background_style;
+    if (themeData.gradient_colors !== undefined) updates.gradient_colors = Array.isArray(themeData.gradient_colors) ? themeData.gradient_colors : [];
+    if (themeData.gradient_angle !== undefined) updates.gradient_angle = Number(themeData.gradient_angle);
+    if (themeData.gradient_intensity !== undefined) updates.gradient_intensity = themeData.gradient_intensity;
 
     const { data, error } = await supabase
         .from('themes')

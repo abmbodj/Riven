@@ -183,7 +183,38 @@ describe('authApi themes PostgREST', () => {
       font_family_body: 'Lora',
       effect_preset: 'none',
       effect_intensity: 'soft',
+      background_style: 'solid',
+      gradient_colors: [],
+      gradient_angle: 135,
+      gradient_intensity: 'medium',
     }));
+  });
+
+  it('updates custom themes with gradient recipe fields', async () => {
+    authApi.setToken('supabase-token');
+
+    const single = vi.fn().mockResolvedValue({ data: { id: 7, name: 'Rain Signal' }, error: null });
+    const select = vi.fn().mockReturnValue({ single });
+    const eq = vi.fn().mockReturnValue({ select });
+    const update = vi.fn().mockReturnValue({ eq });
+    supabase.from.mockReturnValue({ update });
+
+    await authApi.updateTheme(7, {
+      name: 'Rain Signal',
+      background_style: 'gradient',
+      gradient_colors: ['#071417', '#0d3340', '#52d1c6'],
+      gradient_angle: 210,
+      gradient_intensity: 'rich',
+    });
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Rain Signal',
+      background_style: 'gradient',
+      gradient_colors: ['#071417', '#0d3340', '#52d1c6'],
+      gradient_angle: 210,
+      gradient_intensity: 'rich',
+    }));
+    expect(eq).toHaveBeenCalledWith('id', 7);
   });
 
   it('activates themes by clearing the previous active theme before setting the new one', async () => {

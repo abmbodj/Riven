@@ -1,34 +1,85 @@
 import { FOUNDATION_THEME_NAMES } from '../../themeCatalog.js';
+import {
+    DEFAULT_GRADIENT_ANGLE,
+    DEFAULT_GRADIENT_INTENSITY,
+    DEFAULT_THEME_DARK,
+    DEFAULT_THEME_LIGHT,
+    GRADIENT_INTENSITY_OPTIONS,
+    MAX_GRADIENT_STOPS,
+    MIN_GRADIENT_STOPS,
+    buildGradientCss,
+    deriveThemeFromGradientRecipe,
+    normalizeGradientColors,
+    normalizeGradientRecipe
+} from '../../utils/themeGradientRecipe.js';
 
 export { FOUNDATION_THEME_NAMES };
-
-const DEFAULT_THEME_DARK = {
-    name: 'Riven',
-    bg_color: '#162a31',
-    surface_color: '#1e3840',
-    text_color: '#e4ddd0',
-    secondary_text_color: '#8fa6a8',
-    border_color: '#233e46',
-    accent_color: '#deb96a',
-    font_family_display: 'Cormorant Garamond',
-    font_family_body: 'Lora',
-    effect_preset: 'none',
-    effect_intensity: 'soft'
+export {
+    DEFAULT_GRADIENT_ANGLE,
+    DEFAULT_GRADIENT_INTENSITY,
+    DEFAULT_THEME_DARK,
+    DEFAULT_THEME_LIGHT,
+    GRADIENT_INTENSITY_OPTIONS,
+    MAX_GRADIENT_STOPS,
+    MIN_GRADIENT_STOPS,
+    buildGradientCss,
+    deriveThemeFromGradientRecipe,
+    normalizeGradientColors,
+    normalizeGradientRecipe
 };
 
-const DEFAULT_THEME_LIGHT = {
-    name: 'Riven Light',
-    bg_color: '#f5f0e8',
-    surface_color: '#ffffff',
-    text_color: '#1e3840',
-    secondary_text_color: '#6b7d7f',
-    border_color: '#ddd5c8',
-    accent_color: '#deb96a',
-    font_family_display: 'Cormorant Garamond',
-    font_family_body: 'Lora',
-    effect_preset: 'none',
-    effect_intensity: 'soft'
-};
+export const GRADIENT_STARTERS = [
+    {
+        id: 'moon-river',
+        name: 'Moon River',
+        description: 'Deep blue with a soft violet current.',
+        mode: 'dark',
+        colors: ['#0d1322', '#203a63', '#7561c8'],
+        angle: 140,
+        intensity: 'medium',
+        accent: '#9db4ff'
+    },
+    {
+        id: 'cedar-glow',
+        name: 'Cedar Glow',
+        description: 'Warm study light over a dark cedar base.',
+        mode: 'dark',
+        colors: ['#1b120b', '#4d2817', '#c87f5a'],
+        angle: 125,
+        intensity: 'medium',
+        accent: '#cfa76a'
+    },
+    {
+        id: 'rain-signal',
+        name: 'Rain Signal',
+        description: 'Cool teal movement with cleaner contrast.',
+        mode: 'dark',
+        colors: ['#071417', '#0d3340', '#52d1c6'],
+        angle: 150,
+        intensity: 'rich',
+        accent: '#52d1c6'
+    },
+    {
+        id: 'paper-bloom',
+        name: 'Paper Bloom',
+        description: 'Light parchment with a rose-violet edge.',
+        mode: 'light',
+        colors: ['#fff7ec', '#f3e6f6', '#d989a9'],
+        angle: 132,
+        intensity: 'soft',
+        accent: '#d989a9'
+    },
+    {
+        id: 'arctic-note',
+        name: 'Arctic Note',
+        description: 'Bright, glassy calm for daytime focus.',
+        mode: 'light',
+        colors: ['#f7fbff', '#dbeef4', '#74a8bf'],
+        angle: 118,
+        intensity: 'soft',
+        accent: '#74a8bf'
+    }
+];
 
 export const MOBILE_MOOD_PRESETS = [
     {
@@ -282,17 +333,39 @@ export const COLOR_FIELD_LABELS = {
     accent_color: 'Accent'
 };
 
+export function applyGradientStarter(theme, starter) {
+    return deriveThemeFromGradientRecipe({
+        ...theme,
+        ...getBaseTheme(starter.mode),
+        name: theme.name,
+        background_style: 'gradient',
+        gradient_colors: starter.colors,
+        gradient_angle: starter.angle,
+        gradient_intensity: starter.intensity,
+        accent_color: starter.accent,
+        font_family_display: theme.font_family_display || DEFAULT_THEME_DARK.font_family_display,
+        font_family_body: theme.font_family_body || DEFAULT_THEME_DARK.font_family_body,
+        effect_preset: theme.effect_preset || 'none',
+        effect_intensity: theme.effect_intensity || 'soft'
+    });
+}
+
 export function buildThemeDraft(theme = {}) {
     const isDefaultTheme = Boolean(theme.is_default);
-    return {
+    const baseDraft = {
         ...DEFAULT_THEME_DARK,
         ...theme,
         name: theme.name ?? '',
         font_family_display: theme.font_family_display || DEFAULT_THEME_DARK.font_family_display,
         font_family_body: theme.font_family_body || DEFAULT_THEME_DARK.font_family_body,
         effect_preset: theme.effect_preset || (isDefaultTheme ? 'auto' : 'none'),
-        effect_intensity: theme.effect_intensity || (isDefaultTheme ? 'medium' : 'soft')
+        effect_intensity: theme.effect_intensity || (isDefaultTheme ? 'medium' : 'soft'),
+        ...normalizeGradientRecipe(theme)
     };
+
+    return baseDraft.background_style === 'gradient'
+        ? deriveThemeFromGradientRecipe(baseDraft)
+        : baseDraft;
 }
 
 export function getBaseTheme(mode) {
@@ -308,7 +381,11 @@ export function getMoodTheme(mode, moodId) {
         ...base,
         ...overrides,
         effect_preset: 'none',
-        effect_intensity: 'soft'
+        effect_intensity: 'soft',
+        background_style: 'solid',
+        gradient_colors: [],
+        gradient_angle: DEFAULT_GRADIENT_ANGLE,
+        gradient_intensity: DEFAULT_GRADIENT_INTENSITY
     };
 }
 

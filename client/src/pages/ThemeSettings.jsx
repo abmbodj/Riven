@@ -10,7 +10,15 @@ import { themeNameSchema } from '../schemas/forms';
 import { motion as Motion } from 'motion/react';
 import gsap from 'gsap';
 import ThemeEditorModal from '../components/themes/ThemeEditorModal.jsx';
-import { FOUNDATION_THEME_NAMES, buildThemeDraft } from '../components/themes/themeEditorConfig.js';
+import {
+    FOUNDATION_THEME_NAMES,
+    GRADIENT_STARTERS,
+    applyGradientStarter,
+    buildGradientCss,
+    buildThemeDraft,
+    deriveThemeFromGradientRecipe,
+    normalizeGradientRecipe
+} from '../components/themes/themeEditorConfig.js';
 import { ThemeEffectOverlay } from '../components/themes/themeEffects.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,6 +37,27 @@ function getGrainStyle(opacity = 0.12) {
         backgroundSize: '9px 9px',
         opacity,
     };
+}
+
+function isDarkTheme(hexColor) {
+    const sanitized = String(hexColor || '').replace('#', '').trim();
+    const normalized = sanitized.length === 3
+        ? sanitized.split('').map((char) => char + char).join('')
+        : sanitized;
+    const value = Number.parseInt(normalized, 16);
+    if (Number.isNaN(value)) return true;
+
+    const red = (value >> 16) & 255;
+    const green = (value >> 8) & 255;
+    const blue = value & 255;
+    return ((0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255) < 0.58;
+}
+
+function getThemeBackground(theme, fallbackField = 'bg_color', alpha = 1) {
+    const recipe = normalizeGradientRecipe(theme);
+    return recipe.background_style === 'gradient' && recipe.gradient_colors.length >= 2
+        ? buildGradientCss({ ...theme, ...recipe }, alpha)
+        : theme[fallbackField];
 }
 
 // Deterministic pseudo-random from a seed (no Math.random() in render)
@@ -507,7 +536,19 @@ export default function ThemeSettings() {
         }
         haptics.medium();
         setEditingTheme(null);
-        setThemeForm(buildThemeDraft());
+        const baseDraft = buildThemeDraft(activeTheme || {});
+        const starter = GRADIENT_STARTERS.find((item) => item.mode === (isDarkTheme(baseDraft.bg_color) ? 'dark' : 'light')) || GRADIENT_STARTERS[0];
+        const activeGradient = activeTheme
+            ? deriveThemeFromGradientRecipe({
+                ...baseDraft,
+                name: '',
+                background_style: 'gradient',
+                gradient_colors: [baseDraft.bg_color, baseDraft.accent_color],
+                gradient_angle: 135,
+                gradient_intensity: 'medium'
+            })
+            : applyGradientStarter(buildThemeDraft(), starter);
+        setThemeForm(activeGradient);
         setShowEditor(true);
     };
 
@@ -790,6 +831,17 @@ function ActiveThemeHero({ theme, showTexture, simplifyMotion }) {
                     },
                     0.04
                 );
+        } else {
+            gsap.set(scene, { opacity: 1, y: 0, rotateX: 0, rotateY: 0, scale: 1 });
+            gsap.set(identity, { opacity: 1, x: depth.identity.x, y: depth.identity.y, z: depth.identity.z });
+            gsap.set(preview, {
+                opacity: 1,
+                x: depth.preview.x,
+                y: depth.preview.y,
+                z: depth.preview.z,
+                rotateY: depth.preview.rotateY,
+                rotateX: depth.preview.rotateX
+            });
         }
 
         prevThemeRef.current = theme.id;
@@ -1003,7 +1055,7 @@ function ActiveThemeHero({ theme, showTexture, simplifyMotion }) {
             ref={heroRef}
             className="relative w-full overflow-hidden rounded-[2.5rem]"
             style={{
-                backgroundColor: theme.bg_color,
+                background: getThemeBackground(theme, 'bg_color'),
                 border: `1px solid ${theme.border_color}`,
                 perspective: '1800px',
                 boxShadow: `0 34px 90px -32px ${theme.accent_color}4A, 0 14px 40px -24px rgba(0,0,0,0.72), 0 0 0 1px ${theme.accent_color}12`,
@@ -1044,7 +1096,7 @@ function ActiveThemeHero({ theme, showTexture, simplifyMotion }) {
             <div
                 ref={sceneRef}
                 className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 p-8 md:p-12"
-                style={{ transformStyle: 'preserve-3d' }}
+                style={{ transformStyle: 'preserve-3d', opacity: 1 }}
             >
                 {/* Identity */}
                 <div ref={identityRef} className="flex-1 min-w-0" style={{ transformStyle: 'preserve-3d' }}>
@@ -1093,7 +1145,7 @@ function MiniUIPreview({ theme, containerRef, showTexture }) {
             className="shrink-0 relative w-full md:w-[34rem] rounded-[1.75rem] overflow-hidden"
             style={{
                 height: '11rem',
-                background: `linear-gradient(145deg, ${theme.surface_color} 0%, ${theme.bg_color} 100%)`,
+                background: getThemeBackground(theme, 'surface_color', 0.9),
                 border: `1px solid ${theme.border_color}`,
                 boxShadow: `0 36px 80px -44px ${theme.accent_color}65, 0 16px 32px -24px rgba(0,0,0,0.75)`,
                 transformStyle: 'preserve-3d',
@@ -1334,7 +1386,7 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom, show
             className="group relative overflow-hidden cursor-pointer select-none flex flex-col"
             style={{
                 borderRadius: '1.25rem',
-                backgroundColor: theme.bg_color,
+                background: getThemeBackground(theme, 'bg_color'),
                 border: isActive ? `2px solid ${theme.accent_color}` : `1px solid ${theme.border_color}`,
                 boxShadow: isActive
                     ? `0 0 0 3px ${theme.accent_color}15, 0 16px 48px -8px ${theme.accent_color}30`
@@ -1346,7 +1398,7 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom, show
             {/* ── Color Panel ── */}
             <div
                 className="relative overflow-hidden shrink-0"
-                style={{ height: '54%', backgroundColor: theme.surface_color }}
+                style={{ height: '54%', background: getThemeBackground(theme, 'surface_color', 0.86) }}
             >
                 {showAnimatedOverlay && (
                     <ThemeEffectOverlay theme={theme} isHero={false} simplifyMotion={simplifyMotion} />

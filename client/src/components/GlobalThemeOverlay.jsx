@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { useTheme } from '../hooks/useTheme';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { ThemeEffectOverlay } from './themes/themeEffects.jsx';
+import { buildGradientCss, normalizeGradientRecipe } from '../utils/themeGradientRecipe.js';
 
 /** Static accent wash — no GSAP, no particles (mobile / coarse pointer). */
 function LightThemeAtmosphere({ accent, containerRef, children }) {
@@ -87,7 +88,20 @@ export default function GlobalThemeOverlay() {
 
     const explicitPreset = typeof theme.effect_preset === 'string' ? theme.effect_preset : '';
     const shouldRenderCustomEffect = !theme.is_default && explicitPreset && explicitPreset !== 'none' && explicitPreset !== 'auto';
+    const recipe = normalizeGradientRecipe(theme);
+    const shouldRenderGradient = recipe.background_style === 'gradient' && recipe.gradient_colors.length >= 2;
     const archetype = THEME_MAP[theme.name];
+
+    if (shouldRenderGradient) {
+        return (
+            <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
+                <GradientThemeAtmosphere theme={{ ...theme, ...recipe }} lightAtmosphere={lightAtmosphere} />
+                {shouldRenderCustomEffect ? (
+                    <ThemeEffectOverlay theme={theme} simplifyMotion={lightAtmosphere} />
+                ) : null}
+            </div>
+        );
+    }
 
     if (shouldRenderCustomEffect) {
         return (
@@ -102,6 +116,33 @@ export default function GlobalThemeOverlay() {
     return (
         <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
             <GlobalOverlayContent archetype={archetype} accent={theme.accent_color} lightAtmosphere={lightAtmosphere} />
+        </div>
+    );
+}
+
+function GradientThemeAtmosphere({ theme, lightAtmosphere }) {
+    return (
+        <div className="absolute inset-0">
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: buildGradientCss(theme, lightAtmosphere ? 0.18 : 0.24),
+                    opacity: lightAtmosphere ? 0.7 : 1,
+                }}
+            />
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `radial-gradient(ellipse 82% 52% at 18% 18%, ${theme.accent_color}24 0%, transparent 56%), radial-gradient(ellipse 70% 48% at 86% 82%, ${theme.gradient_colors.at(-1)}1f 0%, transparent 58%)`,
+                    mixBlendMode: 'screen',
+                }}
+            />
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `linear-gradient(180deg, transparent 0%, ${theme.bg_color}80 100%)`,
+                }}
+            />
         </div>
     );
 }

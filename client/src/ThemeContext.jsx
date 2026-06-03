@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from './api';
 import { ThemeContext } from './context/themeContext';
 import useAuth from './hooks/useAuth';
+import { buildGradientCss, normalizeGradientRecipe } from './utils/themeGradientRecipe';
 
 function resolveColorScheme(hexColor) {
     if (!hexColor) return 'dark';
@@ -37,6 +38,9 @@ export function ThemeProvider({ children }) {
         root.style.setProperty('--secondary-text-color', theme.secondary_text_color);
         root.style.setProperty('--border-color', theme.border_color);
         root.style.setProperty('--accent-color', theme.accent_color);
+        const recipe = normalizeGradientRecipe(theme);
+        root.style.setProperty('--theme-background-style', recipe.background_style);
+        root.style.setProperty('--theme-gradient-background', buildGradientCss({ ...theme, ...recipe }, 0.86));
 
         // Apply font families
         if (theme.font_family_display) {

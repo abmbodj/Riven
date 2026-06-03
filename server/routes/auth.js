@@ -137,11 +137,11 @@ module.exports = function registerAuthRoutes({
     };
 
     const DEFAULT_THEMES = [
-        ['Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 1],
-        ['Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 0],
-        ['Arctic Frost', '#eaf2f6', '#f9fdff', '#163038', '#607983', '#cad8de', '#89c3d4', 'Instrument Serif', 'Space Grotesk', 'auto', 'medium', 0],
-        ['Modern Minimal', '#efeae3', '#fbf8f3', '#181512', '#70665d', '#d7cec2', '#c88259', 'Space Grotesk', 'Space Grotesk', 'auto', 'medium', 0],
-        ['Tech Innovation', '#061317', '#0b1d22', '#e7faf8', '#88a7ab', '#1f3a40', '#71d6ca', 'JetBrains Mono', 'Space Grotesk', 'auto', 'medium', 0],
+        ['Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'solid', [], 135, 'medium', 1],
+        ['Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
+        ['Arctic Frost', '#eaf2f6', '#f9fdff', '#163038', '#607983', '#cad8de', '#89c3d4', 'Instrument Serif', 'Space Grotesk', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
+        ['Modern Minimal', '#efeae3', '#fbf8f3', '#181512', '#70665d', '#d7cec2', '#c88259', 'Space Grotesk', 'Space Grotesk', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
+        ['Tech Innovation', '#061317', '#0b1d22', '#e7faf8', '#88a7ab', '#1f3a40', '#71d6ca', 'JetBrains Mono', 'Space Grotesk', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
     ];
 
     const insertDefaultThemes = async (userId) => {
@@ -157,6 +157,10 @@ module.exports = function registerAuthRoutes({
             fontFamilyBody,
             effectPreset,
             effectIntensity,
+            backgroundStyle,
+            gradientColors,
+            gradientAngle,
+            gradientIntensity,
             isActive,
         ] of DEFAULT_THEMES) {
             await db.execute(
@@ -164,8 +168,9 @@ module.exports = function registerAuthRoutes({
                     user_id, name, bg_color, surface_color, text_color,
                     secondary_text_color, border_color, accent_color,
                     font_family_display, font_family_body, effect_preset,
-                    effect_intensity, is_active, is_default
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                    effect_intensity, background_style, gradient_colors,
+                    gradient_angle, gradient_intensity, is_active, is_default
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17, $18)`,
                 [
                     userId,
                     name,
@@ -179,6 +184,10 @@ module.exports = function registerAuthRoutes({
                     fontFamilyBody,
                     effectPreset,
                     effectIntensity,
+                    backgroundStyle,
+                    JSON.stringify(gradientColors),
+                    gradientAngle,
+                    gradientIntensity,
                     isActive,
                     1,
                 ]

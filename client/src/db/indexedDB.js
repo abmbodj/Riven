@@ -113,15 +113,27 @@ async function getDB() {
                     }
                 }
 
-                // Ensure all custom themes have font fields
+                // Ensure all existing themes have newer optional fields
                 for (const theme of existingThemes) {
-                    if (!theme.font_family_display || !theme.effect_preset || !theme.effect_intensity) {
+                    if (
+                        !theme.font_family_display
+                        || !theme.effect_preset
+                        || !theme.effect_intensity
+                        || !theme.background_style
+                        || !Array.isArray(theme.gradient_colors)
+                        || theme.gradient_angle === undefined
+                        || !theme.gradient_intensity
+                    ) {
                         await db.put('themes', {
                             ...theme,
                             font_family_display: theme.font_family_display || 'Cormorant Garamond',
                             font_family_body: theme.font_family_body || 'Lora',
                             effect_preset: theme.effect_preset || (theme.is_default ? 'auto' : 'none'),
-                            effect_intensity: theme.effect_intensity || (theme.is_default ? 'medium' : 'soft')
+                            effect_intensity: theme.effect_intensity || (theme.is_default ? 'medium' : 'soft'),
+                            background_style: theme.background_style || 'solid',
+                            gradient_colors: Array.isArray(theme.gradient_colors) ? theme.gradient_colors : [],
+                            gradient_angle: theme.gradient_angle ?? 135,
+                            gradient_intensity: theme.gradient_intensity || 'medium'
                         });
                     }
                 }
