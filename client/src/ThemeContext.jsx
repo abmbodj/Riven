@@ -127,9 +127,11 @@ export function ThemeProvider({ children }) {
         setThemes(prev => prev.filter(t => t.id !== themeId));
     }, [activeTheme]);
 
-    const applyDraftTheme = useCallback((theme) => {
+    const applyDraftTheme = useCallback((theme, options = {}) => {
         if (!theme) return;
-        setAppliedTheme(theme);
+        if (options.commit !== false) {
+            setAppliedTheme(theme);
+        }
         applyTheme(theme);
     }, [applyTheme]);
 

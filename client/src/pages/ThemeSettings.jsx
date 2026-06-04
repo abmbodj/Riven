@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { Check, Plus, Trash2, Edit3, Sparkles } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
@@ -29,6 +29,27 @@ function matchesMediaQuery(query) {
     return typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
         && window.matchMedia(query).matches;
+}
+
+const DRAFT_PREVIEW_COMMIT_DELAY_MS = 180;
+
+function requestPreviewFrame(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        return window.requestAnimationFrame(callback);
+    }
+
+    return window.setTimeout(callback, 16);
+}
+
+function cancelPreviewFrame(frameId) {
+    if (frameId == null || typeof window === 'undefined') return;
+
+    if (typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(frameId);
+        return;
+    }
+
+    window.clearTimeout(frameId);
 }
 
 function getGrainStyle(opacity = 0.12) {
@@ -502,11 +523,52 @@ export default function ThemeSettings() {
     const [carouselIndices, setCarouselIndices] = useState({ official: 0, professional: 0, custom: 0 });
     const [themeForm, setThemeForm] = useState(() => buildThemeDraft());
     const canCreateCustomThemes = (user?.subscription_tier || 'free') !== 'free';
+    const latestDraftThemeRef = useRef(themeForm);
+    const draftPreviewFrameRef = useRef(null);
+    const draftPreviewCommitRef = useRef(null);
+
+    const cancelDraftPreviewWork = useCallback(() => {
+        cancelPreviewFrame(draftPreviewFrameRef.current);
+        draftPreviewFrameRef.current = null;
+
+        if (draftPreviewCommitRef.current != null) {
+            window.clearTimeout(draftPreviewCommitRef.current);
+            draftPreviewCommitRef.current = null;
+        }
+    }, []);
 
     useEffect(() => {
-        if (!showEditor) return;
-        applyDraftTheme(themeForm);
-    }, [showEditor, themeForm, applyDraftTheme]);
+        latestDraftThemeRef.current = themeForm;
+    }, [themeForm]);
+
+    useEffect(() => {
+        if (!showEditor) {
+            cancelDraftPreviewWork();
+            return undefined;
+        }
+
+        latestDraftThemeRef.current = themeForm;
+
+        if (draftPreviewFrameRef.current == null) {
+            draftPreviewFrameRef.current = requestPreviewFrame(() => {
+                draftPreviewFrameRef.current = null;
+                applyDraftTheme(latestDraftThemeRef.current, { commit: false });
+            });
+        }
+
+        if (draftPreviewCommitRef.current != null) {
+            window.clearTimeout(draftPreviewCommitRef.current);
+        }
+
+        draftPreviewCommitRef.current = window.setTimeout(() => {
+            draftPreviewCommitRef.current = null;
+            applyDraftTheme(latestDraftThemeRef.current, { commit: true });
+        }, DRAFT_PREVIEW_COMMIT_DELAY_MS);
+
+        return undefined;
+    }, [showEditor, themeForm, applyDraftTheme, cancelDraftPreviewWork]);
+
+    useEffect(() => () => cancelDraftPreviewWork(), [cancelDraftPreviewWork]);
 
     const handleSwitchTheme = async (themeId, isPro) => {
         if (activeTheme?.id === themeId) return;
@@ -561,6 +623,7 @@ export default function ThemeSettings() {
     };
 
     const handleCloseEditor = () => {
+        cancelDraftPreviewWork();
         restoreActiveTheme();
         setShowEditor(false);
         setEditingTheme(null);
@@ -613,6 +676,7 @@ export default function ThemeSettings() {
                 haptics.success();
                 toast.success('New atmosphere materialized');
             }
+            cancelDraftPreviewWork();
             setShowEditor(false);
             setEditingTheme(null);
         } catch (err) {

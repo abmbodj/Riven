@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
     Check,
@@ -51,6 +52,32 @@ function withAlpha(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function requestEditorFrame(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        return window.requestAnimationFrame(callback);
+    }
+
+    return window.setTimeout(callback, 16);
+}
+
+function cancelEditorFrame(frameId) {
+    if (frameId == null || typeof window === 'undefined') return;
+
+    if (typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(frameId);
+        return;
+    }
+
+    window.clearTimeout(frameId);
+}
+
+function resolveThemeUpdate(previous, next) {
+    return {
+        ...previous,
+        ...(typeof next === 'function' ? next(previous) : next)
+    };
+}
+
 function isDarkTheme(hex) {
     const { r, g, b } = hexToRgb(hex);
     return ((0.2126 * r + 0.7152 * g + 0.0722 * b) / 255) < 0.58;
@@ -81,7 +108,10 @@ function MixerSection({ eyebrow, title, description, theme, children }) {
             className="rounded-[1.45rem] border p-4"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.86),
-                backgroundColor: withAlpha(theme.surface_color, 0.9)
+                backgroundColor: withAlpha(theme.surface_color, 0.9),
+                contain: 'layout paint style',
+                contentVisibility: 'auto',
+                containIntrinsicSize: '320px'
             }}
         >
             <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.92) }}>
@@ -176,11 +206,13 @@ function ThemeMixerPreview({ theme }) {
                 borderColor: withAlpha(theme.border_color, 0.9),
                 backgroundColor: theme.bg_color,
                 color: theme.text_color,
-                boxShadow: `0 36px 100px ${withAlpha(theme.bg_color, 0.35)}`
+                boxShadow: '0 28px 72px rgba(0,0,0,0.28)',
+                contain: 'layout paint',
+                transform: 'translateZ(0)'
             }}
         >
             <div className="absolute inset-0" style={{ background: buildGradientCss(theme, 0.9), opacity: theme.background_style === 'gradient' ? 0.36 : 0.16 }} />
-            <ThemeEffectOverlay theme={theme} simplifyMotion={false} />
+            <ThemeEffectOverlay theme={theme} simplifyMotion={true} />
             <div className="relative z-10 p-4">
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -249,6 +281,8 @@ export default function ThemeEditorModal({
 }) {
     useBodyScrollLock(isOpen);
     const [expertOpen, setExpertOpen] = useState(false);
+    const pendingFrameUpdateRef = useRef(null);
+    const pendingFrameIdRef = useRef(null);
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -268,15 +302,76 @@ export default function ThemeEditorModal({
         && starter.colors.length === recipe.gradient_colors.length
         && starter.colors.every((color, index) => color.toLowerCase() === recipe.gradient_colors[index]?.toLowerCase())
     ));
+    const mixerShellStyle = useMemo(() => ({
+        '--mixer-bg': themeForm.bg_color,
+        '--mixer-surface': themeForm.surface_color,
+        '--mixer-text': themeForm.text_color,
+        '--mixer-muted': themeForm.secondary_text_color,
+        '--mixer-border': themeForm.border_color,
+        '--mixer-accent': themeForm.accent_color,
+        '--mixer-border-strong': withAlpha(themeForm.border_color, 0.9),
+        borderColor: 'var(--mixer-border-strong)',
+        background: `linear-gradient(145deg, ${withAlpha(themeForm.bg_color, 0.98)} 0%, ${withAlpha(themeForm.surface_color, 0.98)} 100%)`,
+        color: 'var(--mixer-text)',
+        boxShadow: '0 32px 90px rgba(0,0,0,0.34)',
+        contain: 'layout paint style',
+        transform: 'translateZ(0)'
+    }), [
+        themeForm.accent_color,
+        themeForm.bg_color,
+        themeForm.border_color,
+        themeForm.secondary_text_color,
+        themeForm.surface_color,
+        themeForm.text_color
+    ]);
+
+    const flushPendingFrameUpdate = (sync = false) => {
+        const pending = pendingFrameUpdateRef.current;
+        if (!pending) return;
+
+        cancelEditorFrame(pendingFrameIdRef.current);
+        pendingFrameIdRef.current = null;
+        pendingFrameUpdateRef.current = null;
+
+        const applyPending = () => {
+            setThemeForm((previous) => resolveThemeUpdate(previous, pending));
+        };
+
+        if (sync) {
+            flushSync(applyPending);
+            return;
+        }
+
+        applyPending();
+    };
+
+    const updateTheme = (next, options = {}) => {
+        if (!options.frame) {
+            flushPendingFrameUpdate(true);
+            setThemeForm((previous) => resolveThemeUpdate(previous, next));
+            return;
+        }
+
+        const queued = pendingFrameUpdateRef.current;
+        pendingFrameUpdateRef.current = queued
+            ? (previous) => resolveThemeUpdate(resolveThemeUpdate(previous, queued), next)
+            : next;
+
+        if (pendingFrameIdRef.current == null) {
+            pendingFrameIdRef.current = requestEditorFrame(() => {
+                pendingFrameIdRef.current = null;
+                flushPendingFrameUpdate(false);
+            });
+        }
+    };
+
+    useEffect(() => () => {
+        cancelEditorFrame(pendingFrameIdRef.current);
+        pendingFrameIdRef.current = null;
+        pendingFrameUpdateRef.current = null;
+    }, []);
 
     if (!isOpen) return null;
-
-    const updateTheme = (next) => {
-        setThemeForm((previous) => ({
-            ...previous,
-            ...(typeof next === 'function' ? next(previous) : next)
-        }));
-    };
 
     const pulse = (type = 'light') => haptics?.[type]?.();
 
@@ -300,16 +395,16 @@ export default function ThemeEditorModal({
         }, {}));
     };
 
-    const updateGradientColors = (nextColors) => {
+    const updateGradientColors = (nextColors, options = {}) => {
         updateTheme((previous) => applyRecipeUpdate(previous, {
             gradient_colors: normalizeGradientColors(nextColors, getEditableGradientColors(previous))
-        }));
+        }), options);
     };
 
     const updateStop = (index, color) => {
         const nextColors = [...gradientColors];
         nextColors[index] = color;
-        updateGradientColors(nextColors);
+        updateGradientColors(nextColors, { frame: true });
     };
 
     const addStop = () => {
@@ -324,9 +419,9 @@ export default function ThemeEditorModal({
         updateGradientColors(gradientColors.filter((_, itemIndex) => itemIndex !== index));
     };
 
-    const updateRecipe = (patch) => {
+    const updateRecipe = (patch, options = {}) => {
         pulse('light');
-        updateTheme((previous) => applyRecipeUpdate(previous, patch));
+        updateTheme((previous) => applyRecipeUpdate(previous, patch), options);
     };
 
     const updateAccent = (color) => {
@@ -363,13 +458,19 @@ export default function ThemeEditorModal({
         });
     };
 
+    const handleSubmit = (event) => {
+        flushPendingFrameUpdate(true);
+        onSubmit(event);
+    };
+
     const title = editingTheme ? 'Refine Theme Mixer' : 'Theme Mixer';
     const saveLabel = editingTheme ? 'Save refinements' : 'Create';
 
     return (
         <AnimatePresence>
             <Motion.div
-                className="fixed inset-0 z-[100] flex items-end justify-center bg-black/58 p-0 backdrop-blur-sm md:items-center md:p-6"
+                className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 md:items-center md:p-6"
+                style={{ willChange: 'opacity' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -380,19 +481,14 @@ export default function ThemeEditorModal({
                     aria-modal="true"
                     aria-labelledby="theme-mixer-title"
                     className="relative flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[2rem] border md:rounded-[2.4rem]"
-                    style={{
-                        borderColor: withAlpha(themeForm.border_color, 0.9),
-                        background: `linear-gradient(145deg, ${withAlpha(themeForm.bg_color, 0.98)} 0%, ${withAlpha(themeForm.surface_color, 0.98)} 100%)`,
-                        color: themeForm.text_color,
-                        boxShadow: `0 42px 130px ${withAlpha(themeForm.bg_color, 0.54)}`
-                    }}
+                    style={mixerShellStyle}
                     initial={{ opacity: 0, y: 30, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 18, scale: 0.98 }}
                     transition={{ duration: 0.22 }}
                     onClick={(event) => event.stopPropagation()}
                 >
-                    <form id="theme-editor-form" onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <form id="theme-editor-form" onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
                         <div
                             className="flex shrink-0 items-start justify-between gap-4 border-b px-4 py-4 md:px-7 md:py-6"
                             style={{ borderBottomColor: withAlpha(themeForm.border_color, 0.9) }}
@@ -424,7 +520,10 @@ export default function ThemeEditorModal({
                             </button>
                         </div>
 
-                        <div className="modal-scroll-content grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 py-5 custom-scrollbar md:grid-cols-[minmax(0,1fr)_390px] md:px-7">
+                        <div
+                            className="modal-scroll-content grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 py-5 custom-scrollbar md:grid-cols-[minmax(0,1fr)_390px] md:px-7"
+                            style={{ contain: 'layout paint' }}
+                        >
                             <div className="space-y-4">
                                 <MixerSection
                                     eyebrow="Start from a vibe"
@@ -527,7 +626,7 @@ export default function ThemeEditorModal({
                                                 min="0"
                                                 max="360"
                                                 value={recipe.gradient_angle}
-                                                onChange={(event) => updateRecipe({ gradient_angle: Number(event.target.value), gradient_colors: gradientColors })}
+                                                onChange={(event) => updateRecipe({ gradient_angle: Number(event.target.value), gradient_colors: gradientColors }, { frame: true })}
                                                 className="mt-3 w-full accent-current"
                                                 style={{ color: themeForm.accent_color }}
                                             />

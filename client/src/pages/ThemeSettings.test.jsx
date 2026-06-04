@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ThemeSettings from './ThemeSettings.jsx';
 
@@ -13,6 +13,7 @@ const {
   pricingModalMock,
   restoreActiveThemeMock,
   switchThemeMock,
+  themeEffectOverlayMock,
   updateThemeMock,
 } = vi.hoisted(() => ({
   addThemeMock: vi.fn(),
@@ -23,6 +24,7 @@ const {
   pricingModalMock: vi.fn(),
   restoreActiveThemeMock: vi.fn(),
   switchThemeMock: vi.fn(),
+  themeEffectOverlayMock: vi.fn(),
   updateThemeMock: vi.fn(),
 }));
 
@@ -191,6 +193,24 @@ vi.mock('../components/ui/PricingModal', () => ({
   },
 }));
 
+vi.mock('../components/themes/themeEffects.jsx', () => ({
+  getThemeEffectLabel: (theme) => {
+    if (!theme?.effect_preset || theme.effect_preset === 'none') return 'None';
+    if (theme.effect_preset === 'auto') return 'Signature';
+    return `${theme.effect_preset}${theme.effect_intensity ? ` · ${theme.effect_intensity}` : ''}`;
+  },
+  ThemeEffectOverlay: (props) => {
+    themeEffectOverlayMock(props);
+    return (
+      <div
+        data-testid="theme-effect-overlay"
+        data-effect={props.theme?.effect_preset || 'none'}
+        data-simplify-motion={String(Boolean(props.simplifyMotion))}
+      />
+    );
+  },
+}));
+
 describe('ThemeSettings theme studio', () => {
   beforeEach(() => {
     mockThemes.length = 0;
@@ -201,6 +221,7 @@ describe('ThemeSettings theme studio', () => {
     pricingModalMock.mockClear();
     restoreActiveThemeMock.mockReset();
     switchThemeMock.mockReset();
+    themeEffectOverlayMock.mockClear();
     updateThemeMock.mockReset();
     setViewport(390);
   });
@@ -269,12 +290,13 @@ describe('ThemeSettings theme studio', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: /paper bloom/i }));
     await waitFor(() => {
-      expect(applyDraftThemeMock).toHaveBeenLastCalledWith(
+      expect(applyDraftThemeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           background_style: 'gradient',
           gradient_colors: expect.arrayContaining(['#fff7ec', '#f3e6f6', '#d989a9']),
           gradient_intensity: 'soft',
-        })
+        }),
+        expect.objectContaining({ commit: false })
       );
     });
 
@@ -310,6 +332,14 @@ describe('ThemeSettings theme studio', () => {
     fireEvent.click(within(getDialog()).getByRole('button', { name: /signal accent/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /studio sans/i }));
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
+    await waitFor(() => {
+      expect(
+        within(getDialog()).getAllByTestId('theme-effect-overlay').some((overlay) => (
+          overlay.getAttribute('data-effect') === 'dust'
+          && overlay.getAttribute('data-simplify-motion') === 'true'
+        ))
+      ).toBe(true);
+    });
     fireEvent.change(within(getDialog()).getByRole('slider', { name: /angle/i }), { target: { value: '210' } });
     await waitFor(() => {
       expect(within(getDialog()).getByPlaceholderText(/night lectures/i)).toBeInTheDocument();
@@ -335,6 +365,53 @@ describe('ThemeSettings theme studio', () => {
       );
     });
     expect(switchThemeMock).toHaveBeenCalledWith(444);
+  });
+
+  it('coalesces rapid gradient inputs before applying the app-wide draft preview', async () => {
+    mockUser.subscription_tier = 'supporter';
+    mockThemes.push(seedTheme({ id: 1, name: 'Riven', is_active: true }));
+
+    render(<ThemeSettings />);
+    fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
+    const dialog = screen.getByRole('dialog', { name: /theme mixer/i });
+
+    await waitFor(() => {
+      expect(applyDraftThemeMock).toHaveBeenCalled();
+    });
+    applyDraftThemeMock.mockClear();
+
+    const slider = within(dialog).getByRole('slider', { name: /angle/i });
+    const firstStop = within(dialog).getByLabelText(/^gradient color 1$/i);
+    ['150', '175', '205', '230', '260'].forEach((value) => {
+      fireEvent.change(slider, { target: { value } });
+    });
+    ['#203a63', '#7561c8', '#52d1c6'].forEach((value) => {
+      fireEvent.change(firstStop, { target: { value } });
+    });
+
+    expect(applyDraftThemeMock).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(applyDraftThemeMock.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    expect(applyDraftThemeMock.mock.calls.length).toBeLessThan(8);
+    expect(applyDraftThemeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gradient_angle: 260,
+        gradient_colors: expect.arrayContaining(['#52d1c6']),
+      }),
+      expect.objectContaining({ commit: false })
+    );
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 220));
+    });
+
+    expect(applyDraftThemeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ gradient_angle: 260 }),
+      expect.objectContaining({ commit: true })
+    );
   });
 
   it('opens editing and saves effect plus expert token overrides', async () => {
