@@ -11,6 +11,7 @@ vi.mock('@capacitor/core', () => ({
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
     },
@@ -29,10 +30,9 @@ const buildJsonResponse = (body) => ({
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
 
-const createSelectSingleChain = (data) => {
-  const single = vi.fn().mockResolvedValue({ data, error: null });
-  const select = vi.fn().mockReturnValue({ single });
-  return { select, single };
+const createSelectChain = (data) => {
+  const select = vi.fn().mockResolvedValue({ data, error: null });
+  return { select };
 };
 
 describe('authApi themes PostgREST', () => {
@@ -106,7 +106,7 @@ describe('authApi themes PostgREST', () => {
     expect(themes.some((theme) => theme.name === 'Lavender Dusk')).toBe(true);
   });
 
-  it('removes deprecated default themes and reactivates Riven when cleanup leaves no active theme', async () => {
+  it('removes deprecated default themes and repairs Riven active when cleanup leaves no active theme', async () => {
     authApi.setToken('supabase-token');
     const defaultThemes = getDefaultThemes();
     const rivenTheme = defaultThemes.find((theme) => theme.name === 'Riven');
@@ -132,7 +132,18 @@ describe('authApi themes PostgREST', () => {
           ...defaultThemes.map((theme, index) => ({
             id: index + 10,
             ...theme,
-            is_active: theme.name === 'Riven' ? 1 : theme.is_active,
+            is_active: 0,
+          })),
+          { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          ...defaultThemes.map((theme, index) => ({
+            id: index + 10,
+            ...theme,
+            is_active: theme.name === 'Riven' ? 1 : 0,
           })),
           { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
         ],
@@ -146,20 +157,24 @@ describe('authApi themes PostgREST', () => {
     const update = vi.fn().mockReturnValue({ eq: updateEq });
 
     supabase.from.mockImplementation(() => ({ select, delete: deleteTheme, insert, update }));
+    supabase.rpc.mockResolvedValue({
+      data: { id: 10, ...rivenTheme, is_active: 1 },
+      error: null,
+    });
 
     const themes = await authApi.getThemes();
 
     expect(deleteTheme).toHaveBeenCalledTimes(1);
     expect(deleteIn).toHaveBeenCalledWith('id', [1]);
     expect(insert).toHaveBeenCalledTimes(defaultThemes.length - 1);
-    expect(update).toHaveBeenCalledWith({ is_active: 1 });
-    expect(updateEq).toHaveBeenCalledWith('id', 2);
+    expect(update).not.toHaveBeenCalledWith({ is_active: 1 });
+    expect(supabase.rpc).toHaveBeenCalledWith('activate_theme', { target_theme_id: 10 });
     expect(themes.filter((theme) => theme.is_default)).toHaveLength(defaultThemes.length);
     expect(themes.find((theme) => theme.is_active)?.name).toBe('Riven');
   });
 
   it('creates custom themes in Supabase with the current app user id', async () => {
-    const { select } = createSelectSingleChain({ id: 7, name: 'Night Current' });
+    const { select } = createSelectChain([{ id: 7, name: 'Night Current' }]);
     const insert = vi.fn().mockReturnValue({ select });
     supabase.from.mockReturnValue({ insert });
 
@@ -193,10 +208,10 @@ describe('authApi themes PostgREST', () => {
   it('updates custom themes with gradient recipe fields', async () => {
     authApi.setToken('supabase-token');
 
-    const single = vi.fn().mockResolvedValue({ data: { id: 7, name: 'Rain Signal' }, error: null });
-    const select = vi.fn().mockReturnValue({ single });
-    const eq = vi.fn().mockReturnValue({ select });
-    const update = vi.fn().mockReturnValue({ eq });
+    const select = vi.fn().mockResolvedValue({ data: [{ id: 7, name: 'Rain Signal' }], error: null });
+    const eqUser = vi.fn().mockReturnValue({ select });
+    const eqId = vi.fn().mockReturnValue({ eq: eqUser });
+    const update = vi.fn().mockReturnValue({ eq: eqId });
     supabase.from.mockReturnValue({ update });
 
     await authApi.updateTheme(7, {
@@ -214,29 +229,55 @@ describe('authApi themes PostgREST', () => {
       gradient_angle: 210,
       gradient_intensity: 'rich',
     }));
-    expect(eq).toHaveBeenCalledWith('id', 7);
+    expect(eqId).toHaveBeenCalledWith('id', 7);
+    expect(eqUser).toHaveBeenCalledWith('user_id', 42);
   });
 
-  it('activates themes by clearing the previous active theme before setting the new one', async () => {
+  it('returns a friendly error when a scoped theme update finds no rows', async () => {
     authApi.setToken('supabase-token');
 
-    const deactivateEq = vi.fn().mockResolvedValue({ data: null, error: null });
-    const deactivateUpdate = vi.fn().mockReturnValue({ eq: deactivateEq });
+    const select = vi.fn().mockResolvedValue({ data: [], error: null });
+    const eqUser = vi.fn().mockReturnValue({ select });
+    const eqId = vi.fn().mockReturnValue({ eq: eqUser });
+    const update = vi.fn().mockReturnValue({ eq: eqId });
+    supabase.from.mockReturnValue({ update });
 
-    const { select } = createSelectSingleChain({ id: 99, is_active: 1 });
-    const activateEq = vi.fn().mockReturnValue({ select });
-    const activateUpdate = vi.fn().mockReturnValue({ eq: activateEq });
+    await expect(authApi.updateTheme(404, { name: 'Missing Theme' })).rejects.toMatchObject({
+      message: 'Theme not found',
+      status: 404,
+    });
+    expect(eqId).toHaveBeenCalledWith('id', 404);
+    expect(eqUser).toHaveBeenCalledWith('user_id', 42);
+  });
 
-    supabase.from
-      .mockReturnValueOnce({ update: deactivateUpdate })
-      .mockReturnValueOnce({ update: activateUpdate });
+  it('activates themes through the atomic Supabase RPC', async () => {
+    authApi.setToken('supabase-token');
+
+    supabase.rpc.mockResolvedValue({
+      data: { id: 99, name: 'Rain Signal', is_active: 1 },
+      error: null,
+    });
 
     const result = await authApi.activateTheme(99);
 
-    expect(deactivateUpdate).toHaveBeenCalledWith({ is_active: 0 });
-    expect(deactivateEq).toHaveBeenCalledWith('user_id', 42);
-    expect(activateUpdate).toHaveBeenCalledWith({ is_active: 1 });
-    expect(activateEq).toHaveBeenCalledWith('id', 99);
-    expect(result).toEqual({ id: 99, is_active: 1 });
+    expect(supabase.rpc).toHaveBeenCalledWith('activate_theme', { target_theme_id: 99 });
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ id: 99, name: 'Rain Signal', is_active: 1 });
+  });
+
+  it('deletes themes only for the current app user', async () => {
+    authApi.setToken('supabase-token');
+
+    const select = vi.fn().mockResolvedValue({ data: [{ id: 7 }], error: null });
+    const eqUser = vi.fn().mockReturnValue({ select });
+    const eqId = vi.fn().mockReturnValue({ eq: eqUser });
+    const deleteTheme = vi.fn().mockReturnValue({ eq: eqId });
+    supabase.from.mockReturnValue({ delete: deleteTheme });
+
+    await expect(authApi.deleteTheme(7)).resolves.toEqual({ message: 'Theme deleted' });
+    expect(deleteTheme).toHaveBeenCalledTimes(1);
+    expect(eqId).toHaveBeenCalledWith('id', 7);
+    expect(eqUser).toHaveBeenCalledWith('user_id', 42);
+    expect(select).toHaveBeenCalledWith('id');
   });
 });

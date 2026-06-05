@@ -11,6 +11,7 @@ import {
     getDefaultThemes,
     THEME_VISUAL_FIELDS,
 } from '../themeCatalog.js';
+import { normalizeGradientRecipe } from '../utils/themeGradientRecipe.js';
 import {
     isSharedMessageType,
     normalizeSharedPayload,
@@ -3285,6 +3286,67 @@ export const getDeckStats = async (deckId) => {
     };
 };
 
+const THEME_NOT_FOUND_MESSAGE = 'Theme not found';
+
+const createApiError = (message, status = 500) => {
+    const err = new Error(message);
+    err.status = status;
+    return err;
+};
+
+const throwThemeNotFound = () => {
+    throw createApiError(THEME_NOT_FOUND_MESSAGE, 404);
+};
+
+const normalizeThemeRow = (theme) => {
+    if (!theme) return theme;
+
+    const isDefaultTheme = Boolean(theme.is_default);
+    const recipe = normalizeGradientRecipe(theme);
+
+    return {
+        ...theme,
+        font_family_display: theme.font_family_display || 'Cormorant Garamond',
+        font_family_body: theme.font_family_body || 'Lora',
+        effect_preset: theme.effect_preset || (isDefaultTheme ? 'auto' : 'none'),
+        effect_intensity: theme.effect_intensity || (isDefaultTheme ? 'medium' : 'soft'),
+        ...recipe,
+    };
+};
+
+const getSingleThemeRow = (data, { emptyMessage = THEME_NOT_FOUND_MESSAGE, multipleMessage = 'Unexpected theme response' } = {}) => {
+    const rows = Array.isArray(data)
+        ? data
+        : data
+            ? [data]
+            : [];
+
+    if (rows.length === 0) {
+        if (emptyMessage === THEME_NOT_FOUND_MESSAGE) {
+            throwThemeNotFound();
+        }
+        throw createApiError(emptyMessage);
+    }
+
+    if (rows.length > 1) {
+        throw createApiError(multipleMessage);
+    }
+
+    return normalizeThemeRow(rows[0]);
+};
+
+const throwThemeMutationError = (error) => {
+    if (
+        error?.code === 'PGRST116'
+        || /theme not found/i.test(error?.message || '')
+        || /cannot coerce the result to a single json object/i.test(error?.message || '')
+    ) {
+        throwThemeNotFound();
+    }
+
+    _sbThrow(error);
+};
+
 export const getThemes = async () => {
     const sortThemes = (themes) => (themes || []).sort((left, right) => {
         const defaultDelta = Number(right.is_default) - Number(left.is_default);
@@ -3295,7 +3357,7 @@ export const getThemes = async () => {
     const selectThemes = async () => {
         const { data, error } = await supabase.from('themes').select('*');
         if (error) _sbThrow(error);
-        return data || [];
+        return (data || []).map(normalizeThemeRow);
     };
 
     const pruneDeprecatedDefaultThemes = async (themes) => {
@@ -3325,10 +3387,8 @@ export const getThemes = async () => {
                 .filter((theme) => theme.is_default)
                 .map((theme) => [theme.name, theme])
         );
-        const hasActiveTheme = (themes || []).some((theme) => theme.is_active);
         const userId = await getAppUserId();
         let didMutate = false;
-        let shouldAssignActiveDefault = !hasActiveTheme;
 
         for (const preset of getDefaultThemes()) {
             const existing = existingDefaults.get(preset.name);
@@ -3337,13 +3397,10 @@ export const getThemes = async () => {
                 const payload = {
                     user_id: userId,
                     ...preset,
-                    is_active: shouldAssignActiveDefault && preset.is_active ? 1 : 0,
+                    is_active: 0,
                 };
                 const { error } = await supabase.from('themes').insert(payload);
                 if (error) _sbThrow(error);
-                if (payload.is_active) {
-                    shouldAssignActiveDefault = false;
-                }
                 didMutate = true;
                 continue;
             }
@@ -3366,11 +3423,6 @@ export const getThemes = async () => {
                 updates.is_default = 1;
             }
 
-            if (shouldAssignActiveDefault && preset.is_active && !existing.is_active) {
-                updates.is_active = 1;
-                shouldAssignActiveDefault = false;
-            }
-
             if (Object.keys(updates).length === 0) continue;
 
             const { error } = await supabase
@@ -3384,11 +3436,26 @@ export const getThemes = async () => {
         return didMutate;
     };
 
+    const repairMissingActiveTheme = async (themes) => {
+        if (!getToken() || !themes?.length || themes.some((theme) => theme.is_active)) return false;
+
+        const fallbackTheme = themes.find((theme) => theme.name === 'Riven' && theme.is_default)
+            || themes.find((theme) => theme.is_default)
+            || themes[0];
+        if (!fallbackTheme?.id) return false;
+
+        await activateTheme(fallbackTheme.id);
+        return true;
+    };
+
     let themes = await selectThemes();
     if (await pruneDeprecatedDefaultThemes(themes)) {
         themes = await selectThemes();
     }
     if (await syncDefaultThemes(themes)) {
+        themes = await selectThemes();
+    }
+    if (await repairMissingActiveTheme(themes)) {
         themes = await selectThemes();
     }
 
@@ -3421,13 +3488,13 @@ export const createTheme = async (themeData) => {
     const { data, error } = await supabase
         .from('themes')
         .insert(payload)
-        .select()
-        .single();
-    if (error) _sbThrow(error);
-    return data;
+        .select();
+    if (error) throwThemeMutationError(error);
+    return getSingleThemeRow(data, { emptyMessage: 'Failed to save theme' });
 };
 
 export const updateTheme = async (id, themeData) => {
+    const userId = await getAppUserId();
     const updates = {};
     if (themeData.name !== undefined) updates.name = themeData.name;
     if (themeData.bg_color !== undefined) updates.bg_color = themeData.bg_color;
@@ -3449,34 +3516,31 @@ export const updateTheme = async (id, themeData) => {
         .from('themes')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
-    if (error) _sbThrow(error);
-    return data;
+        .eq('user_id', userId)
+        .select();
+    if (error) throwThemeMutationError(error);
+    return getSingleThemeRow(data);
 };
 
 export const activateTheme = async (id) => {
-    const userId = await getAppUserId();
-
-    const { error: clearError } = await supabase
-        .from('themes')
-        .update({ is_active: 0 })
-        .eq('user_id', userId);
-    if (clearError) _sbThrow(clearError);
-
     const { data, error } = await supabase
-        .from('themes')
-        .update({ is_active: 1 })
-        .eq('id', id)
-        .select()
-        .single();
-    if (error) _sbThrow(error);
-    return data;
+        .rpc('activate_theme', { target_theme_id: id });
+    if (error) throwThemeMutationError(error);
+    return getSingleThemeRow(data);
 };
 
 export const deleteTheme = async (id) => {
-    const { error } = await supabase.from('themes').delete().eq('id', id);
-    if (error) _sbThrow(error);
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('themes')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select('id');
+    if (error) throwThemeMutationError(error);
+    if (!Array.isArray(data) || data.length === 0) {
+        throwThemeNotFound();
+    }
     return { message: 'Theme deleted' };
 };
 
