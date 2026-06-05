@@ -136,6 +136,59 @@ describe('authApi login migration bridge', () => {
     expect(localStorage.getItem('riven_auth_token')).toBeNull();
   });
 
+  it('starts MFA state lookup while completing Supabase account setup', async () => {
+    const events = [];
+    let resolveRegistration;
+
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+    supabase.auth.signInWithPassword.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockImplementation(() => {
+      events.push('mfa-aal');
+      return Promise.resolve({
+        data: { currentLevel: 'aal1', nextLevel: 'aal1' },
+        error: null,
+      });
+    });
+    supabase.auth.mfa.listFactors.mockImplementation(() => {
+      events.push('mfa-factors');
+      return Promise.resolve({
+        data: { all: [], totp: [] },
+        error: null,
+      });
+    });
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      events.push('registration-requested');
+      return new Promise((resolve) => {
+        resolveRegistration = () => {
+          events.push('registration-resolved');
+          resolve(jsonResponse({
+            user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false },
+          }));
+        };
+      });
+    });
+
+    const loginPromise = authApi.login('test@example.com', 'password123');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(events).toContain('registration-requested');
+    expect(events).toContain('mfa-aal');
+    expect(events).not.toContain('registration-resolved');
+
+    resolveRegistration();
+
+    await expect(loginPromise).resolves.toEqual({
+      user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false },
+    });
+  });
+
   it('bootstraps a Supabase session after a successful legacy login fallback', async () => {
     supabase.auth.signInWithPassword.mockResolvedValue({
       data: { session: null },

@@ -796,23 +796,18 @@ export const login = async (email, password, options = {}) => {
 
     if (!error && data.session) {
         setToken(data.session.access_token);
-        // Ensure the user row exists in our DB (handles first-time login after migration)
-        let user;
-        try {
-            const result = await completeRegistration();
-            user = result.user;
-        } catch {
-            // User row already exists — fetch normally
-            user = await getLocalMe();
-        }
-
-        const mfaState = await getSupabaseMfaState().catch(() => ({
+        const fallbackMfaState = {
             hasSession: true,
             enabled: false,
             factorId: null,
             currentLevel: null,
             nextLevel: null,
-        }));
+        };
+        const userPromise = completeRegistration()
+            .then((result) => result.user)
+            .catch(() => getLocalMe());
+        const mfaStatePromise = getSupabaseMfaState().catch(() => fallbackMfaState);
+        const [user, mfaState] = await Promise.all([userPromise, mfaStatePromise]);
 
         // Existing legacy 2FA users still need the temp-token flow until they
         // explicitly move their factor into Supabase MFA.

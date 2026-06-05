@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LoginForm from './LoginForm';
@@ -57,9 +57,9 @@ const setMobileMatchMedia = (isMobile) => {
     }));
 };
 
-const renderLoginForm = () => render(
+const renderLoginForm = (props = {}) => render(
     <MemoryRouter>
-        <LoginForm onSwitchToSignup={vi.fn()} onLoginSuccess={vi.fn()} />
+        <LoginForm onSwitchToSignup={vi.fn()} onLoginSuccess={vi.fn()} {...props} />
     </MemoryRouter>
 );
 
@@ -119,6 +119,36 @@ describe('LoginForm keep signed in', () => {
             expect(mocks.signIn).toHaveBeenCalledWith('atlas@example.com', 'password123', {
                 keepSignedIn: false,
             });
+        });
+    });
+
+    it('shows login-focused copy while the request is pending', async () => {
+        setMobileMatchMedia(false);
+        let resolveSignIn;
+        mocks.signIn.mockImplementation(() => new Promise((resolve) => {
+            resolveSignIn = resolve;
+        }));
+        const onLoginSuccess = vi.fn();
+
+        renderLoginForm({ onLoginSuccess });
+
+        fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+            target: { value: 'atlas@example.com' },
+        });
+        fireEvent.change(screen.getByPlaceholderText('••••••••'), {
+            target: { value: 'password123' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /^enter$/i }));
+
+        expect(await screen.findByText('Logging in...')).toBeInTheDocument();
+        expect(screen.queryByText(/validating/i)).not.toBeInTheDocument();
+
+        await act(async () => {
+            resolveSignIn({ id: 7 });
+        });
+
+        await waitFor(() => {
+            expect(onLoginSuccess).toHaveBeenCalledWith({ require2FA: false });
         });
     });
 });

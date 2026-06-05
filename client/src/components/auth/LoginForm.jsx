@@ -152,7 +152,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                     {loading ? (
                         <span className="flex items-center justify-center gap-3">
                             <LoadingSpinner size="sm" color="text-[#0d141e]" />
-                            <span>Validating...</span>
+                            <span>Logging in...</span>
                         </span>
                     ) : (
                         'Enter'
