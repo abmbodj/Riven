@@ -132,7 +132,7 @@ ${buildNotePromptContext({
   className,
   subject,
   sourceText,
-  includeKeyConcepts: true,
+  includeKeyConcepts: false,
   preserveStudentPhrasing: false,
 })}
 - Be detailed enough that the saved notes can support later flashcards, guides, or exams.

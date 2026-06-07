@@ -843,28 +843,71 @@ const processYoutubeSourceJob = async ({
     },
   });
 
-  const messages: AiMessage[] = [{
+  // ── DRAFT PASS ─────────────────────────────────────────────────────────────
+  // Use the same draft→enrich two-pass pipeline as the audio path so YouTube
+  // notes get subject-aware structure, the "notes = reference" contract, and
+  // the same quality level (no recap sections, proper outline/worked-examples).
+  const draftMessages: AiMessage[] = [{
     role: 'user',
-    content: `${buildYoutubeSourcePrompt(className, subject, preparedSource.sourceText)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
+    content: `${buildNoteDraftPrompt(null, className, subject, preparedSource.sourceText)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
   }];
 
   const streamResult = await streamDocPreview({
     ai,
-    model: modelMap.final,
+    model: modelMap.draft,
     fallbackModel: modelMap.final,
-    messages,
+    messages: draftMessages,
     reporter,
     phase: 'drafting',
     startPercent: 26,
-    endPercent: 78,
-    message: 'Building reusable video notes',
+    endPercent: 62,
+    message: 'Drafting video notes',
   });
 
   if (streamResult.firstPreviewAt != null) {
     firstPreviewAt = streamResult.firstPreviewAt;
   }
 
-  const sourceDoc = streamResult.doc;
+  const draftDoc = streamResult.doc;
+
+  await reporter.update('enriching', 66, 'Refining notes for clarity', {
+    preview_doc: draftDoc,
+    preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
+      ? (draftDoc as Record<string, unknown>).content
+      : [],
+  });
+
+  // ── ENRICH PASS ────────────────────────────────────────────────────────────
+  const enrichText = await generateWithFallback({
+    ai,
+    primaryModel: modelMap.final,
+    fallbackModel: modelMap.final,
+    messages: [{
+      role: 'user',
+      content: `${buildNoteEnrichPrompt(null, className, draftDoc, subject, preparedSource.sourceText)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
+    }],
+    responseFormat: 'json_object',
+  });
+
+  let sourceDoc: unknown;
+  try {
+    sourceDoc = parseAiJsonResponse(enrichText, 'AI generated invalid notes format for YouTube source.');
+  } catch {
+    sourceDoc = draftDoc;
+  }
+
+  // ── FIDELITY PASS ──────────────────────────────────────────────────────────
+  // Off-critical-path: correct drift from the transcript or content-contract breaks.
+  sourceDoc = await ensureNoteFidelity({
+    ai,
+    finalDoc: sourceDoc,
+    transcription: preparedSource.sourceText,
+    userNotesSnapshot: null,
+    className,
+    subject,
+    modelMap,
+  });
+
   const sourceText = extractTextFromTiptapDoc(sourceDoc);
 
   await reporter.complete({
@@ -874,6 +917,9 @@ const processYoutubeSourceJob = async ({
     resultPatch: {
       source_doc: sourceDoc,
       source_text: sourceText,
+      // Pass the raw transcript through so the youtube_notes derived job can
+      // persist it on the note for later reference / fidelity tracing.
+      raw_transcript: transcript,
       title: titleSnapshot,
       source_key: sourceKey,
       preview_doc: sourceDoc,
@@ -884,7 +930,8 @@ const processYoutubeSourceJob = async ({
         server_total_ms: Date.now() - jobStartedAt,
         first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
         ai_model_stage: {
-          source: modelMap.final,
+          draft: modelMap.draft,
+          final: modelMap.final,
         },
         transcript_chunk_count: preparedSource.chunkCount,
         transcript_compacted: preparedSource.wasCompacted,
@@ -975,13 +1022,27 @@ const processYoutubeDerivedJob = async ({
       preview_sections: (sourcePayload.source_doc as Record<string, unknown> | undefined)?.content || [],
     });
 
-    const noteId = await createNote({
-      admin,
-      userId: job.user_id,
-      title: effectiveTitle || 'YouTube Notes',
-      classId,
-      content: sourcePayload.source_doc,
-    });
+    const rawTranscript = typeof sourcePayload.raw_transcript === 'string'
+      ? sourcePayload.raw_transcript
+      : sourceText;
+
+    const { data: noteData, error: noteError } = await admin
+      .from('notes')
+      .insert({
+        user_id: job.user_id,
+        title: effectiveTitle || 'YouTube Notes',
+        content: sourcePayload.source_doc,
+        enhanced_content: sourcePayload.source_doc,
+        transcript: rawTranscript,
+        polish_status: 'polished',
+        class_id: classId || null,
+        source_type: 'youtube',
+      })
+      .select('id')
+      .single();
+
+    if (noteError) throw noteError;
+    const noteId = noteData.id;
 
     await reporter.complete({
       message: 'Notes generated successfully',
