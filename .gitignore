@@ -85,10 +85,15 @@ _agents/
 _agent/
 brain/
 .claude/
-# Only ignore media that is likely agent recordings or temporary browser captures
-# Re-including project assets manually if they were caught by a broad rule
-# But better to just ignore the specific brain/ directory and recordings
+.superpowers/
 .system_generated/
+
+# Skills lock files (local tooling state)
+skills-lock.json
+
+# Nested .env files (belt-and-suspenders — base .env rule above covers these but they were pre-committed)
+server/.env
+client/.env
 
 # Project Specific
 client/public/generate-icons.cjs
