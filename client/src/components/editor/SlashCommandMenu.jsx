@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState, useCallback } from 'react';
 import {
-    Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus, Type
+    Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus, Type, Table
 } from 'lucide-react';
 
 const COMMANDS = [
@@ -12,6 +12,14 @@ const COMMANDS = [
     { title: 'Numbered List', subtitle: 'ordered', icon: ListOrdered, command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run() },
     { title: 'Quote', subtitle: 'blockquote', icon: Quote, command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run() },
     { title: 'Divider', subtitle: 'hr', icon: Minus, command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run() },
+    {
+        title: 'Table',
+        subtitle: '3×3 grid',
+        icon: Table,
+        command: ({ editor, range }) =>
+            editor.chain().focus().deleteRange(range)
+                .insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    },
 ];
 
 const SlashCommandMenu = forwardRef((props, ref) => {

@@ -11,8 +11,22 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
 const RETRY_SEVERITY_THRESHOLD = 4;
-const NOTES_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+// Hybrid models: a fast model streams the first usable pass; a (configurably) stronger
+// model handles the correction/retry + batch path. Both default to the same model so
+// behavior is unchanged until NOTES_FINAL_MODEL is configured.
+const NOTES_DRAFT_MODEL = Deno.env.get('AI_DRAFT_MODEL') ?? 'meta-llama/llama-4-scout-17b-16e-instruct';
+const NOTES_FINAL_MODEL = Deno.env.get('AI_FINAL_MODEL') ?? NOTES_DRAFT_MODEL;
 const NOTES_MAX_TOKENS = 8192;
+
+// Bias Whisper toward the lecture's domain vocabulary and proper nouns so technical
+// terms and names transcribe correctly instead of being mangled.
+const buildTranscriptionBiasPrompt = (className?: string, subject?: string): string => {
+  const parts: string[] = [];
+  if (className) parts.push(`Lecture for the class "${className}".`);
+  if (subject) parts.push(`Subject area: ${subject}.`);
+  parts.push('Expect domain-specific terminology, technical vocabulary, and proper nouns.');
+  return parts.join(' ');
+};
 
 type PersistUsagePayload = {
   count: number;
@@ -112,7 +126,13 @@ serve(async (request) => {
     const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
     const filename = audioPath.split('/').pop() || 'audio.webm';
 
-    const transcription = await ai.transcribeAudio(audioBlob, filename);
+    // Accurate, full-context transcription with vocabulary biasing. Segments give us a
+    // timeline (for replay) and confidence signals (to flag low-confidence spans).
+    const { text: transcription, segments } = await ai.transcribeAudioWithSegments(
+      audioBlob,
+      filename,
+      { prompt: buildTranscriptionBiasPrompt(className, subject) },
+    );
 
     // Determine mode and build prompt
     const isEnhanceMode = userNotes && userNotes.trim().length > 0;
@@ -131,7 +151,7 @@ serve(async (request) => {
       (async () => {
         try {
           const streamResponse = ai.streamContent({
-            model: NOTES_MODEL,
+            model: NOTES_DRAFT_MODEL,
             messages: aiMessages,
             maxTokens: NOTES_MAX_TOKENS,
           });
@@ -159,7 +179,7 @@ serve(async (request) => {
             throw createHttpError('AI failed to generate valid enhanced notes.', 500);
           }
 
-          const validation = validateNoteDoc(enhancedContent, { className, subject });
+          const validation = validateNoteDoc(enhancedContent, { className, subject, transcript: transcription });
           if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD && deadline - Date.now() > 5_000) {
             try {
               // Signal client to discard streamed chunks; a fresh corrected stream follows.
@@ -173,7 +193,7 @@ serve(async (request) => {
 
               let retryFullText = '';
               const retryStream = ai.streamContent({
-                model: NOTES_MODEL,
+                model: NOTES_FINAL_MODEL,
                 messages: retryMessages,
                 maxTokens: NOTES_MAX_TOKENS,
               });
@@ -191,7 +211,7 @@ serve(async (request) => {
 
               const retried = parseAiJsonResponse(retryFullText, 'Retry produced invalid JSON');
               if (retried && typeof retried === 'object' && retried.type === 'doc') {
-                const retriedValidation = validateNoteDoc(retried, { className, subject });
+                const retriedValidation = validateNoteDoc(retried, { className, subject, transcript: transcription });
                 if (retriedValidation.severity < validation.severity) {
                   enhancedContent = retried;
                 }
@@ -201,21 +221,22 @@ serve(async (request) => {
             }
           }
 
-          // Update the note with enhanced content
+          // Persist enhanced content + the transcript/segment timeline. Audio is retained
+          // (audio_url keeps pointing at the stored file) so the note can replay the recording.
           const { error: updateError } = await admin
             .from('notes')
             .update({
               enhanced_content: enhancedContent,
-              audio_url: null,
+              transcript: transcription,
+              audio_segments: segments,
+              audio_url: audioPath,
+              polish_status: 'polished',
               source_type: 'audio',
             })
             .eq('id', noteId)
             .eq('user_id', authUser.id);
 
           if (updateError) throw updateError;
-
-          // Cleanup audio file
-          admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
           sendDone({
             enhanced_content: enhancedContent,
@@ -238,7 +259,7 @@ serve(async (request) => {
 
     // ── BATCH PATH ──────────────────────────────────────
     const rawText = await ai.generateContent({
-      model: NOTES_MODEL,
+      model: NOTES_FINAL_MODEL,
       messages: aiMessages,
       maxTokens: NOTES_MAX_TOKENS,
       responseFormat: 'json_object',
@@ -253,11 +274,11 @@ serve(async (request) => {
       throw createHttpError('AI failed to generate valid enhanced notes.', 500);
     }
 
-    const validation = validateNoteDoc(enhancedContent, { className, subject });
+    const validation = validateNoteDoc(enhancedContent, { className, subject, transcript: transcription });
     if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD) {
       try {
         const retryText = await ai.generateContent({
-          model: NOTES_MODEL,
+          model: NOTES_FINAL_MODEL,
           messages: [
             ...aiMessages,
             { role: 'assistant' as const, content: rawText },
@@ -268,7 +289,7 @@ serve(async (request) => {
         });
         const retried = parseAiJsonResponse(retryText, 'Retry produced invalid JSON');
         if (retried && typeof retried === 'object' && retried.type === 'doc') {
-          const retriedValidation = validateNoteDoc(retried, { className, subject });
+          const retriedValidation = validateNoteDoc(retried, { className, subject, transcript: transcription });
           if (retriedValidation.severity < validation.severity) {
             enhancedContent = retried;
           }
@@ -278,21 +299,21 @@ serve(async (request) => {
       }
     }
 
-    // Update the note with enhanced content
+    // Persist enhanced content + transcript/segment timeline. Audio is retained for replay.
     const { error: updateError } = await admin
       .from('notes')
       .update({
         enhanced_content: enhancedContent,
-        audio_url: null,
+        transcript: transcription,
+        audio_segments: segments,
+        audio_url: audioPath,
+        polish_status: 'polished',
         source_type: 'audio',
       })
       .eq('id', noteId)
       .eq('user_id', authUser.id);
 
     if (updateError) throw updateError;
-
-    // Cleanup audio file
-    admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
     return jsonResponse(
       {

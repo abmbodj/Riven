@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ChevronLeft, Check, Loader2, Layers, BookOpen, ClipboardCheck, Trash2, X, ChevronDown,
-    Mic, Sparkles, AlertCircle, Share2
+    Mic, Sparkles, AlertCircle, Share2, Play, Pause
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -104,6 +104,15 @@ export default function NoteEditor() {
     const [enhancing, setEnhancing] = useState(false);
     const [enhanceError, setEnhanceError] = useState(null);
     const [audioPath, setAudioPath] = useState(null);
+    // Retained audio for a polished note — separate from pre-enhancement tracking so it
+    // never accidentally triggers the "discard" flow or gets deleted on cancel.
+    const [retainedAudioPath, setRetainedAudioPath] = useState(null);
+    const [retainedAudioSignedUrl, setRetainedAudioSignedUrl] = useState(null);
+    const [audioSegments, setAudioSegments] = useState(null);
+    const [audioPlaying, setAudioPlaying] = useState(false);
+    const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+    const [audioDuration, setAudioDuration] = useState(0);
+    const audioPlayerRef = useRef(null);
     const [activeEnhancementJob, setActiveEnhancementJob] = useState(null);
     const [enhancementCompletionRail, setEnhancementCompletionRail] = useState(null);
     const [streamedEnhancementDoc, setStreamedEnhancementDoc] = useState(null);
@@ -206,6 +215,22 @@ export default function NoteEditor() {
     const extractText = useCallback((doc) => {
         return extractTextFromDoc(doc).replace(/\s+/g, ' ').trim();
     }, []);
+
+    // Create a short-lived signed URL whenever the retained audio path changes so the
+    // <audio> element can play the recording from Supabase Storage.
+    useEffect(() => {
+        if (!retainedAudioPath) {
+            setRetainedAudioSignedUrl(null);
+            return;
+        }
+        let cancelled = false;
+        api.createNoteAudioSignedUrl(retainedAudioPath).then((url) => {
+            if (!cancelled) setRetainedAudioSignedUrl(url);
+        }).catch(() => {
+            if (!cancelled) setRetainedAudioSignedUrl(null);
+        });
+        return () => { cancelled = true; };
+    }, [retainedAudioPath]);
 
     const resetStreamedEnhancementDoc = useCallback(() => {
         streamedEnhancementSignatureRef.current = '';
@@ -388,6 +413,12 @@ export default function NoteEditor() {
 
                 setContent(refreshedDoc);
                 contentRef.current = refreshedDoc;
+
+                // Pick up retained audio from the freshly persisted note.
+                if (persistedNote.polish_status === 'polished' && persistedNote.audio_url) {
+                    setRetainedAudioPath(persistedNote.audio_url);
+                    setAudioSegments(Array.isArray(persistedNote.audio_segments) ? persistedNote.audio_segments : null);
+                }
             });
         }
 
@@ -705,7 +736,16 @@ export default function NoteEditor() {
                     if (!preserveEnhancedContent) {
                         setContent(initialContent);
                         contentRef.current = initialContent;
-                        setAudioPath(note.audio_url || null);
+                        if (note.polish_status === 'polished' && note.audio_url) {
+                            // Retained recording — keep it separate from pre-enhancement tracking.
+                            setRetainedAudioPath(note.audio_url);
+                            setAudioSegments(Array.isArray(note.audio_segments) ? note.audio_segments : null);
+                            setAudioPath(null);
+                        } else {
+                            setAudioPath(note.audio_url || null);
+                            setRetainedAudioPath(null);
+                            setAudioSegments(null);
+                        }
                     } else if (!note.audio_url) {
                         setAudioPath(null);
                     }
@@ -1661,6 +1701,64 @@ export default function NoteEditor() {
                             />
                         </div>
                     </div>
+
+                    {retainedAudioSignedUrl && (
+                        <div className="mt-6 rounded-2xl border border-claude-border/30 bg-claude-surface/30 p-3">
+                            {/* Hidden native audio element — all playback goes through audioPlayerRef */}
+                            <audio
+                                ref={audioPlayerRef}
+                                src={retainedAudioSignedUrl}
+                                preload="metadata"
+                                onPlay={() => setAudioPlaying(true)}
+                                onPause={() => setAudioPlaying(false)}
+                                onEnded={() => { setAudioPlaying(false); setAudioCurrentTime(0); }}
+                                onTimeUpdate={() => setAudioCurrentTime(audioPlayerRef.current?.currentTime ?? 0)}
+                                onLoadedMetadata={() => setAudioDuration(audioPlayerRef.current?.duration ?? 0)}
+                            />
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    aria-label={audioPlaying ? 'Pause lecture' : 'Play lecture'}
+                                    onClick={() => {
+                                        const el = audioPlayerRef.current;
+                                        if (!el) return;
+                                        if (audioPlaying) { el.pause(); } else { el.play(); }
+                                    }}
+                                    className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-claude-accent/10 hover:bg-claude-accent/20 text-claude-accent transition-colors tap-action"
+                                >
+                                    {audioPlaying
+                                        ? <Pause className="w-3.5 h-3.5" />
+                                        : <Play className="w-3.5 h-3.5 translate-x-px" />}
+                                </button>
+
+                                <span className="shrink-0 font-mono text-[10px] text-claude-secondary tabular-nums w-10 text-right">
+                                    {formatRecordingDuration(Math.floor(audioCurrentTime))}
+                                </span>
+
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={audioDuration || 0}
+                                    step={0.5}
+                                    value={audioCurrentTime}
+                                    onChange={(e) => {
+                                        const t = parseFloat(e.target.value);
+                                        setAudioCurrentTime(t);
+                                        if (audioPlayerRef.current) audioPlayerRef.current.currentTime = t;
+                                    }}
+                                    className="flex-1 h-1 accent-claude-accent cursor-pointer"
+                                />
+
+                                <span className="shrink-0 font-mono text-[10px] text-claude-secondary tabular-nums w-10">
+                                    {formatRecordingDuration(Math.floor(audioDuration))}
+                                </span>
+                            </div>
+
+                            <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary/60">
+                                Lecture recording · tap a section heading to skip to it
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 

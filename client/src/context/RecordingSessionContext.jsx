@@ -301,7 +301,8 @@ export function RecordingSessionProvider({ children }) {
         streamRef.current = stream;
 
         const mimeType = MediaRecorder.isTypeSupported(MIME_TYPE) ? MIME_TYPE : FALLBACK_MIME;
-        const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 });
+        // 64kbps Opus is still tiny but materially improves speech-to-text accuracy over 32kbps.
+        const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 64000 });
         mediaRecorderRef.current = recorder;
 
         recorder.ondataavailable = (event) => {

@@ -2059,6 +2059,16 @@ export const uploadNoteAudio = async (noteId, audioBlob) => {
     return { path };
 };
 
+export const createNoteAudioSignedUrl = async (audioPath, expiresIn = 3600) => {
+    const normalizedPath = String(audioPath || '').trim();
+    if (!normalizedPath) return null;
+    const { data, error } = await supabase.storage
+        .from('note-audio')
+        .createSignedUrl(normalizedPath, expiresIn);
+    if (error) _sbThrow(error);
+    return data?.signedUrl || null;
+};
+
 export const deleteNoteAudio = async (audioPath) => {
     const normalizedPath = String(audioPath || '').trim();
     if (!normalizedPath) return { path: null };

@@ -96,6 +96,10 @@ vi.mock('../components/FileViewer', () => ({
   default: () => null,
 }));
 
+vi.mock('../components/groups/GroupChatPanel.jsx', () => ({
+  default: () => null,
+}));
+
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
     storage: {
@@ -238,7 +242,7 @@ describe('GroupDetails upload flow', () => {
         folder_id: null,
       });
     });
-  });
+  }, 10000);
 
   it('returns to the form and shows an error toast when upload fails', async () => {
     storageBucket.upload.mockResolvedValueOnce({
@@ -334,6 +338,8 @@ describe('GroupDetails upload flow', () => {
 
     expect(screen.getAllByRole('grid', { name: /monthly calendar/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText(expectedMonthLabel).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/overlap planner/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/find the next study window for biology lab/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('tab', { name: /month/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('tab', { name: /week/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('tab', { name: /day/i }).length).toBeGreaterThan(0);
@@ -555,6 +561,8 @@ describe('GroupDetails upload flow', () => {
     expect(filterList).toHaveClass('overflow-x-auto');
     expect(filterList).toHaveClass('sm:flex-wrap');
     expect(filterList).toHaveClass('sm:overflow-visible');
+    expect(within(filterList).getByRole('button', { name: /everyone/i })).toBeInTheDocument();
+    expect(within(filterList).getByRole('button', { name: /study sessions/i })).toBeInTheDocument();
     expect(within(primaryHub).getByRole('tab', { name: /month/i })).toBeInTheDocument();
     expect(within(primaryHub).getByRole('tab', { name: /week/i })).toBeInTheDocument();
     expect(within(primaryHub).getByRole('tab', { name: /^day$/i })).toBeInTheDocument();

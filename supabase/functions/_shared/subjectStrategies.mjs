@@ -215,7 +215,9 @@ const SUBJECT_NOTE_METHODS = {
   Music: 'outline',
   Art: 'evidence_analysis',
   Engineering: 'worked_examples',
-  General: 'cornell',
+  // Notes are pure study reference; the tutor session owns retrieval/quizzing.
+  // Default General notes to a clean outline rather than Cornell cue-question notes.
+  General: 'outline',
 };
 
 const inferNoteMethodFromSourceText = (sourceText) => {

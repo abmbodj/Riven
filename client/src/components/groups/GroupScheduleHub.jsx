@@ -9,7 +9,6 @@ import {
     Link2,
     MapPin,
     Sparkles,
-    UsersRound,
     X,
 } from 'lucide-react';
 import {
@@ -28,9 +27,9 @@ import {
     toLocalDateTimeValue,
 } from './groupScheduleUtils.js';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
-import CalendarHeader from '../calendar/CalendarHeader.jsx';
-import CalendarGrid from '../calendar/CalendarGrid.jsx';
-import CalendarTimeline from '../calendar/CalendarTimeline.jsx';
+import GroupPlannerHeader from './GroupPlannerHeader.jsx';
+import GroupPlannerMonthView from './GroupPlannerMonthView.jsx';
+import GroupPlannerTimeline from './GroupPlannerTimeline.jsx';
 
 const SHARE_MODES = [
     {
@@ -63,34 +62,15 @@ const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:
 const schedulePanelClass = 'glass-panel-premium rounded-[1.5rem] border border-white/10 shadow-[0_18px_42px_rgba(3,7,11,0.2)]';
 const scheduleSoftPanelClass = 'guide-shell rounded-[1.1rem] border border-white/10 bg-white/[0.03]';
 const scheduleChipClass = 'rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.14em]';
-const GROUP_CALENDAR_HEADER_COPY = {
-    compactEyebrow: 'Shared windows',
-    defaultEyebrow: 'Group planning',
-    allFilterLabel: 'All',
-};
-const GROUP_CALENDAR_GRID_COPY = {
-    assignmentSingular: 'study session',
-    assignmentPlural: 'study sessions',
-    scheduleSingular: 'availability block',
-    schedulePlural: 'availability blocks',
-};
 const GROUP_CALENDAR_TIMELINE_COPY = {
     railDayEyebrow: 'Today',
     railWeekEyebrow: 'Overlap',
     railTitle: 'Shared windows',
     allDayLaneLabel: 'Session lane',
-    allDayCountSingular: 'session',
-    allDayCountPlural: 'sessions',
     emptyAllDayLabel: 'No sessions yet',
-    allDayAssignmentSubtitle: 'Session',
-    timedAssignmentSubtitle: 'Session',
-    classFallbackTitle: 'Availability',
-    classFallbackName: 'Shared availability',
     defaultSourceName: 'Study group',
     ariaClassLabel: 'Availability block',
     ariaMeetupLabel: 'Study session',
-    ariaAssignmentLabel: 'Study session',
-    scrollHint: 'Scan shared openings earlier and later',
 };
 
 function createDefaultComposerDate(selectedDate = new Date()) {
@@ -375,7 +355,7 @@ function DayDetailSurface({
     const denseDensity = density === 'dense';
     const fitWeekdayView = fitMode === 'group-weekday';
     const suggestionCopy = suggestionMode === 'fallback'
-        ? 'Nearby openings with the strongest group overlap this month.'
+        ? 'Nearby openings with the strongest group overlap in this planner range.'
         : 'Best overlap windows for this day.';
 
     return (
@@ -383,13 +363,17 @@ function DayDetailSurface({
             data-testid="group-schedule-day-surface"
             data-density={denseDensity ? 'dense' : 'comfortable'}
             data-fit-mode={fitMode}
-            className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] ${fitWeekdayView ? 'p-2 md:p-2' : denseDensity ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} ${className}`.trim()}
+            className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(222,185,106,0.12),transparent_34%),linear-gradient(165deg,rgba(18,24,37,0.96),rgba(8,12,19,0.96))] ${fitWeekdayView ? 'p-2 md:p-2' : denseDensity ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} ${className}`.trim()}
         >
-            {/* Header */}
             <div className="flex items-center justify-between gap-3">
-                <h3 className={`font-display font-bold italic leading-tight tracking-tight text-claude-text ${denseDensity ? 'text-[1rem] md:text-[1.1rem]' : 'text-[1.1rem] md:text-[1.25rem]'}`}>
-                    {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
-                </h3>
+                <div>
+                    <div className="text-[8px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                        Planning queue
+                    </div>
+                    <h3 className={`mt-1 font-display font-bold italic leading-tight tracking-tight text-claude-text ${denseDensity ? 'text-[1rem] md:text-[1.1rem]' : 'text-[1.1rem] md:text-[1.25rem]'}`}>
+                        {formatDateLabel(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </h3>
+                </div>
 
                 <div className={`flex shrink-0 items-center ${denseDensity ? 'gap-1.5' : 'gap-2'}`}>
                     <button
@@ -411,7 +395,7 @@ function DayDetailSurface({
             </div>
 
             {/* Best overlap panel */}
-            <div className={`mt-2 ${scheduleSoftPanelClass} ${fitWeekdayView ? 'p-1.5' : denseDensity ? 'p-2' : 'p-2.5'}`}>
+            <div className={`mt-2 ${scheduleSoftPanelClass} bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] ${fitWeekdayView ? 'p-1.5' : denseDensity ? 'p-2' : 'p-2.5'}`}>
                 <div className="flex items-center gap-2">
                     <Sparkles className={`${denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-claude-accent`} />
                     <span className={`font-mono font-bold uppercase tracking-[0.14em] text-claude-accent ${denseDensity ? 'text-[8px]' : 'text-[9px]'}`}>
@@ -468,10 +452,10 @@ function DayDetailSurface({
                             <CalendarDays className={`${fitWeekdayView ? 'h-2.5 w-2.5' : denseDensity ? 'h-3 w-3' : 'h-3.5 w-3.5'} text-claude-secondary`} />
                         </div>
                         <div>
-                                <p className={`font-display font-bold italic tracking-tight text-claude-text ${fitWeekdayView ? 'text-[0.9rem]' : denseDensity ? 'text-[0.95rem]' : 'text-[1rem]'}`}>Nothing scheduled</p>
-                                <p className={`mt-0.5 text-claude-secondary ${fitWeekdayView ? 'text-[9px] leading-4' : denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
-                                    Propose a session to get things going.
-                                </p>
+                            <p className={`font-display font-bold italic tracking-tight text-claude-text ${fitWeekdayView ? 'text-[0.9rem]' : denseDensity ? 'text-[0.95rem]' : 'text-[1rem]'}`}>Nothing scheduled</p>
+                            <p className={`mt-0.5 text-claude-secondary ${fitWeekdayView ? 'text-[9px] leading-4' : denseDensity ? 'text-[10px] leading-4' : 'text-[11px] leading-4'}`}>
+                                Use the overlap suggestions to start the next session.
+                            </p>
                         </div>
                         <button
                             type="button"
@@ -586,17 +570,18 @@ export default function GroupScheduleHub({
     }, [activeFilters, contentMode, groupScheduleSlots, meetups, selectedDate]);
 
     const agendaItems = selectedDaySummary.agendaItems;
-    const bestTimes = useMemo(
+    const overlapCandidates = useMemo(
         () => calculateBestTimes({
             rangeStart: visibleRange.start,
             rangeEnd: visibleRange.end,
             members,
             meetups,
             scheduleSlots: groupScheduleSlots,
-            limit: 6,
+            limit: 240,
         }),
         [groupScheduleSlots, members, meetups, visibleRange.end, visibleRange.start],
     );
+    const bestTimes = useMemo(() => overlapCandidates.slice(0, 6), [overlapCandidates]);
     const selectedDaySuggestions = useMemo(
         () => bestTimes.filter((suggestion) => isSameLocalDay(suggestion.startsAt, selectedDate)).slice(0, 3),
         [bestTimes, selectedDate],
@@ -609,6 +594,30 @@ export default function GroupScheduleHub({
         : bestTimes.length > 0
         ? 'fallback'
         : 'empty';
+    const visibleMembers = useMemo(
+        () => members.filter((member) => member.share_mode && member.share_mode !== 'hidden'),
+        [members],
+    );
+    const plannerMetrics = useMemo(() => {
+        const activeSessionCount = meetups.filter((meetup) => meetup.status !== 'cancelled').length;
+        const strongestOverlap = bestTimes[0]?.freeCount || 0;
+
+        return [
+            {
+                label: 'Members sharing',
+                value: String(visibleMembers.length),
+            },
+            {
+                label: 'Live sessions',
+                value: String(activeSessionCount),
+                tone: 'accent',
+            },
+            {
+                label: 'Strongest overlap',
+                value: strongestOverlap >= 2 ? `${strongestOverlap} free` : 'Share schedules',
+            },
+        ];
+    }, [bestTimes, meetups, visibleMembers.length]);
 
     const handleFilterToggle = (id) => {
         if (id === 'all') {
@@ -861,52 +870,28 @@ export default function GroupScheduleHub({
 
     return (
         <div data-testid="group-schedule-hub" className="space-y-3">
-            {/* Shared availability controls */}
-            <section className={`${schedulePanelClass} p-2.5 md:p-3`}>
-                <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <UsersRound className="h-3 w-3 text-claude-accent" />
-                            <span className="text-[9px] font-mono font-bold uppercase tracking-[0.14em] text-claude-accent">
-                                Shared Availability
-                            </span>
-                        </div>
-                        <h2 className="mt-1 font-display text-[1.15rem] font-bold italic leading-tight tracking-tight text-claude-text md:text-[1.35rem]">
-                            Plan sessions around {group?.name || 'this group'} without exposing more than you choose.
-                        </h2>
-                    </div>
+            <GroupPlannerHeader
+                groupName={group?.name}
+                anchorDate={anchorDate}
+                onPrev={() => handleNavigate(-1)}
+                onNext={() => handleNavigate(1)}
+                onToday={handleSelectToday}
+                onPropose={() => openComposer()}
+                view={view}
+                onViewChange={handleViewChange}
+                contentMode={contentMode}
+                onContentModeChange={setContentMode}
+                sources={calendarSources}
+                activeFilters={activeFilters}
+                onFilterToggle={handleFilterToggle}
+                metrics={plannerMetrics}
+                shareModeControl={
+                    <ShareModeControl currentMode={myShareMode} onChange={handleShareChange} busy={shareBusy} />
+                }
+            />
 
-                    <div className="w-full max-w-[22rem]">
-                        <ShareModeControl currentMode={myShareMode} onChange={handleShareChange} busy={shareBusy} />
-                    </div>
-                </div>
-            </section>
-
-            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.55fr)_320px]">
-                {/* Calendar section */}
-                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-2.5 md:p-3`}>
-                    <CalendarHeader
-                        anchorDate={anchorDate}
-                        onPrev={() => handleNavigate(-1)}
-                        onNext={() => handleNavigate(1)}
-                        onToday={handleSelectToday}
-                        view={view}
-                        onViewChange={handleViewChange}
-                        contentMode={contentMode}
-                        onContentModeChange={setContentMode}
-                        contentOptions={[
-                            { value: 'assignments', label: 'Sessions' },
-                            { value: 'classes', label: 'Availability' },
-                            { value: 'both', label: 'Both' },
-                        ]}
-                        classes={calendarSources}
-                        activeFilters={activeFilters}
-                        onFilterToggle={handleFilterToggle}
-                        eyebrow="Shared windows"
-                        density={scheduleDensity}
-                        copy={GROUP_CALENDAR_HEADER_COPY}
-                    />
-
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_340px]">
+                <div className="space-y-3">
                     <AnimatePresence mode="wait" initial={false}>
                         {view === 'month' && (
                             <motion.div
@@ -916,17 +901,15 @@ export default function GroupScheduleHub({
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.12 }}
                             >
-                                <CalendarGrid
+                                <GroupPlannerMonthView
                                     anchorDate={anchorDate}
-                                    assignments={groupMeetupAssignments}
-                                    scheduleSlots={groupScheduleSlots}
-                                    classes={calendarSources}
-                                    activeFilters={activeFilters}
-                                    contentMode={contentMode}
                                     selectedDay={selectedDate}
                                     onDaySelect={handleDaySelect}
-                                    density={scheduleDensity}
-                                    copy={GROUP_CALENDAR_GRID_COPY}
+                                    scheduleSlots={groupScheduleSlots}
+                                    meetups={meetups}
+                                    activeFilters={activeFilters}
+                                    contentMode={contentMode}
+                                    overlapCandidates={overlapCandidates}
                                 />
                             </motion.div>
                         )}
@@ -939,7 +922,7 @@ export default function GroupScheduleHub({
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.12 }}
                             >
-                                <CalendarTimeline
+                                <GroupPlannerTimeline
                                     anchorDate={anchorDate}
                                     view={view}
                                     assignments={groupMeetupAssignments}
@@ -955,9 +938,8 @@ export default function GroupScheduleHub({
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </section>
+                </div>
 
-                {/* Day detail — inline below calendar on mobile, sidebar on desktop */}
                 <DayDetailSurface
                     {...dayDetailProps}
                     density={scheduleDensity}
@@ -988,17 +970,20 @@ export default function GroupScheduleHub({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 24, scale: 0.98 }}
                             onSubmit={handleComposerSubmit}
-                            className="relative w-full max-w-lg rounded-t-[2.2rem] border border-white/10 bg-[linear-gradient(165deg,rgba(30,56,64,0.95),rgba(12,20,28,0.95))] p-6 shadow-[0_40px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl md:rounded-[2rem] md:p-7"
+                            className="relative w-full max-w-lg rounded-t-[2.2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(222,185,106,0.16),transparent_34%),linear-gradient(165deg,rgba(19,27,39,0.98),rgba(9,13,21,0.98))] p-6 shadow-[0_40px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl md:rounded-[2rem] md:p-7"
                             onClick={(event) => event.stopPropagation()}
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                        Propose Session
+                                        Session planner
                                     </p>
                                     <h3 id={titleIdRef.current} className="mt-2 font-display text-[2rem] font-bold italic tracking-tight text-claude-text">
                                         {composerStep === 1 ? 'Pick the time' : 'Add the details'}
                                     </h3>
+                                    <p className="mt-2 max-w-sm text-[12px] leading-5 text-claude-secondary">
+                                        Line up a time first, then add the topic and location so the group can jump in quickly.
+                                    </p>
                                 </div>
                                 <button
                                     type="button"

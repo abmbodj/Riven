@@ -134,6 +134,22 @@ const hasHeading = (doc, pattern) => {
 const collectDocPlainText = (doc) =>
   collectPlainText(doc).replace(/\s+/g, ' ').trim();
 
+const findHallucinatedTerms = (boldFindings, transcript) => {
+  if (typeof transcript !== 'string' || transcript.trim().length === 0) return [];
+  const haystack = transcript.toLowerCase();
+  const flagged = [];
+  for (const { term } of boldFindings) {
+    const significantWords = String(term || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 3);
+    if (significantWords.length === 0) continue; // too short/symbolic to judge
+    const grounded = significantWords.some((word) => haystack.includes(word));
+    if (!grounded) flagged.push(term);
+  }
+  return flagged;
+};
+
 const resolveValidationStrategy = (options = {}) => {
   if (options.noteMethod) {
     return {
@@ -210,6 +226,17 @@ export const validateNoteDoc = (doc, options = {}) => {
       `These bolded terms appear without a definition nearby: ${missingDefinitions.map((t) => `"${t}"`).join(', ')}.`,
     );
     severity += missingDefinitions.length;
+  }
+
+  // Transcript fidelity: a bolded key term should be grounded in what was actually said.
+  // Conservative — a term is "grounded" if ANY significant word in it appears in the transcript,
+  // so legitimately-added examples/definitions don't trip the check; only fully-absent terms flag.
+  const hallucinatedTerms = findHallucinatedTerms(boldFindings, options.transcript);
+  if (hallucinatedTerms.length > 0) {
+    issues.push(
+      `These bolded terms do not appear in the lecture transcript and may be hallucinated — remove or correct them: ${hallucinatedTerms.map((t) => `"${t}"`).join(', ')}.`,
+    );
+    severity += hallucinatedTerms.length;
   }
 
   const { topParagraphs, bulletItems, headings } = countStructure(doc);

@@ -3,6 +3,10 @@ import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
 import { Extension } from '@tiptap/react';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
@@ -96,6 +100,10 @@ export default function TiptapEditor({ content, onUpdate, editable = true, place
                 heading: { levels: [1, 2, 3] },
             }),
             HorizontalRule,
+            Table.configure({ resizable: false }),
+            TableRow,
+            TableHeader,
+            TableCell,
             Placeholder.configure({ placeholder }),
             LatexMath,
             ...(editable ? [SlashCommand] : []),

@@ -48,6 +48,22 @@ vi.mock('@tiptap/extension-horizontal-rule', () => ({
   default: { name: 'horizontal-rule' },
 }));
 
+vi.mock('@tiptap/extension-table', () => ({
+  default: { configure: () => ({ name: 'table' }) },
+}));
+
+vi.mock('@tiptap/extension-table-row', () => ({
+  default: { name: 'tableRow' },
+}));
+
+vi.mock('@tiptap/extension-table-header', () => ({
+  default: { name: 'tableHeader' },
+}));
+
+vi.mock('@tiptap/extension-table-cell', () => ({
+  default: { name: 'tableCell' },
+}));
+
 vi.mock('@tiptap/suggestion', () => ({
   default: () => ({}),
 }));

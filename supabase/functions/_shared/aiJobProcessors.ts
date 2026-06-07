@@ -15,6 +15,7 @@ import {
   buildSectionNotePrompt,
   buildYoutubeSourcePrompt,
 } from './notePrompts.mjs';
+import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
@@ -151,6 +152,79 @@ const getAudioMimeType = (audioPath: string) => {
 
 type AudioSegment = { id: number; start: number; end: number; text: string };
 type AudioSection = { index: number; text: string; startTime: number; endTime: number };
+
+// Bias Whisper toward the lecture's domain vocabulary / proper nouns so technical terms
+// and names transcribe correctly instead of being mangled.
+const buildTranscriptionBiasPrompt = (
+  className: string | null,
+  subject: string | null,
+): string => {
+  const parts: string[] = [];
+  if (className) parts.push(`Lecture for the class "${className}".`);
+  if (subject) parts.push(`Subject area: ${subject}.`);
+  parts.push('Expect domain-specific terminology, technical vocabulary, and proper nouns.');
+  return parts.join(' ');
+};
+
+const NOTE_FIDELITY_RETRY_SEVERITY = 4;
+
+// One corrective pass if the generated note drifts from what was actually said (or breaks the
+// content contract). Runs after the preview is already shown, so it never adds perceived latency.
+const ensureNoteFidelity = async ({
+  ai,
+  finalDoc,
+  transcription,
+  userNotesSnapshot,
+  className,
+  subject,
+  modelMap,
+}: {
+  ai: AiClient;
+  finalDoc: unknown;
+  transcription: string;
+  userNotesSnapshot: string | null;
+  className: string | null;
+  subject: string | null;
+  modelMap: ReturnType<typeof getAiModelMap>;
+}): Promise<unknown> => {
+  if (!finalDoc || typeof finalDoc !== 'object' || (finalDoc as Record<string, unknown>).type !== 'doc') {
+    return finalDoc;
+  }
+
+  const validation = validateNoteDoc(finalDoc, { className, subject, transcript: transcription });
+  if (validation.ok || validation.severity < NOTE_FIDELITY_RETRY_SEVERITY) {
+    return finalDoc;
+  }
+
+  try {
+    const retryText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.final,
+      fallbackModel: modelMap.final,
+      messages: [
+        {
+          role: 'user',
+          content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, finalDoc, subject, transcription)}\n\nLecture Audio Transcription:\n${transcription}`,
+        },
+        { role: 'assistant', content: JSON.stringify(finalDoc) },
+        { role: 'user', content: buildRetryInstruction(validation) },
+      ],
+      responseFormat: 'json_object',
+      maxTokens: 8192,
+    });
+    const retried = parseAiJsonResponse(retryText, 'Retry produced invalid JSON');
+    if (retried && typeof retried === 'object' && (retried as Record<string, unknown>).type === 'doc') {
+      const retriedValidation = validateNoteDoc(retried, { className, subject, transcript: transcription });
+      if (retriedValidation.severity < validation.severity) {
+        return retried;
+      }
+    }
+  } catch (retryErr) {
+    console.warn('[note_enhancement] fidelity retry failed, keeping original output', retryErr);
+  }
+
+  return finalDoc;
+};
 
 const groupSegmentsIntoSections = (
   segments: AudioSegment[],
@@ -513,7 +587,11 @@ const processNoteEnhancementJob = async ({
   }
 
   await reporter.update('processing_media', 24, 'Transcribing audio');
-  const { text: transcription, segments } = await ai.transcribeAudioWithSegments(audioBlob, filename);
+  const { text: transcription, segments } = await ai.transcribeAudioWithSegments(
+    audioBlob,
+    filename,
+    { prompt: buildTranscriptionBiasPrompt(className, subject) },
+  );
 
   const sections = groupSegmentsIntoSections(segments);
 
@@ -650,12 +728,27 @@ const processNoteEnhancementJob = async ({
     });
   }
 
+  // Off-the-critical-path fidelity pass: correct drift from the transcript / contract breaks.
+  // The preview is already shown, so this never adds perceived latency.
+  finalDoc = await ensureNoteFidelity({
+    ai,
+    finalDoc,
+    transcription,
+    userNotesSnapshot,
+    className,
+    subject,
+    modelMap,
+  });
+
   const { error: updateError } = await admin
     .from('notes')
     .update({
       enhanced_content: finalDoc,
       content: finalDoc,
-      audio_url: null,
+      transcript: transcription,
+      audio_segments: segments,
+      audio_url: audioPath,
+      polish_status: 'polished',
       source_type: 'audio',
     })
     .eq('id', noteId)
@@ -680,7 +773,8 @@ const processNoteEnhancementJob = async ({
     },
   });
 
-  admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
+  // Audio is intentionally retained (audio_url above) so the note can replay the recording
+  // and jump to timestamps. It is cleaned up when the note or its audio is explicitly deleted.
 
   await reporter.complete({
     message: 'Notes enhanced successfully',

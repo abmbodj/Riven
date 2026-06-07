@@ -11,6 +11,14 @@ export type AiStreamChunk = {
   text: string;
 };
 
+export type TranscribeOptions = {
+  /** Vocabulary-biasing prompt (class/subject/known terms) to improve proper-noun + jargon accuracy. */
+  prompt?: string;
+  /** ISO-639-1 language hint, e.g. 'en'. */
+  language?: string;
+  temperature?: number;
+};
+
 export type { AiResponseFormat };
 
 export const createAiClient = (apiKey: string) => {
@@ -66,18 +74,30 @@ export const createAiClient = (apiKey: string) => {
       return response.choices?.[0]?.message?.content ?? '';
     },
 
-    async transcribeAudio(audioBlob: Blob, filename: string): Promise<string> {
+    async transcribeAudio(
+      audioBlob: Blob,
+      filename: string,
+      options: TranscribeOptions = {},
+    ): Promise<string> {
       const file = new File([audioBlob], filename, { type: audioBlob.type });
       const transcription = await groq.audio.transcriptions.create({
         model: 'whisper-large-v3',
         file,
+        // Bias decoding toward the lecture's domain vocabulary / proper nouns.
+        ...(options.prompt ? { prompt: options.prompt } : {}),
+        ...(options.language ? { language: options.language } : {}),
+        temperature: options.temperature ?? 0,
       });
       return transcription.text;
     },
 
-    async transcribeAudioWithSegments(audioBlob: Blob, filename: string): Promise<{
+    async transcribeAudioWithSegments(
+      audioBlob: Blob,
+      filename: string,
+      options: TranscribeOptions = {},
+    ): Promise<{
       text: string;
-      segments: Array<{ id: number; start: number; end: number; text: string }>;
+      segments: Array<{ id: number; start: number; end: number; text: string; avg_logprob?: number; no_speech_prob?: number }>;
     }> {
       const file = new File([audioBlob], filename, { type: audioBlob.type });
       const transcription = await groq.audio.transcriptions.create({
@@ -85,7 +105,11 @@ export const createAiClient = (apiKey: string) => {
         file,
         response_format: 'verbose_json',
         timestamp_granularities: ['segment'],
-      }) as { text: string; segments?: Array<{ id: number; start: number; end: number; text: string }> };
+        // Bias decoding toward the lecture's domain vocabulary / proper nouns.
+        ...(options.prompt ? { prompt: options.prompt } : {}),
+        ...(options.language ? { language: options.language } : {}),
+        temperature: options.temperature ?? 0,
+      }) as { text: string; segments?: Array<{ id: number; start: number; end: number; text: string; avg_logprob?: number; no_speech_prob?: number }> };
       return {
         text: transcription.text,
         segments: (transcription.segments ?? []).map((s: any) => ({
@@ -93,6 +117,9 @@ export const createAiClient = (apiKey: string) => {
           start: s.start,
           end: s.end,
           text: s.text,
+          // Confidence signals used to flag low-confidence spans for review.
+          ...(typeof s.avg_logprob === 'number' ? { avg_logprob: s.avg_logprob } : {}),
+          ...(typeof s.no_speech_prob === 'number' ? { no_speech_prob: s.no_speech_prob } : {}),
         })),
       };
     },
