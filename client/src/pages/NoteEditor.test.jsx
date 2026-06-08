@@ -406,8 +406,10 @@ describe('NoteEditor', () => {
       expect(recorderMock.setAudioPath).toHaveBeenCalledWith(null);
     });
 
-    expect(screen.queryByText('Enhancement failed upstream')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('Enhancement failed upstream')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
+    });
   });
 
   it('reconciles a saving enhancement job to completion when realtime misses the final update', async () => {

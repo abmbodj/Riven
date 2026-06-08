@@ -41,6 +41,8 @@ describe('note prompts', () => {
     expect(prompt).toContain('Note method: Worked-example notes.');
     expect(prompt).toContain('worked example');
     expect(prompt).toContain('Use LaTeX notation throughout');
+    expect(prompt).toContain('scan faster');
+    expect(prompt).toContain('Never output literal markdown markers');
     expect(prompt).not.toContain('Potential Exam Questions');
     expect(prompt).not.toContain('takeaway');
   });
@@ -60,12 +62,12 @@ describe('note prompts', () => {
     expect(prompt).not.toContain('takeaway');
   });
 
-  it('falls back to Cornell notes for general complete notes', () => {
+  it('falls back to structured outline notes for general complete notes', () => {
     const prompt = buildMergePrompt('Student note line', 'Study Skills', [{ type: 'doc', content: [] }], 'General');
 
-    expect(prompt).toContain('Note method: Cornell notes.');
-    expect(prompt).toContain('Cue questions');
-    expect(prompt).toContain('Review Summary');
+    expect(prompt).toContain('Note method: Structured outline notes.');
+    expect(prompt).toContain('H2 topics');
+    expect(prompt).toContain('Required shape:');
     expect(prompt).not.toContain('Potential Exam Questions');
     expect(prompt).not.toContain('takeaway');
   });
@@ -75,6 +77,7 @@ describe('note prompts', () => {
 
     expect(prompt).toContain('college student');
     expect(prompt).toContain('Note method: Process and diagram notes.');
+    expect(prompt).toContain('Required shape:');
     expect(prompt).not.toContain('Potential Exam Questions');
     expect(prompt).not.toContain('takeaway');
   });
@@ -96,7 +99,7 @@ describe('note strategy resolution', () => {
     ['History', 'chronological_causal'],
     ['Literature', 'evidence_analysis'],
     ['Computer Science', 'outline'],
-    ['General', 'cornell'],
+    ['General', 'outline'],
   ])('maps %s to %s notes', (subject, noteMethod) => {
     expect(resolveNoteStrategy({ subject }).noteMethod).toBe(noteMethod);
   });
@@ -140,5 +143,64 @@ describe('note validation', () => {
     );
 
     expect(validateNoteDoc(weakMathDoc, { noteMethod: 'worked_examples' }).issues.join(' ')).toContain('Worked-example notes need');
+  });
+
+  it('flags literal markdown styling leaked into note text', () => {
+    const leakedMarkdownDoc = doc(
+      heading('Colonial Expansion'),
+      paragraph('The **British Empire** grew quickly because it controlled major trade routes.'),
+      paragraph('What matters: control of ports translated into economic and military influence.'),
+      {
+        type: 'bulletList',
+        content: [
+          { type: 'listItem', content: [paragraph('Example: naval control made it easier to move goods and troops.')] },
+        ],
+      },
+    );
+
+    const findings = validateNoteDoc(leakedMarkdownDoc, { noteMethod: 'chronological_causal' });
+
+    expect(findings.ok).toBe(false);
+    expect(findings.issues.join(' ')).toContain('Literal markdown styling leaked');
+  });
+
+  it('penalizes essay-shaped non-analysis notes that never chunk into note blocks', () => {
+    const essayDoc = doc(
+      heading('Photosynthesis'),
+      paragraph('Photosynthesis is the process by which plants convert light energy into chemical energy stored in glucose, and it depends on chlorophyll, sunlight, carbon dioxide, and water working together across multiple linked reactions that occur in different parts of the chloroplast and ultimately support nearly every food web on Earth.'),
+      paragraph('The light-dependent reactions capture sunlight, move electrons, and generate energy carriers, while the Calvin cycle uses those carriers to build sugar molecules, which means students need to understand not only the names of the stages but also the dependency between them and the consequences of mixing them up.'),
+      paragraph('A student who only memorizes the words without tracking the inputs, outputs, and location of each stage will often confuse which molecules are produced first, which ones are recycled, and why the second stage cannot proceed without the energy collected in the first stage.'),
+      paragraph('This also matters because many biology questions ask learners to explain what would happen if one input or condition were removed, which requires a chain-of-events understanding rather than a purely verbal definition of the overall process.'),
+      paragraph('In addition, the process is important to ecosystems because it stores energy in a form other organisms can use and influences atmospheric gas balance over time.'),
+    );
+
+    const findings = validateNoteDoc(essayDoc, { noteMethod: 'process_diagram' });
+
+    expect(findings.ok).toBe(false);
+    expect(findings.issues.join(' ')).toContain('bullet or step clusters');
+    expect(findings.issues.join(' ')).toContain('prose-only explanation');
+  });
+
+  it('allows prose-friendly analysis notes when they still keep headings and evidence structure', () => {
+    const analysisDoc = doc(
+      heading('Industrialization as a Social Turning Point'),
+      paragraph('The Industrial Revolution changed daily life because factory labor reorganized time, family structure, and urban growth rather than simply introducing new machines.'),
+      paragraph('Why it matters: the shift is historically significant because economic change also reorganized power, class identity, and political demands.'),
+      {
+        type: 'bulletList',
+        content: [
+          { type: 'listItem', content: [paragraph('Evidence: wage labor replaced many household production patterns.')] },
+          { type: 'listItem', content: [paragraph('Evidence: urban crowding produced new public-health and labor conflicts.')] },
+        ],
+      },
+      heading('Reading the Evidence'),
+      paragraph('A strong analysis connects these developments to evidence instead of treating industrialization as a single-cause story.'),
+      {
+        type: 'blockquote',
+        content: [paragraph('Factory records and reform reports show how production gains often came with steep human costs.')],
+      },
+    );
+
+    expect(validateNoteDoc(analysisDoc, { noteMethod: 'evidence_analysis' }).ok).toBe(true);
   });
 });

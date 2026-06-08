@@ -84,12 +84,16 @@ export const buildNaturalNoteStyleInstructions = ({
   const lines = [
     'Voice and structure:',
     '- Write as study material a college student could actually learn from: clear, human, academically solid, and organized for later review.',
+    '- Aim for a hybrid of study packet and real notebook notes: structured enough to scan fast, loose enough to feel student-made rather than published prose.',
     preserveStudentPhrasing
       ? '- Preserve the student\'s original wording when it is already clear and accurate.'
       : '- Use a natural explanatory voice rather than an executive-summary voice.',
-    '- Use H2 headings to mark major topic shifts and H3 for sub-topics. Do not leave the document as a flat bullet list.',
+    '- Use H2 headings to mark major topic shifts and H3 for sub-topics. Do not leave the document as a flat bullet list or a wall of paragraphs.',
     '- Introduce concepts in dependency order: foundations first, then things that build on them.',
     '- Prefer short explanatory paragraphs when explaining *what* or *why*. Use bullets only for real lists, steps, or parallel items.',
+    '- Every major section should feel chunked: usually a heading, a short framing line, then bullets, steps, examples, or compact explanation blocks.',
+    '- Break long prose into note-sized chunks. If a paragraph starts reading like textbook narration, split it into shorter note blocks.',
+    '- Use short notebook-style bridge lines such as "What matters:", "Why it matters:", "Key shift:", or "Watch for:" when they help a student review quickly.',
     '- Bold a term on first use, immediately followed by its definition.',
     '- Use blockquotes only for short verbatim definitions, theorems, or laws.',
     '',
@@ -98,12 +102,15 @@ export const buildNaturalNoteStyleInstructions = ({
     '- Every abstract concept MUST have at least one concrete example, analogy, or worked instance. If the source material does not provide one, add a high-confidence generic example.',
     '- Never list a term without defining it on first mention.',
     '- Never introduce jargon without unpacking it in plain language.',
+    '- Multi-topic notes must be visibly sectioned so a student can skim topic boundaries at a glance.',
     '',
     'Forbidden:',
     '- Filler transitions like "In summary,", "Overall,", "It is important to note", "In conclusion".',
     '- Motivational or meta commentary about learning.',
     '- Restating the introduction at the end.',
     '- Exam-question sections.',
+    '- Long uninterrupted essay paragraphs unless the subject genuinely requires close analysis.',
+    '- Literal markdown styling markers like **bold** or __underline__ in the text output. Use proper Tiptap marks instead.',
     allowReviewSummary
       ? '- Generic recap / summary / conclusion sections longer than 1-2 sentences. A method-specific "Review Summary" is allowed only when the note method requests it.'
       : includeKeyConcepts

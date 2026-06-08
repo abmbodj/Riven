@@ -58,6 +58,66 @@
   margin-bottom: 0.75rem;
 }
 
+.note-editor-study-surface .riven-editor .ProseMirror {
+  line-height: 1.78;
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror > * {
+  max-width: 72ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror > h2,
+.note-editor-study-surface .riven-editor .ProseMirror > h3 {
+  position: relative;
+  padding-top: 0.4rem;
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror > h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -0.55rem;
+  width: 3.5rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent-color) 62%, transparent);
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror h2 + p,
+.note-editor-study-surface .riven-editor .ProseMirror h3 + p {
+  color: color-mix(in srgb, var(--text-color) 86%, var(--secondary-text-color));
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror p {
+  margin-bottom: 0.95rem;
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror ul,
+.note-editor-study-surface .riven-editor .ProseMirror ol {
+  margin-top: 0.35rem;
+  margin-bottom: 1rem;
+  padding-left: 1.2rem;
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror li {
+  margin-bottom: 0.4rem;
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror li::marker {
+  color: color-mix(in srgb, var(--accent-color) 72%, var(--text-color));
+}
+
+.note-editor-study-surface .riven-editor .ProseMirror blockquote {
+  border-left-width: 2px;
+  border-left-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-color) 60%, transparent);
+  border-radius: 0 16px 16px 0;
+  padding: 0.8rem 1rem;
+  margin: 1rem auto 1.1rem;
+  font-style: normal;
+}
+
 /* Lists */
 .riven-editor .ProseMirror ul {
   list-style-type: disc;

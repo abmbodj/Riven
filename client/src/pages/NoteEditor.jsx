@@ -108,7 +108,6 @@ export default function NoteEditor() {
     // never accidentally triggers the "discard" flow or gets deleted on cancel.
     const [retainedAudioPath, setRetainedAudioPath] = useState(null);
     const [retainedAudioSignedUrl, setRetainedAudioSignedUrl] = useState(null);
-    const [audioSegments, setAudioSegments] = useState(null);
     const [audioPlaying, setAudioPlaying] = useState(false);
     const [audioCurrentTime, setAudioCurrentTime] = useState(0);
     const [audioDuration, setAudioDuration] = useState(0);
@@ -417,7 +416,6 @@ export default function NoteEditor() {
                 // Pick up retained audio from the freshly persisted note.
                 if (persistedNote.polish_status === 'polished' && persistedNote.audio_url) {
                     setRetainedAudioPath(persistedNote.audio_url);
-                    setAudioSegments(Array.isArray(persistedNote.audio_segments) ? persistedNote.audio_segments : null);
                 }
             });
         }
@@ -739,12 +737,10 @@ export default function NoteEditor() {
                         if (note.polish_status === 'polished' && note.audio_url) {
                             // Retained recording — keep it separate from pre-enhancement tracking.
                             setRetainedAudioPath(note.audio_url);
-                            setAudioSegments(Array.isArray(note.audio_segments) ? note.audio_segments : null);
                             setAudioPath(null);
                         } else {
                             setAudioPath(note.audio_url || null);
                             setRetainedAudioPath(null);
-                            setAudioSegments(null);
                         }
                     } else if (!note.audio_url) {
                         setAudioPath(null);
@@ -767,7 +763,7 @@ export default function NoteEditor() {
         if (readyToEnhance && !isEnhancementJobActive(activeEnhancementJob)) {
             setShowEnhanceBanner(true);
         }
-    }, [activeEnhancementJob, recorder.state, recorder.getBlob]);
+    }, [activeEnhancementJob, recorder, recorder.state, recorder.getBlob]);
 
     useEffect(() => {
         clearEnhancementPoll();
@@ -1678,7 +1674,7 @@ export default function NoteEditor() {
                         className="w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none mb-2 tracking-tight leading-tight disabled:opacity-60"
                     />
 
-                    <div className={`relative overflow-hidden rounded-[1.75rem] transition-all ${enhancementLocked ? 'border border-claude-accent/12 bg-claude-surface/20' : ''}`}>
+                    <div className={`note-editor-study-surface relative overflow-hidden rounded-[1.75rem] transition-all ${enhancementLocked ? 'border border-claude-accent/12 bg-claude-surface/20' : ''}`}>
                         <AnimatePresence initial={false}>
                             {showImportSweep && (
                                 <motion.div

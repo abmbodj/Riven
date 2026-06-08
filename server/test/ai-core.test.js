@@ -56,6 +56,9 @@ describe('aiCore', () => {
     const instructions = buildNaturalNoteStyleInstructions({ includeKeyConcepts: true });
 
     expect(instructions).toContain('college student');
+    expect(instructions).toContain('study packet and real notebook notes');
+    expect(instructions).toContain('Long uninterrupted essay paragraphs');
+    expect(instructions).toContain('**bold**');
     expect(instructions).toContain('Key Concepts');
     expect(instructions).not.toContain('Potential Exam Questions');
     expect(instructions).not.toContain('takeaway');
@@ -104,7 +107,7 @@ describe('aiCore', () => {
     expect(result).toMatchObject({
       remaining: 10,
       max: 10,
-      characterLimit: 15000,
+      characterLimit: 30000,
       flashcardRange: [5, 15],
       canWatchAd: false,
       count: 0,
@@ -130,7 +133,7 @@ describe('aiCore', () => {
 
     expect(result).toEqual({
       isPremium: false,
-      characterLimit: 15000,
+      characterLimit: 30000,
       flashcardRange: [5, 15],
     });
     expect(updates).toEqual([{

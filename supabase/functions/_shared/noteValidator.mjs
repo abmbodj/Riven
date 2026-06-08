@@ -8,6 +8,7 @@ const DEFINITION_MARKERS = [
 const RECAP_HEADING_PATTERN = /^\s*(key concepts?|summary|conclusion|recap|in summary|takeaways?|wrap[- ]?up|key takeaways?)\s*$/i;
 const REVIEW_SUMMARY_HEADING_PATTERN = /^\s*review summary\s*$/i;
 const METHOD_CHECK_MIN_BLOCKS = 4;
+const MARKDOWN_LEAK_PATTERN = /(\*\*[^*][\s\S]*?\*\*|__[^_][\s\S]*?__)/;
 
 const collectPlainText = (node) => {
   if (!node) return '';
@@ -98,6 +99,8 @@ const countStructure = (doc) => {
   let topParagraphs = 0;
   let bulletItems = 0;
   let headings = 0;
+  let orderedItems = 0;
+  let listNodes = 0;
 
   const nodes = Array.isArray(doc?.content) ? doc.content : [];
   for (const node of nodes) {
@@ -107,10 +110,74 @@ const countStructure = (doc) => {
       headings++;
     } else if (node?.type === 'bulletList' || node?.type === 'orderedList') {
       const items = Array.isArray(node.content) ? node.content : [];
+      listNodes++;
       bulletItems += items.length;
+      if (node?.type === 'orderedList') {
+        orderedItems += items.length;
+      }
     }
   }
-  return { topParagraphs, bulletItems, headings };
+  return { topParagraphs, bulletItems, headings, orderedItems, listNodes };
+};
+
+const countWords = (text) => String(text || '')
+  .trim()
+  .split(/\s+/)
+  .filter(Boolean)
+  .length;
+
+const getTopLevelParagraphMetrics = (doc) => {
+  const metrics = [];
+  const nodes = Array.isArray(doc?.content) ? doc.content : [];
+
+  for (const node of nodes) {
+    if (node?.type !== 'paragraph') continue;
+    const text = collectPlainText(node).replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    metrics.push({
+      text,
+      words: countWords(text),
+      hasReviewCue: /\b(what matters|why it matters|watch for|what to remember|key shift|remember)\b/i.test(text),
+      hasExampleCue: /\b(example|for instance|for example|e\.g\.|such as)\b/i.test(text),
+    });
+  }
+
+  return metrics;
+};
+
+const collectMarkdownLeaks = (doc) => {
+  const leaks = [];
+  walkTextRuns(doc, (run) => {
+    const text = run?.text || '';
+    if (MARKDOWN_LEAK_PATTERN.test(text)) {
+      leaks.push(text.trim());
+    }
+  });
+  return leaks;
+};
+
+const getStructureTolerance = (noteMethod) => {
+  if (noteMethod === 'evidence_analysis') {
+    return {
+      maxLongParagraphs: 3,
+      requireLists: false,
+      requireReviewCue: false,
+    };
+  }
+
+  if (noteMethod === 'chronological_causal' || noteMethod === 'cornell') {
+    return {
+      maxLongParagraphs: 2,
+      requireLists: false,
+      requireReviewCue: true,
+    };
+  }
+
+  return {
+    maxLongParagraphs: 1,
+    requireLists: true,
+    requireReviewCue: true,
+  };
 };
 
 const findRecapHeadings = (doc, allowsSummary) => {
@@ -218,6 +285,13 @@ export const validateNoteDoc = (doc, options = {}) => {
   }
 
   const noteStrategy = resolveValidationStrategy(options);
+  const markdownLeaks = collectMarkdownLeaks(doc);
+  if (markdownLeaks.length > 0) {
+    issues.push(
+      `Literal markdown styling leaked into the note text. Replace sequences like ${markdownLeaks.slice(0, 2).map((text) => `"${text}"`).join(', ')} with proper Tiptap marks.`,
+    );
+    severity += 4;
+  }
 
   const boldFindings = getBoldFirstUses(doc);
   const missingDefinitions = boldFindings.filter((f) => !f.defined).map((f) => f.term);
@@ -239,8 +313,14 @@ export const validateNoteDoc = (doc, options = {}) => {
     severity += hallucinatedTerms.length;
   }
 
-  const { topParagraphs, bulletItems, headings } = countStructure(doc);
+  const { topParagraphs, bulletItems, headings, orderedItems, listNodes } = countStructure(doc);
   const totalContentBlocks = topParagraphs + bulletItems;
+  const paragraphMetrics = getTopLevelParagraphMetrics(doc);
+  const longParagraphs = paragraphMetrics.filter((entry) => entry.words >= 55);
+  const reviewCueParagraphs = paragraphMetrics.filter((entry) => entry.hasReviewCue);
+  const exampleCueParagraphs = paragraphMetrics.filter((entry) => entry.hasExampleCue);
+  const structureTolerance = getStructureTolerance(noteStrategy.noteMethod);
+
   if (totalContentBlocks >= 6) {
     const bulletRatio = bulletItems / totalContentBlocks;
     if (bulletRatio > 0.7) {
@@ -250,8 +330,34 @@ export const validateNoteDoc = (doc, options = {}) => {
       severity += 3;
     }
   }
-  if (totalContentBlocks >= 6 && headings === 0) {
+  if (totalContentBlocks >= 5 && headings === 0) {
     issues.push('No H2 headings. Organize the material under H2 topic headings so a student can scan the structure.');
+    severity += 2;
+  }
+  if (totalContentBlocks >= 5 && headings < Math.max(1, Math.floor(totalContentBlocks / 5))) {
+    issues.push('Too few headings for the amount of material. Break the lecture into more obvious topic sections instead of letting it read as one continuous block.');
+    severity += 2;
+  }
+  if (longParagraphs.length > structureTolerance.maxLongParagraphs) {
+    issues.push(
+      `There are ${longParagraphs.length} long top-level paragraphs. Split essay-like prose into shorter note blocks, bullets, examples, or step lists.`,
+    );
+    severity += 3;
+  }
+  if (totalContentBlocks >= 5 && listNodes === 0 && structureTolerance.requireLists) {
+    issues.push('The note has no bullet or step clusters. Add concise lists for facts, steps, examples, or comparisons so it reads like study notes instead of an essay.');
+    severity += 3;
+  }
+  if (totalContentBlocks >= 5 && reviewCueParagraphs.length === 0 && structureTolerance.requireReviewCue) {
+    issues.push('Add at least one compact review cue such as "Why it matters", "What to remember", or "Watch for" so the note is easier to review quickly.');
+    severity += 2;
+  }
+  if (topParagraphs >= 5 && bulletItems === 0 && exampleCueParagraphs.length === 0) {
+    issues.push('The note is repeating prose-only explanation without enough examples, steps, or note-style chunking. Add concrete examples or structured sub-blocks.');
+    severity += 3;
+  }
+  if (noteStrategy.noteMethod === 'process_diagram' && totalContentBlocks >= 5 && orderedItems === 0) {
+    issues.push('Process notes need at least one ordered sequence or step-based block so the flow can be reviewed quickly.');
     severity += 2;
   }
 
@@ -284,7 +390,7 @@ export const buildRetryInstruction = (findings) => {
     '',
     ...findings.issues.map((issue, idx) => `${idx + 1}. ${issue}`),
     '',
-    'Rules remain the same: every bolded term needs a plain-language definition immediately after; every concept needs a concrete example; only include a Review Summary when the selected note method requires it; use H2 headings for major topics.',
+    'Rules remain the same: every bolded term needs a plain-language definition immediately after; every concept needs a concrete example; only include a Review Summary when the selected note method requires it; use H2 headings for major topics; and never emit literal markdown markers like **term** inside text nodes.',
   ];
   return lines.join('\n');
 };
