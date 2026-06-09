@@ -151,7 +151,16 @@ export function ThemeProvider({ children }) {
     }, [applyTheme, isLoggedIn]);
 
     const switchTheme = useCallback(async (themeId) => {
-        const activatedTheme = normalizeThemeForContext(await api.activateTheme(themeId));
+        let activatedTheme;
+        try {
+            activatedTheme = normalizeThemeForContext(await api.activateTheme(themeId));
+        } catch (error) {
+            if (activeTheme) {
+                setAppliedTheme(activeTheme);
+                applyTheme(activeTheme);
+            }
+            throw error;
+        }
 
         setThemes((previous) => {
             let foundTheme = false;
@@ -174,7 +183,7 @@ export function ThemeProvider({ children }) {
         applyTheme(activatedTheme);
 
         return activatedTheme;
-    }, [applyTheme]);
+    }, [activeTheme, applyTheme]);
 
     const addTheme = useCallback(async (themeData) => {
         const newTheme = normalizeThemeForContext(await api.createTheme(themeData));

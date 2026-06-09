@@ -38,6 +38,9 @@ const createSelectChain = (data) => {
 describe('authApi themes PostgREST', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    supabase.from.mockReset();
+    supabase.rpc.mockReset();
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     localStorage.clear();
     authApi.setToken(null);
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
@@ -263,6 +266,79 @@ describe('authApi themes PostgREST', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('activate_theme', { target_theme_id: 99 });
     expect(supabase.from).not.toHaveBeenCalled();
     expect(result).toMatchObject({ id: 99, name: 'Rain Signal', is_active: 1 });
+  });
+
+  it('falls back to direct theme updates when the activate_theme RPC is missing from schema cache', async () => {
+    authApi.setToken('supabase-token');
+
+    supabase.rpc.mockResolvedValue({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find the function public.activate_theme(target_theme_id) in the schema cache',
+      },
+    });
+
+    const eqExistingUser = vi.fn().mockResolvedValue({
+      data: [{ id: 11, user_id: 42, name: 'Rain Signal', is_active: 0 }],
+      error: null,
+    });
+    const eqExistingId = vi.fn().mockReturnValue({ eq: eqExistingUser });
+    const selectExistingChain = vi.fn().mockReturnValue({ eq: eqExistingId });
+
+    const deactivateNeq = vi.fn().mockResolvedValue({ data: null, error: null });
+    const deactivateEq = vi.fn().mockReturnValue({ neq: deactivateNeq });
+    const deactivateUpdate = vi.fn().mockReturnValue({ eq: deactivateEq });
+
+    const activateSelect = vi.fn().mockResolvedValue({
+      data: [{ id: 11, user_id: 42, name: 'Rain Signal', is_active: 1 }],
+      error: null,
+    });
+    const activateEqUser = vi.fn().mockReturnValue({ select: activateSelect });
+    const activateEqId = vi.fn().mockReturnValue({ eq: activateEqUser });
+    const activateUpdate = vi.fn().mockReturnValue({ eq: activateEqId });
+
+    supabase.from
+      .mockReturnValueOnce({ select: selectExistingChain })
+      .mockReturnValueOnce({ update: deactivateUpdate })
+      .mockReturnValueOnce({ update: activateUpdate });
+
+    const result = await authApi.activateTheme(11);
+
+    expect(supabase.rpc).toHaveBeenCalledWith('activate_theme', { target_theme_id: 11 });
+    expect(eqExistingId).toHaveBeenCalledWith('id', 11);
+    expect(eqExistingUser).toHaveBeenCalledWith('user_id', 42);
+    expect(deactivateEq).toHaveBeenCalledWith('user_id', 42);
+    expect(deactivateNeq).toHaveBeenCalledWith('id', 11);
+    expect(activateEqId).toHaveBeenCalledWith('id', 11);
+    expect(activateEqUser).toHaveBeenCalledWith('user_id', 42);
+    expect(result).toMatchObject({ id: 11, name: 'Rain Signal', is_active: 1 });
+  });
+
+  it('keeps theme not found behavior when RPC fallback cannot find a user-owned theme', async () => {
+    authApi.setToken('supabase-token');
+
+    supabase.rpc.mockResolvedValue({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find the function public.activate_theme(target_theme_id) in the schema cache',
+      },
+    });
+
+    const eqExistingUser = vi.fn().mockResolvedValue({ data: [], error: null });
+    const eqExistingId = vi.fn().mockReturnValue({ eq: eqExistingUser });
+    const selectExistingChain = vi.fn().mockReturnValue({ eq: eqExistingId });
+
+    supabase.from.mockReturnValueOnce({ select: selectExistingChain });
+
+    await expect(authApi.activateTheme(404)).rejects.toMatchObject({
+      message: 'Theme not found',
+      status: 404,
+    });
+
+    expect(eqExistingId).toHaveBeenCalledWith('id', 404);
+    expect(eqExistingUser).toHaveBeenCalledWith('user_id', 42);
   });
 
   it('deletes themes only for the current app user', async () => {

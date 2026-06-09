@@ -3357,6 +3357,45 @@ const throwThemeMutationError = (error) => {
     _sbThrow(error);
 };
 
+const isMissingActivateThemeRpcError = (error) => {
+    const message = error?.message || '';
+    return error?.code === 'PGRST202'
+        || /Could not find the function public\.activate_theme/i.test(message)
+        || /function public\.activate_theme\(target_theme_id\) does not exist/i.test(message)
+        || /schema cache/i.test(message) && /activate_theme/i.test(message);
+};
+
+const activateThemeViaDirectUpdate = async (id) => {
+    const userId = await getAppUserId();
+    const { data: existingRows, error: existingError } = await supabase
+        .from('themes')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', userId);
+    if (existingError) throwThemeMutationError(existingError);
+
+    const existingTheme = getSingleThemeRow(existingRows);
+
+    const { error: deactivateError } = await supabase
+        .from('themes')
+        .update({ is_active: 0 })
+        .eq('user_id', userId)
+        .neq('id', id);
+    if (deactivateError) throwThemeMutationError(deactivateError);
+
+    const { data: activatedRows, error: activateError } = await supabase
+        .from('themes')
+        .update({ is_active: 1 })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select();
+    if (activateError) throwThemeMutationError(activateError);
+
+    return getSingleThemeRow(activatedRows, {
+        emptyMessage: existingTheme ? 'Failed to activate theme' : THEME_NOT_FOUND_MESSAGE,
+    });
+};
+
 export const getThemes = async () => {
     const sortThemes = (themes) => (themes || []).sort((left, right) => {
         const defaultDelta = Number(right.is_default) - Number(left.is_default);
@@ -3535,7 +3574,12 @@ export const updateTheme = async (id, themeData) => {
 export const activateTheme = async (id) => {
     const { data, error } = await supabase
         .rpc('activate_theme', { target_theme_id: id });
-    if (error) throwThemeMutationError(error);
+    if (error) {
+        if (isMissingActivateThemeRpcError(error)) {
+            return activateThemeViaDirectUpdate(id);
+        }
+        throwThemeMutationError(error);
+    }
     return getSingleThemeRow(data);
 };
 
