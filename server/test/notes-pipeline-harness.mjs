@@ -12,6 +12,7 @@
 // Usage:
 //   GROQ_API_KEY=sk-... node server/test/notes-pipeline-harness.mjs
 //   node server/test/notes-pipeline-harness.mjs --dry      # print prompts only, no API
+//   node server/test/notes-pipeline-harness.mjs --text     # treat fixtures as TYPED notes (no audio)
 //   GROQ_API_KEY=... node server/test/notes-pipeline-harness.mjs technical-lecture
 //
 // It calls Groq's OpenAI-compatible REST endpoint directly (no SDK dependency) so it
@@ -47,7 +48,10 @@ const BASELINE_PROMPT = `Turn the following transcript into study notes. Output 
 
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry');
+const TEXT_MODE = args.includes('--text');
 const only = args.find((a) => !a.startsWith('--'));
+
+const wordCount = (s) => (String(s || '').trim().match(/\S+/g) || []).length;
 
 async function callGroq(model, prompt) {
   const res = await fetch(GROQ_URL, {
@@ -114,14 +118,20 @@ const hr = (label) => `\n${'═'.repeat(78)}\n${label}\n${'═'.repeat(78)}`;
 const sub = (label) => `\n${'─'.repeat(40)} ${label} ${'─'.repeat(Math.max(0, 36 - label.length))}`;
 
 async function runFixture({ file, className, subject }) {
-  const transcript = readFileSync(join(TRANSCRIPTS, file), 'utf8').trim();
-  const strategy = resolveNoteStrategy({ className, subject, sourceText: transcript });
+  const source = readFileSync(join(TRANSCRIPTS, file), 'utf8').trim();
+  const strategy = resolveNoteStrategy({ className, subject, sourceText: source });
 
-  console.log(hr(`FIXTURE: ${file}`));
+  // In --text mode the fixture stands in for the user's TYPED notes (no audio): the source
+  // is the notes themselves, sourceKind 'notes', and nothing is appended as a transcript.
+  const sourceKind = TEXT_MODE ? 'notes' : 'audio';
+  const userNotes = TEXT_MODE ? source : null;
+  const sourceBlock = TEXT_MODE ? '' : `\n\nLecture Audio Transcription:\n${source}`;
+
+  console.log(hr(`FIXTURE: ${file}${TEXT_MODE ? '  [TEXT-ONLY ENHANCE]' : ''}`));
   console.log(`class: ${className} | subject: ${subject ?? '(none)'}`);
-  console.log(`detected note method: ${strategy.noteMethod} (${strategy.label})`);
+  console.log(`detected note method: ${strategy.noteMethod} (${strategy.label}) | source words: ${wordCount(source)}`);
 
-  const draftPrompt = `${buildNoteDraftPrompt(null, className, subject, transcript)}\n\nLecture Audio Transcription:\n${transcript}`;
+  const draftPrompt = `${buildNoteDraftPrompt(userNotes, className, subject, source, { sourceKind })}${sourceBlock}`;
 
   if (DRY) {
     console.log(sub('ENHANCED DRAFT PROMPT (dry run — not sent)'));
@@ -129,20 +139,26 @@ async function runFixture({ file, className, subject }) {
     return;
   }
 
-  // (a) Baseline
-  console.log(sub('(a) BASELINE notes (naive generic prompt)'));
-  const baseline = parseJson(await callGroq(DRAFT_MODEL, `${BASELINE_PROMPT}\n\nTranscript:\n${transcript}`));
-  console.log(baseline ? renderDoc(baseline).trim() : '[failed to parse baseline]');
+  // (a) Baseline (skipped in text mode — there is no naive text-enhance baseline worth showing)
+  if (!TEXT_MODE) {
+    console.log(sub('(a) BASELINE notes (naive generic prompt)'));
+    const baseline = parseJson(await callGroq(DRAFT_MODEL, `${BASELINE_PROMPT}\n\nTranscript:\n${source}`));
+    const baselineText = baseline ? renderDoc(baseline).trim() : '';
+    console.log(baselineText || '[failed to parse baseline]');
+    if (baselineText) console.log(`\n[baseline length: ${wordCount(baselineText)} words]`);
+  }
 
   // (b) Enhanced: draft -> enrich (quality pass)
   const draftDoc = parseJson(await callGroq(DRAFT_MODEL, draftPrompt));
-  const enrichPrompt = `${buildNoteEnrichPrompt(null, className, draftDoc, subject, transcript)}\n\nLecture Audio Transcription:\n${transcript}`;
+  const enrichPrompt = `${buildNoteEnrichPrompt(userNotes, className, draftDoc, subject, source, { sourceKind })}${sourceBlock}`;
   const finalDoc = parseJson(await callGroq(FINAL_MODEL, enrichPrompt)) || draftDoc;
+  const finalText = finalDoc ? renderDoc(finalDoc).trim() : '';
   console.log(sub('(b) ENHANCED notes (adaptive + quality pass)'));
-  console.log(finalDoc ? renderDoc(finalDoc).trim() : '[failed to parse enhanced]');
+  console.log(finalText || '[failed to parse enhanced]');
+  if (finalText) console.log(`\n[enhanced length: ${wordCount(finalText)} words from ${wordCount(source)} source words]`);
 
-  // (c) Structured knowledge layer
-  const rawLayer = parseJson(await callGroq(FINAL_MODEL, buildKnowledgeExtractionPrompt(finalDoc, transcript, className, subject, strategy.noteMethod)));
+  // (c) Structured knowledge layer (grounded on the source: transcript for audio, the notes for text)
+  const rawLayer = parseJson(await callGroq(FINAL_MODEL, buildKnowledgeExtractionPrompt(finalDoc, source, className, subject, strategy.noteMethod)));
   const layer = normalizeKnowledgeLayer(rawLayer);
   console.log(sub('(c) KNOWLEDGE LAYER (downstream hand-off)'));
   console.log(JSON.stringify(layer, null, 2));

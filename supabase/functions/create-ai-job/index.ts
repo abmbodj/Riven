@@ -79,8 +79,10 @@ serve(async (request) => {
     let targetId: string | null = null;
 
     if (kind === 'note_enhancement') {
-      if (!payload.noteId || !payload.audioPath) {
-        return jsonResponse({ error: 'noteId and audioPath are required.' }, { status: 400 }, request);
+      // Audio enhancement needs an audioPath; text-only enhancement needs typed notes.
+      const hasUserNotes = typeof payload.userNotesSnapshot === 'string' && payload.userNotesSnapshot.trim().length > 0;
+      if (!payload.noteId || (!payload.audioPath && !hasUserNotes)) {
+        return jsonResponse({ error: 'noteId and either audioPath or notes are required.' }, { status: 400 }, request);
       }
       targetType = 'note';
       targetId = String(payload.noteId);

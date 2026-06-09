@@ -1102,6 +1102,98 @@ export default function NoteEditor() {
         }
     };
 
+    // Text-only enhancement: clean up and enrich the user's typed notes without a recording.
+    // Runs the same enhancement job (no audioPath) and reuses the streamed-preview/apply flow.
+    const handleEnhanceText = async () => {
+        const text = extractText(contentRef.current).trim();
+        if (!text) {
+            toast.error('Add some notes to enhance');
+            return;
+        }
+
+        // Ensure the note is persisted so the job can write the enhanced doc back into it.
+        let resolvedNoteId = noteId;
+        if (!resolvedNoteId) {
+            try {
+                const savedNote = await flushPendingSave();
+                resolvedNoteId = savedNote?.id || noteId;
+            } catch {
+                // fall through to the guard below
+            }
+        }
+        if (!resolvedNoteId) {
+            toast.error('Could not save note. Please try again.');
+            return;
+        }
+
+        locallyResolvedEnhancementJobsRef.current.clear();
+        resolvedEnhancementRefreshAttemptedRef.current.clear();
+        savingGraceStateRef.current.clear();
+        enhancementContentAppliedRef.current = false;
+        clearEnhancementCompletionRailTimer();
+        setEnhancementCompletionRail(null);
+        originalContentRef.current = cloneRichTextDoc(contentRef.current || {});
+        originalSavedRef.current = saved;
+        resetStreamedEnhancementDoc();
+        setEnhancing(true);
+        setEnhanceError(null);
+        setShowEnhanceBanner(false);
+        enhancementMetricsRef.current = {
+            clickAt: performance.now(),
+            ackMs: null,
+            firstPhaseMs: null,
+            firstPreviewMs: null,
+        };
+
+        setActiveEnhancementJob({
+            id: 'pending-note-enhancement',
+            status: 'queued',
+            phase: 'drafting',
+            progress_percent: 2,
+            progress_message: 'Enhancing your notes',
+            result_payload: {},
+        });
+        setEnhancementPreviewDoc(null);
+        setEnhancementSections([]);
+        setEnhancementSectionsTotal(0);
+
+        try {
+            const selectedClassData = classes.find((c) => c.id === classId);
+            const jobResponse = await api.createAiJob('note_enhancement', {
+                noteId: resolvedNoteId,
+                userNotesSnapshot: text,
+                titleSnapshot: titleRef.current || 'Untitled',
+                className: selectedClassData?.name || null,
+                subject: selectedClassData?.subject || null,
+            });
+
+            enhancementMetricsRef.current.ackMs = Math.round(
+                performance.now() - enhancementMetricsRef.current.clickAt,
+            );
+
+            await trackEnhancementJob(jobResponse.jobId, {
+                id: jobResponse.jobId,
+                status: jobResponse.status,
+                phase: jobResponse.phase,
+                progress_message: getEnhancementStatusText(jobResponse),
+                result_payload: {},
+            });
+        } catch (err) {
+            stopEnhancementTracking();
+            setActiveEnhancementJob(null);
+            resetStreamedEnhancementDoc();
+            setEnhancementPreviewDoc(null);
+            setEnhancementSections([]);
+            setEnhancementSectionsTotal(0);
+            setEnhancing(false);
+            if (err.status === 429) {
+                setShowPricingModal(true);
+            } else {
+                setEnhanceError(err.message || 'Enhancement failed');
+            }
+        }
+    };
+
     const handleGenerateFlashcards = async () => {
         const text = extractText(contentRef.current);
         if (!text.trim()) {
@@ -1441,6 +1533,17 @@ export default function NoteEditor() {
                                 <><Mic className="w-3.5 h-3.5" /><span>Audio</span></>
                             )}
                         </button>
+
+                        {!showEnhanceBanner && (
+                            <button
+                                onClick={handleEnhanceText}
+                                disabled={enhancing || enhancementLocked}
+                                className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-accent/30 text-claude-accent hover:border-claude-accent/60 transition-all tap-action shrink-0 disabled:opacity-50"
+                            >
+                                {enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                <span>Enhance</span>
+                            </button>
+                        )}
 
                         <button
                             onClick={handleGenerateFlashcards}

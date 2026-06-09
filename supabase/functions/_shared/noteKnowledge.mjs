@@ -12,6 +12,12 @@
 
 export const KNOWLEDGE_LAYER_VERSION = 1;
 
+// Token budget for the long-lecture merge pass. Scales with the number of sections so a
+// 90-min lecture yields a proportionally long note instead of being squeezed into a fixed
+// ceiling. Capped at 32768 (llama-3.3-70b's max completion tokens).
+export const mergeMaxTokens = (sectionCount) =>
+  Math.min(32768, 6144 + Math.max(0, Number(sectionCount) || 0) * 1400);
+
 const CONTENT_TYPES = [
   'conceptual_technical',
   'narrative_argumentative',

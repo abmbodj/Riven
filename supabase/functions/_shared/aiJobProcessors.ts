@@ -16,7 +16,7 @@ import {
   buildYoutubeSourcePrompt,
 } from './notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
-import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer } from './noteKnowledge.mjs';
+import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer, buildKnowledgeContext, mergeMaxTokens } from './noteKnowledge.mjs';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
@@ -74,7 +74,7 @@ const generateNotesForSection = async ({
       fallbackModel: modelMap.final,
       messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
       responseFormat: 'json_object',
-      maxTokens: 3072,
+      maxTokens: 4096,
     });
     return parseAiJsonResponse(rawText, 'Invalid section notes format');
   } catch (err) {
@@ -171,6 +171,12 @@ const NOTE_FIDELITY_RETRY_SEVERITY = 4;
 
 // One corrective pass if the generated note drifts from what was actually said (or breaks the
 // content contract). Runs after the preview is already shown, so it never adds perceived latency.
+const SOURCE_BLOCK_LABELS: Record<string, string> = {
+  audio: 'Lecture Audio Transcription',
+  video: 'Video Transcript',
+  notes: 'Source Notes',
+};
+
 const ensureNoteFidelity = async ({
   ai,
   finalDoc,
@@ -179,6 +185,7 @@ const ensureNoteFidelity = async ({
   className,
   subject,
   modelMap,
+  sourceKind = 'audio',
 }: {
   ai: AiClient;
   finalDoc: unknown;
@@ -187,15 +194,22 @@ const ensureNoteFidelity = async ({
   className: string | null;
   subject: string | null;
   modelMap: ReturnType<typeof getAiModelMap>;
+  sourceKind?: 'audio' | 'video' | 'notes';
 }): Promise<unknown> => {
   if (!finalDoc || typeof finalDoc !== 'object' || (finalDoc as Record<string, unknown>).type !== 'doc') {
     return finalDoc;
   }
 
+  // Text-only enhancement passes an empty transcript: the hallucination check is skipped
+  // (the model legitimately adds detail to sparse notes) while structure/contract checks run.
   const validation = validateNoteDoc(finalDoc, { className, subject, transcript: transcription });
   if (validation.ok || validation.severity < NOTE_FIDELITY_RETRY_SEVERITY) {
     return finalDoc;
   }
+
+  const sourceBlock = transcription
+    ? `\n\n${SOURCE_BLOCK_LABELS[sourceKind] ?? SOURCE_BLOCK_LABELS.audio}:\n${transcription}`
+    : '';
 
   try {
     const retryText = await generateWithFallback({
@@ -205,7 +219,7 @@ const ensureNoteFidelity = async ({
       messages: [
         {
           role: 'user',
-          content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, finalDoc, subject, transcription)}\n\nLecture Audio Transcription:\n${transcription}`,
+          content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, finalDoc, subject, transcription, { sourceKind })}${sourceBlock}`,
         },
         { role: 'assistant', content: JSON.stringify(finalDoc) },
         { role: 'user', content: buildRetryInstruction(validation) },
@@ -592,6 +606,136 @@ const getApiKeyAndClient = () => {
   return createAiClient(apiKey);
 };
 
+// Text-only enhancement: the user typed notes and pressed Enhance without a recording.
+// Same two-pass + fidelity + knowledge-layer pipeline as audio, minus transcription and
+// sectioning (typed notes are bounded). Grounding for fidelity/knowledge is the user's text.
+const processTextEnhancementJob = async ({
+  admin,
+  job,
+  reporter,
+  noteId,
+  userNotesSnapshot,
+  className,
+  subject,
+}: {
+  admin: any;
+  job: any;
+  reporter: ReturnType<typeof createJobReporter>;
+  noteId: string;
+  userNotesSnapshot: string;
+  titleSnapshot: string;
+  className: string | null;
+  subject: string | null;
+}) => {
+  const modelMap = getAiModelMap();
+  const ai = getApiKeyAndClient();
+  const jobStartedAt = Date.now();
+  let firstPreviewAt: number | null = null;
+
+  await reporter.markRunning('accepted', 8, 'Enhancing your notes');
+
+  // ── DRAFT (stream) ──────────────────────────────────────────────────────
+  const draftResult = await streamDocPreview({
+    ai,
+    model: modelMap.draft,
+    fallbackModel: modelMap.final,
+    messages: [{
+      role: 'user',
+      content: buildNoteDraftPrompt(userNotesSnapshot, className, subject, userNotesSnapshot, { sourceKind: 'notes' }),
+    }],
+    reporter,
+    phase: 'drafting',
+    startPercent: 20,
+    endPercent: 64,
+    message: 'Drafting enhanced notes',
+  });
+
+  const draftDoc = draftResult.doc;
+  if (draftResult.firstPreviewAt != null) firstPreviewAt = draftResult.firstPreviewAt;
+
+  await reporter.update('enriching', 70, 'Refining your notes', {
+    preview_doc: draftDoc,
+    preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
+      ? (draftDoc as Record<string, unknown>).content
+      : [],
+    preview_text: extractTextFromTiptapDoc(draftDoc),
+  });
+
+  // ── ENRICH (batch) ──────────────────────────────────────────────────────
+  let finalDoc: unknown;
+  const enrichText = await generateWithFallback({
+    ai,
+    primaryModel: modelMap.final,
+    fallbackModel: modelMap.final,
+    messages: [{
+      role: 'user',
+      content: buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc, subject, userNotesSnapshot, { sourceKind: 'notes' }),
+    }],
+    responseFormat: 'json_object',
+  });
+  try {
+    finalDoc = parseAiJsonResponse(enrichText, 'AI generated invalid enhanced notes format. Please try again.');
+  } catch {
+    finalDoc = draftDoc;
+  }
+
+  // Fidelity: structure/contract checks run; transcript-hallucination check is skipped
+  // (empty transcript) because the model legitimately adds detail to sparse notes.
+  finalDoc = await ensureNoteFidelity({
+    ai,
+    finalDoc,
+    transcription: '',
+    userNotesSnapshot,
+    className,
+    subject,
+    modelMap,
+    sourceKind: 'notes',
+  });
+
+  const knowledgeLayer = await extractKnowledgeLayer({
+    ai,
+    finalDoc,
+    transcription: userNotesSnapshot,
+    className,
+    subject,
+    modelMap,
+  });
+
+  await reporter.markSaving('Saving enhanced notes', { final_doc: finalDoc, note_id: noteId });
+
+  const { error: updateError } = await admin
+    .from('notes')
+    .update({
+      enhanced_content: finalDoc,
+      content: finalDoc,
+      polish_status: 'polished',
+      knowledge_layer: knowledgeLayer,
+    })
+    .eq('id', noteId)
+    .eq('user_id', job.user_id);
+
+  if (updateError) throw updateError;
+
+  const persistedAt = new Date().toISOString();
+
+  await reporter.complete({
+    message: 'Notes enhanced successfully',
+    targetType: 'note',
+    targetId: noteId,
+    resultPatch: {
+      final_doc: finalDoc,
+      note_id: noteId,
+      note_persisted: true,
+      persisted_at: persistedAt,
+      metrics: {
+        server_total_ms: Date.now() - jobStartedAt,
+        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
+      },
+    },
+  });
+};
+
 const processNoteEnhancementJob = async ({
   admin,
   job,
@@ -605,8 +749,18 @@ const processNoteEnhancementJob = async ({
   const className = typeof input.className === 'string' ? input.className : null;
   const subject = typeof input.subject === 'string' ? input.subject : null;
 
-  if (!noteId || !audioPath) {
-    throw createHttpError('Note enhancement job is missing required audio context.', 400);
+  if (!noteId) {
+    throw createHttpError('Note enhancement job is missing a note id.', 400);
+  }
+
+  // No audio → text-only enhancement of the user's typed notes (same quality pipeline,
+  // minus transcription/sectioning). Empty + no audio is rejected up front.
+  if (!audioPath) {
+    if (!userNotesSnapshot || !userNotesSnapshot.trim()) {
+      throw createHttpError('Add some notes or a recording to enhance.', 400);
+    }
+    await processTextEnhancementJob({ admin, job, reporter, noteId, userNotesSnapshot, titleSnapshot, className, subject });
+    return;
   }
 
   const modelMap = getAiModelMap();
@@ -746,7 +900,9 @@ const processNoteEnhancementJob = async ({
         content: buildMergePrompt(userNotesSnapshot, className, completedSections, subject),
       }],
       responseFormat: 'json_object',
-      maxTokens: 8192,
+      // Scale the merge budget with section count so a long lecture yields a proportionally
+      // long note instead of being squeezed into a fixed ceiling.
+      maxTokens: mergeMaxTokens(sections.length),
     });
 
     try {
@@ -904,7 +1060,7 @@ const processYoutubeSourceJob = async ({
   // the same quality level (no recap sections, proper outline/worked-examples).
   const draftMessages: AiMessage[] = [{
     role: 'user',
-    content: `${buildNoteDraftPrompt(null, className, subject, preparedSource.sourceText)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
+    content: `${buildNoteDraftPrompt(null, className, subject, preparedSource.sourceText, { sourceKind: 'video' })}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
   }];
 
   const streamResult = await streamDocPreview({
@@ -939,7 +1095,7 @@ const processYoutubeSourceJob = async ({
     fallbackModel: modelMap.final,
     messages: [{
       role: 'user',
-      content: `${buildNoteEnrichPrompt(null, className, draftDoc, subject, preparedSource.sourceText)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
+      content: `${buildNoteEnrichPrompt(null, className, draftDoc, subject, preparedSource.sourceText, { sourceKind: 'video' })}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
     }],
     responseFormat: 'json_object',
   });
@@ -961,6 +1117,17 @@ const processYoutubeSourceJob = async ({
     className,
     subject,
     modelMap,
+    sourceKind: 'video',
+  });
+
+  // Structured knowledge layer so YouTube notes feed flashcards/exams/guides like audio notes do.
+  const knowledgeLayer = await extractKnowledgeLayer({
+    ai,
+    finalDoc: sourceDoc,
+    transcription: preparedSource.sourceText,
+    className,
+    subject,
+    modelMap,
   });
 
   const sourceText = extractTextFromTiptapDoc(sourceDoc);
@@ -972,6 +1139,7 @@ const processYoutubeSourceJob = async ({
     resultPatch: {
       source_doc: sourceDoc,
       source_text: sourceText,
+      knowledge_layer: knowledgeLayer,
       // Pass the raw transcript through so the youtube_notes derived job can
       // persist it on the note for later reference / fidelity tracing.
       raw_transcript: transcript,
@@ -1065,6 +1233,9 @@ const processYoutubeDerivedJob = async ({
 
   const ai = getApiKeyAndClient();
   const modelMap = getAiModelMap();
+  // Structured hand-off from the video's notes so derived decks/exams/guides build from
+  // concepts/objectives rather than re-parsing prose (empty string when unavailable).
+  const ytKnowledgeContext = buildKnowledgeContext(sourcePayload.knowledge_layer);
 
   await reporter.markRunning('drafting', 18, 'Generating study artifact', {
     source_key: sourceKey,
@@ -1092,6 +1263,7 @@ const processYoutubeDerivedJob = async ({
         polish_status: 'polished',
         class_id: classId || null,
         source_type: 'youtube',
+        knowledge_layer: sourcePayload.knowledge_layer ?? null,
       })
       .select('id')
       .single();
@@ -1126,6 +1298,7 @@ const processYoutubeDerivedJob = async ({
         hasProcessedNotes: true,
         keepFile: false,
         file: null,
+        knowledgeContext: ytKnowledgeContext,
         className,
         subject,
       })),
@@ -1189,6 +1362,7 @@ const processYoutubeDerivedJob = async ({
         masteryData: null,
         weakTopics: null,
         examMode: null,
+        knowledgeContext: ytKnowledgeContext,
       })),
       reporter,
       phase: 'drafting',
@@ -1255,6 +1429,7 @@ const processYoutubeDerivedJob = async ({
     className,
     subject,
     coachConfig: null,
+    knowledgeContext: ytKnowledgeContext,
   }));
 
   const streamResponse = await streamWithFallback({

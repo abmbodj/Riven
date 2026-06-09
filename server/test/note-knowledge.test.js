@@ -6,7 +6,13 @@ import {
   normalizeKnowledgeLayer,
   buildKnowledgeContext,
   buildKnowledgeExtractionPrompt,
+  mergeMaxTokens,
 } from '../../supabase/functions/_shared/noteKnowledge.mjs';
+import {
+  buildNoteDraftPrompt,
+  buildNoteEnrichPrompt,
+  buildMergePrompt,
+} from '../../supabase/functions/_shared/notePrompts.mjs';
 import {
   buildDeckContents,
   buildExamContents,
@@ -162,5 +168,53 @@ describe('buildKnowledgeExtractionPrompt', () => {
     expect(prompt).toContain('Output ONLY a valid JSON object');
     expect(prompt).toContain('transcript about ATP');
     expect(prompt).toContain('learning_objective');
+  });
+});
+
+describe('prompts adapt to typed-notes presence and source kind', () => {
+  it('preserves the student\'s notes when they typed something', () => {
+    const withNotes = buildNoteDraftPrompt('my rough notes', 'Bio', 'Biology', 'transcript');
+    expect(withNotes).toMatch(/Preserve every point the student already wrote/);
+    expect(withNotes).toMatch(/Preserve the student's original wording/);
+  });
+
+  it('generates clean notes when there are no typed notes', () => {
+    const noNotes = buildNoteDraftPrompt(null, 'Bio', 'Biology', 'transcript');
+    expect(noNotes).toMatch(/Generate clean, usable notes directly from the lecture audio/);
+    expect(noNotes).not.toMatch(/Preserve the student's original wording/);
+  });
+
+  it('uses source-appropriate wording for text vs audio', () => {
+    const text = buildNoteDraftPrompt('rough notes', 'Bio', 'Biology', 'rough notes', { sourceKind: 'notes' });
+    expect(text).toContain('your notes');
+    expect(text).not.toContain('the lecture audio');
+
+    const audio = buildNoteEnrichPrompt(null, 'Bio', { type: 'doc', content: [] }, 'Biology', 'transcript');
+    expect(audio).toContain('the lecture audio');
+  });
+});
+
+describe('length scaling', () => {
+  it('every note prompt carries the length-proportionality directive', () => {
+    for (const prompt of [
+      buildNoteDraftPrompt('x', 'Bio', 'Biology', 't'),
+      buildNoteEnrichPrompt('x', 'Bio', { type: 'doc', content: [] }, 'Biology', 't'),
+      buildMergePrompt('x', 'Bio', [{ type: 'doc', content: [] }], 'Biology'),
+    ]) {
+      expect(prompt).toMatch(/Scale the notes to the material/);
+    }
+  });
+
+  it('the merge prompt is preservation-oriented', () => {
+    const merge = buildMergePrompt(null, 'Bio', [{ type: 'doc', content: [] }], 'Biology');
+    expect(merge).toMatch(/Preserve ALL distinct content from every section/);
+    expect(merge).toMatch(/do NOT shorten, summarize, or drop sections/i);
+  });
+
+  it('merge token budget grows with section count and caps at 32768', () => {
+    expect(mergeMaxTokens(2)).toBe(8944);
+    expect(mergeMaxTokens(18)).toBe(31344);
+    expect(mergeMaxTokens(50)).toBe(32768); // capped
+    expect(mergeMaxTokens(18)).toBeGreaterThan(mergeMaxTokens(4)); // proportional
   });
 });
