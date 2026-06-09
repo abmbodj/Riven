@@ -1,0 +1,13 @@
+Welcome back to the AWS Solutions Architect Associate prep session. Quick reminder before we dig in: the practice exam I assigned is due before our next session on Tuesday, so please get that done — it really does predict how you'll do on the real thing.
+
+Today we're covering the core compute and networking pieces, and I'll flag what's heavily tested as we go.
+
+Let's start with EC2. EC2 is just virtual servers in the cloud — you pick an instance type, you pick an AMI, you launch. The thing the exam loves to test is the pricing models. On-demand is pay-as-you-go, no commitment. Reserved instances give you a big discount for a one or three year commitment. Spot instances are the cheapest but AWS can reclaim them with two minutes notice. Here's the rule of thumb they want you to know: steady predictable workload, use reserved; spiky unpredictable, use on-demand; fault-tolerant batch work, use spot. That mapping shows up on the exam constantly.
+
+Next, load balancing. You distribute incoming traffic across multiple targets using the elastic load bouncer. There are a few types — the application load balancer works at layer seven, so it can route based on the URL path or host. The network load balancer works at layer four for raw TCP speed. If you see a question about routing based on the content of the request, the answer is the application one. Memorize that distinction.
+
+Then there's S3, object storage. Eleven nines of durability — that's a number they want you to recognize. The big exam topic here is storage classes. Standard for frequently accessed data, Infrequent Access for stuff you touch occasionally, and Glacier for archival where retrieval can take hours. And lifecycle policies automatically move objects between classes to save money. This is high yield.
+
+Quick gotcha that trips people up: IAM roles versus IAM users. A user is a permanent identity for a person. A role is assumed temporarily, and that's what you give to an EC2 instance so it can call other services — you do not put access keys on the instance. That's both a best practice and a very common exam trap.
+
+We're out of time. Do the practice exam, focus on the EC2 pricing mappings and the S3 storage classes, and we'll do scenario questions next session.

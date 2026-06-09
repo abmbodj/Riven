@@ -11,6 +11,7 @@ import {
   parseAiJsonResponse,
   createHttpError,
 } from '../_shared/aiCore.mjs';
+import { fetchKnowledgeContext } from '../_shared/noteKnowledge.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
@@ -136,7 +137,8 @@ serve(async (request) => {
       });
       await reporter.markStreaming('drafting', 30, 'Generating flashcards');
 
-      const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className, subject: body.subject });
+      const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
+      const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className, subject: body.subject, knowledgeContext });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
@@ -294,6 +296,8 @@ serve(async (request) => {
     });
     await reporter.markRunning('drafting', 35, 'Generating flashcards');
 
+    const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
+
     try {
       const result = await generateDeckFromAi({
         userId: authUser.id,
@@ -303,6 +307,7 @@ serve(async (request) => {
         classId: body.classId,
         className: body.className,
         subject: body.subject,
+        knowledgeContext,
         aiLimitsContext,
         apiKey,
         parseDocx: async (buffer: Buffer) => {

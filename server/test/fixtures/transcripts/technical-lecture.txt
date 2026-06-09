@@ -1,0 +1,13 @@
+Okay, uh, can everyone hear me in the back? Great. Before we start — quick announcement: problem set three is now due this Friday at midnight, not Wednesday, and the midterm has been moved to the fifteenth. That date is firm. Also the room for the review session changed to Building C, I'll post it on the portal.
+
+Right, so today we're doing cellular respiration. This is the process where the cell takes glucose and basically turns it into usable energy. The energy currency, the molecule everything runs on, is adenosine try phosphate — you'll see it written as A-T-P. Write that down, this comes up constantly.
+
+So there are three big stages. First is glycolysis. Glycolysis happens in the cytoplasm, it doesn't need oxygen, and it splits one glucose into two pyruvate molecules. You get a small amount of A-T-P here, a net of two, and some electron carriers called N-A-D-H. The key thing to remember: glycolysis is the starting point and it's anaerobic.
+
+Stage two is the site rick acid cycle — some textbooks call it the Krebs cycle, same thing. This runs in the mitochondria. Each turn of the cycle releases carbon dioxide and loads up more electron carriers. I want to stress this: the cycle itself makes very little A-T-P directly. Its real job is to harvest electrons. This distinction is exactly the kind of thing that will be on the exam, so don't say the Krebs cycle makes a lot of A-T-P, that's the classic wrong answer.
+
+Oh — side note, anyone watch the game last night? Brutal. Anyway.
+
+Stage three, the big one, is the electron transport chain. This is where the electron carriers from the earlier stages dump their electrons, and the cell uses that to pump protons and drive a turbine-like enzyme called A-T-P synthase. This produces the bulk of the A-T-P, around thirty-four. It requires oxygen — oxygen is the final electron acceptor. If there's no oxygen, the whole chain backs up.
+
+So big picture: glycolysis splits the sugar, the cycle harvests electrons, the transport chain cashes them in for energy. The net yield is roughly thirty-six to thirty-eight A-T-P per glucose. Remember the location of each stage, that's a common exam question. We'll do the worked yield calculation next time.

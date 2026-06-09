@@ -104,6 +104,15 @@ export const buildNaturalNoteStyleInstructions = ({
     '- Never introduce jargon without unpacking it in plain language.',
     '- Multi-topic notes must be visibly sectioned so a student can skim topic boundaries at a glance.',
     '',
+    'Signal vs. noise:',
+    '- Strip filler, tangents, small talk, and off-topic chatter. Keep only material a learner would actually study or act on.',
+    '- If the speaker flagged anything time-sensitive (a deadline, an assignment, a due date, a follow-up, or a next step), collect it under exactly one short H2 heading named "Action items" near the end, as a tight bullet list. Omit this section entirely when there is nothing time-sensitive.',
+    '- Surface what the speaker emphasized. When a point is repeated or marked as important ("this is important", "this will be on the exam", "you must", "key thing"), keep it and flag it with a brief cue like "Important:" or "Watch for:" so it stands out.',
+    '',
+    'Fidelity:',
+    '- Use only what the transcript supports; do not invent facts, dates, names, or numbers.',
+    '- If a technical term was clearly mis-transcribed (a phonetically close garble of a known domain term), reconstruct the intended term from context and use the corrected form — but never fabricate content around it.',
+    '',
     'Forbidden:',
     '- Filler transitions like "In summary,", "Overall,", "It is important to note", "In conclusion".',
     '- Motivational or meta commentary about learning.',
@@ -180,8 +189,12 @@ Rules:
 5. Due dates must be valid ISO 8601 timestamps if a date parsing is possible. Try to determine the year based on context, otherwise use the current year.
 `;
 
-export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }) => {
+export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, knowledgeContext = '' }) => {
   const contents = [{ text: buildDeckPrompt(className, subject) }];
+
+  if (knowledgeContext) {
+    contents.push({ text: `\n\n${knowledgeContext}` });
+  }
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nLecture Notes/Text Content:\n${processedNotes}` });
@@ -334,6 +347,7 @@ export const generateDeckFromAi = async ({
   classId,
   className,
   subject,
+  knowledgeContext,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -366,7 +380,7 @@ export const generateDeckFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }),
+    contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, knowledgeContext }),
   });
 
   const flashcards = parseAiJsonResponse(
@@ -728,7 +742,7 @@ export const mergeGuidePayloadMeta = (guidePayload, coachMeta) => {
   };
 };
 
-export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, coachConfig }) => {
+export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, coachConfig, knowledgeContext = '' }) => {
   const hasSourceMaterial = hasProcessedNotes || keepFile;
   const coachMeta = normalizeCoachConfig(coachConfig, { hasSourceMaterial });
   const setupText = buildCoachSetupText(coachMeta);
@@ -738,6 +752,10 @@ export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile
 If Student Setup is provided, preserve it in "session_meta" and let it shape prioritization, weak-point selection, tone, and pacing.
 If no source material is provided, create a first-pass River tutor session from Student Setup alone.`,
   }];
+
+  if (knowledgeContext) {
+    contents.push({ text: `\n\n${knowledgeContext}` });
+  }
 
   if (setupText) {
     contents.push({ text: `\n\n${setupText}` });
@@ -769,6 +787,7 @@ export const generateStudyGuideFromAi = async ({
   className,
   subject,
   coachConfig,
+  knowledgeContext,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -810,6 +829,7 @@ export const generateStudyGuideFromAi = async ({
       className,
       subject,
       coachConfig,
+      knowledgeContext,
     }),
   });
 
@@ -939,7 +959,7 @@ This is a targeted practice exam focusing ONLY on the student's weak areas.
 
 export { buildAdaptiveExamPrompt, buildFocusedExamPrompt };
 
-export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, masteryData, weakTopics, examMode }) => {
+export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, masteryData, weakTopics, examMode, knowledgeContext = '' }) => {
   let prompt;
   if (examMode === 'focused' && weakTopics) {
     prompt = buildFocusedExamPrompt(className, weakTopics, subject);
@@ -950,6 +970,10 @@ export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile,
   }
 
   const contents = [{ text: prompt }];
+
+  if (knowledgeContext) {
+    contents.push({ text: `\n\n${knowledgeContext}` });
+  }
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
@@ -977,6 +1001,7 @@ export const generateExamFromAi = async ({
   classId,
   className,
   subject,
+  knowledgeContext,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -1008,7 +1033,7 @@ export const generateExamFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject }),
+    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, knowledgeContext }),
   });
 
   const questions = parseAiJsonResponse(

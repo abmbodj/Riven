@@ -71,8 +71,11 @@ export const isAiJobKind = (value: unknown): value is typeof AI_JOB_KINDS[number
   AI_JOB_KINDS.includes(value as typeof AI_JOB_KINDS[number]);
 
 export const getAiModelMap = () => ({
+  // Fast model streams the first usable draft; a stronger model handles the quality pass
+  // (enrich, merge, fidelity correction, and knowledge-layer extraction). Both stay
+  // env-overridable so cost can be dialed back to Scout via AI_FINAL_MODEL.
   draft: Deno.env.get('AI_DRAFT_MODEL') || 'meta-llama/llama-4-scout-17b-16e-instruct',
-  final: Deno.env.get('AI_FINAL_MODEL') || 'meta-llama/llama-4-scout-17b-16e-instruct',
+  final: Deno.env.get('AI_FINAL_MODEL') || 'llama-3.3-70b-versatile',
 });
 
 export const getYoutubeSourceKey = (youtubeUrl: string) => {

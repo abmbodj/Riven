@@ -13,6 +13,7 @@ import {
   buildAdaptiveExamPrompt,
   buildFocusedExamPrompt,
 } from '../_shared/aiCore.mjs';
+import { fetchKnowledgeContext } from '../_shared/noteKnowledge.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
@@ -151,6 +152,9 @@ serve(async (request) => {
 
       const masteryData = masteryResult.data;
 
+      const knowledgeContext = body.sourceType === 'notes'
+        ? await fetchKnowledgeContext(admin, body.sourceId, authUser.id)
+        : '';
       const contents = buildExamContents({
         processedNotes,
         hasProcessedNotes,
@@ -161,6 +165,7 @@ serve(async (request) => {
         masteryData,
         weakTopics: body.weakTopics,
         examMode,
+        knowledgeContext,
       });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
@@ -333,6 +338,10 @@ serve(async (request) => {
     });
     await reporter.markRunning('drafting', 35, 'Generating mock exam');
 
+    const knowledgeContext = body.sourceType === 'notes'
+      ? await fetchKnowledgeContext(admin, body.sourceId, authUser.id)
+      : '';
+
     try {
       const result = await generateExamFromAi({
         userId: authUser.id,
@@ -344,6 +353,7 @@ serve(async (request) => {
         classId: body.classId,
         className: body.className,
         subject: body.subject,
+        knowledgeContext,
         aiLimitsContext,
         apiKey,
         parseDocx: async (buffer: Buffer) => {

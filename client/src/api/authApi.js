@@ -1858,8 +1858,8 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
     };
 };
 
-export const generateAiDeckStream = (notes, file, deckName, classId, className, subject) =>
-    edgeFunctionStreamFetch('generate-deck', { body: { notes, file, deckName, classId, className, subject } });
+export const generateAiDeckStream = (notes, file, deckName, classId, className, subject, noteId = null) =>
+    edgeFunctionStreamFetch('generate-deck', { body: { notes, file, deckName, classId, className, subject, noteId } });
 
 export const generateAiGuideStream = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null, subject = null) =>
     edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig, subject } });

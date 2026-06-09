@@ -11,11 +11,11 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
 const RETRY_SEVERITY_THRESHOLD = 4;
-// Hybrid models: a fast model streams the first usable pass; a (configurably) stronger
-// model handles the correction/retry + batch path. Both default to the same model so
-// behavior is unchanged until NOTES_FINAL_MODEL is configured.
+// Hybrid models: a fast model streams the first usable pass; a stronger model handles the
+// correction/retry + batch path. Defaults mirror getAiModelMap (Scout draft, 70b final);
+// both stay env-overridable via AI_DRAFT_MODEL / AI_FINAL_MODEL.
 const NOTES_DRAFT_MODEL = Deno.env.get('AI_DRAFT_MODEL') ?? 'meta-llama/llama-4-scout-17b-16e-instruct';
-const NOTES_FINAL_MODEL = Deno.env.get('AI_FINAL_MODEL') ?? NOTES_DRAFT_MODEL;
+const NOTES_FINAL_MODEL = Deno.env.get('AI_FINAL_MODEL') ?? 'llama-3.3-70b-versatile';
 const NOTES_MAX_TOKENS = 8192;
 
 // Bias Whisper toward the lecture's domain vocabulary and proper nouns so technical

@@ -1,0 +1,13 @@
+Alright, thanks everyone for joining the sync. Let's keep it tight, I've got a hard stop at the bottom of the hour. Quick housekeeping — did everyone see the calendar invite move to Thursdays? Good.
+
+So, first topic, the checkout migration. We've been going back and forth on whether to cut over all at once or do a phased rollout. I think we've landed: we're going phased. We'll move ten percent of traffic first, watch error rates for forty-eight hours, then ramp. Sarah, you're the owner on this — can you draft the rollout plan by end of week? Sarah: yep, I'll have it Friday.
+
+Second, the payment provider issue. We decided we're not switching providers this quarter. The integration cost is too high right now and it's not worth the risk before the holiday freeze. We'll revisit in Q1. Open question that's still unresolved: do we need a fallback provider for redundancy? Nobody owns that yet — let's park it and Marcus will scope it next week.
+
+Someone mentioned the office coffee machine is broken again. Yeah. Facilities knows. Moving on.
+
+Third, the API rate limiting. This is the urgent one. Customers are hitting 429s during peak hours and it's generating support tickets. Decision: we bump the limits as a stopgap today, and Priya owns the real fix — proper per-tenant quotas — targeted for the next sprint. Priya, can you confirm that's feasible? Priya: feasible, I'll open the ticket after this.
+
+Last thing, and this is important — the security review deadline is non-negotiable. Legal needs our sign-off by the twentieth. If you have open items on the security checklist, they need to be closed before then. Please don't let that slip.
+
+Okay, action items recap: Sarah drafts the rollout plan by Friday, Marcus scopes the fallback provider next week, Priya opens the rate-limit ticket and targets next sprint, and everyone closes their security checklist items before the twentieth. Thanks all.

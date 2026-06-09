@@ -26,7 +26,11 @@ const buildNotePromptContext = ({
     ? '\n- For this section draft, omit the final Review Summary; the merged complete note handles it.'
     : '';
 
+  const adaptationDirective = `Adapt the structure to the material rather than forcing a fixed template. Based on the transcript, this session reads as ${noteStrategy.label.toLowerCase()} — follow the note method below, but let the content (conceptual/technical, narrative/argumentative, procedural/skills, meeting/discussion, or language) drive the shape.`;
+
   return `${buildSubjectContext(className ?? undefined, subject ?? undefined)}
+
+${adaptationDirective}
 
 ${buildNaturalNoteStyleInstructions({
   includeKeyConcepts,

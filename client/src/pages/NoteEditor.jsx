@@ -1119,6 +1119,8 @@ export default function NoteEditor() {
                 `${titleRef.current || 'Note'} - Practice Deck`,
                 classId,
                 selectedClassName,
+                null,
+                noteId,
             );
 
             const parser = createArrayStreamParser((card) => {

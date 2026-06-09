@@ -763,7 +763,7 @@
       "dependencies": [
         "npm:concurrently@^9.2.1",
         "npm:husky@^9.1.7",
-        "npm:youtube-caption-extractor@1.9.0"
+        "npm:knip@6.3.1"
       ]
     }
   }

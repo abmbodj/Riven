@@ -16,6 +16,7 @@ import {
   buildYoutubeSourcePrompt,
 } from './notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
+import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer } from './noteKnowledge.mjs';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
@@ -224,6 +225,48 @@ const ensureNoteFidelity = async ({
   }
 
   return finalDoc;
+};
+
+// Builds the structured knowledge layer once, from the finished (deduped) note + the
+// transcript. Runs on the stronger `final` model. Reads the bounded merged note rather than
+// re-chunking the transcript, so it scales to 90+ min lectures. Failure is non-fatal: the
+// note still saves with knowledge_layer = null.
+const extractKnowledgeLayer = async ({
+  ai,
+  finalDoc,
+  transcription,
+  className,
+  subject,
+  modelMap,
+}: {
+  ai: AiClient;
+  finalDoc: unknown;
+  transcription: string;
+  className: string | null;
+  subject: string | null;
+  modelMap: ReturnType<typeof getAiModelMap>;
+}): Promise<unknown> => {
+  if (!finalDoc || typeof finalDoc !== 'object' || (finalDoc as Record<string, unknown>).type !== 'doc') {
+    return null;
+  }
+  try {
+    const rawText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.final,
+      fallbackModel: modelMap.final,
+      messages: [{
+        role: 'user',
+        content: buildKnowledgeExtractionPrompt(finalDoc, transcription, className, subject, null),
+      }],
+      responseFormat: 'json_object',
+      maxTokens: 8192,
+    });
+    const parsed = parseAiJsonResponse(rawText, 'Knowledge extraction produced invalid JSON');
+    return normalizeKnowledgeLayer(parsed);
+  } catch (err) {
+    console.warn('[note_enhancement] knowledge-layer extraction failed, storing null', err);
+    return null;
+  }
 };
 
 const groupSegmentsIntoSections = (
@@ -740,6 +783,17 @@ const processNoteEnhancementJob = async ({
     modelMap,
   });
 
+  // Structured knowledge layer: the single hand-off every downstream generator consumes
+  // (flashcards, exams, guides, future tutor). Generated eagerly; never blocks the save.
+  const knowledgeLayer = await extractKnowledgeLayer({
+    ai,
+    finalDoc,
+    transcription,
+    className,
+    subject,
+    modelMap,
+  });
+
   const { error: updateError } = await admin
     .from('notes')
     .update({
@@ -750,6 +804,7 @@ const processNoteEnhancementJob = async ({
       audio_url: audioPath,
       polish_status: 'polished',
       source_type: 'audio',
+      knowledge_layer: knowledgeLayer,
     })
     .eq('id', noteId)
     .eq('user_id', job.user_id);

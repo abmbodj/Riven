@@ -14,6 +14,7 @@ import {
   parseAiJsonResponse,
   createHttpError,
 } from '../_shared/aiCore.mjs';
+import { fetchKnowledgeContext } from '../_shared/noteKnowledge.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
@@ -149,6 +150,7 @@ serve(async (request) => {
       });
       await reporter.markStreaming('drafting', 30, 'Generating tutor session');
 
+      const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
       const contents = buildGuideContents({
         processedNotes,
         hasProcessedNotes,
@@ -157,6 +159,7 @@ serve(async (request) => {
         className: body.className,
         subject: body.subject,
         coachConfig: body.coachConfig,
+        knowledgeContext,
       });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
@@ -307,6 +310,8 @@ serve(async (request) => {
     });
     await reporter.markRunning('drafting', 35, 'Generating tutor session');
 
+    const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
+
     try {
       const result = await generateStudyGuideFromAi({
         userId: authUser.id,
@@ -318,6 +323,7 @@ serve(async (request) => {
         className: body.className,
         subject: body.subject,
         coachConfig: body.coachConfig,
+        knowledgeContext,
         aiLimitsContext,
         apiKey,
         parseDocx: async (buffer: Buffer) => {

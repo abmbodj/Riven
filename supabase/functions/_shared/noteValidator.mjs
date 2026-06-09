@@ -6,6 +6,9 @@ const DEFINITION_MARKERS = [
 ];
 
 const RECAP_HEADING_PATTERN = /^\s*(key concepts?|summary|conclusion|recap|in summary|takeaways?|wrap[- ]?up|key takeaways?)\s*$/i;
+// Time-sensitive / housekeeping sections are intentionally allowed even though they sit
+// near the end like a recap would — they carry signal (deadlines, follow-ups), not filler.
+const ALLOWED_SECTION_HEADING_PATTERN = /^\s*(action items?|announcements?|next steps?)\s*$/i;
 const REVIEW_SUMMARY_HEADING_PATTERN = /^\s*review summary\s*$/i;
 const METHOD_CHECK_MIN_BLOCKS = 4;
 const MARKDOWN_LEAK_PATTERN = /(\*\*[^*][\s\S]*?\*\*|__[^_][\s\S]*?__)/;
@@ -173,6 +176,25 @@ const getStructureTolerance = (noteMethod) => {
     };
   }
 
+  if (noteMethod === 'meeting_discussion') {
+    // Decisions and rationale read as short paragraphs; don't demand review cues or lists.
+    return {
+      maxLongParagraphs: 2,
+      requireLists: false,
+      requireReviewCue: false,
+    };
+  }
+
+  if (noteMethod === 'procedural_skills') {
+    // Steps belong in lists, but the "watch for"/"best practice" cues are method-specific,
+    // not the generic review cue, so don't force the latter.
+    return {
+      maxLongParagraphs: 1,
+      requireLists: true,
+      requireReviewCue: false,
+    };
+  }
+
   return {
     maxLongParagraphs: 1,
     requireLists: true,
@@ -186,6 +208,7 @@ const findRecapHeadings = (doc, allowsSummary) => {
   for (const node of nodes) {
     if (node?.type !== 'heading') continue;
     const text = collectPlainText(node).trim();
+    if (ALLOWED_SECTION_HEADING_PATTERN.test(text)) continue;
     if (!RECAP_HEADING_PATTERN.test(text)) continue;
     if (allowsSummary && REVIEW_SUMMARY_HEADING_PATTERN.test(text)) continue;
     recaps.push(text);
@@ -273,6 +296,27 @@ const validateMethodShape = ({ doc, noteMethod, allowsSummary, totalContentBlock
     });
   }
 
+  if (noteMethod === 'procedural_skills' && !/\b(step|first|then|next|how to|procedure|best practice|common mistake|watch for|make sure)\b/i.test(text)) {
+    issues.push({
+      severity: 2,
+      message: 'Procedural notes need an explicit step sequence and at least one best-practice or common-mistake cue.',
+    });
+  }
+
+  if (noteMethod === 'meeting_discussion' && !/\b(decision|decided|agreed|owner|assigned|action item|next step|follow[- ]?up|open question)\b/i.test(text)) {
+    issues.push({
+      severity: 2,
+      message: 'Meeting notes need explicit decisions, owners, or action items rather than a running transcript summary.',
+    });
+  }
+
+  if (noteMethod === 'language_learning' && !/\b(vocabulary|vocab|grammar|conjugat|example sentence|translation|rule)\b/i.test(text)) {
+    issues.push({
+      severity: 2,
+      message: 'Language notes need grouped vocabulary, grammar rules, or example sentences with translations.',
+    });
+  }
+
   return issues;
 };
 
@@ -310,7 +354,11 @@ export const validateNoteDoc = (doc, options = {}) => {
     issues.push(
       `These bolded terms do not appear in the lecture transcript and may be hallucinated — remove or correct them: ${hallucinatedTerms.map((t) => `"${t}"`).join(', ')}.`,
     );
-    severity += hallucinatedTerms.length;
+    // Weighted below a 1:1 contribution and capped: a legitimate garbled-term reconstruction
+    // (the corrected term won't appear verbatim in the transcript) must not, on its own, push
+    // severity over the retry threshold and trigger a needless rewrite. Heavy hallucination
+    // still contributes, and combines with other contract breaks to force a retry.
+    severity += Math.min(3, Math.ceil(hallucinatedTerms.length / 2));
   }
 
   const { topParagraphs, bulletItems, headings, orderedItems, listNodes } = countStructure(doc);

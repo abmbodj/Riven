@@ -199,6 +199,39 @@ const NOTE_METHODS = {
       '- Keep the concept map readable as normal Tiptap headings, paragraphs, and lists.',
     ],
   },
+  procedural_skills: {
+    label: 'Procedural / how-to notes',
+    allowsSummary: false,
+    instructions: [
+      'Note method: Procedural / how-to notes.',
+      '- Organize around the task being performed: goal, prerequisites/tools, then the steps to do it.',
+      '- Use ordered lists for the actual procedure; keep each step a concrete action, not a description.',
+      '- Call out best practices and "gotchas"/common mistakes with short cues like "Watch for:" or "Best practice:".',
+      '- When a step has a reason or a failure mode, add a one-line plain-language note explaining why.',
+    ],
+  },
+  meeting_discussion: {
+    label: 'Meeting / discussion notes',
+    allowsSummary: false,
+    instructions: [
+      'Note method: Meeting / discussion notes.',
+      '- Organize by decision or topic, not by chronology. Lead with what was decided.',
+      '- Capture decisions, the owner/person responsible, and any open questions or unresolved points.',
+      '- Keep discussion context short: the decision and its rationale matter more than the back-and-forth.',
+      '- Surface concrete next steps; time-sensitive items belong in the Action items section.',
+    ],
+  },
+  language_learning: {
+    label: 'Language-learning notes',
+    allowsSummary: false,
+    instructions: [
+      'Note method: Language-learning notes.',
+      '- Group by vocabulary theme or grammar concept rather than transcript order.',
+      '- Present vocabulary with the target-language term, its translation, and a short example sentence with translation.',
+      '- State each grammar rule plainly, then show a correct example (and a common incorrect form when useful).',
+      '- Use tables for conjugation or declension patterns; bold new vocabulary on first use.',
+    ],
+  },
 };
 
 const SUBJECT_NOTE_METHODS = {
@@ -209,7 +242,7 @@ const SUBJECT_NOTE_METHODS = {
   Physics: 'worked_examples',
   History: 'chronological_causal',
   Literature: 'evidence_analysis',
-  Languages: 'outline',
+  Languages: 'language_learning',
   Economics: 'worked_examples',
   Psychology: 'concept_map',
   Music: 'outline',
@@ -220,9 +253,36 @@ const SUBJECT_NOTE_METHODS = {
   General: 'outline',
 };
 
+// Structural content types that describe the *shape* of the session regardless of
+// academic subject — a recorded meeting or a how-to walkthrough is the same kind of
+// material whether it happens in a Biology class or a workplace training. When the
+// transcript strongly signals one of these, it overrides the subject-mapped method.
+const countMatches = (text, pattern) => (text.match(pattern) || []).length;
+
+const inferStructuralContentMethod = (sourceText) => {
+  if (!sourceText || typeof sourceText !== 'string') return null;
+  const text = sourceText.slice(0, 6000);
+
+  const meetingSignals = countMatches(
+    text,
+    /\b(action items?|we decided|we agreed|decision|owner|assigned to|follow[- ]?up|next steps?|deadline|due (by|date)|stakeholders?|agenda|sync|standup|attendees?)\b/gi,
+  );
+  const proceduralSignals = countMatches(
+    text,
+    /\b(step \d|first,? you|next,? you|make sure to|best practice|common mistake|gotcha|how to|in order to|click|run the|navigate to|configure|install|set up|workflow|procedure)\b/gi,
+  );
+
+  // Require a couple of independent hits so a single stray phrase doesn't reshape the note.
+  if (meetingSignals >= 2 && meetingSignals >= proceduralSignals) return 'meeting_discussion';
+  if (proceduralSignals >= 2) return 'procedural_skills';
+  return null;
+};
+
 const inferNoteMethodFromSourceText = (sourceText) => {
   if (!sourceText || typeof sourceText !== 'string') return null;
   const text = sourceText.slice(0, 4000);
+  const structural = inferStructuralContentMethod(sourceText);
+  if (structural) return structural;
   if (/\b(theorem|formula|equation|solve|derivative|integral|calculate|proof)\b/i.test(text)) {
     return 'worked_examples';
   }
@@ -231,6 +291,9 @@ const inferNoteMethodFromSourceText = (sourceText) => {
   }
   if (/\b(timeline|chronology|caused|consequence|significance|revolution|war|period)\b/i.test(text)) {
     return 'chronological_causal';
+  }
+  if (/\b(vocabulary|conjugat|grammar|pronoun|tense|translation|target language)\b/i.test(text)) {
+    return 'language_learning';
   }
   if (/\b(theme|quote|passage|character|author|artist|movement|evidence|analysis)\b/i.test(text)) {
     return 'evidence_analysis';
@@ -249,9 +312,13 @@ const buildPromptInstructions = (method) => {
 export const resolveNoteStrategy = ({ className, subject, sourceText } = {}) => {
   const resolvedSubject = normalizeSubject(subject) || inferSubject(className) || 'General';
   const mappedMethod = SUBJECT_NOTE_METHODS[resolvedSubject] || SUBJECT_NOTE_METHODS.General;
-  const noteMethod = resolvedSubject === 'General'
-    ? (inferNoteMethodFromSourceText(sourceText) || mappedMethod)
-    : mappedMethod;
+  // A meeting/how-to recording keeps its structural shape even inside a known subject;
+  // otherwise fall back to the subject's method, and use full inference for General.
+  const structuralOverride = inferStructuralContentMethod(sourceText);
+  const noteMethod = structuralOverride
+    || (resolvedSubject === 'General'
+      ? (inferNoteMethodFromSourceText(sourceText) || mappedMethod)
+      : mappedMethod);
   const definition = NOTE_METHODS[noteMethod] || NOTE_METHODS.cornell;
 
   return {
