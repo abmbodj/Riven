@@ -1,10 +1,10 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GardenSettings from './GardenSettings.jsx';
 import { GardenContext } from '../context/GardenContext';
 
-const { mockAuthState, mockStreak, mockSetStageOverride } = vi.hoisted(() => ({
+const { mockAuthState, mockGalleryMock, mockStreak, mockSetStageOverride } = vi.hoisted(() => ({
   mockAuthState: {
     isLoggedIn: true,
     isOwner: false,
@@ -13,6 +13,7 @@ const { mockAuthState, mockStreak, mockSetStageOverride } = vi.hoisted(() => ({
       simulate_free_tier: false,
     },
   },
+  mockGalleryMock: vi.fn(),
   mockStreak: {
     status: 'healthy',
     hoursRemaining: 12,
@@ -26,9 +27,22 @@ const { mockAuthState, mockStreak, mockSetStageOverride } = vi.hoisted(() => ({
 }));
 
 vi.mock('motion/react', () => {
+  const stripMotionProps = (props) => {
+    const {
+      animate: _animate,
+      exit: _exit,
+      initial: _initial,
+      transition: _transition,
+      whileTap: _whileTap,
+      ...domProps
+    } = props;
+
+    return domProps;
+  };
+
   const createMotionComponent = (tag) =>
     React.forwardRef(
-      ({ children, ...props }, ref) => React.createElement(tag, { ...props, ref }, children)
+      ({ children, ...props }, ref) => React.createElement(tag, { ...stripMotionProps(props), ref }, children)
     );
 
   return {
@@ -55,7 +69,10 @@ vi.mock('../components/Garden', () => ({
 }));
 
 vi.mock('../components/GardenGallery', () => ({
-  default: () => <div>Garden gallery</div>,
+  default: (props) => {
+    mockGalleryMock(props);
+    return <div>Garden gallery</div>;
+  },
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -68,6 +85,10 @@ describe('GardenSettings simulate-free behavior', () => {
       <GardenSettings />
     </GardenContext.Provider>
   );
+
+  beforeEach(() => {
+    mockGalleryMock.mockReset();
+  });
 
   it('removes the owner stage override while simulated free mode is active', () => {
     mockAuthState.isOwner = true;
@@ -90,5 +111,23 @@ describe('GardenSettings simulate-free behavior', () => {
 
     expect(screen.getByText('Stage Override')).toBeInTheDocument();
     expect(screen.getByText(/manually select any garden stage/i)).toBeInTheDocument();
+  });
+
+  it('opens Garden Memories for premium users from the garden settings action card', () => {
+    mockAuthState.isOwner = false;
+    mockAuthState.user.subscription_tier = 'supporter';
+    mockAuthState.user.simulate_free_tier = false;
+
+    renderGardenSettings();
+
+    fireEvent.click(screen.getByRole('button', { name: /garden memories/i }));
+
+    expect(screen.getByText('Garden gallery')).toBeInTheDocument();
+    expect(mockGalleryMock).toHaveBeenCalledWith(expect.objectContaining({
+      currentStreak: 7,
+      longestStreak: 12,
+      pastStreaks: [],
+      onClose: expect.any(Function),
+    }));
   });
 });
