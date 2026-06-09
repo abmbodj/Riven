@@ -4,6 +4,7 @@ import { consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared
 import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { assertNoteUpdatePersisted, assertUserOwnedAudioPath } from '../_shared/notePersistence.ts';
 import { buildSinglePassNoteEnhancePrompt, buildSinglePassNoteGeneratePrompt } from '../_shared/notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from '../_shared/noteValidator.mjs';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -67,6 +68,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
+    const ownedAudioPath = assertUserOwnedAudioPath(audioPath, authUser.id);
 
     // Parallel: user fetch + audio download
     const [userResult, audioResult] = await Promise.all([
@@ -75,7 +77,7 @@ serve(async (request) => {
         .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
         .eq('id', authUser.id)
         .maybeSingle(),
-      admin.storage.from('note-audio').download(audioPath),
+      admin.storage.from('note-audio').download(ownedAudioPath),
     ]);
 
     const { data: user, error: userError } = userResult;
@@ -112,7 +114,7 @@ serve(async (request) => {
     const ai = createAiClient(apiKey);
 
     // Transcribe audio with Whisper
-    const ext = audioPath.split('.').pop()?.toLowerCase() ?? 'webm';
+    const ext = ownedAudioPath.split('.').pop()?.toLowerCase() ?? 'webm';
     const mimeMap: Record<string, string> = {
       webm: 'audio/webm',
       ogg: 'audio/ogg',
@@ -124,7 +126,7 @@ serve(async (request) => {
     };
     const audioMimeType = mimeMap[ext] || 'audio/webm';
     const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
-    const filename = audioPath.split('/').pop() || 'audio.webm';
+    const filename = ownedAudioPath.split('/').pop() || 'audio.webm';
 
     // Accurate, full-context transcription with vocabulary biasing. Segments give us a
     // timeline (for replay) and confidence signals (to flag low-confidence spans).
@@ -223,20 +225,23 @@ serve(async (request) => {
 
           // Persist enhanced content + the transcript/segment timeline. Audio is retained
           // (audio_url keeps pointing at the stored file) so the note can replay the recording.
-          const { error: updateError } = await admin
+          const { data: updatedNote, error: updateError } = await admin
             .from('notes')
             .update({
               enhanced_content: enhancedContent,
               transcript: transcription,
               audio_segments: segments,
-              audio_url: audioPath,
+              audio_url: ownedAudioPath,
               polish_status: 'polished',
               source_type: 'audio',
             })
             .eq('id', noteId)
-            .eq('user_id', authUser.id);
+            .eq('user_id', authUser.id)
+            .select('id')
+            .maybeSingle();
 
           if (updateError) throw updateError;
+          assertNoteUpdatePersisted(updatedNote);
 
           sendDone({
             enhanced_content: enhancedContent,
@@ -300,20 +305,23 @@ serve(async (request) => {
     }
 
     // Persist enhanced content + transcript/segment timeline. Audio is retained for replay.
-    const { error: updateError } = await admin
+    const { data: updatedNote, error: updateError } = await admin
       .from('notes')
       .update({
         enhanced_content: enhancedContent,
         transcript: transcription,
         audio_segments: segments,
-        audio_url: audioPath,
+        audio_url: ownedAudioPath,
         polish_status: 'polished',
         source_type: 'audio',
       })
       .eq('id', noteId)
-      .eq('user_id', authUser.id);
+      .eq('user_id', authUser.id)
+      .select('id')
+      .maybeSingle();
 
     if (updateError) throw updateError;
+    assertNoteUpdatePersisted(updatedNote);
 
     return jsonResponse(
       {

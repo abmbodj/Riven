@@ -17,6 +17,7 @@ import {
 } from './notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
 import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer, buildKnowledgeContext, mergeMaxTokens } from './noteKnowledge.mjs';
+import { assertNoteUpdatePersisted, assertUserOwnedAudioPath } from './notePersistence.ts';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
@@ -703,7 +704,7 @@ const processTextEnhancementJob = async ({
 
   await reporter.markSaving('Saving enhanced notes', { final_doc: finalDoc, note_id: noteId });
 
-  const { error: updateError } = await admin
+  const { data: updatedNote, error: updateError } = await admin
     .from('notes')
     .update({
       enhanced_content: finalDoc,
@@ -712,9 +713,12 @@ const processTextEnhancementJob = async ({
       knowledge_layer: knowledgeLayer,
     })
     .eq('id', noteId)
-    .eq('user_id', job.user_id);
+    .eq('user_id', job.user_id)
+    .select('id')
+    .maybeSingle();
 
   if (updateError) throw updateError;
+  assertNoteUpdatePersisted(updatedNote);
 
   const persistedAt = new Date().toISOString();
 
@@ -763,6 +767,8 @@ const processNoteEnhancementJob = async ({
     return;
   }
 
+  const ownedAudioPath = assertUserOwnedAudioPath(audioPath, job.user_id);
+
   const modelMap = getAiModelMap();
   const ai = getApiKeyAndClient();
   const jobStartedAt = Date.now();
@@ -771,13 +777,13 @@ const processNoteEnhancementJob = async ({
   await reporter.markRunning('accepted', 5, 'Accepted note enhancement job');
 
   await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
-  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
+  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(ownedAudioPath);
   if (storageError || !audioData) {
     throw createHttpError('Failed to retrieve audio file.', 500);
   }
 
-  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: getAudioMimeType(audioPath) });
-  const filename = audioPath.split('/').pop() || 'audio.webm';
+  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: getAudioMimeType(ownedAudioPath) });
+  const filename = ownedAudioPath.split('/').pop() || 'audio.webm';
 
   if (audioBlob.size > 25 * 1024 * 1024) {
     throw createHttpError('Audio file exceeds the 25MB processing limit. Try a shorter recording.', 413);
@@ -843,16 +849,6 @@ const processNoteEnhancementJob = async ({
       finalDoc = draftDoc;
     }
 
-    await reporter.markSaving('Saving enhanced notes', {
-      final_doc: finalDoc,
-      note_id: noteId,
-      metrics: {
-        server_total_ms: Date.now() - jobStartedAt,
-        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
-        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
-      },
-    });
-
   // ── LONG RECORDING: parallel section path ────────────────────────────────
   } else {
     const completedSections: unknown[] = new Array(sections.length).fill(null);
@@ -915,16 +911,6 @@ const processNoteEnhancementJob = async ({
       finalDoc = { type: 'doc', content: allContent };
     }
 
-    await reporter.markSaving('Saving enhanced notes', {
-      final_doc: finalDoc,
-      note_id: noteId,
-      metrics: {
-        server_total_ms: Date.now() - jobStartedAt,
-        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
-        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
-        sections_count: sections.length,
-      },
-    });
   }
 
   // Off-the-critical-path fidelity pass: correct drift from the transcript / contract breaks.
@@ -950,22 +936,25 @@ const processNoteEnhancementJob = async ({
     modelMap,
   });
 
-  const { error: updateError } = await admin
+  const { data: updatedNote, error: updateError } = await admin
     .from('notes')
     .update({
       enhanced_content: finalDoc,
       content: finalDoc,
       transcript: transcription,
       audio_segments: segments,
-      audio_url: audioPath,
+      audio_url: ownedAudioPath,
       polish_status: 'polished',
       source_type: 'audio',
       knowledge_layer: knowledgeLayer,
     })
     .eq('id', noteId)
-    .eq('user_id', job.user_id);
+    .eq('user_id', job.user_id)
+    .select('id')
+    .maybeSingle();
 
   if (updateError) throw updateError;
+  assertNoteUpdatePersisted(updatedNote);
 
   const persistedAt = new Date().toISOString();
 

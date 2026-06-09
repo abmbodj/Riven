@@ -4,6 +4,7 @@ import { consumeAiQuota } from '../_shared/aiCore.mjs';
 import { getYoutubeSourceKey, isAiJobKind } from '../_shared/aiJobs.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { assertUserOwnedAudioPath } from '../_shared/notePersistence.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -86,6 +87,22 @@ serve(async (request) => {
       }
       targetType = 'note';
       targetId = String(payload.noteId);
+
+      if (payload.audioPath) {
+        assertUserOwnedAudioPath(payload.audioPath, authUser.id);
+      }
+
+      const { data: note, error: noteError } = await admin
+        .from('notes')
+        .select('id')
+        .eq('id', targetId)
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (noteError) throw noteError;
+      if (!note) {
+        return jsonResponse({ error: 'Note not found.' }, { status: 404 }, request);
+      }
 
       const { data: existingJob } = await admin
         .from('ai_jobs')
