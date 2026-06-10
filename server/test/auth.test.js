@@ -83,9 +83,7 @@ describe('Auth Core Endpoints', () => {
 
     describe('POST /api/auth/register', () => {
         it('should register a new user', async () => {
-            // No existing email
-            dbMock.pool.query.mockResolvedValueOnce({ rows: [] });
-            // No existing username
+            // Combined email/username existence check (single query)
             dbMock.pool.query.mockResolvedValueOnce({ rows: [] });
             // INSERT user
             dbMock.pool.query.mockResolvedValueOnce({ rows: [{ id: 99 }] });
@@ -114,7 +112,7 @@ describe('Auth Core Endpoints', () => {
                 .send({ username: 'user' }); // missing email and password
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toBe('All fields are required');
+            expect(res.body.error).toBe('Email is required');
         });
 
         it('should reject invalid email format', async () => {
@@ -132,7 +130,7 @@ describe('Auth Core Endpoints', () => {
                 .send({ username: 'user', email: 'test@test.com', password: '123' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('at least 6 characters');
+            expect(res.body.error).toContain('at least 8 characters');
         });
 
         it('should reject duplicate email', async () => {
@@ -490,7 +488,7 @@ describe('Auth Core Endpoints', () => {
                 .send({ token: 'some-token', password: '12' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toContain('at least 6 characters');
+            expect(res.body.error).toContain('at least 8 characters');
         });
 
         it('uses Supabase token-hash verification when the token is not legacy', async () => {

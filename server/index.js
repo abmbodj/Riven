@@ -17,6 +17,7 @@ const compression = require('compression');
 const slowDown = require('express-slow-down');
 const xss = require('xss');
 const db = require('./db');
+const { isTokenRevoked } = require('./tokenRevocation');
 const registerAuthRoutes = require('./routes/auth');
 const registerHealthRoutes = require('./routes/health');
 const registerLMSRoutes = require('./routes/lms');
@@ -118,8 +119,10 @@ app.use(cors({
         }
 
         const cleanOrigin = origin.replace(/\/$/, '');
-        const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, '')) ||
-            cleanOrigin.endsWith('.vercel.app');
+        // RIV-015: match only the explicit allowlist (extend via ALLOWED_ORIGINS env).
+        // The previous `.endsWith('.vercel.app')` wildcard trusted every attacker-created
+        // *.vercel.app subdomain for credentialed requests.
+        const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, ''));
 
         if (isAllowed) {
             callback(null, true);
@@ -213,11 +216,12 @@ app.use('/api/', (req, res, next) => {
     // Skip for webhook endpoints (server-to-server, verified by signature)
     if (req.path.startsWith('/webhooks/')) return next();
 
-    const csrfToken = req.cookies[CSRF_COOKIE] || crypto.randomBytes(32).toString('hex');
+    const existingCsrf = req.cookies[CSRF_COOKIE];
+    const csrfToken = existingCsrf || crypto.randomBytes(32).toString('hex');
     res.locals.csrfToken = csrfToken;
 
-    // Issue a CSRF token cookie if one doesn't exist yet
-    if (!req.cookies[CSRF_COOKIE]) {
+    // Issue a CSRF token cookie if one doesn't exist yet so the client can echo it back.
+    if (!existingCsrf) {
         res.cookie(CSRF_COOKIE, csrfToken, {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
@@ -225,20 +229,21 @@ app.use('/api/', (req, res, next) => {
             path: '/',
             maxAge: 24 * 60 * 60 * 1000,
         });
-        // Allow the first request through (the client will pick up the cookie for subsequent requests)
-        if (CSRF_SAFE_METHODS.has(req.method)) return next();
-        // For the very first mutating request before the client has the cookie, skip enforcement
-        // (the auth token still protects the endpoint)
-        return next();
     }
 
-    // Safe methods don't need CSRF validation
+    // Safe methods never need CSRF validation.
     if (CSRF_SAFE_METHODS.has(req.method)) return next();
 
-    const cookieToken = req.cookies[CSRF_COOKIE];
-    const headerToken = req.headers[CSRF_HEADER];
+    // CSRF only applies when the browser would attach an ambient credential — the auth
+    // cookie. Bearer-only clients (Capacitor/iOS has no cookie jar) present their token
+    // explicitly and are not cross-site forgeable, so they are exempt. (RIV-008)
+    if (!req.cookies.token) return next();
 
-    if (!headerToken || headerToken !== cookieToken) {
+    // Auth cookie present → require a matching double-submit CSRF token. This now also
+    // covers the very first mutating request (no csrf cookie yet → rejected), closing the
+    // prior first-request bypass. The client primes via GET /api/csrf and auto-retries.
+    const headerToken = req.headers[CSRF_HEADER];
+    if (!existingCsrf || !headerToken || headerToken !== existingCsrf) {
         return res.status(403).json({ error: 'CSRF token mismatch' });
     }
 
@@ -357,6 +362,10 @@ async function authMiddleware(req, res, next) {
     // Legacy JWT (custom JWT signed with JWT_SECRET)
     try {
         const decoded = jwt.verify(token, jwtSecret);
+        // RIV-005: reject tokens that were revoked (logout) or invalidated (password change).
+        if (await isTokenRevoked(decoded)) {
+            return res.status(401).json({ error: 'Token has been revoked', code: 'TOKEN_REVOKED' });
+        }
         req.user = decoded;
         // Ensure role is always set (backward compat for old JWTs without role)
         if (!req.user.role) {
@@ -559,9 +568,25 @@ app.post('/api/messages/:id/accept-deck', authMiddleware, handleAcceptSharedReso
 
 registerHealthRoutes({ app, db });
 
+// RIV-014: terminal 404 for any unmatched route (returns JSON, not an HTML stack page).
+app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+});
+
 if (sentryEnabled) {
     Sentry.setupExpressErrorHandler(app);
 }
+
+// RIV-014: centralized error handler — sanitize output so stack traces and internals
+// never reach the client regardless of NODE_ENV.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    console.error('[Unhandled error]', err);
+    const status = err.status || err.statusCode || 500;
+    res.status(status).json({
+        error: status >= 500 ? 'Internal server error' : (err.message || 'Request failed'),
+    });
+});
 
 if (process.env.NODE_ENV !== 'test') {
     server.on('error', (error) => {

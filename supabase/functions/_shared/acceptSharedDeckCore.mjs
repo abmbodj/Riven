@@ -6,6 +6,24 @@ import {
 
 const SHARED_RESOURCE_TYPES = new Set(['deck', 'note', 'guide']);
 
+// N2: legacy (v2) study guides use a `sections` array that the current normalizer
+// rejects. Build a fresh, progress-free study_state for them so the clone keeps its
+// content instead of silently dropping guide_data.
+const buildResetLegacyStudyState = (guideData) => {
+  const sections = Array.isArray(guideData?.sections) ? guideData.sections : [];
+  const sectionStates = {};
+  for (const section of sections) {
+    if (section?.id) {
+      sectionStates[section.id] = { revealed: false, confidence: null, completed: false, note: '' };
+    }
+  }
+  return {
+    current_section_id: sections[0]?.id ?? null,
+    section_states: sectionStates,
+    last_reviewed_at: null,
+  };
+};
+
 const createHttpError = (message, status) => {
   const error = new Error(message);
   error.status = status;
@@ -189,14 +207,32 @@ const acceptGuideResource = async ({
   }
 
   const normalizedGuideData = normalizeStudyGuideData(originalGuide.guide_data);
-  const formatVersion = normalizedGuideData ? STUDY_GUIDE_FORMAT_VERSION : 1;
+  const isLegacySectioned = !normalizedGuideData && Array.isArray(originalGuide.guide_data?.sections);
+
+  let guideData;
+  let formatVersion;
+  let studyState;
+  if (normalizedGuideData) {
+    guideData = normalizedGuideData;
+    formatVersion = STUDY_GUIDE_FORMAT_VERSION;
+    studyState = createDefaultStudyGuideState(normalizedGuideData);
+  } else if (isLegacySectioned) {
+    // Preserve legacy v2 guides verbatim with a reset progress state (N2 data-loss fix).
+    guideData = originalGuide.guide_data;
+    formatVersion = originalGuide.format_version ?? 1;
+    studyState = buildResetLegacyStudyState(originalGuide.guide_data);
+  } else {
+    guideData = normalizedGuideData;
+    formatVersion = 1;
+    studyState = {};
+  }
 
   const newGuide = await createGuide(receiverId, {
     title: originalGuide.title,
     content: originalGuide.content ?? {},
     format_version: formatVersion,
-    guide_data: normalizedGuideData,
-    study_state: normalizedGuideData ? createDefaultStudyGuideState(normalizedGuideData) : {},
+    guide_data: guideData,
+    study_state: studyState,
     note_id: null,
     class_id: null,
   });

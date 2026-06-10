@@ -213,4 +213,6 @@ async function sendEmailVerification(email, verifyToken, baseUrl) {
 module.exports = {
     sendPasswordResetEmail,
     sendWelcomeEmail,
+    WELCOME_EMAIL_SUBJECT,
+    buildWelcomeEmailHtml,
 };

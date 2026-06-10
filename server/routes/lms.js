@@ -1,11 +1,19 @@
 const { canvasConnectSchema } = require('../schemas/lms');
 const { handleValidationErrors } = require('../utils/validate');
+const { assertSafePublicUrl } = require('../utils/ssrfGuard');
 
 module.exports = function ({ app, db, authMiddleware }) {
 
     // 1. Save Canvas credentials (now just an iCal link)
     app.post('/api/lms/canvas/connect', authMiddleware, canvasConnectSchema, handleValidationErrors, async (req, res) => {
         const { icalUrl } = req.body;
+
+        try {
+            // RIV-002: block SSRF to internal/metadata addresses before fetching.
+            await assertSafePublicUrl(icalUrl);
+        } catch (ssrfErr) {
+            return res.status(400).json({ error: 'Invalid Canvas Calendar link.' });
+        }
 
         try {
             const ical = require('node-ical');
@@ -101,6 +109,8 @@ module.exports = function ({ app, db, authMiddleware }) {
             const ical = require('node-ical');
             let events;
             try {
+                // RIV-002: re-validate the stored URL on each sync (DNS may have changed).
+                await assertSafePublicUrl(user.canvas_ical_url);
                 events = await ical.async.fromURL(user.canvas_ical_url);
             } catch (fetchErr) {
                 return res.status(502).json({ error: 'Failed to reach Canvas Calendar. Check your link.' });

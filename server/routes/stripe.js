@@ -85,14 +85,21 @@ module.exports = function ({ db }) {
             const user = req.user;
             if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
+            // RIV-022: the JWT/session never carries stripe_customer_id — read it from the DB.
+            const dbUser = await db.queryOne(
+                'SELECT stripe_customer_id, email FROM users WHERE id = $1',
+                [user.id]
+            );
+
             // 1. If we have the Stripe Customer ID saved, use it! (Most reliable)
-            let stripeCustomerId = user.stripe_customer_id;
+            let stripeCustomerId = dbUser?.stripe_customer_id;
+            const userEmail = dbUser?.email || user.email;
 
             // 2. Fallback: Search for the customer by email if ID is missing
             if (!stripeCustomerId) {
                 console.info(`[Stripe] No stripeCustomerId found for user ${user.id}, searching by email...`);
                 const customers = await stripe.customers.list({
-                    email: user.email,
+                    email: userEmail,
                     limit: 1
                 });
 
