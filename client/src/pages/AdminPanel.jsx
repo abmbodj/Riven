@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
@@ -7,8 +7,17 @@ import useHaptics from '../hooks/useHaptics';
 import { useGSAP } from '../hooks/useGSAP';
 import { EASE, DURATION } from '../utils/animations';
 import {
-    BarChart3, Users, ShieldAlert, Megaphone, User,
-    RefreshCw, MessageSquare
+    Activity,
+    AlertTriangle,
+    BarChart3,
+    Clock3,
+    Crown,
+    Megaphone,
+    MessageSquare,
+    RefreshCw,
+    ShieldAlert,
+    User,
+    Users,
 } from 'lucide-react';
 
 import { messageTitleSchema, messageContentSchema } from '../schemas/forms';
@@ -20,11 +29,11 @@ import AccountTab from '../components/admin/AccountTab';
 import FeedbackTab from '../components/admin/FeedbackTab';
 
 const BASE_TABS = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'reports', label: 'Reports', icon: ShieldAlert },
-    { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone },
-    { id: 'account', label: 'Account', icon: User },
+    { id: 'overview', label: 'Overview', icon: BarChart3, hint: 'Platform health' },
+    { id: 'users', label: 'Users', icon: Users, hint: 'Directory' },
+    { id: 'reports', label: 'Reports', icon: ShieldAlert, hint: 'Moderation' },
+    { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone, hint: 'System messages' },
+    { id: 'account', label: 'Account', icon: User, hint: 'Operator' },
 ];
 
 const sortFeedbackEntries = (entries = []) => [...entries].sort((left, right) => {
@@ -38,9 +47,75 @@ const sortFeedbackEntries = (entries = []) => [...entries].sort((left, right) =>
     return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
 });
 
+const formatUpdatedAt = (value) => {
+    if (!value) return 'Pending';
+    return value.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
+
+function AdminLoadingSkeleton() {
+    return (
+        <div className="relative min-h-screen pb-24">
+            <div className="mx-auto w-full max-w-7xl space-y-5 px-4 pt-4 sm:px-6 lg:px-8">
+                <div className="glass-panel-premium rounded-[2rem] p-5 sm:p-6">
+                    <div className="flex items-center justify-between gap-5">
+                        <div className="space-y-3">
+                            <div className="h-3 w-24 animate-pulse rounded-full bg-white/10" />
+                            <div className="h-10 w-56 animate-pulse rounded-2xl bg-white/10" />
+                            <div className="h-4 w-72 max-w-full animate-pulse rounded-full bg-white/10" />
+                        </div>
+                        <div className="hidden h-14 w-14 animate-pulse rounded-2xl bg-white/10 sm:block" />
+                    </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {[0, 1, 2, 3].map((item) => (
+                        <div key={item} className="glass-panel-premium h-28 animate-pulse rounded-[1.5rem]" />
+                    ))}
+                </div>
+                <div className="glass-panel-premium h-16 animate-pulse rounded-[1.35rem]" />
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
+                    <div className="glass-panel-premium h-80 animate-pulse rounded-[1.75rem]" />
+                    <div className="glass-panel-premium h-80 animate-pulse rounded-[1.75rem]" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SignalCard({ icon: Icon, label, value, tone = 'neutral' }) {
+    const toneClass = tone === 'warning'
+        ? 'border-amber-500/25 text-amber-300'
+        : tone === 'danger'
+            ? 'border-red-500/25 text-red-300'
+            : tone === 'good'
+                ? 'border-botanical-forest/30 text-botanical-forest'
+                : 'border-white/10 text-claude-text';
+
+    return (
+        <div className={`glass-panel-premium rounded-[1.35rem] border px-4 py-3 ${toneClass}`}>
+            <div className="relative z-10 flex items-center justify-between gap-3">
+                <div>
+                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                        {label}
+                    </p>
+                    <p className="mt-1 font-mono text-2xl font-bold tracking-tight">
+                        {value}
+                    </p>
+                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-claude-bg/45">
+                    <Icon className="h-4 w-4" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function AdminPanel() {
     const navigate = useNavigate();
     const toast = useToast();
+    const toastRef = React.useRef(toast);
     const haptics = useHaptics();
     const {
         isAdmin, isOwner, user,
@@ -60,12 +135,16 @@ export default function AdminPanel() {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
 
     const [showMessageForm, setShowMessageForm] = useState(false);
     const [messageForm, setMessageForm] = useState({ title: '', content: '', type: 'info' });
     const [formLoading, setFormLoading] = useState(false);
 
-    // GSAP page-level animations
+    useEffect(() => {
+        toastRef.current = toast;
+    }, [toast]);
+
     const { container } = useGSAP(({ selector }) => {
         const header = selector('.gsap-header');
         const tabs = selector('.gsap-tabs');
@@ -93,15 +172,29 @@ export default function AdminPanel() {
         }
     }, [loading]);
 
-    const tabs = React.useMemo(() => (
+    const tabs = useMemo(() => (
         isOwner
             ? [
                 ...BASE_TABS.slice(0, 4),
-                { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+                { id: 'feedback', label: 'Feedback', icon: MessageSquare, hint: 'Owner inbox' },
                 BASE_TABS[4],
             ]
             : BASE_TABS
     ), [isOwner]);
+
+    const adminSignals = useMemo(() => {
+        const pendingReports = reports.filter((report) => report.status === 'pending').length;
+        const activeMessages = messages.filter((message) => message.isActive).length;
+        const openFeedback = feedback.filter((entry) => !entry.consideringNotifiedAt).length;
+        const totalUsers = stats?.users ?? users.length;
+
+        return {
+            pendingReports,
+            activeMessages,
+            openFeedback,
+            totalUsers,
+        };
+    }, [feedback, messages, reports, stats?.users, users.length]);
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -154,19 +247,21 @@ export default function AdminPanel() {
                 setFeedbackLoadError(null);
             }
 
+            setLastUpdatedAt(new Date());
+
             const coreFailed = [statsResult, usersResult, messagesResult, reportsResult]
                 .some((result) => result.status === 'rejected');
             if (coreFailed) {
-                toast.error('Failed to load admin data');
+                toastRef.current.error('Failed to load admin data');
             }
         } catch (err) {
             console.error(err);
-            toast.error('Failed to load admin data');
+            toastRef.current.error('Failed to load admin data');
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [adminGetStats, getAllUsers, adminGetMessages, adminGetFeedback, adminGetReports, isOwner, toast]);
+    }, [adminGetStats, getAllUsers, adminGetMessages, adminGetFeedback, adminGetReports, isOwner]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -317,168 +412,221 @@ export default function AdminPanel() {
 
     if (!isAdmin) return null;
 
-    // Skeleton loading state
     if (loading) {
-        return (
-            <div className="relative min-h-screen pb-24">
-                <div className="pt-4 px-4 sm:px-6 space-y-6">
-                    <div className="space-y-2">
-                        <div className="h-4 w-16 bg-claude-border rounded animate-pulse" />
-                        <div className="h-10 w-48 bg-claude-border rounded-xl animate-pulse" />
-                    </div>
-                    <div className="h-12 w-full bg-claude-border rounded-2xl animate-pulse" />
-                    <div className="grid grid-cols-2 gap-3">
-                        {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-28 bg-claude-border rounded-2xl animate-pulse" />
-                        ))}
-                    </div>
-                    <div className="h-64 bg-claude-border rounded-2xl animate-pulse" />
-                    <div className="space-y-2">
-                        {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-16 bg-claude-border rounded-2xl animate-pulse" />
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
+        return <AdminLoadingSkeleton />;
     }
+
+    const activeTabMeta = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
     return (
         <div ref={container} className="relative min-h-screen pb-24">
-            {/* Page Header — Riven standard */}
-            <div className="gsap-header mb-6 pt-4 px-4 sm:px-6 flex items-end justify-between">
-                <div>
-                    <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
-                        <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">
-                            System
-                        </span>
-                    </div>
-                    <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">
-                        Admin Panel
-                    </h1>
-                </div>
-                <button
-                    onClick={() => {
-                        haptics.light();
-                        loadData(true);
-                    }}
-                    disabled={refreshing}
-                    className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95 focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                    aria-label="Refresh data"
-                >
-                    <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
-            </div>
+            <div className="mx-auto w-full max-w-7xl space-y-5 px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+                <section className="gsap-header glass-panel-premium overflow-hidden rounded-[2rem] p-5 sm:p-6 lg:p-7">
+                    <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="min-w-0">
+                            <div className="mb-3 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-claude-accent/25 bg-claude-accent/12 px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.24em] text-claude-accent">
+                                    <Activity className="h-3 w-3" />
+                                    System
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-claude-bg/45 px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">
+                                    {isOwner ? <Crown className="h-3 w-3 text-claude-accent" /> : <ShieldAlert className="h-3 w-3" />}
+                                    {isOwner ? 'Owner Console' : 'Admin Console'}
+                                </span>
+                            </div>
+                            <h1 className="text-4xl font-serif font-bold italic leading-none tracking-tight text-claude-text sm:text-5xl">
+                                Admin Panel
+                            </h1>
+                            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-claude-secondary">
+                                Operational control for users, moderation, broadcasts, feedback, and platform health.
+                            </p>
+                        </div>
 
-            {/* Tab Navigation */}
-            <div className="gsap-tabs px-4 sm:px-6 mb-8">
-                <div className="flex items-center gap-1.5 p-1.5 glass-panel rounded-2xl border border-claude-border overflow-x-auto no-scrollbar scroll-smooth">
-                    {tabs.map(tab => {
-                        const isActive = activeTab === tab.id;
-                        const Icon = tab.icon;
-                        return (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:justify-end">
+                            <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-claude-bg/45 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                <Clock3 className="h-4 w-4 text-claude-accent" />
+                                Updated {formatUpdatedAt(lastUpdatedAt)}
+                            </div>
                             <button
-                                key={tab.id}
                                 onClick={() => {
                                     haptics.light();
-                                    setActiveTab(tab.id);
+                                    loadData(true);
                                 }}
-                                className={`relative flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-[10px] font-bold font-mono uppercase tracking-widest whitespace-nowrap transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 touch-target tap-action active:scale-[0.97] ${isActive
-                                    ? 'text-botanical-ink'
-                                    : 'text-claude-secondary hover:text-claude-text'
-                                }`}
+                                disabled={refreshing}
+                                className="tap-action inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-claude-accent/20 bg-claude-accent/12 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-claude-accent/18 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                aria-label="Refresh admin data"
                             >
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="adminActiveTab"
-                                        className="absolute inset-0 bg-claude-accent rounded-xl shadow-botanical-glow"
-                                        style={{ zIndex: -1 }}
-                                        initial={false}
-                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                    />
-                                )}
-                                <Icon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">{tab.label}</span>
+                                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                                Refresh
                             </button>
-                        );
-                    })}
+                        </div>
+                    </div>
+                </section>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <SignalCard icon={Users} label="Users" value={(adminSignals.totalUsers || 0).toLocaleString()} />
+                    <SignalCard
+                        icon={ShieldAlert}
+                        label="Pending Reports"
+                        value={adminSignals.pendingReports}
+                        tone={adminSignals.pendingReports > 0 ? 'warning' : 'good'}
+                    />
+                    <SignalCard icon={Megaphone} label="Live Broadcasts" value={adminSignals.activeMessages} />
+                    <SignalCard
+                        icon={MessageSquare}
+                        label={isOwner ? 'Open Feedback' : 'Feedback'}
+                        value={isOwner ? (feedbackLoadError ? 'Issue' : adminSignals.openFeedback) : 'Owner'}
+                        tone={feedbackLoadError ? 'danger' : 'neutral'}
+                    />
                 </div>
-            </div>
 
-            {/* Content Area */}
-            <div className="px-4 sm:px-6">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                        {activeTab === 'overview' && (
-                            <OverviewTab stats={stats} />
-                        )}
+                {feedbackLoadError && isOwner && (
+                    <div className="glass-panel-premium rounded-[1.35rem] border border-amber-500/25 px-4 py-3">
+                        <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                                <div>
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-amber-300">
+                                        Feedback inbox unavailable
+                                    </p>
+                                    <p className="mt-1 text-xs leading-relaxed text-claude-secondary">
+                                        Core admin data loaded. The owner feedback inbox can be retried from its tab.
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => loadData(true)}
+                                className="tap-action inline-flex items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-amber-300 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.97]"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    </div>
+                )}
 
-                        {activeTab === 'users' && (
-                            <UsersTab
-                                users={users}
-                                setUsers={setUsers}
-                                onDelete={handleDeleteUser}
-                                isOwner={isOwner}
-                                onRoleChange={adminUpdateUserRole}
-                                toast={toast}
-                                haptics={haptics}
-                            />
-                        )}
+                <div className="gsap-tabs sticky top-2 z-20">
+                    <div className="glass-panel-premium overflow-hidden rounded-[1.35rem] p-1.5">
+                        <div className="relative z-10 flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
+                            {tabs.map(tab => {
+                                const isActive = activeTab === tab.id;
+                                const Icon = tab.icon;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => {
+                                            haptics.light();
+                                            setActiveTab(tab.id);
+                                        }}
+                                        aria-label={tab.label}
+                                        className={`tap-action relative flex min-h-[44px] min-w-fit items-center justify-center gap-2 rounded-[1rem] px-3.5 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 active:scale-[0.97] sm:flex-1 ${
+                                            isActive
+                                                ? 'text-botanical-ink'
+                                                : 'text-claude-secondary hover:text-claude-text'
+                                        }`}
+                                    >
+                                        {isActive && (
+                                            <motion.div
+                                                layoutId="adminActiveTab"
+                                                className="absolute inset-0 rounded-[1rem] bg-claude-accent shadow-botanical-glow"
+                                                style={{ zIndex: -1 }}
+                                                initial={false}
+                                                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                            />
+                                        )}
+                                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="mt-2 hidden px-2 text-[9px] font-mono uppercase tracking-[0.22em] text-claude-secondary lg:block">
+                        {activeTabMeta.hint}
+                    </div>
+                </div>
 
-                        {activeTab === 'reports' && (
-                            <ReportsTab
-                                reports={reports}
-                                onResolve={handleResolveReport}
-                                onClose={handleCloseReport}
-                                onBan={handleBanUserFromReport}
-                                toast={toast}
-                                haptics={haptics}
-                            />
-                        )}
+                <main>
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                            {activeTab === 'overview' && (
+                                <OverviewTab
+                                    stats={stats}
+                                    reports={reports}
+                                    messages={messages}
+                                    feedback={feedback}
+                                    feedbackLoadError={feedbackLoadError}
+                                    isOwner={isOwner}
+                                />
+                            )}
 
-                        {activeTab === 'broadcasts' && (
-                            <BroadcastsTab
-                                messages={messages}
-                                form={messageForm}
-                                setForm={setMessageForm}
-                                showForm={showMessageForm}
-                                setShowForm={setShowMessageForm}
-                                onSubmit={handleCreateMessage}
-                                onToggle={handleToggleMessage}
-                                onDelete={handleDeleteMessage}
-                                loading={formLoading}
-                                haptics={haptics}
-                            />
-                        )}
+                            {activeTab === 'users' && (
+                                <UsersTab
+                                    users={users}
+                                    setUsers={setUsers}
+                                    onDelete={handleDeleteUser}
+                                    isOwner={isOwner}
+                                    onRoleChange={adminUpdateUserRole}
+                                    toast={toast}
+                                    haptics={haptics}
+                                />
+                            )}
 
-                        {activeTab === 'feedback' && isOwner && (
-                            <FeedbackTab
-                                feedback={feedback}
-                                loadError={feedbackLoadError}
-                                onRetry={() => loadData(true)}
-                                onToggleFavorite={handleToggleFeedbackFavorite}
-                                onDelete={handleDeleteFeedback}
-                                onThank={handleThankFeedback}
-                                haptics={haptics}
-                            />
-                        )}
+                            {activeTab === 'reports' && (
+                                <ReportsTab
+                                    reports={reports}
+                                    onResolve={handleResolveReport}
+                                    onClose={handleCloseReport}
+                                    onBan={handleBanUserFromReport}
+                                    toast={toast}
+                                    haptics={haptics}
+                                />
+                            )}
 
-                        {activeTab === 'account' && (
-                            <AccountTab
-                                user={user}
-                                isOwner={isOwner}
-                                toggleSimulateFree={toggleSimulateFree}
-                                toast={toast}
-                            />
-                        )}
-                    </motion.div>
-                </AnimatePresence>
+                            {activeTab === 'broadcasts' && (
+                                <BroadcastsTab
+                                    messages={messages}
+                                    form={messageForm}
+                                    setForm={setMessageForm}
+                                    showForm={showMessageForm}
+                                    setShowForm={setShowMessageForm}
+                                    onSubmit={handleCreateMessage}
+                                    onToggle={handleToggleMessage}
+                                    onDelete={handleDeleteMessage}
+                                    loading={formLoading}
+                                    haptics={haptics}
+                                />
+                            )}
+
+                            {activeTab === 'feedback' && isOwner && (
+                                <FeedbackTab
+                                    feedback={feedback}
+                                    loadError={feedbackLoadError}
+                                    onRetry={() => loadData(true)}
+                                    onToggleFavorite={handleToggleFeedbackFavorite}
+                                    onDelete={handleDeleteFeedback}
+                                    onThank={handleThankFeedback}
+                                    haptics={haptics}
+                                />
+                            )}
+
+                            {activeTab === 'account' && (
+                                <AccountTab
+                                    user={user}
+                                    isOwner={isOwner}
+                                    toggleSimulateFree={toggleSimulateFree}
+                                    toast={toast}
+                                />
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
+                </main>
             </div>
         </div>
     );

@@ -1,8 +1,18 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import {
-    Users, Layers, BookOpen, Feather, Activity,
-    TrendingUp, UserCircle, ArrowUp
+    Activity,
+    ArrowUp,
+    BookOpen,
+    CheckCircle2,
+    Feather,
+    Layers,
+    Megaphone,
+    MessageSquare,
+    ShieldAlert,
+    TrendingUp,
+    UserCircle,
+    Users,
 } from 'lucide-react';
 
 const ACTIVITY_CHART_WIDTH = 640;
@@ -11,35 +21,58 @@ const ACTIVITY_CHART_PADDING_X = 12;
 const ACTIVITY_CHART_PADDING_TOP = 14;
 const ACTIVITY_CHART_PADDING_BOTTOM = 20;
 
-function SectionHeading({ icon: Icon, title }) {
+const formatNumber = (value) => Number(value || 0).toLocaleString();
+
+function SectionHeading({ icon: Icon, title, detail }) {
     return (
-        <div className="mb-4 flex items-center justify-between px-1">
-            <h2 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">
-                <Icon className="h-3.5 w-3.5" /> {title}
-            </h2>
+        <div className="mb-4 flex flex-col gap-1 px-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h2 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.26em] text-claude-secondary">
+                    <Icon className="h-3.5 w-3.5 text-claude-accent" /> {title}
+                </h2>
+                {detail && (
+                    <p className="mt-1 text-xs text-claude-secondary/75">
+                        {detail}
+                    </p>
+                )}
+            </div>
         </div>
     );
 }
 
-function StatTile({ label, value, icon: Icon, trend }) {
+function StatTile({ label, value, icon: Icon, trend, detail, tone = 'neutral' }) {
+    const toneClass = tone === 'accent'
+        ? 'text-claude-accent'
+        : tone === 'good'
+            ? 'text-botanical-forest'
+            : 'text-claude-text';
+
     return (
-        <div className="glass-panel rounded-2xl border border-claude-border p-3 sm:p-4 relative overflow-hidden group">
-            <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-claude-accent/5 blur-2xl pointer-events-none group-hover:bg-claude-accent/10 transition-colors duration-500" />
-            <div className="relative z-10 flex items-start justify-between mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-claude-bg/50 border border-claude-border">
-                    <Icon className="w-3.5 h-3.5 text-claude-accent" />
+        <div className="glass-panel-premium overflow-hidden rounded-[1.45rem] p-4">
+            <div className="relative z-10 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.23em] text-claude-secondary">
+                        {label}
+                    </p>
+                    <p className={`mt-2 font-mono text-2xl font-bold tracking-tight sm:text-3xl ${toneClass}`}>
+                        {formatNumber(value)}
+                    </p>
+                    {detail && (
+                        <p className="mt-1 text-[11px] leading-relaxed text-claude-secondary/80">
+                            {detail}
+                        </p>
+                    )}
                 </div>
-                {trend > 0 && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-botanical-forest/15 text-botanical-forest font-mono">
-                        <ArrowUp className="w-2.5 h-2.5" />
-                        {trend}
-                    </div>
-                )}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-claude-bg/45">
+                    <Icon className="h-4 w-4 text-claude-accent" />
+                </div>
             </div>
-            <p className="font-mono text-xl font-bold tracking-tight sm:text-2xl text-claude-text">
-                {value?.toLocaleString() || 0}
-            </p>
-            <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.25em] text-claude-secondary">{label}</p>
+            {trend > 0 && (
+                <div className="relative z-10 mt-4 inline-flex items-center gap-1.5 rounded-full border border-botanical-forest/25 bg-botanical-forest/10 px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-botanical-forest">
+                    <ArrowUp className="h-3 w-3" />
+                    {formatNumber(trend)} new
+                </div>
+            )}
         </div>
     );
 }
@@ -98,7 +131,7 @@ function ActivityChart({ data }) {
     const sortedLabels = [...labelIndices].sort((a, b) => a - b);
 
     return (
-        <div className="w-full h-full flex flex-col select-none">
+        <div className="flex h-full w-full select-none flex-col">
             <div className="relative flex-1 overflow-hidden">
                 <svg
                     viewBox={`0 0 ${ACTIVITY_CHART_WIDTH} ${ACTIVITY_CHART_HEIGHT}`}
@@ -115,7 +148,7 @@ function ActivityChart({ data }) {
                         <linearGradient id={strokeGradientId} x1="0" y1="0" x2="1" y2="0">
                             <stop offset="0%" stopColor="rgba(222,185,106,0.75)" />
                             <stop offset="45%" stopColor="var(--accent-color)" />
-                            <stop offset="100%" stopColor="rgba(222,185,106,0.82)" />
+                            <stop offset="100%" stopColor="rgba(122,158,114,0.86)" />
                         </linearGradient>
                     </defs>
 
@@ -200,11 +233,11 @@ function ActivityChart({ data }) {
                 </svg>
             </div>
 
-            <div className="relative h-4 mt-2 shrink-0">
+            <div className="relative mt-2 h-4 shrink-0">
                 {sortedLabels.map((idx) => {
                     const d = data[idx];
                     if (!d) return null;
-                    const date = new Date(d.date + 'T00:00:00');
+                    const date = new Date(`${d.date}T00:00:00`);
                     const label = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
                     const leftPct = data.length <= 1 ? 50 : (idx / (data.length - 1)) * 100;
                     const isFirst = idx === 0;
@@ -212,7 +245,7 @@ function ActivityChart({ data }) {
                     return (
                         <span
                             key={idx}
-                            className="absolute text-[9px] font-mono text-claude-secondary/70 tracking-wider uppercase whitespace-nowrap"
+                            className="absolute whitespace-nowrap text-[9px] font-mono uppercase tracking-wider text-claude-secondary/70"
                             style={{
                                 left: `${leftPct}%`,
                                 transform: isFirst ? 'none' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
@@ -227,80 +260,155 @@ function ActivityChart({ data }) {
     );
 }
 
-export default function OverviewTab({ stats }) {
+function AttentionRow({ icon: Icon, label, value, detail, tone = 'neutral' }) {
+    const toneClass = tone === 'warning'
+        ? 'text-amber-300 border-amber-500/25 bg-amber-500/10'
+        : tone === 'danger'
+            ? 'text-red-300 border-red-500/25 bg-red-500/10'
+            : 'text-botanical-forest border-botanical-forest/25 bg-botanical-forest/10';
+
+    return (
+        <div className="flex items-center justify-between gap-4 rounded-[1.15rem] border border-white/10 bg-claude-bg/35 px-3.5 py-3">
+            <div className="flex min-w-0 items-center gap-3">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${toneClass}`}>
+                    <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-claude-text">{label}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-claude-secondary">{detail}</p>
+                </div>
+            </div>
+            <p className="shrink-0 font-mono text-xl font-bold text-claude-text">{value}</p>
+        </div>
+    );
+}
+
+export default function OverviewTab({
+    stats,
+    reports = [],
+    messages = [],
+    feedback = [],
+    feedbackLoadError = null,
+    isOwner = false,
+}) {
     if (!stats) return null;
+
+    const pendingReports = reports.filter((report) => report.status === 'pending').length;
+    const activeMessages = messages.filter((message) => message.isActive).length;
+    const openFeedback = feedback.filter((entry) => !entry.consideringNotifiedAt).length;
+    const recentSessions = Number(stats.recentSessions || 0);
+    const topDecks = stats.topDecks || [];
 
     return (
         <div className="space-y-8">
-            {/* Stats Grid */}
-            <div>
-                <SectionHeading icon={Activity} title="Platform Metrics" />
-                <div className="grid grid-cols-2 gap-3">
-                    <StatTile label="Total Users" value={stats.users} icon={Users} trend={stats.recentSignups} />
-                    <StatTile label="Total Decks" value={stats.decks} icon={Layers} />
-                    <StatTile label="Total Cards" value={stats.cards} icon={BookOpen} />
-                    <StatTile label="30-Day Sessions" value={stats.recentSessions} icon={Feather} trend={Math.floor(stats.recentSessions * 0.1)} />
+            <section>
+                <SectionHeading
+                    icon={Activity}
+                    title="Platform Health"
+                    detail="Core system totals and the fastest signals to scan first."
+                />
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <StatTile label="Total Users" value={stats.users} icon={Users} trend={stats.recentSignups} tone="accent" />
+                    <StatTile label="Decks" value={stats.decks} icon={Layers} detail={`${formatNumber(stats.sharedDecks)} shared`} />
+                    <StatTile label="Cards" value={stats.cards} icon={BookOpen} />
+                    <StatTile label="30-Day Sessions" value={recentSessions} icon={Feather} trend={Math.floor(recentSessions * 0.1)} tone="good" />
                 </div>
-            </div>
+            </section>
 
-            {/* Activity Chart */}
-            <div>
-                <SectionHeading icon={Activity} title="30-Day Activity" />
-                <div className="p-5 rounded-2xl glass-panel border border-claude-border relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none"
-                        style={{ background: 'radial-gradient(circle, rgba(222,185,106,0.06) 0%, transparent 70%)' }} />
-                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
-
-                    <div className="flex items-center justify-between mb-6 relative z-10">
-                        <p className="text-xs text-claude-secondary">New user signups over time</p>
-                        <div className="px-2.5 py-1 rounded-lg bg-claude-accent/10 border border-claude-accent/20 text-claude-accent text-[9px] font-bold font-mono tracking-widest uppercase">
-                            {stats.recentSignups?.toLocaleString() || 0} Total
-                        </div>
-                    </div>
-
-                    <div className="h-48 w-full relative z-10">
-                        <ActivityChart data={stats.dailyUsers || []} />
-                    </div>
-                </div>
-            </div>
-
-            {/* Trending Decks */}
-            <div>
-                <SectionHeading icon={TrendingUp} title="Trending Decks" />
-                <div className="space-y-2">
-                    {stats.topDecks?.map((deck, i) => (
-                        <div
-                            key={deck.id ?? (deck.title || i)}
-                            className="flex items-center gap-3 p-3.5 rounded-2xl glass-panel border border-claude-border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-claude-accent/30"
-                        >
-                            <div className="w-9 h-9 rounded-xl bg-claude-bg/60 border border-claude-border flex items-center justify-center text-[10px] font-mono font-bold text-claude-secondary uppercase tracking-widest">
-                                {i + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-serif italic text-claude-text truncate">{deck.title}</h4>
-                                <p className="text-[10px] text-claude-secondary truncate flex items-center gap-1 mt-0.5 font-mono uppercase tracking-wider">
-                                    <UserCircle className="w-3 h-3" /> {deck.creator}
+            <section className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+                <div>
+                    <SectionHeading icon={Activity} title="30-Day Activity" />
+                    <div className="glass-panel-premium overflow-hidden rounded-[1.75rem] p-5">
+                        <div className="relative z-10 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-claude-text">New user signups over time</p>
+                                <p className="mt-1 text-xs text-claude-secondary">
+                                    Daily signup rhythm across the latest 30-day window.
                                 </p>
                             </div>
-                            <div className="text-right pl-3 border-l border-claude-border/50">
-                                <p className="font-mono text-lg font-bold tracking-tight text-claude-accent">{deck.sessions}</p>
-                                <p className="text-[8px] font-mono text-claude-secondary uppercase tracking-widest">Plays</p>
+                            <div className="inline-flex w-fit items-center rounded-xl border border-claude-accent/20 bg-claude-accent/10 px-3 py-2 text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                {formatNumber(stats.recentSignups)} total
+                            </div>
+                        </div>
+
+                        <div className="relative z-10 h-48 w-full">
+                            <ActivityChart data={stats.dailyUsers || []} />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <SectionHeading icon={ShieldAlert} title="Needs Attention" />
+                    <div className="glass-panel-premium space-y-3 rounded-[1.75rem] p-4">
+                        <AttentionRow
+                            icon={ShieldAlert}
+                            label="Pending reports"
+                            value={pendingReports}
+                            detail={pendingReports > 0 ? 'Moderation queue needs review' : 'Moderation queue is clear'}
+                            tone={pendingReports > 0 ? 'warning' : 'good'}
+                        />
+                        <AttentionRow
+                            icon={Megaphone}
+                            label="Live broadcasts"
+                            value={activeMessages}
+                            detail={activeMessages > 0 ? 'Visible to users now' : 'No active system messages'}
+                        />
+                        <AttentionRow
+                            icon={MessageSquare}
+                            label={isOwner ? 'Open feedback' : 'Feedback'}
+                            value={isOwner ? (feedbackLoadError ? '!' : openFeedback) : '-'}
+                            detail={isOwner
+                                ? (feedbackLoadError ? 'Owner inbox did not load' : 'Unacknowledged submissions')
+                                : 'Owner-only inbox'}
+                            tone={feedbackLoadError ? 'danger' : openFeedback > 0 ? 'warning' : 'good'}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <SectionHeading
+                    icon={TrendingUp}
+                    title="Trending Decks"
+                    detail="Most studied decks in the current 30-day activity window."
+                />
+                <div className="grid gap-3 lg:grid-cols-2">
+                    {topDecks.map((deck, index) => (
+                        <div
+                            key={deck.id ?? (deck.title || index)}
+                            className="glass-panel-premium overflow-hidden rounded-[1.45rem] p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5"
+                        >
+                            <div className="relative z-10 flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-claude-bg/45 text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
+                                    {index + 1}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="truncate text-sm font-serif italic text-claude-text">{deck.title}</h4>
+                                    <p className="mt-1 flex items-center gap-1 truncate text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                                        <UserCircle className="h-3 w-3" /> {deck.creator}
+                                    </p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                    <p className="font-mono text-xl font-bold tracking-tight text-claude-accent">{formatNumber(deck.sessions)}</p>
+                                    <p className="text-[8px] font-mono uppercase tracking-widest text-claude-secondary">Plays</p>
+                                </div>
                             </div>
                         </div>
                     ))}
-                    {(!stats.topDecks || stats.topDecks.length === 0) && (
-                        <div className="relative overflow-hidden text-center py-12 px-6 glass-panel border-dashed border-claude-border/60 rounded-2xl">
-                            <div className="absolute inset-0 bg-gradient-to-b from-claude-bg/20 to-claude-bg/60 pointer-events-none" />
+                    {topDecks.length === 0 && (
+                        <div className="glass-panel-premium rounded-[1.75rem] border-dashed border-white/10 px-6 py-12 text-center lg:col-span-2">
                             <div className="relative z-10">
-                                <TrendingUp className="w-8 h-8 text-claude-border mx-auto mb-3" />
-                                <p className="text-claude-secondary text-[11px] font-mono uppercase tracking-widest">
+                                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-claude-bg/45">
+                                    <CheckCircle2 className="h-6 w-6 text-claude-secondary" />
+                                </div>
+                                <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-secondary">
                                     No deck activity in the last 30 days
                                 </p>
                             </div>
                         </div>
                     )}
                 </div>
-            </div>
+            </section>
         </div>
     );
 }

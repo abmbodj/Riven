@@ -93,4 +93,43 @@ describe('FeedbackTab', () => {
     expect(screen.getByText(/considering/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /thanked/i })).toBeDisabled();
   });
+
+  it('filters feedback by starred and open states', () => {
+    render(
+      <FeedbackTab
+        feedback={[
+          {
+            id: 21,
+            username: 'starred-user',
+            content: 'This one is starred.',
+            isFavorited: true,
+            createdAt: '2026-03-21T14:00:00.000Z',
+            consideringNotifiedAt: null,
+            consideringByName: null,
+          },
+          {
+            id: 22,
+            username: 'ack-user',
+            content: 'Already acknowledged.',
+            isFavorited: false,
+            createdAt: '2026-03-22T14:00:00.000Z',
+            consideringNotifiedAt: '2026-03-22T16:00:00.000Z',
+            consideringByName: 'owner',
+          },
+        ]}
+        onToggleFavorite={vi.fn()}
+        onDelete={vi.fn()}
+        onThank={vi.fn()}
+        haptics={haptics}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /starred/i }));
+    expect(screen.getByText('starred-user')).toBeInTheDocument();
+    expect(screen.queryByText('ack-user')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /acknowledged/i }));
+    expect(screen.getByText('ack-user')).toBeInTheDocument();
+    expect(screen.queryByText('starred-user')).not.toBeInTheDocument();
+  });
 });

@@ -166,4 +166,20 @@ describe('AdminPanel feedback access', () => {
     expect(screen.getByText(/feedback_submissions missing/i)).toBeInTheDocument();
     expect(screen.queryByText(/no feedback yet/i)).not.toBeInTheDocument();
   });
+
+  it('refreshes admin data from the command header', async () => {
+    renderAdminPanel();
+
+    await waitFor(() => {
+      expect(adminGetStats).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh admin data/i }));
+
+    await waitFor(() => {
+      expect(adminGetStats).toHaveBeenCalledTimes(2);
+      expect(getAllUsers).toHaveBeenCalledTimes(2);
+      expect(adminGetReports).toHaveBeenCalledTimes(2);
+    });
+  });
 });
