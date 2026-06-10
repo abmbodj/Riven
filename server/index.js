@@ -12,19 +12,14 @@ const bcrypt = require('bcryptjs');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
 const slowDown = require('express-slow-down');
 const xss = require('xss');
 const db = require('./db');
 const registerAuthRoutes = require('./routes/auth');
-const registerSocialRoutes = require('./routes/social');
 const registerHealthRoutes = require('./routes/health');
-const registerAdminRoutes = require('./routes/admin');
 const registerLMSRoutes = require('./routes/lms');
-const registerAIRoutes = require('./routes/ai');
-const registerGroupsRoutes = require('./routes/groups');
 const registerHeartsRoutes = require('./routes/hearts');
 const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
@@ -170,8 +165,6 @@ app.use(compression());
 app.use(cookieParser());
 // Stripe webhook needs raw body for signature verification
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
-// AI routes accept base64 file uploads — allow larger payloads there only
-app.use('/api/ai', express.json({ limit: '10mb' }));
 app.use(express.json({ limit: '1mb' }));
 
 // Recursive Deep XSS Sanitization utility function
@@ -424,17 +417,9 @@ registerAuthRoutes({
     isValidUsername
 });
 
-// ============ SOCIAL / FRIENDS ============
-
-registerSocialRoutes({ app, db, authMiddleware });
-
 // ============ LMS INTEGRATION ============
 
 registerLMSRoutes({ app, db, authMiddleware });
-
-// ============ AI GENERATION ============
-
-registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
 
 // ============ HEARTS / MONETIZATION ============
 
@@ -449,12 +434,6 @@ registerWebhooksRoutes({ app, db });
 // ============ STRIPE ============
 const stripeRouter = registerStripeRoutes({ db });
 app.use('/api/stripe', authMiddleware, stripeRouter);
-
-// ============ GROUPS ============
-
-registerGroupsRoutes({ app, db, authMiddleware });
-
-// ============ MESSAGES ============
 
 // ============ SHARING ============
 
@@ -575,11 +554,6 @@ const handleAcceptSharedResource = async (req, res) => {
 // Accept a shared resource from a message
 app.post('/api/messages/:id/accept-share', authMiddleware, handleAcceptSharedResource);
 app.post('/api/messages/:id/accept-deck', authMiddleware, handleAcceptSharedResource);
-
-// ============ ADMIN ============
-// ============ ADMIN ============
-
-registerAdminRoutes({ app, db, authMiddleware });
 
 // ============ HEALTH CHECK ============
 
