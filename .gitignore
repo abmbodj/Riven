@@ -87,6 +87,9 @@ brain/
 .claude/
 .superpowers/
 .system_generated/
+AGENTS.md
+CLAUDE.md
+
 
 # Skills lock files (local tooling state)
 skills-lock.json
