@@ -47,7 +47,7 @@ dead routes**; JWT revocation uses a **`jti` denylist + `tokens_invalid_before`*
 | RIV-022 | LOW | Read `stripe_customer_id` from DB in portal endpoint | `server/routes/stripe.js` |
 | RIV-023 | LOW | All 23 ESLint errors cleared | ~12 client files |
 | RIV-024 | LOW | Removed tracked 900KB `garden-landing-trees.png` | repo root |
-| RIV-025 | LOW | `authApi.js` modularization | `client/src/api/` |
+| RIV-025 | LOW | `authApi.js` modularization — **first step**: pure helpers extracted to `authApiHelpers.js`; full domain split deferred (see note) | `client/src/api/` |
 | RIV-026 | LOW | GitHub Actions CI + this CLAUDE.md | `.github/workflows/ci.yml`, `CLAUDE.md` |
 | RIV-027 | LOW | Stripe webhook claim-then-process idempotency (TOCTOU fixed) + parity table | `supabase/functions/stripe-webhook/index.ts`, migration |
 | RIV-031 | INFO | Edge CORS returns no ACAO for disallowed origins (was `*`) | `supabase/functions/_shared/http.ts` |
@@ -73,6 +73,24 @@ dead routes**; JWT revocation uses a **`jti` denylist + `tokens_invalid_before`*
   ran it through a normalizer that returns `null` for the legacy `sections` shape,
   silently dropping `guide_data`. **Fixed:** preserve legacy guides verbatim with a
   reset progress state (`supabase/functions/_shared/acceptSharedDeckCore.mjs`).
+
+## Deferred: full `authApi.js` domain split (RIV-025)
+
+`authApi.js` is 5,415 lines with **223 exports** and shared *mutable* module state
+(`cachedAuthToken` / `cachedAppUserId`, reassigned in two distant places) plus pervasive
+internal helpers (`authFetch`, `edgeFunctionFetch`, CSRF/token state). A full domain split
+would require moving ~220 functions and exposing setters for the shared cache — a large,
+high-regression-surface change across a file every feature imports, atop a suite that
+already has ~31 failing tests that would mask regressions.
+
+This pass took the **safe first step**: the pure, zero-coupling helpers (JWT decode,
+push-preference normalisation) moved to `authApiHelpers.js`, verified behaviour-identical
+(client suite 524/555 before and after, build green, ESLint clean — `no-undef` is the net
+that catches any missed import). The recommended next step is to extract the infra layer
+(token state + setters, CSRF, `authFetch`, `edgeFunctionFetch`, Supabase getters) into
+`authApiCore.js`, then peel domains (study / groups / admin / social) off one at a time,
+re-exporting from `authApi.js` so import sites and `vi.mock` paths stay unchanged. Do it
+incrementally with the lint+test+build gates after each domain.
 
 ## Residual client-test debt (pre-existing, out of scope)
 
