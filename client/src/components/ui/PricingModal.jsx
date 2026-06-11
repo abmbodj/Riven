@@ -186,9 +186,9 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                     setSuccess('Processing your purchase...');
                     
                     try {
-                        const syncResult = await api.syncRevenueCat({
-                            rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
-                        });
+                        // RIV-003: the server always syncs the caller's own RevenueCat
+                        // subscriber; no client-supplied override.
+                        const syncResult = await api.syncRevenueCat();
                         if (syncResult && syncResult.subscription_tier !== 'free') {
                             await refreshUser();
                         }
@@ -263,9 +263,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                     setSuccess('Restoring... waiting for server sync...');
                     
                     try {
-                        const syncResult = await api.syncRevenueCat({
-                            rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
-                        });
+                        // RIV-003: sync the caller's own RevenueCat subscriber only.
+                        const syncResult = await api.syncRevenueCat();
                         if (syncResult && syncResult.subscription_tier !== 'free') {
                             setSuccess(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
                             closeTimerRef.current = setTimeout(onClose, 1800);

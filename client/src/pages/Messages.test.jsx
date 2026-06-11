@@ -35,7 +35,8 @@ vi.mock('../components/FileViewer', () => ({
   default: () => null,
 }));
 
-vi.mock('../api/authApi', () => ({
+vi.mock('../api/authApi', async (importOriginal) => ({
+  ...(await importOriginal()),
   getConversations: vi.fn(),
   getMessages: vi.fn(),
   getUserProfile: vi.fn(),

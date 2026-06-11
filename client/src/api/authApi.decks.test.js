@@ -355,6 +355,7 @@ describe('authApi decks and study PostgREST', () => {
       cards_correct: 9,
       duration_seconds: 480,
       session_type: 'study',
+      xp_earned: 0,
     });
     expect(deckUpdate).toHaveBeenCalledWith({ last_studied: expect.any(String) });
     expect(deckEq).toHaveBeenCalledWith('id', 7);
