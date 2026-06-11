@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget.js';
 import SubjectRenderer from '../components/ui/SubjectRenderer';
 import RiverMascot from '../components/study/RiverMascot.jsx';
+import LevelUpModal from '../components/study/LevelUpModal.jsx';
 import { UIContext } from '../context/UIContext.jsx';
 import {
     ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
@@ -16,6 +17,7 @@ import {
     normalizeGuideStudyState,
     STUDY_SESSION_STATUSES,
 } from '../utils/studyGuides.js';
+import { xpProgress as getXpProgress } from '../utils/leveling';
 
 const PANEL_EASE = [0.22, 1, 0.36, 1];
 
@@ -123,8 +125,6 @@ const EMPTY_STATE = {
     last_reviewed_at: null,
 };
 
-const XP_PER_LEVEL = 120;
-
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 const getConceptStatus = (score) => {
@@ -135,12 +135,18 @@ const getConceptStatus = (score) => {
     return 'unseen';
 };
 
+// Server-side grading caps answers at 5000 chars; mirror that on the client so the limit
+// surfaces as a friendly counter rather than a raw 400 error.
+const MAX_ANSWER_CHARS = 5000;
+
 const getScoreDelta = (outcome, weight = 1) => {
     if (outcome === 'correct') return 32 * weight;
     if (outcome === 'partial') return 18 * weight;
     if (outcome === 'misconception') return -10;
     if (outcome === 'incorrect') return -6;
-    if (outcome === 'empty') return -4;
+    // An empty answer is never penalized — leaving a blank is not a wrong answer, just a
+    // not-yet answer, so River nudges instead of docking mastery.
+    if (outcome === 'empty') return 0;
     return 0;
 };
 
@@ -159,18 +165,6 @@ const getResumeStage = (studyState) => {
 };
 
 const getPersistableStage = (stage) => (stage === 'feedback' ? 'check' : stage);
-
-const getXpProgress = (stats = {}) => {
-    const xpTotal = Number(stats?.xpTotal) || 0;
-    const level = Math.max(1, Number(stats?.level) || Math.floor(xpTotal / XP_PER_LEVEL) + 1);
-    const currentLevelXp = xpTotal % XP_PER_LEVEL;
-    return {
-        xpTotal,
-        level,
-        remaining: XP_PER_LEVEL - currentLevelXp,
-        percent: Math.max(0, Math.min(100, Math.round((currentLevelXp / XP_PER_LEVEL) * 100))),
-    };
-};
 
 const getNextCardId = (guideData, currentCardId, transitionCardId, cardStates) => {
     if (transitionCardId && !['retry', 'hint'].includes(transitionCardId)) {
@@ -782,6 +776,10 @@ export default function GuideView() {
     const [expandedSteps, setExpandedSteps] = useState({});
     const [explainRevealed, setExplainRevealed] = useState(1);
     const [fuzzyPeek, setFuzzyPeek] = useState(false);
+    // True when the feedback was shown but its progress could not be saved (network);
+    // drives a non-blocking "retry save" pill without discarding the feedback.
+    const [persistError, setPersistError] = useState(false);
+    const [showLevelUp, setShowLevelUp] = useState(false);
 
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
@@ -794,6 +792,13 @@ export default function GuideView() {
     useEffect(() => {
         toastRef.current = toast;
     }, [toast]);
+
+    // Celebrate when finishing a session pushes the user to a new level.
+    useEffect(() => {
+        if (completionPayload?.stats?.leveledUp) {
+            setShowLevelUp(true);
+        }
+    }, [completionPayload]);
 
     const loadGuide = useCallback(async () => {
         setLoading(true);
@@ -1248,8 +1253,135 @@ export default function GuideView() {
         setRiverCaption(section?.type === 'explain' ? getTeachCaption(currentCard) : presentation.caption);
     }, [currentCard, currentCardState?.intuition_previewed, explainRevealed, guideData, teachSection, teachSections]);
 
+    // Pure: turns a grade into the next study state + the feedback result object.
+    // Shared by the first answer and the refined re-answer so the scoring/transition
+    // logic lives in one place.
+    const composeGradeOutcome = useCallback((evaluation) => {
+        const nowIso = new Date().toISOString();
+        const cardState = buildDefaultCardState(currentCardState);
+        const conceptState = studyState.concept_mastery?.[currentCard.concept_id] || {
+            score: 0,
+            status: 'unseen',
+            attempts: 0,
+            correct_attempts: 0,
+            last_outcome: null,
+        };
+
+        const nextScore = clamp(
+            conceptState.score + getScoreDelta(evaluation.outcome, currentCard.mastery_weight || 1),
+            0,
+            100,
+        );
+        const nextConceptState = {
+            ...conceptState,
+            score: nextScore,
+            status: getConceptStatus(nextScore),
+            attempts: (conceptState.attempts || 0) + 1,
+            correct_attempts: (conceptState.correct_attempts || 0) + (evaluation.shouldAdvance ? 1 : 0),
+            last_outcome: evaluation.outcome,
+        };
+        const nextCardState = {
+            ...cardState,
+            attempts: (cardState.attempts || 0) + 1,
+            status: evaluation.outcome === 'correct'
+                ? 'mastered'
+                : evaluation.shouldAdvance
+                    ? 'needs_review'
+                    : evaluation.outcome === 'misconception'
+                        ? 'retry'
+                        : 'needs_review',
+            last_outcome: evaluation.outcome,
+            completed: Boolean(evaluation.shouldAdvance),
+            skipped: false,
+        };
+
+        const provisionalCardStates = {
+            ...studyState.card_states,
+            [currentCard.id]: nextCardState,
+        };
+        const transitionCardId = evaluation.shouldAdvance
+            ? getNextCardId(
+                guideData,
+                currentCard.id,
+                currentCard.transitions?.on_correct || null,
+                provisionalCardStates,
+            )
+            : null;
+        const sessionComplete = evaluation.shouldAdvance && !transitionCardId;
+
+        const nextState = normalizeGuideStudyState(guideData, {
+            ...studyState,
+            card_states: provisionalCardStates,
+            concept_mastery: {
+                ...studyState.concept_mastery,
+                [currentCard.concept_id]: nextConceptState,
+            },
+            last_interaction_at: nowIso,
+            last_reviewed_at: nowIso,
+            session_status: STUDY_SESSION_STATUSES.ACTIVE,
+            active_stage: 'feedback',
+            teach_section_index: teachSection,
+            explain_revealed_count: explainRevealed,
+            paused_at: null,
+            completed_at: sessionComplete ? nowIso : studyState.completed_at,
+        });
+
+        const nextResult = {
+            ...evaluation,
+            feedback: evaluation.feedback,
+            // committedState lets the advance path proceed even if the background save
+            // has not landed yet (optimistic feedback, see commitFeedback).
+            committedState: nextState,
+            sessionComplete,
+            nextCardId: transitionCardId,
+            modelAnswer: currentCard.target_answer,
+            attempts: nextCardState.attempts,
+        };
+        return { nextState, nextResult };
+    }, [currentCard, currentCardState, explainRevealed, guideData, studyState, teachSection]);
+
+    // Show the feedback immediately (optimistic), then persist in the background. A failed
+    // save surfaces a non-blocking retry pill instead of discarding the grade.
+    const commitFeedback = useCallback(async ({ nextState, nextResult }) => {
+        setResult(nextResult);
+        setSessionStage('feedback');
+        setRiverState(getFeedbackState(nextResult.outcome));
+        setRiverCaption(getFeedbackCaption(currentCard, nextResult));
+        setPersistError(false);
+        try {
+            const persistedState = await persistStudyState(nextState);
+            setResult((prev) => (prev ? { ...prev, persistedState } : prev));
+        } catch {
+            setPersistError(true);
+        }
+    }, [currentCard, persistStudyState]);
+
+    const handleRetryPersist = useCallback(async () => {
+        if (!result?.committedState) return;
+        setPersistError(false);
+        try {
+            const persistedState = await persistStudyState(result.committedState);
+            setResult((prev) => (prev ? { ...prev, persistedState } : prev));
+        } catch {
+            setPersistError(true);
+        }
+    }, [persistStudyState, result]);
+
     const handleSubmit = async () => {
         if (!guideData || !currentCard || submitting) return;
+
+        const trimmed = (answer || '').trim();
+        // A blank answer is a not-yet answer, not a wrong one: nudge gently, no network
+        // call, and do not count it as a failed attempt.
+        if (!trimmed) {
+            setRiverState(getFeedbackState('empty'));
+            setRiverCaption('Give it a real go first. Even a rough guess tells me how you are thinking.');
+            return;
+        }
+        if (answer.length > MAX_ANSWER_CHARS) {
+            toastRef.current.error('That answer is longer than I can grade well. Trim it to about 1000 words.');
+            return;
+        }
 
         setSubmitting(true);
         // River "reads" the answer while the conceptual grader runs, so the
@@ -1263,88 +1395,13 @@ export default function GuideView() {
                 answer,
                 api.gradeTutorAnswer,
             );
-            const nowIso = new Date().toISOString();
-            const cardState = buildDefaultCardState(currentCardState);
-            const conceptState = studyState.concept_mastery?.[currentCard.concept_id] || {
-                score: 0,
-                status: 'unseen',
-                attempts: 0,
-                correct_attempts: 0,
-                last_outcome: null,
-            };
-
-            const nextScore = clamp(
-                conceptState.score + getScoreDelta(evaluation.outcome, currentCard.mastery_weight || 1),
-                0,
-                100,
-            );
-            const nextConceptState = {
-                ...conceptState,
-                score: nextScore,
-                status: getConceptStatus(nextScore),
-                attempts: (conceptState.attempts || 0) + 1,
-                correct_attempts: (conceptState.correct_attempts || 0) + (evaluation.shouldAdvance ? 1 : 0),
-                last_outcome: evaluation.outcome,
-            };
-            const nextCardState = {
-                ...cardState,
-                attempts: (cardState.attempts || 0) + 1,
-                status: evaluation.outcome === 'correct'
-                    ? 'mastered'
-                    : evaluation.shouldAdvance
-                        ? 'needs_review'
-                        : evaluation.outcome === 'misconception'
-                            ? 'retry'
-                            : 'needs_review',
-                last_outcome: evaluation.outcome,
-                completed: Boolean(evaluation.shouldAdvance),
-                skipped: false,
-            };
-
-            const provisionalCardStates = {
-                ...studyState.card_states,
-                [currentCard.id]: nextCardState,
-            };
-            const transitionCardId = evaluation.shouldAdvance
-                ? getNextCardId(
-                    guideData,
-                    currentCard.id,
-                    currentCard.transitions?.on_correct || null,
-                    provisionalCardStates,
-                )
-                : null;
-            const sessionComplete = evaluation.shouldAdvance && !transitionCardId;
-
-            const nextState = normalizeGuideStudyState(guideData, {
-                ...studyState,
-                card_states: provisionalCardStates,
-                concept_mastery: {
-                    ...studyState.concept_mastery,
-                    [currentCard.concept_id]: nextConceptState,
-                },
-                last_interaction_at: nowIso,
-                last_reviewed_at: nowIso,
-                session_status: STUDY_SESSION_STATUSES.ACTIVE,
-                active_stage: 'feedback',
-                teach_section_index: teachSection,
-                explain_revealed_count: explainRevealed,
-                paused_at: null,
-                completed_at: sessionComplete ? nowIso : studyState.completed_at,
-            });
-
-            const persistedState = await persistStudyState(nextState);
-            const nextResult = {
-                ...evaluation,
-                feedback: evaluation.feedback,
-                persistedState,
-                sessionComplete,
-                nextCardId: transitionCardId,
-                modelAnswer: currentCard.target_answer,
-            };
-            setResult(nextResult);
-            setSessionStage('feedback');
-            setRiverState(getFeedbackState(evaluation.outcome));
-            setRiverCaption(getFeedbackCaption(currentCard, nextResult));
+            if (evaluation.outcome === 'empty') {
+                // "idk"-style answers: same gentle nudge, no attempt recorded.
+                setRiverState(getFeedbackState('empty'));
+                setRiverCaption('Give it a real go first. Even a partial thought is enough for me to work with.');
+                return;
+            }
+            await commitFeedback(composeGradeOutcome(evaluation));
         } catch {
             toastRef.current.error('Failed to update tutor session');
         } finally {
@@ -1469,6 +1526,11 @@ export default function GuideView() {
     const handleRefinedSubmit = async () => {
         if (!guideData || !currentCard || submitting || !refinedAnswer.trim()) return;
 
+        if (refinedAnswer.length > MAX_ANSWER_CHARS) {
+            toastRef.current.error('That answer is longer than I can grade well. Trim it to about 1000 words.');
+            return;
+        }
+
         setSubmitting(true);
         setRiverState('thinking');
         setRiverCaption('Let me read that over...');
@@ -1479,90 +1541,9 @@ export default function GuideView() {
                 refinedAnswer,
                 api.gradeTutorAnswer,
             );
-            const nowIso = new Date().toISOString();
-            const cardState = buildDefaultCardState(currentCardState);
-            const conceptState = studyState.concept_mastery?.[currentCard.concept_id] || {
-                score: 0,
-                status: 'unseen',
-                attempts: 0,
-                correct_attempts: 0,
-                last_outcome: null,
-            };
-
-            const nextScore = clamp(
-                conceptState.score + getScoreDelta(evaluation.outcome, currentCard.mastery_weight || 1),
-                0,
-                100,
-            );
-            const nextConceptState = {
-                ...conceptState,
-                score: nextScore,
-                status: getConceptStatus(nextScore),
-                attempts: (conceptState.attempts || 0) + 1,
-                correct_attempts: (conceptState.correct_attempts || 0) + (evaluation.shouldAdvance ? 1 : 0),
-                last_outcome: evaluation.outcome,
-            };
-            const nextCardState = {
-                ...cardState,
-                attempts: (cardState.attempts || 0) + 1,
-                status: evaluation.outcome === 'correct'
-                    ? 'mastered'
-                    : evaluation.shouldAdvance
-                        ? 'needs_review'
-                        : evaluation.outcome === 'misconception'
-                            ? 'retry'
-                            : 'needs_review',
-                last_outcome: evaluation.outcome,
-                completed: Boolean(evaluation.shouldAdvance),
-                skipped: false,
-            };
-
-            const provisionalCardStates = {
-                ...studyState.card_states,
-                [currentCard.id]: nextCardState,
-            };
-            const transitionCardId = evaluation.shouldAdvance
-                ? getNextCardId(
-                    guideData,
-                    currentCard.id,
-                    currentCard.transitions?.on_correct || null,
-                    provisionalCardStates,
-                )
-                : null;
-            const sessionComplete = evaluation.shouldAdvance && !transitionCardId;
-
-            const nextState = normalizeGuideStudyState(guideData, {
-                ...studyState,
-                card_states: provisionalCardStates,
-                concept_mastery: {
-                    ...studyState.concept_mastery,
-                    [currentCard.concept_id]: nextConceptState,
-                },
-                last_interaction_at: nowIso,
-                last_reviewed_at: nowIso,
-                session_status: STUDY_SESSION_STATUSES.ACTIVE,
-                active_stage: 'feedback',
-                teach_section_index: teachSection,
-                explain_revealed_count: explainRevealed,
-                paused_at: null,
-                completed_at: sessionComplete ? nowIso : studyState.completed_at,
-            });
-
-            const persistedState = await persistStudyState(nextState);
-            const nextResult = {
-                ...evaluation,
-                feedback: evaluation.feedback,
-                persistedState,
-                sessionComplete,
-                nextCardId: transitionCardId,
-                modelAnswer: currentCard.target_answer,
-            };
-            setResult(nextResult);
             setAnswer(refinedAnswer);
             setRefinedAnswer('');
-            setSessionStage('feedback');
-            setRiverState(getFeedbackState(evaluation.outcome));
-            setRiverCaption(getFeedbackCaption(currentCard, nextResult));
+            await commitFeedback(composeGradeOutcome(evaluation));
         } catch {
             toastRef.current.error('Failed to update tutor session');
         } finally {
@@ -1575,14 +1556,14 @@ export default function GuideView() {
 
         if (result.sessionComplete) {
             await finalizeSession({
-                nextState: result.persistedState || studyState,
+                nextState: result.persistedState || result.committedState || studyState,
                 sessionOutcome: 'complete',
                 exitReason: 'finished',
             });
             return;
         }
 
-        await moveToNextCard(result.persistedState || studyState, {
+        await moveToNextCard(result.persistedState || result.committedState || studyState, {
             allowIncompleteFinish: !result.shouldAdvance,
         });
     }, [finalizeSession, guideData, moveToNextCard, result, studyState]);
@@ -1885,8 +1866,73 @@ export default function GuideView() {
     // Current River pose accent color — drives surface tinting on feedback stage
     const poseAccent = RIVER_POSE_ACCENT[riverState] ?? '#8fb27c';
 
+    const answerTooLong = answer.length > MAX_ANSWER_CHARS;
+
+    // Shared feedback-stage affordances, rendered in both the mobile and desktop branches
+    // so every edge case (offline grade, failed save, misconception correction) is covered
+    // identically. Kept as fragments to avoid duplicating the JSX twice over.
+    const feedbackAttempts = result?.attempts || 0;
+    const feedbackAlerts = (
+        <>
+            {result?.gradedOffline ? (
+                <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="w-full rounded-[1.4rem] border p-4 text-left transition-colors disabled:opacity-60"
+                    style={{ borderColor: 'rgba(222,185,106,0.34)', backgroundColor: 'rgba(222,185,106,0.08)' }}
+                >
+                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.8)' }}>Quick read</p>
+                    <p className="mt-1.5 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.9)' }}>
+                        River graded this offline. Tap to get the full read of your answer.
+                    </p>
+                </button>
+            ) : null}
+
+            {persistError ? (
+                <div
+                    className="flex items-center justify-between gap-3 rounded-[1.4rem] border p-4"
+                    style={{ borderColor: 'rgba(214,142,106,0.4)', backgroundColor: 'rgba(214,142,106,0.1)' }}
+                >
+                    <p className="text-sm leading-6" style={{ color: 'rgba(228,219,201,0.9)' }}>
+                        Couldn&apos;t save your progress.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleRetryPersist}
+                        className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold"
+                        style={{ color: '#efe4d1', backgroundColor: 'rgba(214,142,106,0.28)', border: '1px solid rgba(214,142,106,0.5)' }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            ) : null}
+
+            {result?.misconceptionCorrection && result.misconceptionCorrection !== result.feedback ? (
+                <div
+                    className="rounded-[1.4rem] border p-4"
+                    style={{ borderColor: 'rgba(222,185,106,0.4)', backgroundColor: 'rgba(222,185,106,0.1)' }}
+                >
+                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.85)' }}>Let&apos;s correct this</p>
+                    <p className="mt-2 text-base leading-7" style={{ color: 'rgba(228,219,201,0.92)' }}>{result.misconceptionCorrection}</p>
+                </div>
+            ) : null}
+        </>
+    );
+
+    // After a couple of misses, surface "Show the answer" so a student is never stuck in
+    // an identical retry loop with no new help.
+    const showScaffoldReveal = !result?.shouldAdvance && result?.outcome !== 'revealed' && feedbackAttempts >= 2;
+    const showScaffoldReview = !result?.shouldAdvance && result?.outcome !== 'revealed' && feedbackAttempts >= 3;
+
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-6 sm:px-6 sm:py-10">
+            <LevelUpModal
+                open={showLevelUp}
+                level={completionPayload?.stats?.level}
+                xpTotal={completionPayload?.stats?.xpTotal}
+                onClose={() => setShowLevelUp(false)}
+            />
             <div className="mx-auto max-w-6xl">
                 <button
                     type="button"
@@ -3055,8 +3101,8 @@ export default function GuideView() {
                                                 <label htmlFor="river-answer" className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
                                                     Your answer
                                                 </label>
-                                                <span className="text-[10px] font-mono text-claude-secondary/60">
-                                                    Short and clear is fine
+                                                <span className="text-[10px] font-mono" style={{ color: answerTooLong ? '#e0a060' : 'rgba(222,185,106,0.4)' }}>
+                                                    {answerTooLong ? `${answer.length} / ${MAX_ANSWER_CHARS}` : 'Short and clear is fine'}
                                                 </span>
                                             </div>
                                             <textarea
@@ -3075,18 +3121,23 @@ export default function GuideView() {
                                                 style={{
                                                     color: '#f1e8d8',
                                                     backgroundColor: 'rgba(15, 35, 28, 0.34)',
-                                                    borderColor: answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
+                                                    borderColor: answerTooLong ? 'rgba(224,160,96,0.6)' : answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
                                                     boxShadow: 'inset 0 1px 8px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
                                                 }}
                                                 placeholder="Answer from memory first."
                                             />
+                                            {answerTooLong ? (
+                                                <p className="mt-2 text-[11px] leading-5" style={{ color: '#e0a060' }}>
+                                                    That is a bit long for me to grade well. Trim it to about 1000 words.
+                                                </p>
+                                            ) : null}
                                         </div>
 
                                         <MobileSessionActionTray>
                                             <button
                                                 type="button"
                                                 onClick={handleSubmit}
-                                                disabled={submitting}
+                                                disabled={submitting || answerTooLong}
                                                 className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
                                             >
                                                 {submitting ? 'Checking...' : 'Submit answer'}
@@ -3135,8 +3186,8 @@ export default function GuideView() {
                                                 <label htmlFor="river-answer" className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(222,185,106,0.66)' }}>
                                                     Your answer
                                                 </label>
-                                                <span className="hidden sm:block text-[10px] font-mono" style={{ color: 'rgba(222,185,106,0.3)' }}>
-                                                    Ctrl/⌘+↵ to submit
+                                                <span className="hidden sm:block text-[10px] font-mono" style={{ color: answerTooLong ? '#e0a060' : 'rgba(222,185,106,0.3)' }}>
+                                                    {answerTooLong ? `${answer.length} / ${MAX_ANSWER_CHARS}` : 'Ctrl/⌘+↵ to submit'}
                                                 </span>
                                             </div>
                                             <textarea
@@ -3155,11 +3206,16 @@ export default function GuideView() {
                                                 style={{
                                                     color: '#f1e8d8',
                                                     backgroundColor: 'rgba(15, 35, 28, 0.34)',
-                                                    borderColor: answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
+                                                    borderColor: answerTooLong ? 'rgba(224,160,96,0.6)' : answer.length > 0 ? 'rgba(255,255,255,0.2)' : `${poseAccent}45`,
                                                     boxShadow: 'inset 0 1px 8px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
                                                 }}
                                                 placeholder="Answer from memory first."
                                             />
+                                            {answerTooLong ? (
+                                                <p className="mt-2 text-[12px] leading-5" style={{ color: '#e0a060' }}>
+                                                    That is a bit long for me to grade well. Trim it to about 1000 words.
+                                                </p>
+                                            ) : null}
 
                                             <div
                                                 className="sticky bottom-0 z-10 -mx-5 mt-5 flex flex-wrap items-center gap-3 px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:py-0"
@@ -3168,7 +3224,7 @@ export default function GuideView() {
                                                 <button
                                                     type="button"
                                                     onClick={handleSubmit}
-                                                    disabled={submitting}
+                                                    disabled={submitting || answerTooLong}
                                                     className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
                                                 >
                                                     {submitting ? 'Checking...' : 'Submit Answer'}
@@ -3389,6 +3445,8 @@ export default function GuideView() {
                                             </motion.div>
                                         ) : null}
 
+                                        {feedbackAlerts}
+
                                         <MobileSessionActionTray>
                                             {result.shouldAdvance ? (
                                                 <>
@@ -3397,7 +3455,7 @@ export default function GuideView() {
                                                         onClick={handleAdvance}
                                                         className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                                     >
-                                                        Keep going
+                                                        {result.sessionComplete ? 'Finish session' : 'Keep going'}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -3417,6 +3475,26 @@ export default function GuideView() {
                                                     >
                                                         Try again
                                                     </button>
+                                                    {showScaffoldReveal ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleShowAnswer}
+                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                            style={{ borderColor: `${poseAccent}55`, color: '#efe4d1', backgroundColor: `${poseAccent}1f` }}
+                                                        >
+                                                            Show the answer
+                                                        </button>
+                                                    ) : null}
+                                                    {showScaffoldReview ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleReturnToTeach}
+                                                            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors"
+                                                            style={{ color: 'rgba(228,219,201,0.78)' }}
+                                                        >
+                                                            Review once more
+                                                        </button>
+                                                    ) : null}
                                                     <button
                                                         type="button"
                                                         onClick={handleAdvance}
@@ -3569,6 +3647,8 @@ export default function GuideView() {
                                                 </motion.div>
                                             ) : null}
 
+                                            {feedbackAlerts}
+
                                             <div className="flex flex-wrap gap-3">
                                                 {result.shouldAdvance ? (
                                                     <button
@@ -3576,7 +3656,7 @@ export default function GuideView() {
                                                         onClick={handleAdvance}
                                                         className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                                     >
-                                                        Keep going
+                                                        {result.sessionComplete ? 'Finish session' : 'Keep going'}
                                                     </button>
                                                 ) : (
                                                     <>
@@ -3587,6 +3667,26 @@ export default function GuideView() {
                                                         >
                                                             Try again
                                                         </button>
+                                                        {showScaffoldReveal ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleShowAnswer}
+                                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                                style={{ borderColor: `${poseAccent}55`, color: '#efe4d1', backgroundColor: `${poseAccent}1f` }}
+                                                            >
+                                                                Show the answer
+                                                            </button>
+                                                        ) : null}
+                                                        {showScaffoldReview ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleReturnToTeach}
+                                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition-colors"
+                                                                style={{ color: 'rgba(228,219,201,0.78)' }}
+                                                            >
+                                                                Review once more
+                                                            </button>
+                                                        ) : null}
                                                         <button
                                                             type="button"
                                                             onClick={handleAdvance}

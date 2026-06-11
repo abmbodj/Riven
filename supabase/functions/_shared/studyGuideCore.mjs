@@ -1189,6 +1189,88 @@ export const getSessionDelta = (guideData, stateBefore, stateAfter) => {
   };
 };
 
+// A concept counts as "mastered" at >=75, matching the threshold used by
+// study-session-complete when counting topics_mastered.
+export const COVERAGE_MASTERY_THRESHOLD = 75;
+
+const coverageTopicKey = (title, fallbackId) => {
+  const normalized = String(title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return normalized || String(fallbackId || '');
+};
+
+/**
+ * Aggregate per-topic coverage across many guides (optionally one class's worth) so the UI
+ * can show how much of the material has been taught and mastered, and what to study next.
+ *
+ * A "topic" is a concept/section. The same-named topic taught across multiple guides is
+ * merged and keeps its strongest mastery. Status per topic:
+ *   - mastered: mastery score >= COVERAGE_MASTERY_THRESHOLD
+ *   - taught:   engaged (any attempt or score) but below mastery
+ *   - untaught: present in a guide but never practiced
+ *
+ * Pure and runtime-agnostic so it unit-tests from Node and runs in Deno edge functions.
+ */
+export const buildCoverageMap = ({ guides = [] } = {}) => {
+  const topics = new Map();
+  const statusRank = { untaught: 0, taught: 1, mastered: 2 };
+
+  for (const guide of guides) {
+    const guideData = normalizeStudyGuideData(guide?.guide_data);
+    if (!guideData) continue;
+    const studyState = normalizeStudyGuideState(guideData, guide?.study_state);
+    const snapshot = getGuideMasterySnapshot(guideData, studyState);
+
+    for (const section of snapshot.recommendedSections) {
+      const conceptState = studyState.concept_mastery?.[section.id] || {};
+      const attempts = Number(conceptState.attempts) || 0;
+      const masteryScore = Number(section.masteryScore) || 0;
+      const status = masteryScore >= COVERAGE_MASTERY_THRESHOLD
+        ? 'mastered'
+        : (attempts > 0 || masteryScore > 0)
+          ? 'taught'
+          : 'untaught';
+
+      const key = coverageTopicKey(section.title, section.id);
+      const existing = topics.get(key);
+      if (!existing) {
+        topics.set(key, {
+          key,
+          title: section.title || section.id,
+          status,
+          masteryScore,
+          guideId: guide?.id || null,
+          guideTitle: guide?.title || null,
+        });
+      } else if (masteryScore > existing.masteryScore || statusRank[status] > statusRank[existing.status]) {
+        existing.status = statusRank[status] > statusRank[existing.status] ? status : existing.status;
+        if (masteryScore > existing.masteryScore) {
+          existing.masteryScore = masteryScore;
+          existing.guideId = guide?.id || existing.guideId;
+          existing.guideTitle = guide?.title || existing.guideTitle;
+        }
+      }
+    }
+  }
+
+  const list = Array.from(topics.values());
+  const counts = { total: list.length, mastered: 0, taught: 0, untaught: 0 };
+  for (const topic of list) counts[topic.status] += 1;
+  const masteredPct = counts.total ? Math.round((counts.mastered / counts.total) * 100) : 0;
+  const coveredPct = counts.total
+    ? Math.round(((counts.mastered + counts.taught) / counts.total) * 100)
+    : 0;
+
+  // Surface what to study next first: untaught, then weakest taught.
+  list.sort((left, right) => (statusRank[left.status] - statusRank[right.status])
+    || (left.masteryScore - right.masteryScore));
+
+  return {
+    totals: { ...counts, masteredPct, coveredPct },
+    topics: list,
+    nextTopics: list.filter((topic) => topic.status !== 'mastered').slice(0, 6).map((topic) => topic.title),
+  };
+};
+
 export const normalizeGuideData = normalizeStudyGuideData;
 export const normalizeGuideStudyState = normalizeStudyGuideState;
 

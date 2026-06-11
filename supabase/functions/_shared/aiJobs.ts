@@ -76,6 +76,10 @@ export const getAiModelMap = () => ({
   // env-overridable so cost can be dialed back to Scout via AI_FINAL_MODEL.
   draft: Deno.env.get('AI_DRAFT_MODEL') || 'meta-llama/llama-4-scout-17b-16e-instruct',
   final: Deno.env.get('AI_FINAL_MODEL') || 'llama-3.3-70b-versatile',
+  // Conceptual answer grading runs LLM-first on every free-response, so it uses the stronger
+  // 70B model for humanlike judgement (not the fast Scout draft model). Env-overridable so the
+  // model id can be rotated without a code change if Groq deprecates it.
+  grading: Deno.env.get('AI_GRADING_MODEL') || 'llama-3.3-70b-versatile',
 });
 
 export const getYoutubeSourceKey = (youtubeUrl: string) => {

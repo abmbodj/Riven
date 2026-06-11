@@ -944,6 +944,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
             matchedTags: [],
             missingTags: card?.required_idea_tags || [],
             misconceptionId: misconceptionRule.id,
+            misconceptionCorrection: misconceptionRule.correction || null,
             followUpQuestion: buildFollowUpQuestion(card, card?.required_idea_tags || []),
             feedback: pickFeedbackText(
                 misconceptionFeedback?.responses,
@@ -1097,13 +1098,22 @@ const mapLlmGradeToEvaluation = (normalizedGuideData, card, llm, fallback) => {
             ? llm.nudge.trim()
             : buildFollowUpQuestion(card, missingTags);
 
+    const misconceptionId = outcome === 'misconception' ? (llm.misconceptionId || null) : null;
+    // Surface the canonical correction text for this misconception so the feedback UI can
+    // show a distinct "let's correct this" block rather than a generic incorrect message.
+    const misconceptionCorrection = misconceptionId
+        ? ((normalizedGuideData.evaluation_rules.misconception_rules || [])
+            .find((rule) => rule.id === misconceptionId)?.correction || null)
+        : null;
+
     return {
         outcome,
         score,
         shouldAdvance,
         matchedTags,
         missingTags,
-        misconceptionId: outcome === 'misconception' ? (llm.misconceptionId || null) : null,
+        misconceptionId,
+        misconceptionCorrection,
         followUpQuestion,
         feedback,
         cue,
@@ -1113,18 +1123,21 @@ const mapLlmGradeToEvaluation = (normalizedGuideData, card, llm, fallback) => {
 /**
  * Conceptual answer grading for the tutor session.
  *
- * Strategy: run the cheap deterministic local checks first (empty answers and
- * explicit misconception triggers short-circuit with no network call). For
- * everything else, grade conceptually via the injected LLM grader (`gradeFn`,
- * e.g. `api.gradeTutorAnswer`) which understands paraphrases and synonyms. If
- * the LLM call fails, times out, or no grader is provided, we fall back to the
- * (now loosened) local matcher so grading never blocks the session.
+ * Strategy: LLM-first. The only deterministic short-circuit is an empty answer
+ * (no point spending a network call on a blank). Everything else — including
+ * known-misconception phrases, which are passed to the grader as context — is
+ * graded conceptually via the injected LLM grader (`gradeFn`, e.g.
+ * `api.gradeTutorAnswer`) so paraphrases, synonyms, and partial understanding
+ * are judged the way a human tutor would. If the LLM call fails, times out, or
+ * no grader is provided, we fall back to the deterministic local matcher and
+ * tag the result `gradedOffline` so the UI can offer a re-grade — grading never
+ * blocks the session.
  */
 export const gradeTutorCardResponseAsync = async (guideData, cardLike, answer, gradeFn) => {
     const localResult = evaluateTutorCardResponse(guideData, cardLike, answer);
 
-    // Empty + explicit misconception are certain and cheap: never spend an LLM call.
-    if (localResult.outcome === 'empty' || localResult.outcome === 'misconception') {
+    // An empty answer is certain and cheap: never spend an LLM call on it.
+    if (localResult.outcome === 'empty') {
         return localResult;
     }
     if (typeof gradeFn !== 'function') {
@@ -1150,9 +1163,15 @@ export const gradeTutorCardResponseAsync = async (guideData, cardLike, answer, g
             studentAnswer: normalizeText(answer, ''),
         }), LLM_GRADE_TIMEOUT_MS);
 
-        return mapLlmGradeToEvaluation(normalizedGuideData, card, llm, localResult);
+        const mapped = mapLlmGradeToEvaluation(normalizedGuideData, card, llm, localResult);
+        // mapLlmGradeToEvaluation returns the local fallback (by identity) when the
+        // LLM payload is unusable — treat that as an offline grade too.
+        if (mapped === localResult) {
+            return { ...localResult, gradedOffline: true };
+        }
+        return mapped;
     } catch {
-        return localResult;
+        return { ...localResult, gradedOffline: true };
     }
 };
 

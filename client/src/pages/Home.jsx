@@ -32,12 +32,12 @@ import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { EASE, DURATION, STAGGER, animateCounter, breathe } from '../utils/animations';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
+import { xpProgress as getXpProgress } from '../utils/leveling';
 
 
 gsap.registerPlugin(ScrollTrigger);
 
 const REDUCED_MOTION_MQ = '(prefers-reduced-motion: reduce)';
-const XP_PER_LEVEL = 120;
 
 function subscribeReducedMotion(cb) {
     if (typeof window === 'undefined') return () => {};
@@ -48,19 +48,6 @@ function subscribeReducedMotion(cb) {
 function getReducedMotionSnapshot() {
     if (typeof window === 'undefined') return false;
     return window.matchMedia(REDUCED_MOTION_MQ).matches;
-}
-
-function getXpProgress(stats = {}) {
-    const xpTotal = Number(stats?.xpTotal) || 0;
-    const level = Math.max(1, Number(stats?.level) || Math.floor(xpTotal / XP_PER_LEVEL) + 1);
-    const currentLevelXp = xpTotal % XP_PER_LEVEL;
-
-    return {
-        xpTotal,
-        level,
-        remaining: XP_PER_LEVEL - currentLevelXp,
-        percent: Math.max(0, Math.min(100, Math.round((currentLevelXp / XP_PER_LEVEL) * 100))),
-    };
 }
 
 function getRelativeDueLabel(dueValue, now = new Date()) {

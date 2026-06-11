@@ -10,6 +10,7 @@ import {
   normalizeGuideData,
   normalizeGuideStudyState,
 } from '../_shared/studyGuideCore.mjs';
+import { levelFromXp } from '../_shared/leveling.mjs';
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -368,8 +369,9 @@ serve(async (request) => {
     if (masteredCountError) throw masteredCountError;
 
     const topicsMastered = toNumber(masteredCount ?? 0, 0);
+    const prevLevel = levelFromXp(toNumber(existingStats?.xp_total, 0));
     const nextXpTotal = toNumber(existingStats?.xp_total, 0) + xpEarned;
-    const nextLevel = Math.max(1, Math.floor(nextXpTotal / 120) + 1);
+    const nextLevel = levelFromXp(nextXpTotal);
     const nextSessionsCompleted = toNumber(existingStats?.sessions_completed, 0) + 1;
 
     const { error: statsUpsertError } = await admin
@@ -447,6 +449,8 @@ serve(async (request) => {
       stats: {
         xpTotal: nextXpTotal,
         level: nextLevel,
+        previousLevel: prevLevel,
+        leveledUp: nextLevel > prevLevel,
         sessionsCompleted: nextSessionsCompleted,
         topicsMastered,
       },

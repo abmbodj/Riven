@@ -538,16 +538,31 @@ describe('gradeTutorCardResponseAsync', () => {
         expect(called).toBe(false);
     });
 
-    it('short-circuits explicit misconceptions locally without calling the LLM grader', async () => {
-        let called = false;
-        const gradeFn = async () => { called = true; return {}; };
+    it('grades misconception-triggering answers via the LLM, passing the misconception as context', async () => {
+        let receivedMisconceptions = null;
+        const gradeFn = async (payload) => {
+            receivedMisconceptions = payload.misconceptions;
+            return { outcome: 'misconception', score: 0.1, misconceptionId: 'meiosis-mixup' };
+        };
         const result = await gradeTutorCardResponseAsync(
             guideData, card,
             'It makes four daughter cells with half the chromosomes.',
             gradeFn,
         );
+        // LLM-first: the misconception is no longer a local short-circuit; it is sent to the
+        // grader as context and the conceptual grade is honored.
+        expect(Array.isArray(receivedMisconceptions)).toBe(true);
         expect(result.outcome).toBe('misconception');
-        expect(called).toBe(false);
+    });
+
+    it('falls back to the local matcher and flags gradedOffline when the LLM grader fails', async () => {
+        const gradeFn = async () => { throw new Error('network down'); };
+        const result = await gradeTutorCardResponseAsync(
+            guideData, card,
+            'Two daughter cells that are genetically identical.',
+            gradeFn,
+        );
+        expect(result.gradedOffline).toBe(true);
     });
 
     it('maps a conceptual LLM grade onto the evaluation shape', async () => {

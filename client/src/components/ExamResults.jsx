@@ -45,6 +45,7 @@ export default function ExamResults({
     exam,
     answers,
     score,
+    creditScore,
     elapsedSeconds,
     flaggedIndices,
     onRetake,
@@ -55,7 +56,10 @@ export default function ExamResults({
     const [filter, setFilter] = useState('all'); // 'all' | 'missed' | 'flagged'
     const [savedBadge, setSavedBadge] = useState(false);
 
-    const percentage = Math.round((score / exam.questions.length) * 100);
+    // Percentage reflects partial credit (creditScore) when available; score remains the
+    // integer count of fully-correct answers used for the "X of Y correct" label.
+    const earned = typeof creditScore === 'number' ? creditScore : score;
+    const percentage = Math.round((earned / exam.questions.length) * 100);
     const band = gradeBand(percentage);
 
     // Show subtle "Saved" badge once saved
@@ -301,23 +305,32 @@ export default function ExamResults({
                                     const isExpanded = expandedIndex === item.index;
                                     const ans = item.answer;
                                     const isCorrect = ans?.isCorrect;
+                                    const isPartial = !isCorrect && ans?.gradeBand === 'partial';
                                     const isShortAnswer = item.type === 'short_answer';
+
+                                    const rowClass = isCorrect
+                                        ? 'border-green-500/20 bg-green-500/5'
+                                        : isPartial
+                                            ? 'border-yellow-500/20 bg-yellow-500/5'
+                                            : 'border-red-500/20 bg-red-500/5';
 
                                     return (
                                         <motion.div
                                             key={item.index}
                                             layout
-                                            className={`rounded-2xl border overflow-hidden ${isCorrect ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}
+                                            className={`rounded-2xl border overflow-hidden ${rowClass}`}
                                         >
                                             <button
                                                 onClick={() => setExpandedIndex(isExpanded ? null : item.index)}
                                                 className="w-full p-4 text-left flex items-start gap-3 tap-action"
                                             >
-                                                {/* Correct/incorrect indicator */}
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCorrect ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                                                {/* Correct / partial / incorrect indicator */}
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCorrect ? 'bg-green-500/20' : isPartial ? 'bg-yellow-500/20' : 'bg-red-500/20'}`}>
                                                     {isCorrect
                                                         ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-                                                        : <XCircle className="w-3.5 h-3.5 text-red-400" />
+                                                        : isPartial
+                                                            ? <CheckCircle2 className="w-3.5 h-3.5 text-yellow-400" />
+                                                            : <XCircle className="w-3.5 h-3.5 text-red-400" />
                                                     }
                                                 </div>
 

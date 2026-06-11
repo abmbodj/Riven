@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildCoverageMap,
   buildStudyGuideSummaryDoc,
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
@@ -600,5 +601,61 @@ describe('studyGuideCore', () => {
     expect(plainText).toContain('Goal: Master cell division');
     expect(plainText).toContain('Concept 1: Mitosis');
     expect(plainText).toContain('Two genetically identical daughter cells.');
+  });
+});
+
+describe('buildCoverageMap', () => {
+  it('returns zeroed totals when there are no guides', () => {
+    const coverage = buildCoverageMap({ guides: [] });
+    expect(coverage.totals).toMatchObject({ total: 0, mastered: 0, taught: 0, untaught: 0 });
+    expect(coverage.topics).toEqual([]);
+    expect(coverage.nextTopics).toEqual([]);
+  });
+
+  it('classifies topics as mastered, taught, or untaught and rolls up totals', () => {
+    const guideData = makeGuideData();
+    const guide = {
+      id: 'guide-1',
+      title: 'Cell Division',
+      guide_data: guideData,
+      study_state: {
+        concept_mastery: {
+          // Mastered concept (>=75)
+          'concept-mitosis': { score: 90, attempts: 3, correct_attempts: 3, last_outcome: 'correct' },
+          // Engaged but below mastery -> taught
+          'concept-cytokinesis': { score: 30, attempts: 1, correct_attempts: 0, last_outcome: 'incorrect' },
+        },
+      },
+    };
+
+    const coverage = buildCoverageMap({ guides: [guide] });
+    const byTitle = Object.fromEntries(coverage.topics.map((topic) => [topic.title, topic.status]));
+
+    expect(byTitle.Mitosis).toBe('mastered');
+    expect(byTitle.Cytokinesis).toBe('taught');
+    expect(coverage.totals.total).toBe(coverage.topics.length);
+    expect(coverage.totals.mastered).toBeGreaterThanOrEqual(1);
+    // "what's next" excludes mastered topics
+    expect(coverage.nextTopics).not.toContain('Mitosis');
+  });
+
+  it('merges the same-named topic across guides keeping the strongest mastery', () => {
+    const weak = {
+      id: 'g-weak',
+      title: 'Attempt A',
+      guide_data: makeGuideData(),
+      study_state: { concept_mastery: { 'concept-mitosis': { score: 20, attempts: 1 } } },
+    };
+    const strong = {
+      id: 'g-strong',
+      title: 'Attempt B',
+      guide_data: makeGuideData(),
+      study_state: { concept_mastery: { 'concept-mitosis': { score: 95, attempts: 2 } } },
+    };
+
+    const coverage = buildCoverageMap({ guides: [weak, strong] });
+    const mitosis = coverage.topics.find((topic) => topic.title === 'Mitosis');
+    expect(mitosis.status).toBe('mastered');
+    expect(mitosis.masteryScore).toBe(95);
   });
 });

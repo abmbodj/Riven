@@ -9,7 +9,9 @@ import gsap from 'gsap';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { EASE, DURATION } from '../utils/animations';
+import { scoreBand } from '../utils/grading';
 import ExamResults from '../components/ExamResults';
+import LevelUpModal from '../components/study/LevelUpModal';
 import SubjectRenderer from '../components/ui/SubjectRenderer';
 
 const DIFFICULTY_COLORS = {
@@ -38,6 +40,10 @@ export default function ExamView() {
     const [gradeResult, setGradeResult] = useState(null);
     const [showSAFeedback, setShowSAFeedback] = useState(false);
     const [score, setScore] = useState(0);
+    // creditScore accumulates partial credit (short answers can earn a fraction of a point);
+    // score stays the integer count of fully-correct answers for storage + the "X of Y" label.
+    const [creditScore, setCreditScore] = useState(0);
+    const [levelUp, setLevelUp] = useState(null);
     const [answers, setAnswers] = useState([]);
     const [showResults, setShowResults] = useState(false);
     const [, setSavingAttempt] = useState(false);
@@ -134,7 +140,10 @@ export default function ExamView() {
 
         setSelectedAnswer(answer);
         setMcqFlash(isCorrect ? 'correct' : 'incorrect');
-        if (isCorrect) setScore(s => s + 1);
+        if (isCorrect) {
+            setScore(s => s + 1);
+            setCreditScore(c => c + 1);
+        }
 
         const newAnswer = {
             question: question.question,
@@ -175,8 +184,12 @@ export default function ExamView() {
             setGradeResult(result);
             setShowSAFeedback(true);
 
-            const isCorrect = result.score >= 70;
+            // Graduated bands: a half-right answer earns partial credit toward the total
+            // instead of counting as a hard miss.
+            const band = scoreBand(result.score);
+            const isCorrect = band.band === 'correct';
             if (isCorrect) setScore(s => s + 1);
+            setCreditScore(c => c + band.credit);
 
             setAnswers(prev => [...prev, {
                 question: question.question,
@@ -186,6 +199,7 @@ export default function ExamView() {
                 selected: submittedAnswer,
                 correct: question.correct_answer,
                 isCorrect,
+                gradeBand: band.band,
                 gradeScore: result.score,
                 feedback: result.feedback,
                 keyPointsHit: result.keyPointsHit,
@@ -215,6 +229,8 @@ export default function ExamView() {
         setShowSAFeedback(false);
         setMcqFlash(null);
         setScore(0);
+        setCreditScore(0);
+        setLevelUp(null);
         setAnswers([]);
         setShowResults(false);
         setAttemptSaved(false);
@@ -234,7 +250,7 @@ export default function ExamView() {
             const durationSeconds = Math.round((Date.now() - examStartTime.current) / 1000);
             const topicBreakdown = buildTopicBreakdown(answers);
 
-            await api.createExamAttempt(exam.id, score, exam.questions.length, answers, {
+            const attempt = await api.createExamAttempt(exam.id, score, exam.questions.length, answers, {
                 durationSeconds,
                 topicBreakdown,
                 examTitle: exam.title,
@@ -247,6 +263,16 @@ export default function ExamView() {
                     await api.upsertTopicMastery(exam.class_id, topicBreakdown);
                 } catch {
                     // Non-critical
+                }
+            }
+
+            // Award XP server-side from the stored attempt (idempotent) and celebrate a level up.
+            if (attempt?.id) {
+                try {
+                    const xpResult = await api.completeExamAttempt(attempt.id);
+                    if (xpResult?.stats?.leveledUp) setLevelUp(xpResult.stats);
+                } catch {
+                    // Non-critical: XP is best-effort and recomputed server-side.
                 }
             }
 
@@ -293,15 +319,24 @@ export default function ExamView() {
 
     if (showResults) {
         return (
-            <ExamResults
-                exam={exam}
-                answers={answers}
-                score={score}
-                elapsedSeconds={elapsedSeconds}
-                flaggedIndices={flaggedIndices}
-                onRetake={handleRetake}
-                attemptSaved={attemptSaved}
-            />
+            <>
+                <LevelUpModal
+                    open={Boolean(levelUp)}
+                    level={levelUp?.level}
+                    xpTotal={levelUp?.xpTotal}
+                    onClose={() => setLevelUp(null)}
+                />
+                <ExamResults
+                    exam={exam}
+                    answers={answers}
+                    score={score}
+                    creditScore={creditScore}
+                    elapsedSeconds={elapsedSeconds}
+                    flaggedIndices={flaggedIndices}
+                    onRetake={handleRetake}
+                    attemptSaved={attemptSaved}
+                />
+            </>
         );
     }
 
@@ -449,15 +484,20 @@ export default function ExamView() {
                                 animate={{ opacity: 1, y: 0 }}
                                 className="space-y-3"
                             >
-                                <div className={`p-4 rounded-2xl border ${gradeResult.score >= 70 ? 'bg-green-500/10 border-green-500/30' : gradeResult.score >= 40 ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="font-mono text-[10px] uppercase tracking-widest font-bold text-claude-secondary">Your Score</span>
-                                        <span className={`text-2xl font-serif italic font-bold ${gradeResult.score >= 70 ? 'text-green-400' : gradeResult.score >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                            {gradeResult.score}/100
-                                        </span>
-                                    </div>
-                                    <div className="font-body text-sm text-claude-text leading-relaxed"><SubjectRenderer content={gradeResult.feedback} /></div>
-                                </div>
+                                {(() => {
+                                    const band = scoreBand(gradeResult.score);
+                                    return (
+                                        <div className={`p-4 rounded-2xl border ${band.bg} ${band.border}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className={`font-mono text-[10px] uppercase tracking-widest font-bold ${band.text}`}>{band.label}</span>
+                                                <span className={`text-2xl font-serif italic font-bold ${band.text}`}>
+                                                    {gradeResult.score}/100
+                                                </span>
+                                            </div>
+                                            <div className="font-body text-sm text-claude-text leading-relaxed"><SubjectRenderer content={gradeResult.feedback} /></div>
+                                        </div>
+                                    );
+                                })()}
 
                                 <div className="p-4 glass-panel rounded-2xl border border-claude-border">
                                     <p className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary mb-2 font-bold">Your Answer</p>

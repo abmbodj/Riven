@@ -2,9 +2,19 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { ensureApiKey, createHttpError } from '../_shared/aiCore.mjs';
 import { createAiClient } from '../_shared/aiClient.ts';
+import { getAiModelMap } from '../_shared/aiJobs.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+
+// Bound the grading call so a slow Groq response returns a clean 504 instead of hanging.
+const GRADE_TIMEOUT_MS = 9000;
+const withGradeTimeout = <T>(work: Promise<T>): Promise<T> =>
+  Promise.race([
+    work,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(createHttpError('Grading timed out. Please try again.', 504)), GRADE_TIMEOUT_MS)),
+  ]);
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -64,12 +74,12 @@ Example:
 }`;
 
     const ai = createAiClient(apiKey);
-    const rawText = await ai.generateContent({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    const rawText = await withGradeTimeout(ai.generateContent({
+      model: getAiModelMap().grading,
       messages: [{ role: 'user', content: prompt }],
       maxTokens: 512,
       responseFormat: 'json_object',
-    });
+    }));
 
     let result;
     try {

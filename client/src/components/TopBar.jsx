@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import Menu from 'lucide-react/dist/esm/icons/menu';
@@ -9,6 +9,8 @@ import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
 import UserNotificationsRail from './UserNotificationsRail';
 import SubscriptionExpiredModal from './SubscriptionExpiredModal';
+import { api } from '../api';
+import { levelFromXp } from '../utils/leveling';
 
 const ROUTE_TITLES = [
     { prefix: '/dashboard', title: 'Today' },
@@ -52,6 +54,24 @@ export default function TopBar({ onOpenCommandPalette }) {
     const { user, isLoggedIn } = useContext(AuthContext) || {};
     const bellRef = useRef(null);
     const panelRef = useRef(null);
+    const [level, setLevel] = useState(null);
+
+    // Always-visible level so progress is felt everywhere, not just on the profile.
+    // One lightweight fetch when logged in; silently hidden if unavailable.
+    useEffect(() => {
+        let cancelled = false;
+        if (!isLoggedIn) {
+            return undefined;
+        }
+        api.getStudyCoach()
+            .then((coach) => {
+                if (cancelled || !coach?.stats) return;
+                const stats = coach.stats;
+                setLevel(Math.max(1, Number(stats.level) || levelFromXp(stats.xpTotal)));
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [isLoggedIn]);
 
     const pageTitle = getPageTitle(location.pathname);
     const avatarInitial = (user?.displayName || user?.username || '?')[0].toUpperCase();
@@ -129,6 +149,17 @@ export default function TopBar({ onOpenCommandPalette }) {
                 >
                     <Search className="w-5 h-5" />
                 </button>
+
+                {/* Level pill — links to the profile where the full XP bar lives */}
+                {isLoggedIn && level != null && (
+                    <Link
+                        to={user?.id ? `/profile/${user.id}` : '/dashboard'}
+                        aria-label={`Level ${level}`}
+                        className="mr-1 inline-flex h-7 items-center gap-1 rounded-full border border-claude-accent/30 bg-claude-accent/10 px-2.5 text-[11px] font-mono font-bold text-claude-accent transition-colors hover:bg-claude-accent/20"
+                    >
+                        Lv {level}
+                    </Link>
+                )}
 
                 {/* Desktop: notification bell */}
                 {isLoggedIn && (

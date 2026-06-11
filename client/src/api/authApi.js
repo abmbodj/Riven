@@ -2084,6 +2084,16 @@ export const completeStudyCoachSession = async (payload) => edgeFunctionFetch('s
     body: payload || {},
 });
 
+export const getStudyCoverageMap = async (classId = null) => edgeFunctionFetch('study-coverage-map', {
+    method: 'POST',
+    body: { classId: classId || null },
+});
+
+export const completeExamAttempt = async (attemptId) => edgeFunctionFetch('exam-complete', {
+    method: 'POST',
+    body: { attemptId },
+});
+
 export const assistStudyCoach = async (payload) => authFetch('/study/assist', {
     method: 'POST',
     body: JSON.stringify(payload || {}),

@@ -260,6 +260,12 @@ export const api = {
     getStudyCoach: () => isLoggedIn()
         ? serverApi.getStudyCoach()
         : Promise.resolve(null),
+    getStudyCoverageMap: (classId = null) => isLoggedIn()
+        ? serverApi.getStudyCoverageMap(classId)
+        : Promise.resolve(null),
+    completeExamAttempt: (attemptId) => isLoggedIn()
+        ? serverApi.completeExamAttempt(attemptId)
+        : Promise.resolve(null),
     updateStudyGuide: (id, updates) => isLoggedIn()
         ? serverApi.updateStudyGuide(id, updates)
         : Promise.reject(new Error('Must be logged in to update tutor sessions')),

@@ -237,6 +237,86 @@ const GuideCard = memo(({ guide, classes, index, isSelectMode = false, isSelecte
 });
 GuideCard.displayName = 'GuideCard';
 
+const COVERAGE_SEGMENTS = [
+    { key: 'mastered', label: 'Mastered', color: '#7a9e72' },
+    { key: 'taught', label: 'In progress', color: '#deb96a' },
+    { key: 'untaught', label: 'Not yet', color: 'rgba(255,255,255,0.14)' },
+];
+
+// Shows how much of the material has been taught and mastered across all sessions, with a
+// one-tap path to a new session targeting whatever still needs work.
+const CoverageTracker = memo(function CoverageTracker({ coverage, onStudyNext }) {
+    const totals = coverage?.totals;
+    if (!totals || !totals.total) return null;
+
+    const nextTopics = coverage.nextTopics || [];
+    const segments = COVERAGE_SEGMENTS
+        .map((seg) => ({ ...seg, count: totals[seg.key] || 0 }))
+        .filter((seg) => seg.count > 0);
+
+    return (
+        <div className="mb-6 rounded-3xl border border-claude-border glass-panel px-5 py-5 sm:px-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/70">Coverage</p>
+                    <p className="mt-1 font-serif italic text-2xl text-claude-text">
+                        {totals.masteredPct}% mastered
+                        <span className="ml-2 text-sm not-italic text-claude-secondary/70">
+                            {totals.mastered}/{totals.total} topics
+                        </span>
+                    </p>
+                </div>
+                {nextTopics.length > 0 ? (
+                    <button
+                        type="button"
+                        onClick={() => onStudyNext(nextTopics)}
+                        className="inline-flex min-h-[40px] items-center gap-2 rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-white transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+                    >
+                        <Sparkles className="h-4 w-4" />
+                        Study what&apos;s next
+                    </button>
+                ) : (
+                    <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/60">
+                        All topics covered
+                    </span>
+                )}
+            </div>
+
+            <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                {segments.map((seg) => (
+                    <div
+                        key={seg.key}
+                        style={{ width: `${Math.round((seg.count / totals.total) * 100)}%`, backgroundColor: seg.color }}
+                        title={`${seg.label}: ${seg.count}`}
+                    />
+                ))}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+                {COVERAGE_SEGMENTS.map((seg) => (
+                    <span key={seg.key} className="inline-flex items-center gap-1.5 text-[11px] text-claude-secondary/80">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: seg.color }} />
+                        {seg.label} {totals[seg.key] || 0}
+                    </span>
+                ))}
+            </div>
+
+            {nextTopics.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                    {nextTopics.slice(0, 6).map((topic) => (
+                        <span
+                            key={topic}
+                            className="rounded-full border border-claude-border bg-claude-bg/30 px-3 py-1 text-xs text-claude-text/90"
+                        >
+                            {topic}
+                        </span>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+});
+
 export default function GuidesLibrary() {
     const visualConstrained = useIsVisualBudgetConstrained();
     const navigate = useNavigate();
@@ -244,6 +324,7 @@ export default function GuidesLibrary() {
     const [guides, setGuides] = useState([]);
     const [notes, setNotes] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [coverage, setCoverage] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -266,14 +347,16 @@ export default function GuidesLibrary() {
 
     const loadData = useCallback(async () => {
         try {
-            const [guidesData, notesData, classesData] = await Promise.all([
+            const [guidesData, notesData, classesData, coverageData] = await Promise.all([
                 api.getStudyGuides().catch(() => []),
                 api.getNotes().catch(() => []),
                 api.getClasses().catch(() => []),
+                api.getStudyCoverageMap().catch(() => null),
             ]);
             setGuides((guidesData || []).filter((guide) => isActiveRecallGuide(guide)));
             setNotes(notesData);
             setClasses(classesData);
+            setCoverage(coverageData);
             setError(null);
         } catch (err) {
             setError(err?.message || 'Failed to load');
@@ -426,6 +509,22 @@ export default function GuidesLibrary() {
             toast.error(err?.message || 'Failed to delete');
         }
     };
+
+    // Open the create flow pre-targeted at the topics that still need work, so the next
+    // session naturally fills the gaps in coverage.
+    const handleStudyNext = useCallback((topics = []) => {
+        setGenSource('none');
+        setSelectedNotes([]);
+        setGenFile(null);
+        setGenTitle('');
+        setGenExamLabel('');
+        setGenExamDate('');
+        setGenTopics((topics || []).join(', '));
+        setGenWeakTopics('');
+        setGenTone('calm review');
+        setShowSetupQuestions(true);
+        setShowGenerateModal(true);
+    }, []);
 
     if (loading) return (
         <div className="space-y-4 pt-4">
@@ -866,6 +965,13 @@ export default function GuidesLibrary() {
                     </button>
                 </div>
             </div>
+
+            {/* Coverage tracker */}
+            {guides.length > 0 ? (
+                <div className="px-1">
+                    <CoverageTracker coverage={coverage} onStudyNext={handleStudyNext} />
+                </div>
+            ) : null}
 
             {/* Guides Grid */}
             <div className="px-1">

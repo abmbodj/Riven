@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
-    Clock, Layers, Calendar, Shield, Leaf, User, ShieldAlert, Ban, ChevronRight
+    Clock, Layers, Calendar, Shield, Leaf, User, ShieldAlert, Ban, ChevronRight, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
@@ -12,6 +12,8 @@ import Avatar from '../components/Avatar';
 import ReportModal from '../components/ui/ReportModal';
 import ConfirmModal from '../components/ConfirmModal';
 import * as authApi from '../api/authApi';
+import { api } from '../api';
+import { xpProgress } from '../utils/leveling';
 import gsap from 'gsap';
 import { useGSAP } from '../hooks/useGSAP';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
@@ -28,6 +30,8 @@ export default function UserProfile() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
+    // Level/XP stats, loaded only for the signed-in user viewing their own profile.
+    const [coachStats, setCoachStats] = useState(null);
 
     // Report & Block state
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -60,6 +64,12 @@ export default function UserProfile() {
             try {
                 const data = await authApi.getUserProfile(userId);
                 setProfile(data);
+                // Surface the viewer's own level on their profile (study_user_stats is
+                // self-only, so we only fetch it when looking at our own profile).
+                if (data?.isOwner) {
+                    const coach = await api.getStudyCoach().catch(() => null);
+                    setCoachStats(coach?.stats || null);
+                }
             } catch {
                 toast.error('Failed to load profile');
                 navigate(-1);
@@ -273,6 +283,35 @@ export default function UserProfile() {
                 </div>
 
                 {/* Stats Bento */}
+                {profile.isOwner && coachStats ? (() => {
+                    const progress = xpProgress(coachStats);
+                    return (
+                        <div className="gsap-profile-item mb-6">
+                            <div className="relative overflow-hidden glass-panel glass-shell rounded-[2rem] border border-white/10 p-5 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
+                                <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/10 to-transparent pointer-events-none" />
+                                <div className="relative z-10 flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-claude-accent/15 flex items-center justify-center border border-claude-accent/30 shadow-inner">
+                                            <span className="font-display font-bold text-lg text-claude-accent">{progress.level}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block font-display font-bold text-claude-text text-lg leading-tight">Level {progress.level}</span>
+                                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">{progress.xpTotal} XP total</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-claude-secondary/70">
+                                        <Sparkles className="w-4 h-4" />
+                                        <span className="text-[11px] font-mono">{progress.remaining} XP to L{progress.level + 1}</span>
+                                    </div>
+                                </div>
+                                <div className="relative z-10 mt-4 h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                                    <div className="h-full rounded-full bg-claude-accent transition-[width] duration-500" style={{ width: `${progress.percent}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })() : null}
+
                 <div className="gsap-profile-item grid grid-cols-2 gap-4 mb-8">
                     <div className="group relative overflow-hidden glass-panel glass-shell rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95">
                         <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

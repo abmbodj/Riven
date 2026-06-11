@@ -488,7 +488,7 @@ describe('GuideView', () => {
     expect(within(feedback).getByText(/Two genetically identical daughter cells/i)).toBeInTheDocument();
     expect(within(feedback).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'encourage');
 
-    fireEvent.click(within(feedback).getByRole('button', { name: /keep going/i }));
+    fireEvent.click(within(feedback).getByRole('button', { name: /finish session/i }));
 
     const finish = await screen.findByTestId('river-session-complete');
     expect(within(finish).getByRole('heading', { name: /Session complete/i })).toBeInTheDocument();
