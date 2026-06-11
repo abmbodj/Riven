@@ -20,6 +20,33 @@ const DOCX_MIME_TYPES = new Set([
   'application/msword',
 ]);
 
+// RIV-009: only these binary types are forwarded to Gemini as inlineData. The client
+// supplies mimeType, so we verify the actual bytes match the declared type first.
+const INLINE_FILE_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]);
+
+const matchesMagicBytes = (buffer, mimeType) => {
+  if (!buffer || buffer.length < 4) return false;
+  switch (mimeType) {
+    case 'application/pdf':
+      return buffer.slice(0, 5).toString('latin1') === '%PDF-';
+    case 'image/png':
+      return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    case 'image/jpeg':
+      return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    case 'image/webp':
+      return buffer.length >= 12
+        && buffer.slice(0, 4).toString('latin1') === 'RIFF'
+        && buffer.slice(8, 12).toString('latin1') === 'WEBP';
+    default:
+      return false;
+  }
+};
+
 export const createHttpError = (message, status, extra = {}) => {
   const error = new Error(message);
   error.status = status;
@@ -294,25 +321,33 @@ export const prepareAiSource = async ({ notes, file, parseDocx, onParseError }) 
   let keepFile = hasFile;
 
   if (hasFile) {
+    let fileBuffer;
     try {
-      const fileBuffer = Buffer.from(file.data, 'base64');
+      fileBuffer = Buffer.from(file.data, 'base64');
+    } catch (error) {
+      onParseError?.(error);
+      keepFile = false;
+    }
 
+    if (keepFile && fileBuffer) {
       if (DOCX_MIME_TYPES.has(file.mimeType)) {
-        if (typeof parseDocx !== 'function') {
-          throw new Error('DOCX parsing is not available');
+        try {
+          if (typeof parseDocx !== 'function') {
+            throw new Error('DOCX parsing is not available');
+          }
+          processedNotes = appendText(processedNotes, await parseDocx(fileBuffer));
+        } catch (error) {
+          onParseError?.(error);
         }
-
-        const parsedText = await parseDocx(fileBuffer);
-        processedNotes = appendText(processedNotes, parsedText);
+        // Parsed (or failed) document text — never forward the raw binary to the AI.
         keepFile = false;
       } else if (file.mimeType === 'text/plain') {
         processedNotes = appendText(processedNotes, fileBuffer.toString('utf8'));
         keepFile = false;
-      }
-    } catch (error) {
-      onParseError?.(error);
-      // If we failed to parse a document type, don't send the raw binary to the AI
-      if (DOCX_MIME_TYPES.has(file.mimeType) || file.mimeType === 'text/plain') {
+      } else if (!INLINE_FILE_MIME_TYPES.has(file.mimeType) || !matchesMagicBytes(fileBuffer, file.mimeType)) {
+        // RIV-009: drop files whose declared type is not allowed or whose bytes don't
+        // match the claimed mimeType, instead of trusting the client and forwarding them.
+        onParseError?.(new Error(`Unsupported or mismatched file type: ${file.mimeType}`));
         keepFile = false;
       }
     }

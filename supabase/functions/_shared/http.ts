@@ -39,25 +39,33 @@ const buildAllowedHeaders = (req?: Request) => {
 
 export function getCorsHeaders(req?: Request): Record<string, string> {
   const origin = (req?.headers?.get('origin') ?? '').replace(/\/+$/, '');
+  // RIV-031: dropped the `.endsWith('.vercel.app')` wildcard (any attacker subdomain).
+  // Preview deploys can be allowed explicitly via the ALLOWED_ORIGINS env var.
   const isAllowed =
     ALLOWED_ORIGINS.some((o) => origin === o) ||
-    origin.endsWith('.vercel.app') ||
     origin.endsWith('.riven.rocks') ||
     isLocalOrigin(origin) ||
     origin === 'capacitor://localhost' ||
     origin === 'ionic://localhost';
 
-  const allowOrigin = !origin || origin === 'null'
-    ? '*'
-    : (isAllowed ? origin : '*');
-
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Headers': buildAllowedHeaders(req),
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Expose-Headers': 'Content-Type',
     'Vary': 'Origin',
   };
+
+  if (!origin) {
+    // No Origin header (server-to-server / same-origin): CORS is not enforced by the
+    // browser. Echo * for backward compatibility with non-browser callers.
+    headers['Access-Control-Allow-Origin'] = '*';
+  } else if (isAllowed) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  // RIV-031: a disallowed browser origin gets NO Access-Control-Allow-Origin header,
+  // so the browser blocks the response rather than receiving a permissive '*'.
+
+  return headers;
 }
 
 /** @deprecated Use getCorsHeaders(req) for origin-aware CORS. Kept for backward compat. */
