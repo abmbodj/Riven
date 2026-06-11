@@ -61,6 +61,8 @@ export default function ExamResults({
     // Show subtle "Saved" badge once saved
     useEffect(() => {
         if (attemptSaved) {
+            // Intentional one-shot UI badge keyed off attemptSaved; safe in effect.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSavedBadge(true);
             const t = setTimeout(() => setSavedBadge(false), 3000);
             return () => clearTimeout(t);

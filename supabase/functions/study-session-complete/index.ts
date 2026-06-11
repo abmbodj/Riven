@@ -207,14 +207,19 @@ serve(async (request) => {
       return jsonResponse({ error: 'Study guide not found' }, { status: 404 }, request);
     }
 
-    const normalizedGuideData = normalizeGuideData(body.guideData || guide.guide_data);
+    // RIV-020: trust the stored guide data; only fall back to the client copy if the DB
+    // has none (e.g. a guide that predates server-side persistence).
+    const normalizedGuideData = normalizeGuideData(guide.guide_data || body.guideData);
     if (!normalizedGuideData) {
       return jsonResponse({ error: 'Study guide data is invalid' }, { status: 400 }, request);
     }
 
+    // RIV-020: the authoritative "before" state is what is persisted in the DB — never the
+    // client-supplied studyStateBefore. This makes replays/duplicate submits yield a zero
+    // delta (and therefore zero XP) instead of letting a client inflate progress.
     const normalizedBefore = normalizeGuideStudyState(
       normalizedGuideData,
-      body.studyStateBefore || guide.study_state,
+      guide.study_state,
     );
     const normalizedAfter = normalizeGuideStudyState(
       normalizedGuideData,
@@ -226,13 +231,15 @@ serve(async (request) => {
     const delta = getSessionDelta(normalizedGuideData, normalizedBefore, normalizedAfter);
     const touchedConceptIds = getTouchedConceptIds(normalizedGuideData, normalizedBefore, normalizedAfter);
     const reviewedConceptIds = getReviewedConceptIds(normalizedGuideData, normalizedBefore, normalizedAfter);
-    const xpEarned = calculateSessionXp({
+    // RIV-020: bound single-submission XP so a fabricated "after" state can't mint unlimited XP.
+    const MAX_SESSION_XP = 600;
+    const xpEarned = Math.min(MAX_SESSION_XP, calculateSessionXp({
       beforeSnapshot,
       afterSnapshot,
       delta,
       mode,
       sessionOutcome,
-    });
+    }));
 
     const nowIso = new Date().toISOString();
     const reviewedSections = touchedConceptIds;

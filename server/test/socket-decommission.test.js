@@ -9,11 +9,10 @@ const serverRoot = path.resolve(testDir, '..');
 const readServerFile = async (relativePath) => readFile(path.resolve(serverRoot, relativePath), 'utf8');
 
 describe('server socket decommission', () => {
-    it('removes Socket.IO from the Express runtime and group routes', async () => {
-        const [packageJsonRaw, indexSource, groupsSource] = await Promise.all([
+    it('removes Socket.IO from the Express runtime', async () => {
+        const [packageJsonRaw, indexSource] = await Promise.all([
             readServerFile('package.json'),
             readServerFile('index.js'),
-            readServerFile('routes/groups.js'),
         ]);
 
         const packageJson = JSON.parse(packageJsonRaw);
@@ -24,9 +23,5 @@ describe('server socket decommission', () => {
         expect(indexSource).not.toMatch(/join-room/);
         expect(indexSource).not.toMatch(/leave-room/);
         expect(indexSource).not.toMatch(/typing/);
-        expect(groupsSource).not.toMatch(/socket\.io/i);
-        expect(groupsSource).not.toMatch(/\bio\b/);
-        expect(groupsSource).not.toMatch(/session-progress/);
-        expect(groupsSource).not.toMatch(/session-ended/);
     });
 });

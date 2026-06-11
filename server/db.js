@@ -674,6 +674,18 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            // RIV-005: legacy-JWT revocation. revoked_tokens is a jti denylist;
+            // tokens_invalid_before invalidates every token issued before a password change.
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS revoked_tokens (
+                    jti TEXT PRIMARY KEY,
+                    user_id INTEGER,
+                    expires_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_invalid_before TIMESTAMPTZ`).catch(() => { });
+
             // User Blocks table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS user_blocks (

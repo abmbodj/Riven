@@ -81,7 +81,7 @@ describe('OAuthButtons', () => {
     await vi.waitFor(() => {
       expect(signInWithNativeGoogle).toHaveBeenCalledTimes(1);
     });
-    expect(signInWithGoogle).toHaveBeenCalledWith('mock-id-token');
+    expect(signInWithGoogle).toHaveBeenCalledWith('mock-id-token', {});
     expect(startGoogleOAuth).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: /continue with apple/i })).toBeNull();
   });
@@ -119,6 +119,7 @@ describe('OAuthButtons', () => {
         givenName: 'Avery',
         familyName: 'Stone',
       }),
+      {},
     );
   });
 

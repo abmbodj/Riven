@@ -22,6 +22,12 @@ import {
     buildStrengthInsights,
     MIN_HUB_INSIGHT_ATTEMPTS,
 } from '../lib/examInsightSignals.js';
+import {
+    DEFAULT_PUSH_PREFERENCES,
+    isJwtExpired,
+    isSupabaseAccessToken,
+    normalizePushPreferences,
+} from './authApiHelpers.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -75,11 +81,6 @@ const csrfTokenCache = new Map();
 const EDGE_FUNCTION_AUTH_HEADER = 'x-supabase-auth';
 const WEEKLY_SUMMARY_STORAGE_PREFIX = 'riven:weekly-summary';
 const WEEKLY_SUMMARY_TTL_MS = 15 * 60 * 1000;
-const DEFAULT_PUSH_PREFERENCES = Object.freeze({
-    messagesEnabled: true,
-    streakEnabled: true,
-    reengagementEnabled: true,
-});
 const getWeeklySummaryStorageKey = (timeZone = 'UTC') => `${WEEKLY_SUMMARY_STORAGE_PREFIX}:${timeZone}`;
 
 const clearWeeklySummaryCache = () => {
@@ -177,57 +178,6 @@ const clearGoogleOAuthBridgeToken = () => {
     });
 };
 
-const normalizePushPreferenceFlag = (value, fallback) => {
-    if (typeof value === 'boolean') return value;
-    if (value == null) return fallback;
-    return Boolean(value);
-};
-
-const normalizePushPreferences = (value) => ({
-    messagesEnabled: normalizePushPreferenceFlag(
-        value?.messagesEnabled ?? value?.messages_enabled,
-        DEFAULT_PUSH_PREFERENCES.messagesEnabled,
-    ),
-    streakEnabled: normalizePushPreferenceFlag(
-        value?.streakEnabled ?? value?.streak_enabled,
-        DEFAULT_PUSH_PREFERENCES.streakEnabled,
-    ),
-    reengagementEnabled: normalizePushPreferenceFlag(
-        value?.reengagementEnabled ?? value?.reengagement_enabled,
-        DEFAULT_PUSH_PREFERENCES.reengagementEnabled,
-    ),
-});
-
-const decodeJwtPayload = (token) => {
-    if (typeof token !== 'string') return null;
-    const segments = token.split('.');
-    if (segments.length !== 3) return null;
-
-    try {
-        const normalized = segments[1].replace(/-/g, '+').replace(/_/g, '/');
-        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-        const json = atob(padded);
-        return JSON.parse(json);
-    } catch {
-        return null;
-    }
-};
-
-const isSupabaseAccessToken = (token) => {
-    if (!token || token === 'logged_in') return false;
-    const payload = decodeJwtPayload(token);
-    if (!payload) return false;
-
-    const audience = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    return audience.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
-};
-
-const isJwtExpired = (token) => {
-    const payload = decodeJwtPayload(token);
-    if (!payload || typeof payload.exp !== 'number') return false;
-    const nowInSeconds = Math.floor(Date.now() / 1000);
-    return payload.exp <= nowInSeconds;
-};
 
 const shouldForceReauthFromEdgeError = (status, message) => {
     if (status !== 401) return false;

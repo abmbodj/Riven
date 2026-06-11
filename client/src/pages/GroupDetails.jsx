@@ -122,10 +122,9 @@ export default function GroupDetails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, navigate]);
 
-    const loadGroupSchedule = useCallback(async (rangeStart, rangeEnd, { showLoader = false } = {}) => {
+    const loadGroupSchedule = useCallback(async (rangeStart, rangeEnd, { showLoader: _showLoader = false } = {}) => {
         const requestId = scheduleRequestIdRef.current + 1;
         scheduleRequestIdRef.current = requestId;
-        const previousRange = scheduleRangeRef.current;
         const nextRange = {
             start: rangeStart instanceof Date ? rangeStart : new Date(rangeStart),
             end: rangeEnd instanceof Date ? rangeEnd : new Date(rangeEnd),

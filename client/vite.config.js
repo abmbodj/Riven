@@ -51,7 +51,9 @@ export default defineConfig({
   ],
   esbuild: {
     drop: ['debugger'],
-    pure: ['console.log', 'console.info', 'console.debug'],
+    // RIV-021: strip console.* in production builds (Sentry uses explicit captureException,
+    // not console capture, so error reporting is unaffected).
+    pure: ['console.log', 'console.info', 'console.debug', 'console.warn', 'console.error'],
   },
   build: {
     sourcemap: sentrySourceMapsEnabled,

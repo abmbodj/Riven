@@ -442,7 +442,7 @@ describe('ThemeSettings theme studio', () => {
       })
     );
 
-    const { container } = render(<ThemeSettings />);
+    render(<ThemeSettings />);
 
     fireEvent.click(screen.getByRole('button', { name: /edit theme/i }));
 

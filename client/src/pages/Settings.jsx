@@ -417,9 +417,8 @@ export default function Settings() {
 
                 if (hasActiveEntitlement) {
                     try {
-                        const syncResult = await api.syncRevenueCat({
-                            rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
-                        });
+                        // RIV-003: sync the caller's own RevenueCat subscriber only.
+                        const syncResult = await api.syncRevenueCat();
                         if (syncResult && syncResult.subscription_tier !== 'free') {
                             toast.success(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
                             setTimeout(() => { refreshUser(); }, 1800);

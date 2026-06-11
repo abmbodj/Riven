@@ -8,7 +8,7 @@ describe('Phase 2 RLS migration', () => {
         '..',
         'supabase',
         'migrations',
-        'phase2_rls_policies.sql'
+        '20260314221700_phase2_rls_policies.sql'
     );
 
     it('drops each policy before recreating it', () => {

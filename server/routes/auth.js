@@ -1,5 +1,6 @@
 const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema, twoFactorVerifySchema } = require('../schemas/auth');
 const { handleValidationErrors } = require('../utils/validate');
+const { revokeToken, invalidateUserTokens } = require('../tokenRevocation');
 
 module.exports = function registerAuthRoutes({
     app,
@@ -19,6 +20,7 @@ module.exports = function registerAuthRoutes({
     const rateLimit = require('express-rate-limit');
     const isProdEnv = process.env.NODE_ENV === 'production';
 
+    const crypto = require('crypto');
     const { OAuth2Client } = require('google-auth-library');
     const appleSigninAuth = require('apple-signin-auth');
 
@@ -134,6 +136,21 @@ module.exports = function registerAuthRoutes({
         }
 
         return responseBody;
+    };
+
+    /**
+     * RIV-013: verify a Supabase token hash (recovery / signup / email change) via the
+     * GoTrue /verify endpoint. Returns the parsed response (which carries access_token +
+     * user on success). Throws if Supabase is unconfigured or the hash is invalid/expired.
+     */
+    const verifySupabaseTokenHash = async (tokenHash, type, redirectUrl) => {
+        const { anonKey } = getSupabaseConfig();
+        return supabaseFetch('/verify', {
+            method: 'POST',
+            apiKey: anonKey,
+            query: redirectUrl ? { redirect_to: redirectUrl } : undefined,
+            body: { type, token_hash: tokenHash },
+        });
     };
 
     const DEFAULT_THEMES = [
@@ -308,7 +325,7 @@ module.exports = function registerAuthRoutes({
                 await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1) ON CONFLICT DO NOTHING', [userId, name, color]);
             }
 
-            const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user' }, jwtSecret, { expiresIn: '30d' });
+            const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user', jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '30d' });
 
             // Set httpOnly cookie (secure in production)
             // Cross-origin (Vercel frontend → Render backend) requires sameSite 'none' + secure
@@ -371,12 +388,12 @@ module.exports = function registerAuthRoutes({
 
             // Check 2FA
             if (user.two_fa_enabled) {
-                const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending' }, jwtSecret, { expiresIn: '5m' });
+                const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending', jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '5m' });
                 return res.json({ require2FA: true, tempToken });
             }
 
             const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
-            const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
+            const token = jwt.sign({ id: user.id, email: user.email, role: userRole, jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '30d' });
 
 
             const isProd = process.env.NODE_ENV === 'production';
@@ -478,12 +495,12 @@ module.exports = function registerAuthRoutes({
             return res.status(403).json({ error: 'Your account has been banned due to violations of our terms of service.' });
         }
         if (user.two_fa_enabled) {
-            const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending' }, jwtSecret, { expiresIn: '5m' });
+            const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending', jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '5m' });
             return res.json({ require2FA: true, tempToken });
         }
 
         const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
-        const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
+        const token = jwt.sign({ id: user.id, email: user.email, role: userRole, jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '30d' });
 
         const isProd = process.env.NODE_ENV === 'production';
         res.cookie('token', token, {
@@ -529,13 +546,26 @@ module.exports = function registerAuthRoutes({
                 });
                 payload = ticket.getPayload();
             } catch (err) {
-                // Fallback for access_token fetching user info
-                const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${credential}`);
-                if (!userInfoRes.ok) throw new Error("Invalid credential");
+                // Fallback: the credential is an access_token. Validate its audience
+                // (N1) before trusting it — an access token issued to ANY other app
+                // would otherwise be accepted. tokeninfo returns the aud it was minted for.
+                const expectedAud = process.env.GOOGLE_CLIENT_ID;
+                const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(credential)}`);
+                if (!tokenInfoRes.ok) throw new Error('Invalid credential');
+                const tokenInfo = await tokenInfoRes.json();
+                if (!expectedAud || tokenInfo.aud !== expectedAud) {
+                    throw new Error('Google access token audience mismatch');
+                }
+                const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${encodeURIComponent(credential)}`);
+                if (!userInfoRes.ok) throw new Error('Invalid credential');
                 payload = await userInfoRes.json();
             }
 
             if (!payload.email) return res.status(400).json({ error: 'Could not extract email from Google identity' });
+            // RIV-010: Google reports email_verified as a boolean (ID token) or 'true' (userinfo).
+            if (payload.email_verified !== true && payload.email_verified !== 'true') {
+                return res.status(403).json({ error: 'Google account email is not verified' });
+            }
 
             const user = await handleOAuthUser(payload.email, payload.name);
             await processOAuthLogin(user, res);
@@ -552,10 +582,15 @@ module.exports = function registerAuthRoutes({
         try {
             const payload = await appleSigninAuth.verifyIdToken(identityToken, {
                 audience: process.env.APPLE_CLIENT_ID || 'com.example.web',
-                ignoreExpiration: true,
+                // RIV-001: enforce token expiry; allow only small clock skew.
+                clockTolerance: 30,
             });
 
             if (!payload.email) return res.status(400).json({ error: 'Could not extract email from Apple identity' });
+            // RIV-010: Apple reports email_verified as a boolean or the string 'true'.
+            if (payload.email_verified !== true && payload.email_verified !== 'true') {
+                return res.status(403).json({ error: 'Apple account email is not verified' });
+            }
 
             const name = appleUser && appleUser.name ? `${appleUser.name.firstName} ${appleUser.name.lastName}`.trim() : null;
             const user = await handleOAuthUser(payload.email, name);
@@ -583,7 +618,8 @@ module.exports = function registerAuthRoutes({
     });
 
     // 2FA Verify (Enable)
-    app.post('/api/auth/2fa/verify', authMiddleware, twoFactorVerifySchema, handleValidationErrors, async (req, res) => {
+    // RIV-006: rate-limit TOTP verification to prevent brute force of the 6-digit window.
+    app.post('/api/auth/2fa/verify', speedLimiter, authLimiter, authMiddleware, twoFactorVerifySchema, handleValidationErrors, async (req, res) => {
         let { token } = req.body;
         if (token) token = token.toString().trim();
 
@@ -647,7 +683,7 @@ module.exports = function registerAuthRoutes({
 
             if (verified) {
                 const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
-                const newToken = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
+                const newToken = jwt.sign({ id: user.id, email: user.email, role: userRole, jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '30d' });
 
                 const isProd = process.env.NODE_ENV === 'production';
                 res.cookie('token', newToken, {
@@ -683,14 +719,66 @@ module.exports = function registerAuthRoutes({
     });
 
     // Logout
-    app.post('/api/auth/logout', (req, res) => {
+    app.post('/api/auth/logout', async (req, res) => {
         const isProd = process.env.NODE_ENV === 'production';
+        // RIV-005: revoke the presented legacy token so it can't be replayed after logout.
+        const rawToken = req.cookies?.token
+            || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+        try {
+            await revokeToken(rawToken);
+        } catch (err) {
+            console.error('[Auth] logout token revocation failed:', err.message);
+        }
         res.clearCookie('token', {
             httpOnly: true,
             secure: isProd,
             sameSite: isProd ? 'none' : 'lax'
         });
         res.json({ message: 'Logged out successfully' });
+    });
+
+    // Legacy fallback for the Supabase email-verification bridge (RIV-013).
+    // The client prefers the verify-email edge function and falls back here.
+    app.post('/api/auth/verify-email', speedLimiter, async (req, res) => {
+        const { token, type = 'email' } = req.body || {};
+        if (!token) return res.status(400).json({ error: 'Verification token is required' });
+
+        try {
+            const verifyData = await verifySupabaseTokenHash(token, type, buildRedirectUrl(req, '/verify-email'));
+            const authUserId = verifyData?.user?.id;
+            if (!authUserId) {
+                return res.status(400).json({ error: 'Invalid or expired verification link. Please request a new one.' });
+            }
+            await db.execute('UPDATE users SET email_verified = TRUE WHERE supabase_auth_id = $1', [authUserId]);
+            return res.json({ message: 'Email verified successfully.' });
+        } catch (error) {
+            console.error('[Auth] verify-email error:', error);
+            return res.status(400).json({ error: 'Invalid or expired verification link. Please request a new one.' });
+        }
+    });
+
+    // Resend the Supabase signup verification email for the authenticated user.
+    app.post('/api/auth/send-verification', speedLimiter, authLimiter, authMiddleware, async (req, res) => {
+        try {
+            const user = await db.queryOne(
+                'SELECT id, email, email_verified, supabase_auth_id FROM users WHERE id = $1',
+                [req.user.id]
+            );
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            if (user.email_verified) return res.json({ message: 'Email already verified.' });
+
+            const { anonKey } = getSupabaseConfig();
+            await supabaseFetch('/resend', {
+                method: 'POST',
+                apiKey: anonKey,
+                query: { redirect_to: buildRedirectUrl(req, '/verify-email') },
+                body: { type: 'signup', email: user.email },
+            });
+            return res.json({ message: 'Verification email sent.' });
+        } catch (error) {
+            console.error('[Auth] send-verification error:', error);
+            return res.status(500).json({ error: 'Failed to send verification email' });
+        }
     });
 
     // Get current user
@@ -761,6 +849,8 @@ module.exports = function registerAuthRoutes({
 
             const hashedPassword = await bcrypt.hash(newPassword, 12);
             await db.execute('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
+            // RIV-005: invalidate every legacy token issued before this password change.
+            await invalidateUserTokens(req.user.id);
             res.json({ message: 'Password changed successfully' });
         } catch (error) {
             console.error('PUT /api/auth/password error:', error);
@@ -924,7 +1014,6 @@ module.exports = function registerAuthRoutes({
 
     // ============ FORGOT / RESET PASSWORD ============
 
-    const crypto = require('crypto');
     const { sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/email');
 
     // Request password reset

@@ -74,12 +74,50 @@ export const isPremiumCanvasUser = (user) => (
   )
 );
 
+// RIV-002: structural SSRF guard. Synchronous (no DNS) so it stays portable across the
+// Deno edge runtime and the Node test runner; DNS-rebinding is a documented residual risk.
+const PRIVATE_IPV4_PATTERNS = [
+  /^0\./,
+  /^10\./,
+  /^127\./,
+  /^169\.254\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
+];
+
+const isDisallowedCanvasHost = (hostname) => {
+  const host = (hostname || '').toLowerCase();
+  if (!host) return true;
+  if (host === 'localhost' || host.endsWith('.localhost')) return true;
+  if (host.endsWith('.local') || host.endsWith('.internal')) return true;
+  if (host === 'metadata.google.internal') return true;
+  if (host === '::1' || host === '::' || host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('::ffff:')) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) && PRIVATE_IPV4_PATTERNS.some((re) => re.test(host))) return true;
+  return false;
+};
+
 export const validateCanvasFeedUrl = (icalUrl) => {
   if (!icalUrl || typeof icalUrl !== 'string') {
     throw createHttpError('Canvas Calendar Link is required.', 400);
   }
 
   const trimmedUrl = icalUrl.trim();
+
+  let parsed;
+  try {
+    parsed = new URL(trimmedUrl);
+  } catch {
+    throw createHttpError('Invalid Canvas Calendar link.', 400);
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw createHttpError('Canvas Calendar link must use https.', 400);
+  }
+  if (isDisallowedCanvasHost(parsed.hostname)) {
+    throw createHttpError('Canvas Calendar link is not allowed.', 400);
+  }
+
   if (!trimmedUrl.includes('/feeds/calendars/')) {
     throw createHttpError('Invalid link. Be sure it comes from your Canvas Calendar Feed.', 400);
   }

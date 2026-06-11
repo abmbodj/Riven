@@ -47,40 +47,25 @@ serve(async (request: Request) => {
         console.warn('[sync-revenuecat] WARNING: Using a Public API Key (appl_) for REST API. RevenueCat will likely return empty entitlements. A Secret API Key (sk_) is required.');
     }
 
-    const rawBody = await request.text().catch(() => '');
-    console.log('[sync-revenuecat] Raw request body:', rawBody);
-    
-    let body: any = {};
-    try {
-        body = JSON.parse(rawBody);
-        // If it was double-stringified, parse it again
-        if (typeof body === 'string') {
-            body = JSON.parse(body);
-        }
-    } catch (e: any) {
-        console.warn('[sync-revenuecat] Failed to parse body as JSON:', e.message);
-    }
+    // RIV-003: always sync the caller's OWN RevenueCat subscriber. The previous
+    // rcAppUserIdOverride let any authenticated user read a paying subscriber's
+    // entitlements and grant themselves the tier. The client SDK is configured with
+    // appUserID = user.id, so restorePurchases() already transfers entitlements here.
+    const rcAppUserId = user.id;
 
-    const rcAppUserIdOverride = body.rcAppUserIdOverride;
-
-    // 3. Determine the RevenueCat ID to check
-    // Preference: 1. Request body override, 2. Supabase User UUID
-    const rcAppUserId = rcAppUserIdOverride || user.id;
-    console.log(`[sync-revenuecat] Final check target ID: ${rcAppUserId} (Override provided: ${!!rcAppUserIdOverride})`);
-
-    console.log(`[sync-revenuecat] Fetching entitlements for: ${rcAppUserId}`);
+    // RIV-003: do not log raw request bodies / RC responses (PII + entitlement data).
+    const isSandbox = Deno.env.get('REVENUECAT_SANDBOX') === 'true';
     const response = await fetch(`https://api.revenuecat.com/v1/subscribers/${rcAppUserId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${rcApiKey}`,
         'Accept': 'application/json',
-        'X-Is-Sandbox': 'true'
+        'X-Is-Sandbox': isSandbox ? 'true' : 'false'
       }
     });
 
     const data = await response.json().catch(() => ({}));
-    console.log(`[sync-revenuecat] RevenueCat REST response (${response.status}):`, JSON.stringify(data));
-    
+
     if (!response.ok) {
       console.error(`[sync-revenuecat] RevenueCat API error: ${response.status}`, data);
       return jsonResponse({ 
@@ -116,12 +101,9 @@ serve(async (request: Request) => {
         return jsonResponse({ error: 'Failed to update database', details: updateError }, { status: 500 }, request);
     }
 
-    // 5. Success! Return the detailed diagnostic information
-    console.log(`[sync-revenuecat] Successfully synced ${user.id} to ${newTier}`);
-    return jsonResponse({ 
+    // 5. Success
+    return jsonResponse({
         subscription_tier: newTier,
-        debug_entitlements: entitlements,
-        debug_rcAppUserId: rcAppUserId
     }, { status: 200 }, request);
 
   } catch (error: unknown) {

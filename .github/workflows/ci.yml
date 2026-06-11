@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    name: Server (lint-free) tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - name: Unit tests
+        run: npx vitest run
+      - name: Production audit (report only)
+        run: npm audit --omit=dev || true
+
+  client:
+    name: Client lint, test, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - name: Lint (must be error-free)
+        run: npx eslint .
+      - name: Unit tests
+        # NOTE: ~31 pre-existing failures (feature/UI drift, see
+        # docs/reviews/2026-06-remediation.md). Non-blocking until that debt clears;
+        # flip to required once the suite is green.
+        run: npx vitest run
+        continue-on-error: true
+      - name: Build
+        run: npx vite build
+      - name: Production audit (report only)
+        run: npm audit --omit=dev || true

@@ -10,13 +10,13 @@ vi.mock('motion/react', () => {
     React.forwardRef(
       ({
         children,
-        initial,
-        animate,
-        exit,
-        transition,
-        whileInView,
-        whileHover,
-        viewport,
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        transition: _transition,
+        whileInView: _whileInView,
+        whileHover: _whileHover,
+        viewport: _viewport,
         ...props
       }, ref) => React.createElement(tag, { ...props, ref }, children)
     );

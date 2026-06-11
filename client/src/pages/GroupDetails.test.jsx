@@ -59,8 +59,12 @@ vi.mock('../api', () => ({
   },
 }));
 
-vi.mock('../api/authApi', () => ({
+vi.mock('../api/authApi', async (importOriginal) => ({
+  ...(await importOriginal()),
   subscribeToGroupMeetupEvents: vi.fn(),
+  getGroupMessages: vi.fn().mockResolvedValue([]),
+  subscribeToGroupMessages: vi.fn(() => () => {}),
+  subscribeToGroupTypingPresence: vi.fn(() => ({ startTyping: vi.fn(), stopTyping: vi.fn(), unsubscribe: vi.fn() })),
 }));
 
 vi.mock('../hooks/useToast', () => ({

@@ -38,6 +38,15 @@ function getIdentifier(request: Request): string {
   return `ip:${ip}`;
 }
 
+// RIV-012: a hosted deploy that is missing Upstash config must fail closed rather
+// than silently disabling rate limiting. Local dev (kong/localhost) still allows.
+function isHostedEnvironment(): boolean {
+  const explicit = Deno.env.get('EDGE_RUNTIME_ENV') || Deno.env.get('ENVIRONMENT');
+  if (explicit) return explicit === 'production' || explicit === 'hosted';
+  const url = Deno.env.get('SUPABASE_URL') || '';
+  return url.includes('.supabase.co');
+}
+
 let cachedLimiters: Map<string, Ratelimit> | null = null;
 
 function getLimiter(preset: RateLimitPreset): Ratelimit | null {
@@ -86,6 +95,21 @@ export async function checkRateLimit(
 ): Promise<Response | null> {
   const limiter = getLimiter(preset);
   if (!limiter) {
+    if (isHostedEnvironment()) {
+      // RIV-012: fail closed when Upstash is unconfigured in a hosted environment.
+      console.error('[rateLimit] Upstash not configured in a hosted environment — refusing request.');
+      return new Response(
+        JSON.stringify({ error: 'Rate limiting is temporarily unavailable. Please try again later.' }),
+        {
+          status: 503,
+          headers: {
+            ...getCorsHeaders(request),
+            'Content-Type': 'application/json',
+            'Retry-After': '30',
+          },
+        }
+      );
+    }
     return null;
   }
 

@@ -286,6 +286,8 @@ export default function ThemeEditorModal({
 
     useEffect(() => {
         if (!isOpen) return undefined;
+        // Collapse the expert panel each time the modal opens. Safe in effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setExpertOpen(false);
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') onClose();

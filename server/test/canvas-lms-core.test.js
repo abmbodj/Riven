@@ -21,6 +21,26 @@ describe('canvasLmsCore', () => {
     );
   });
 
+  it('blocks SSRF targets (RIV-002)', () => {
+    // Non-https is rejected before anything else.
+    expect(() => validateCanvasFeedUrl('http://169.254.169.254/feeds/calendars/x.ics')).toThrowError(
+      'Canvas Calendar link must use https.',
+    );
+    // Cloud metadata / private IP literals over https are rejected.
+    expect(() => validateCanvasFeedUrl('https://169.254.169.254/feeds/calendars/x.ics')).toThrowError(
+      'Canvas Calendar link is not allowed.',
+    );
+    expect(() => validateCanvasFeedUrl('https://127.0.0.1/feeds/calendars/x.ics')).toThrowError(
+      'Canvas Calendar link is not allowed.',
+    );
+    expect(() => validateCanvasFeedUrl('https://10.0.0.5/feeds/calendars/x.ics')).toThrowError(
+      'Canvas Calendar link is not allowed.',
+    );
+    expect(() => validateCanvasFeedUrl('https://localhost/feeds/calendars/x.ics')).toThrowError(
+      'Canvas Calendar link is not allowed.',
+    );
+  });
+
   it('blocks second free syncs without an ad', async () => {
     const resetSyncState = async () => {};
     const incrementSyncCount = async () => {};
