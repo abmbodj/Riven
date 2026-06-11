@@ -328,6 +328,7 @@ describe('Auth Core Endpoints', () => {
             const hashedPassword = await bcrypt.hash('oldpassword', 10);
             dbMock.pool.query.mockResolvedValueOnce({ rows: [{ password: hashedPassword }] });
             dbMock.pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+            dbMock.pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
             const res = await request(app)
                 .put('/api/auth/password')
@@ -336,6 +337,10 @@ describe('Auth Core Endpoints', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.message).toContain('changed successfully');
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                'UPDATE users SET tokens_invalid_before = now() WHERE id = $1',
+                [testUser.id]
+            );
         });
 
         it('should reject change with wrong current password', async () => {
@@ -375,6 +380,10 @@ describe('Auth Core Endpoints', () => {
                         apikey: SUPABASE_ANON_KEY,
                     }),
                 })
+            );
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                'UPDATE users SET tokens_invalid_before = now() WHERE id = $1',
+                [testUser.id]
             );
         });
     });
@@ -469,6 +478,10 @@ describe('Auth Core Endpoints', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.message).toContain('reset successfully');
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                'UPDATE users SET tokens_invalid_before = now() WHERE id = $1',
+                [1]
+            );
         });
 
         it('should reject with invalid/expired token', async () => {
@@ -492,7 +505,10 @@ describe('Auth Core Endpoints', () => {
         });
 
         it('uses Supabase token-hash verification when the token is not legacy', async () => {
-            dbMock.pool.query.mockResolvedValueOnce({ rows: [] });
+            dbMock.pool.query
+                .mockResolvedValueOnce({ rows: [] })
+                .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+                .mockResolvedValueOnce({ rows: [], rowCount: 1 });
             global.fetch
                 .mockResolvedValueOnce(
                     mockJsonResponse({
@@ -530,6 +546,14 @@ describe('Auth Core Endpoints', () => {
                         apikey: SUPABASE_ANON_KEY,
                     }),
                 })
+            );
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                'SELECT id FROM users WHERE supabase_auth_id = $1',
+                [SUPABASE_AUTH_ID]
+            );
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                'UPDATE users SET tokens_invalid_before = now() WHERE id = $1',
+                [1]
             );
         });
     });

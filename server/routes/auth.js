@@ -153,6 +153,14 @@ module.exports = function registerAuthRoutes({
         });
     };
 
+    const invalidateLinkedLegacyTokens = async (supabaseAuthId) => {
+        if (!supabaseAuthId) return;
+        const linkedUser = await db.queryOne('SELECT id FROM users WHERE supabase_auth_id = $1', [supabaseAuthId]);
+        if (linkedUser?.id) {
+            await invalidateUserTokens(linkedUser.id);
+        }
+    };
+
     const DEFAULT_THEMES = [
         ['Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'solid', [], 135, 'medium', 1],
         ['Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
@@ -836,6 +844,8 @@ module.exports = function registerAuthRoutes({
                     accessToken: supabaseSession.token,
                     body: { password: newPassword },
                 });
+                // Supabase changes do not touch local legacy JWTs; revoke them explicitly.
+                await invalidateUserTokens(req.user.id);
                 return res.json({ message: 'Password changed successfully' });
             }
 
@@ -1080,6 +1090,7 @@ module.exports = function registerAuthRoutes({
             );
 
             if (!resetRecord) {
+                let recoveryAuthUserId = null;
                 try {
                     const verifyData = await verifySupabaseTokenHash(
                         token,
@@ -1098,15 +1109,19 @@ module.exports = function registerAuthRoutes({
                         accessToken,
                         body: { password },
                     });
-                    return res.json({ message: 'Password has been reset successfully. You can now log in.' });
+                    recoveryAuthUserId = verifyData?.user?.id || null;
                 } catch {
                     return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
                 }
+
+                await invalidateLinkedLegacyTokens(recoveryAuthUserId);
+                return res.json({ message: 'Password has been reset successfully. You can now log in.' });
             }
 
             // Hash new password and update
             const hashedPassword = await bcrypt.hash(password, 12);
             await db.execute('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, resetRecord.user_id]);
+            await invalidateUserTokens(resetRecord.user_id);
 
             // Mark token as used
             await db.execute('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [resetRecord.id]);
