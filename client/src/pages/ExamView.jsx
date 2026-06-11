@@ -40,7 +40,7 @@ export default function ExamView() {
     const [score, setScore] = useState(0);
     const [answers, setAnswers] = useState([]);
     const [showResults, setShowResults] = useState(false);
-    const [savingAttempt, setSavingAttempt] = useState(false);
+    const [, setSavingAttempt] = useState(false);
     const [attemptSaved, setAttemptSaved] = useState(false);
     const [flaggedIndices, setFlaggedIndices] = useState(new Set());
     const [elapsedSeconds, setElapsedSeconds] = useState(0);

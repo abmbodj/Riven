@@ -122,7 +122,6 @@ function buildNextSteps({ summary, habits, recentAttempts, paceTemperament, stre
 
 function buildTrendModel(attempts) {
     const chartWidth = 320;
-    const chartHeight = 90;
     const paddingX = 10;
     const paddingTop = 10;
     const baselineY = 76;

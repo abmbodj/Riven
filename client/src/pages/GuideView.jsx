@@ -291,6 +291,8 @@ function useCountUp(target, duration = 600) {
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     );
     useEffect(() => {
+        // Animated counter driven by requestAnimationFrame; the initial set is intentional.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (!target) { setValue(0); return; }
         if (prefersReduced.current) { setValue(target); return; }
         const start = performance.now();

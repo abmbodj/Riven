@@ -1012,7 +1012,7 @@ export default function Messages() {
                 ) : (
                     <div className={`space-y-3 ${embedded ? 'max-h-[calc(100dvh-12rem)] overflow-y-auto pr-1' : ''}`}>
                         <AnimatePresence mode="popLayout">
-                            {filteredConversations.map((conv, index) => (
+                            {filteredConversations.map((conv, _index) => (
                                 <motion.div
                                     key={conv.userId}
                                     initial={{ opacity: 0, x: -12 }}

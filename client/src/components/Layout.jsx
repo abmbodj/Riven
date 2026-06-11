@@ -197,6 +197,7 @@ export default function Layout({ children }) {
         const mediaQuery = window.matchMedia('(min-width: 768px)');
         const handleChange = (event) => setIsDesktopViewport(event.matches);
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsDesktopViewport(mediaQuery.matches);
         mediaQuery.addEventListener?.('change', handleChange);
 
@@ -220,14 +221,18 @@ export default function Layout({ children }) {
     }, [location.pathname, prefersReducedMotion]);
 
     useEffect(() => {
+        // Latch flags: once a panel has opened, keep the flag set. Safe in effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (isCommandPaletteOpen) setHasOpenedCommandPalette(true);
     }, [isCommandPaletteOpen]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (createSheetOpen) setHasOpenedCreateSheet(true);
     }, [createSheetOpen]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (drawerOpen) setHasOpenedDrawer(true);
     }, [drawerOpen]);
 

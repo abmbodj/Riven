@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/refs --
+ * This component intentionally reads/writes prevLengthRef during render to remember the
+ * previous section count so only newly-added sections play the entry animation. */
 import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import TiptapEditor from '../editor/TiptapEditor';
@@ -31,7 +34,9 @@ const SECTION_VARIANTS = {
 export default function SectionedPreview({ sections = [], sectionsTotal = 0, statusText = '' }) {
   const prevLengthRef = useRef(0);
 
-  // Track which sections are newly added so only new ones animate
+  // Track which sections are newly added so only new ones animate. Reading/writing this
+  // ref during render is an intentional "previous value" idiom for the entry animation
+  // (see the file-level eslint-disable for react-hooks/refs at the top of this file).
   const newFromIndex = prevLengthRef.current;
   prevLengthRef.current = sections.length;
 

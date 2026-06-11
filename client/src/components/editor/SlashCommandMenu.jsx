@@ -49,6 +49,8 @@ const SlashCommandMenu = forwardRef((props, ref) => {
     }, [selectItem, selectedIndex]);
 
     useEffect(() => {
+        // Reset the highlighted item whenever the query changes. Safe in effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedIndex(0);
     }, [props.query]);
 
