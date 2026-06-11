@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Riven — agent & contributor guide
 
 Riven turns class material into focused study sessions (AI decks, guides, exams,
@@ -20,7 +24,8 @@ groups, gamified garden). Monorepo with three deploy targets.
 
 Shared business logic lives in `supabase/functions/_shared/*.mjs` and is unit-tested
 from **both** runtimes (Node via `server/test/*-core.test.js`, Deno at runtime). Keep
-those modules runtime-agnostic (no Node-only or Deno-only APIs).
+those modules runtime-agnostic (no Node-only or Deno-only APIs). Edge-only helpers
+(Deno-specific or TypeScript-typed) live alongside them as `.ts` files.
 
 ## Commands
 
@@ -30,15 +35,42 @@ npm start                      # run server + client together
 
 # server (cwd: server/)
 npx vitest run                 # unit tests (fake DATABASE_URL/JWT_SECRET injected)
+npx vitest run test/foo.test.js  # run a single test file
 
 # client (cwd: client/)
 npx vitest run                 # unit tests (jsdom)
+npx vitest run src/api/authApi.login.test.js  # run a single test file
 npx eslint .                   # must be error-free (warnings allowed)
 npx vite build                 # production build
 
 # edge functions
 deno check supabase/functions/<name>/index.ts
+
+# deploy (after schema or function changes)
+npx supabase db push                          # apply migrations
+npx supabase functions deploy <function-name> # deploy only changed function
 ```
+
+## Active Server Routes
+
+The live Express routes in `server/routes/` are: `auth`, `email`, `health`, `hearts`,
+`lms`, `referrals`, `stripe`, `study`, `webhooks`. All other feature routes were
+removed in the 2026-06 remediation. Do not add new feature routes here — add edge functions.
+
+## authApi.js Modularization (RIV-025)
+
+`client/src/api/authApi.js` is actively being split into focused modules. New API
+functions belong in the appropriate sub-module, not appended to the monolith. Tests
+that mock `authApi` must spread the real module:
+
+```js
+vi.mock('.../authApi', async (importOriginal) => ({
+  ...(await importOriginal()),
+  ...overrides,
+}))
+```
+
+This prevents unrelated exports from becoming `undefined` in tests.
 
 ## Security invariants (do not regress — see docs/reviews/)
 
@@ -64,6 +96,3 @@ deno check supabase/functions/<name>/index.ts
 - Match the surrounding file's style. Express routes are registered via
   `register*Routes({ app, db, authMiddleware, ... })` from `server/index.js`.
 - Client API calls go through `client/src/api/authApi.js` (and its `api.js` wrapper).
-- Tests that mock `authApi` must spread the real module
-  (`vi.mock('.../authApi', async (importOriginal) => ({ ...(await importOriginal()), ...overrides }))`)
-  so unrelated exports don't become `undefined`.
