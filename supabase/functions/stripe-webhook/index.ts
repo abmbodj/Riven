@@ -37,19 +37,41 @@ const ensureWebhookEnvironment = () => {
   }
 };
 
-// RIV-027: atomically claim an event before processing. Returns true only if THIS
-// call inserted the row (won the claim); a concurrent duplicate delivery gets false.
+type EventClaimStatus = 'claimed' | 'processing' | 'processed';
+
+// RIV-027: atomically claim an event before processing. Returns "claimed" only if
+// THIS call inserted the row (won the claim); concurrent duplicate deliveries can
+// then distinguish in-flight work from an already completed event.
 // This replaces the previous check-then-act sequence, which had a TOCTOU race where
 // two concurrent deliveries could both pass the existence check and double-process.
-const claimEvent = async (eventId: string): Promise<boolean> => {
+const claimEvent = async (eventId: string): Promise<EventClaimStatus> => {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from('stripe_processed_events')
-    .upsert([{ event_id: eventId }], { onConflict: 'event_id', ignoreDuplicates: true })
+    .upsert([{ event_id: eventId, status: 'processing' }], { onConflict: 'event_id', ignoreDuplicates: true })
     .select('event_id');
 
   if (error) throw error;
-  return Array.isArray(data) && data.length > 0;
+  if (Array.isArray(data) && data.length > 0) return 'claimed';
+
+  const { data: existing, error: existingError } = await admin
+    .from('stripe_processed_events')
+    .select('status')
+    .eq('event_id', eventId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  return existing?.status === 'processing' ? 'processing' : 'processed';
+};
+
+const markEventProcessed = async (eventId: string) => {
+  const admin = getSupabaseAdmin();
+  const { error } = await admin
+    .from('stripe_processed_events')
+    .update({ status: 'processed', processed_at: new Date().toISOString() })
+    .eq('event_id', eventId);
+
+  if (error) throw error;
 };
 
 // Release a previously-claimed event so Stripe's retry can reprocess it after a failure.
@@ -64,6 +86,7 @@ const cleanupOldEvents = async () => {
   const { error: cleanupError } = await admin
     .from('stripe_processed_events')
     .delete()
+    .eq('status', 'processed')
     .lt('processed_at', cutoffIso);
 
   if (cleanupError) throw cleanupError;
@@ -228,10 +251,14 @@ serve(async (request) => {
     }
 
     // RIV-027: claim the event up front; a concurrent duplicate delivery loses the race.
-    const claimed = await claimEvent(event.id);
-    if (!claimed) {
+    const claimStatus = await claimEvent(event.id);
+    if (claimStatus === 'processed') {
       console.info(`[Stripe Webhook] Skipping duplicate event: ${event.id}`);
       return jsonResponse({ received: true, duplicate: true }, {}, request);
+    }
+    if (claimStatus === 'processing') {
+      console.info(`[Stripe Webhook] Event already processing, asking Stripe to retry: ${event.id}`);
+      return jsonResponse({ error: 'Event is already processing' }, { status: 409 }, request);
     }
 
     try {
@@ -241,6 +268,7 @@ serve(async (request) => {
         persistence,
         logger: console,
       });
+      await markEventProcessed(event.id);
     } catch (processingError) {
       // Release the claim so Stripe's automatic retry can reprocess this event.
       await releaseEvent(event.id).catch(() => {});

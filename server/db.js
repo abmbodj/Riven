@@ -670,9 +670,11 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`
                 CREATE TABLE IF NOT EXISTS stripe_processed_events (
                     event_id TEXT PRIMARY KEY,
-                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT NOT NULL DEFAULT 'processed'
                 )
             `);
+            await client.query(`ALTER TABLE stripe_processed_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'processed'`).catch(() => { });
 
             // RIV-005: legacy-JWT revocation. revoked_tokens is a jti denylist;
             // tokens_invalid_before invalidates every token issued before a password change.
