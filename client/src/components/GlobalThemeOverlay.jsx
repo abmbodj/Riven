@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { useTheme } from '../hooks/useTheme';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { ThemeEffectOverlay } from './themes/themeEffects.jsx';
+import { generateParticles, particleGlow, radialParticleBackground, withAlpha } from './themes/themeParticles.js';
 import { buildGradientCss, normalizeGradientRecipe } from '../utils/themeGradientRecipe.js';
 
 /** Static accent wash — no GSAP, no particles (mobile / coarse pointer). */
@@ -12,7 +13,7 @@ function LightThemeAtmosphere({ accent, containerRef, children }) {
             <div
                 className="absolute inset-0"
                 style={{
-                    background: `radial-gradient(ellipse 92% 56% at 50% 24%, ${accent}18 0%, transparent 58%), radial-gradient(ellipse 72% 50% at 80% 76%, ${accent}0c 0%, transparent 54%)`,
+                    background: `radial-gradient(ellipse 92% 56% at 50% 24%, ${withAlpha(accent, 0.095)} 0%, transparent 58%), radial-gradient(ellipse 72% 50% at 80% 76%, ${withAlpha(accent, 0.047)} 0%, transparent 54%)`,
                 }}
             />
             {children}
@@ -20,51 +21,15 @@ function LightThemeAtmosphere({ accent, containerRef, children }) {
     );
 }
 
-// ─── Deterministic seeded random ─────────────────────────────────────────────
-function seededRandom(seed) {
-    let s = seed;
-    return () => {
-        s = (s * 1664525 + 1013904223) & 0xffffffff;
-        return (s >>> 0) / 4294967296;
-    };
-}
-
-function generateParticles(seed, count) {
-    const rand = seededRandom(seed);
-    return Array.from({ length: count }, (_, i) => ({
-        id: i,
-        x: 2 + rand() * 96,        // % across full viewport width
-        y: 2 + rand() * 96,        // % across full viewport height
-        size: 0.8 + rand() * 2.2,
-        delay: rand() * 8,
-        duration: 4 + rand() * 6,
-        opacity: 0.22 + rand() * 0.42,
-        drift: rand(),              // 0–1 normalized drift magnitude
-        spin: rand(),               // 0–1 normalized rotation
-    }));
-}
-
-function radialParticleBackground(accent, { highlight = 0.92, core = 'cc', mid = '42', outer = '10' } = {}) {
-    return `radial-gradient(circle, rgba(255,255,255,${highlight}) 0%, ${accent}${core} 28%, ${accent}${mid} 62%, ${accent}${outer} 80%, transparent 100%)`;
-}
-
-function particleGlow(accent, size, intensity = 1) {
-    const near = (size * (2.2 + intensity * 1.1)).toFixed(1);
-    const far = (size * (4.8 + intensity * 2.8)).toFixed(1);
-    const nearAlpha = intensity >= 1 ? 'aa' : intensity >= 0.7 ? '88' : '55';
-    const farAlpha = intensity >= 1 ? '4a' : intensity >= 0.7 ? '34' : '22';
-    return `0 0 ${near}px ${accent}${nearAlpha}, 0 0 ${far}px ${accent}${farAlpha}`;
-}
-
 // ─── Stable particle sets (module-level — never re-generated) ────────────────
-const P_MOTES   = generateParticles(4949, 32); // forest dust / sage temple
-const P_EMBERS  = generateParticles(6677, 24); // dawn ember sparks
-const P_MIST    = generateParticles(1122, 18); // misty shore fog orbs
-const P_FIREFLY = generateParticles(5511, 16); // amber lantern fireflies
-const P_STARS   = generateParticles(3571, 28); // moonlit cove stars
-const P_RAIN    = generateParticles(8833, 24); // rain garden droplets
-const P_PETALS  = generateParticles(2233, 22); // cherry blossom petals
-const P_POLLEN  = generateParticles(7777, 24); // lavender pollen spores
+const P_MOTES   = generateParticles(4949, 40, { x: [2, 98], y: [2, 96] }); // forest dust / sage temple
+const P_EMBERS  = generateParticles(6677, 30, { x: [3, 97], y: [6, 96] }); // dawn ember sparks
+const P_MIST    = generateParticles(1122, 26, { x: [1, 99], y: [4, 96] }); // misty shore fog orbs
+const P_FIREFLY = generateParticles(5511, 22, { x: [4, 96], y: [8, 92] }); // amber lantern fireflies
+const P_STARS   = generateParticles(3571, 38, { x: [2, 98], y: [2, 90] }); // moonlit cove stars
+const P_RAIN    = generateParticles(8833, 34, { x: [1, 99], y: [0, 86] }); // rain garden droplets
+const P_PETALS  = generateParticles(2233, 34, { x: [2, 98], y: [0, 76] }); // cherry blossom petals
+const P_POLLEN  = generateParticles(7777, 32, { x: [3, 97], y: [8, 92] }); // lavender pollen spores
 
 // ─── Theme → archetype map ────────────────────────────────────────────────────
 const THEME_MAP = {
@@ -148,17 +113,27 @@ function GradientThemeAtmosphere({ theme, lightAtmosphere }) {
 }
 
 function GlobalOverlayContent({ archetype, accent, lightAtmosphere }) {
-    switch (archetype) {
-        case 'forest':   return <ForestOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'ember':    return <EmberOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'mist':     return <MistOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'lantern':  return <LanternOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'moon':     return <MoonOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'rain':     return <RainOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'sakura':   return <SakuraOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        case 'lavender': return <LavenderOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
-        default: return null;
-    }
+    const content = (() => {
+        switch (archetype) {
+            case 'forest': return <ForestOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'ember': return <EmberOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'mist': return <MistOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'lantern': return <LanternOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'moon': return <MoonOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'rain': return <RainOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'sakura': return <SakuraOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            case 'lavender': return <LavenderOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+            default: return null;
+        }
+    })();
+
+    if (!content) return null;
+
+    return (
+        <div data-global-theme-overlay={archetype} className="absolute inset-0">
+            {content}
+        </div>
+    );
 }
 
 // ─── Forest — Sage Temple ─────────────────────────────────────────────────────
@@ -681,33 +656,50 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
             const p = P_PETALS[i % P_PETALS.length];
             gsap.timeline({ repeat: -1, delay: p.delay })
                 .fromTo(el,
-                    { opacity: 0, y: 0, rotation: (p.spin - 0.5) * 35, x: 0 },
-                    { opacity: p.opacity * 0.58, duration: p.duration * 0.14, ease: 'power1.in' }
+                    { opacity: 0, y: 0, rotation: (p.spin - 0.5) * 48, rotationX: 12 + p.spin * 36, x: 0, scale: 0.72 + p.drift * 0.28 },
+                    { opacity: p.opacity * 0.64, scale: 0.92 + p.drift * 0.36, duration: p.duration * 0.16, ease: 'power1.in' }
                 )
                 .to(el, {
                     opacity: 0,
-                    y: 95 + p.drift * 65,
-                    rotation: (p.spin - 0.5) * 85,
-                    x: (p.spin - 0.5) * 44,
-                    duration: p.duration * 0.86,
+                    y: 110 + p.drift * 90,
+                    rotation: (p.spin - 0.5) * 160,
+                    rotationX: 120 + p.spin * 180,
+                    x: (p.spin - 0.5) * 76,
+                    scale: 0.58 + p.spin * 0.42,
+                    duration: p.duration * 1.02,
                     ease: 'sine.out',
                 });
+        });
+
+        selector('.p-blossom-mote').forEach((el, i) => {
+            const p = P_PETALS[(i + 7) % P_PETALS.length];
+            gsap.to(el, {
+                opacity: p.opacity * 0.42,
+                scale: 0.78 + p.spin * 0.7,
+                x: (p.spin - 0.5) * 16,
+                y: (p.drift - 0.5) * 12,
+                duration: 2.8 + p.duration * 0.35,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut',
+                delay: p.delay * 0.28,
+            });
         });
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
         return (
             <LightThemeAtmosphere accent={accent}>
-                {P_PETALS.slice(0, 8).map(p => (
+                {P_PETALS.slice(0, 7).map(p => (
                     <div key={p.id} className="mobile-particle" style={{
                         left: p.x + '%', top: '-10vh',
                         width: (5 + p.size) + 'px', height: (3 + p.size) + 'px',
-                        background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, ${accent} 80%)`,
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, ${withAlpha(accent, 0.92)} 80%)`,
                         borderRadius: '50% 50% 50% 0',
-                        boxShadow: `0 0 2px ${accent}`,
+                        boxShadow: `0 0 4px ${withAlpha(accent, 0.42)}`,
                         '--max-opacity': p.opacity * 0.8,
                         '--drift-y': `80vh`,
-                        animation: `mobileParticleFloatDown ${5 + p.drift * 3}s infinite ${p.delay}s linear`,
+                        animation: `mobileParticleFloatDown ${6 + p.drift * 3}s infinite ${p.delay}s linear`,
                     }} />
                 ))}
                 <svg className="absolute top-0 right-0 opacity-[0.15]" width="180" viewBox="0 0 255 195" fill="none">
@@ -716,6 +708,18 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
                     <circle cx="161" cy="37" r="5" fill={accent} opacity="0.4" />
                     <circle cx="155" cy="32" r="4" fill={accent} opacity="0.3" />
                 </svg>
+                {P_PETALS.slice(8, 13).map(p => (
+                    <div key={`bm${p.id}`} className="mobile-particle rounded-full" style={{
+                        left: `${72 + (p.spin - 0.5) * 20}%`,
+                        top: `${7 + p.drift * 22}%`,
+                        width: `${2 + p.size}px`,
+                        height: `${2 + p.size}px`,
+                        background: withAlpha(accent, 0.58),
+                        boxShadow: `0 0 ${4 + p.size}px ${withAlpha(accent, 0.24)}`,
+                        '--max-opacity': p.opacity * 0.58,
+                        animation: `mobileParticleBlink ${3 + p.spin * 2}s infinite ${p.delay}s alternate ease-in-out`,
+                    }} />
+                ))}
             </LightThemeAtmosphere>
         );
     }
@@ -737,15 +741,28 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
             {P_PETALS.map(p => (
                 <div key={p.id} className="p-petal absolute" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (6 + p.size * 1.6) + 'px',
-                    height: (3.8 + p.size * 1.05) + 'px',
-                    background: `linear-gradient(135deg, rgba(255,255,255,0.92) 0%, ${accent}f2 32%, ${accent}c8 72%, ${accent}4a 100%)`,
+                    width: (6 + p.size * 1.9) + 'px',
+                    height: (3.8 + p.size * 1.2) + 'px',
+                    background: `linear-gradient(135deg, rgba(255,255,255,0.92) 0%, ${withAlpha(accent, 0.95)} 32%, ${withAlpha(accent, 0.74)} 72%, ${withAlpha(accent, 0.28)} 100%)`,
                     borderRadius: '50% 50% 50% 0',
                     opacity: 0,
                     filter: `blur(${p.size * 0.18}px)`,
                     boxShadow: particleGlow(accent, p.size + 1.4, 0.6),
-                    border: `1px solid ${accent}24`,
+                    border: `1px solid ${withAlpha(accent, 0.14)}`,
                     transformOrigin: 'center',
+                    willChange: 'transform, opacity',
+                }} />
+            ))}
+
+            {P_PETALS.slice(3, 17).map(p => (
+                <div key={`mote${p.id}`} className="p-blossom-mote absolute rounded-full" style={{
+                    left: `${68 + (p.spin - 0.5) * 32}%`,
+                    top: `${6 + p.drift * 45}%`,
+                    width: `${2 + p.size * 1.8}px`,
+                    height: `${2 + p.size * 1.8}px`,
+                    background: radialParticleBackground(accent, { highlight: 0.98, coreAlpha: 0.46, midAlpha: 0.18, outerAlpha: 0.05 }),
+                    boxShadow: particleGlow(accent, p.size + 1, 0.36),
+                    opacity: 0,
                     willChange: 'transform, opacity',
                 }} />
             ))}

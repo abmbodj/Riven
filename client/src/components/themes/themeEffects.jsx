@@ -1,76 +1,28 @@
 import { motion as Motion } from 'motion/react';
 import { EFFECT_INTENSITY_OPTIONS, EFFECT_PRESETS } from './themeEditorConfig';
+import {
+    generateParticles,
+    getParticleProfile,
+    getThemeParticleTokens,
+    particleGlow,
+    radialParticleBackground,
+    withAlpha
+} from './themeParticles';
 
 const THEME_ARCHETYPES = {
-    'Tech Innovation': 'cyber',
-    'Arctic Frost': 'crystal',
-    'Modern Minimal': 'void',
-    'Riven': 'default',
-    'Riven Light': 'default',
+    'Riven': 'riven',
+    'Riven Light': 'riven-light',
+    'Manuscript': 'manuscript',
+    'Deep Current': 'depths',
+    'Signal Glass': 'signal',
 };
 
-function seededRandom(seed) {
-    let value = seed;
-    return () => {
-        value = (value * 1664525 + 1013904223) & 0xffffffff;
-        return (value >>> 0) / 4294967296;
-    };
-}
-
-function generateParticles(seed, count, bounds = { x: [5, 95], y: [5, 90] }) {
-    const rand = seededRandom(seed);
-    return Array.from({ length: count }, (_, index) => ({
-        id: index,
-        x: bounds.x[0] + rand() * (bounds.x[1] - bounds.x[0]),
-        y: bounds.y[0] + rand() * (bounds.y[1] - bounds.y[0]),
-        size: 0.8 + rand() * 1.8,
-        delay: rand() * 3,
-        duration: 1.5 + rand() * 2.5,
-        opacity: 0.35 + rand() * 0.55,
-    }));
-}
-
-const STAR_PARTICLES = generateParticles(7919, 24);
-const STAR_PARTICLES_SM = generateParticles(7919, 10);
-const HEART_PARTICLES = generateParticles(1337, 10);
-const HEART_PARTICLES_SM = generateParticles(1337, 6);
-const SNOW_PARTICLES = generateParticles(2357, 8);
-const BUBBLE_PARTICLES = generateParticles(5051, 8);
-const BUBBLE_PARTICLES_SM = generateParticles(5051, 5);
-const CYBER_NODES = generateParticles(9001, 6, { x: [10, 90], y: [15, 85] });
-
-function hexToRgb(hex) {
-    const sanitized = String(hex || '').replace('#', '').trim();
-    const normalized = sanitized.length === 3
-        ? sanitized.split('').map((char) => char + char).join('')
-        : sanitized;
-
-    const value = Number.parseInt(normalized, 16);
-    if (Number.isNaN(value)) {
-        return { r: 0, g: 0, b: 0 };
-    }
-
-    return {
-        r: (value >> 16) & 255,
-        g: (value >> 8) & 255,
-        b: value & 255
-    };
-}
-
-function withAlpha(hex, alpha) {
-    const { r, g, b } = hexToRgb(hex);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function getIntensityCounts(intensity, isHero) {
-    const profiles = {
-        soft: { particles: isHero ? 8 : 5, nodes: isHero ? 4 : 3, glow: 0.18 },
-        medium: { particles: isHero ? 14 : 8, nodes: isHero ? 6 : 4, glow: 0.24 },
-        rich: { particles: isHero ? 22 : 12, nodes: isHero ? 8 : 5, glow: 0.3 }
-    };
-
-    return profiles[intensity] || profiles.soft;
-}
+const RIVEN_SPORES = generateParticles(1447, 22, { x: [7, 94], y: [8, 88] });
+const RIVEN_LIGHT_MOTES = generateParticles(1448, 18, { x: [6, 94], y: [8, 88] });
+const MANUSCRIPT_FIBERS = generateParticles(3811, 20, { x: [8, 92], y: [7, 90] });
+const DEPTH_PARTICLES = generateParticles(5051, 22, { x: [6, 94], y: [12, 88] });
+const SIGNAL_NODES = generateParticles(9001, 14, { x: [10, 90], y: [14, 84] });
+const GLINTS = generateParticles(4242, 12, { x: [8, 92], y: [8, 86] });
 
 function resolveEffectPreset(theme) {
     if (!theme) return 'none';
@@ -99,38 +51,44 @@ export function getThemeEffectLabel(theme) {
     return `${effect.name} ${intensity ? `· ${intensity.name}` : ''}`.trim();
 }
 
+function overlayClass(className) {
+    return `absolute inset-0 overflow-hidden pointer-events-none ${className}`;
+}
 
 function StaticEffectWash({ theme, className = '' }) {
+    const { accent, background } = getThemeParticleTokens(theme);
+
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+        <div data-particle-overlay="static" className={overlayClass(className)}>
             <div
                 className="absolute inset-0"
                 style={{
-                    background: `radial-gradient(circle at 18% 16%, ${withAlpha(theme.accent_color, 0.18)} 0%, transparent 38%), radial-gradient(circle at 84% 18%, ${withAlpha(theme.accent_color, 0.1)} 0%, transparent 36%), linear-gradient(180deg, transparent 0%, ${withAlpha(theme.accent_color, 0.08)} 100%)`
+                    background: `radial-gradient(circle at 18% 16%, ${withAlpha(accent, 0.16)} 0%, transparent 38%), radial-gradient(circle at 84% 18%, ${withAlpha(accent, 0.1)} 0%, transparent 36%), linear-gradient(180deg, transparent 0%, ${withAlpha(background, 0.12)} 100%)`
                 }}
             />
             <div
                 className="absolute inset-y-0 left-[14%] w-px"
-                style={{ backgroundColor: withAlpha(theme.accent_color, 0.3) }}
+                style={{ backgroundColor: withAlpha(accent, 0.28) }}
             />
             <div
                 className="absolute inset-x-0 bottom-0 h-1/3"
-                style={{ background: `linear-gradient(180deg, transparent 0%, ${withAlpha(theme.accent_color, 0.12)} 100%)` }}
+                style={{ background: `linear-gradient(180deg, transparent 0%, ${withAlpha(accent, 0.1)} 100%)` }}
             />
         </div>
     );
 }
 
 function DustEffect({ theme, isHero, intensity, className = '' }) {
-    const profile = getIntensityCounts(intensity, isHero);
-    const particles = generateParticles(6101 + profile.particles, profile.particles, { x: [7, 93], y: [10, 86] });
+    const { accent, background } = getThemeParticleTokens(theme);
+    const profile = getParticleProfile(intensity, isHero);
+    const particles = generateParticles(6101 + profile.particles, profile.particles, { x: [7, 93], y: [10, 88] });
 
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+        <div data-particle-overlay="dust" className={overlayClass(className)}>
             <div
                 className="absolute inset-0"
                 style={{
-                    background: `radial-gradient(circle at 20% 20%, ${withAlpha(theme.accent_color, profile.glow)} 0%, transparent 48%), linear-gradient(180deg, transparent 0%, ${withAlpha(theme.accent_color, 0.08)} 100%)`
+                    background: `radial-gradient(circle at 20% 20%, ${withAlpha(accent, profile.glow)} 0%, transparent 48%), radial-gradient(circle at 78% 70%, ${withAlpha(accent, profile.glow * 0.48)} 0%, transparent 42%), linear-gradient(180deg, transparent 0%, ${withAlpha(background, 0.12)} 100%)`
                 }}
             />
             {particles.map((particle) => (
@@ -138,14 +96,25 @@ function DustEffect({ theme, isHero, intensity, className = '' }) {
                     key={particle.id}
                     className="absolute rounded-full"
                     style={{
-                        width: `${particle.size * (isHero ? 5 : 4)}px`,
-                        height: `${particle.size * (isHero ? 5 : 4)}px`,
+                        width: `${particle.size * (isHero ? 5.5 : 4)}px`,
+                        height: `${particle.size * (isHero ? 5.5 : 4)}px`,
                         left: `${particle.x}%`,
                         top: `${particle.y}%`,
-                        background: `radial-gradient(circle, ${withAlpha(theme.accent_color, 0.65)} 0%, ${withAlpha(theme.accent_color, 0.08)} 72%, transparent 100%)`
+                        background: radialParticleBackground(accent, {
+                            coreAlpha: 0.52 * profile.opacity,
+                            midAlpha: 0.18 * profile.opacity,
+                            outerAlpha: 0.06
+                        }),
+                        boxShadow: particleGlow(accent, particle.size + 1, profile.glow * 2.4),
+                        willChange: 'transform, opacity',
                     }}
-                    animate={{ y: [0, -18, 0], opacity: [0.15, particle.opacity, 0.12] }}
-                    transition={{ duration: 4 + particle.duration, repeat: Infinity, delay: particle.delay, ease: 'easeInOut' }}
+                    animate={{
+                        y: [0, -(18 + particle.drift * profile.travel * 0.24), 0],
+                        x: [0, (particle.spin - 0.5) * 18, 0],
+                        opacity: [0.08, particle.opacity * profile.opacity, 0.06],
+                        scale: [0.72, 1.08, 0.8],
+                    }}
+                    transition={{ duration: 5 + particle.duration, repeat: Infinity, delay: particle.delay * 0.28, ease: 'easeInOut' }}
                 />
             ))}
         </div>
@@ -153,51 +122,72 @@ function DustEffect({ theme, isHero, intensity, className = '' }) {
 }
 
 function StarsEffect({ theme, isHero, intensity, className = '' }) {
-    const profile = getIntensityCounts(intensity, isHero);
+    const { accent, background } = getThemeParticleTokens(theme);
+    const profile = getParticleProfile(intensity, isHero);
     const stars = generateParticles(7201 + profile.particles, profile.particles, { x: [6, 94], y: [6, 88] });
 
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+        <div data-particle-overlay="stars" className={overlayClass(className)}>
             <div
                 className="absolute inset-0"
                 style={{
-                    background: `linear-gradient(135deg, ${withAlpha(theme.bg_color, 0.1)} 0%, ${withAlpha(theme.accent_color, 0.14)} 100%)`
+                    background: `linear-gradient(135deg, ${withAlpha(background, 0.18)} 0%, ${withAlpha(accent, 0.16)} 100%)`
                 }}
             />
             <div
                 className="absolute -top-[12%] right-[-12%] h-[60%] w-[60%] rounded-full"
-                style={{ background: `radial-gradient(circle, ${withAlpha(theme.accent_color, profile.glow)} 0%, transparent 70%)` }}
+                style={{ background: `radial-gradient(circle, ${withAlpha(accent, profile.glow)} 0%, transparent 70%)` }}
             />
-            {stars.map((star) => (
-                <Motion.div
-                    key={star.id}
-                    className="absolute rounded-full"
-                    style={{
-                        width: `${1 + star.size}px`,
-                        height: `${1 + star.size}px`,
-                        left: `${star.x}%`,
-                        top: `${star.y}%`,
-                        backgroundColor: withAlpha('#ffffff', 0.9),
-                        boxShadow: `0 0 12px ${withAlpha(theme.accent_color, 0.45)}`
-                    }}
-                    animate={{ opacity: [0.2, star.opacity, 0.18], scale: [1, 1.4, 1] }}
-                    transition={{ duration: 2.4 + star.duration, repeat: Infinity, delay: star.delay, ease: 'easeInOut' }}
-                />
-            ))}
+            {stars.map((star) => {
+                const isGlint = star.id % 6 === 0;
+                return (
+                    <Motion.div
+                        key={star.id}
+                        className="absolute rounded-full"
+                        style={{
+                            width: `${(isGlint ? 2.2 : 1) + star.size}px`,
+                            height: `${(isGlint ? 2.2 : 1) + star.size}px`,
+                            left: `${star.x}%`,
+                            top: `${star.y}%`,
+                            background: radialParticleBackground(isGlint ? '#ffffff' : accent, {
+                                highlight: 1,
+                                coreAlpha: isGlint ? 0.88 : 0.62,
+                                midAlpha: 0.28,
+                                outerAlpha: 0.08
+                            }),
+                            boxShadow: `0 0 ${8 + star.size * 2}px ${withAlpha(accent, 0.5)}`,
+                            willChange: 'transform, opacity',
+                        }}
+                        animate={{
+                            opacity: [0.14, star.opacity * profile.opacity, 0.12],
+                            scale: [0.8, isGlint ? 1.8 : 1.34, 0.88],
+                        }}
+                        transition={{ duration: 2.8 + star.duration * 0.42, repeat: Infinity, delay: star.delay * 0.24, ease: 'easeInOut' }}
+                    />
+                );
+            })}
         </div>
     );
 }
 
 function BubblesEffect({ theme, isHero, intensity, className = '' }) {
-    const profile = getIntensityCounts(intensity, isHero);
-    const bubbles = generateParticles(8301 + profile.particles, profile.particles, { x: [8, 92], y: [20, 82] });
+    const { accent, background } = getThemeParticleTokens(theme);
+    const profile = getParticleProfile(intensity, isHero);
+    const bubbles = generateParticles(8301 + profile.particles, profile.particles, { x: [8, 92], y: [18, 82] });
 
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+        <div data-particle-overlay="bubbles" className={overlayClass(className)}>
             <div
                 className="absolute inset-0"
                 style={{
-                    background: `linear-gradient(180deg, transparent 0%, ${withAlpha(theme.accent_color, 0.14)} 100%)`
+                    background: `radial-gradient(ellipse at 50% 100%, ${withAlpha(accent, profile.glow)} 0%, transparent 58%), linear-gradient(180deg, transparent 0%, ${withAlpha(background, 0.18)} 100%)`
+                }}
+            />
+            <div
+                className="absolute inset-0 opacity-60"
+                style={{
+                    background: `repeating-linear-gradient(105deg, transparent 0%, ${withAlpha(accent, 0.08)} 8%, transparent 17%)`,
+                    animation: 'themeCaustic 8s ease-in-out infinite',
                 }}
             />
             {bubbles.map((bubble) => (
@@ -205,15 +195,21 @@ function BubblesEffect({ theme, isHero, intensity, className = '' }) {
                     key={bubble.id}
                     className="absolute rounded-full border"
                     style={{
-                        width: `${4 + bubble.size * 4}px`,
-                        height: `${4 + bubble.size * 4}px`,
+                        width: `${5 + bubble.size * 5}px`,
+                        height: `${5 + bubble.size * 5}px`,
                         left: `${bubble.x}%`,
-                        bottom: '-8%',
-                        borderColor: withAlpha(theme.accent_color, 0.32),
-                        backgroundColor: withAlpha(theme.accent_color, 0.06)
+                        bottom: '-10%',
+                        borderColor: withAlpha(accent, 0.36),
+                        backgroundColor: withAlpha(accent, 0.08),
+                        boxShadow: particleGlow(accent, bubble.size + 1, profile.glow * 1.5),
+                        willChange: 'transform, opacity',
                     }}
-                    animate={{ y: [0, isHero ? -220 : -120], opacity: [0, bubble.opacity, 0] }}
-                    transition={{ duration: 3 + bubble.duration, repeat: Infinity, delay: bubble.delay * 0.5, ease: 'easeOut' }}
+                    animate={{
+                        y: [0, -profile.travel],
+                        x: [0, (bubble.spin - 0.5) * 28],
+                        opacity: [0, bubble.opacity * profile.opacity, 0],
+                    }}
+                    transition={{ duration: 4.2 + bubble.duration * 0.52, repeat: Infinity, delay: bubble.delay * 0.24, ease: 'easeOut' }}
                 />
             ))}
         </div>
@@ -221,28 +217,39 @@ function BubblesEffect({ theme, isHero, intensity, className = '' }) {
 }
 
 function GridEffect({ theme, isHero, intensity, className = '' }) {
-    const profile = getIntensityCounts(intensity, isHero);
+    const { accent, background } = getThemeParticleTokens(theme);
+    const profile = getParticleProfile(intensity, isHero);
     const nodes = generateParticles(9401 + profile.nodes, profile.nodes, { x: [12, 88], y: [16, 82] });
 
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+        <div data-particle-overlay="grid" className={overlayClass(className)}>
             <div
                 className="absolute inset-0"
                 style={{
-                    background: `linear-gradient(145deg, ${withAlpha(theme.bg_color, 0.08)} 0%, ${withAlpha(theme.accent_color, 0.12)} 100%)`
+                    background: `linear-gradient(145deg, ${withAlpha(background, 0.18)} 0%, ${withAlpha(accent, 0.14)} 100%)`
                 }}
             />
             <div
                 className="absolute inset-0"
                 style={{
-                    backgroundImage: `linear-gradient(${withAlpha(theme.accent_color, 0.08)} 1px, transparent 1px), linear-gradient(90deg, ${withAlpha(theme.accent_color, 0.06)} 1px, transparent 1px)`,
+                    backgroundImage: `linear-gradient(${withAlpha(accent, 0.1)} 1px, transparent 1px), linear-gradient(90deg, ${withAlpha(accent, 0.07)} 1px, transparent 1px)`,
                     backgroundSize: isHero ? '22px 22px' : '14px 14px'
                 }}
+            />
+            <Motion.div
+                className="absolute inset-x-0 h-px"
+                style={{
+                    top: '20%',
+                    background: `linear-gradient(90deg, transparent 0%, ${withAlpha(accent, 0.36)} 50%, transparent 100%)`,
+                    boxShadow: `0 0 18px ${withAlpha(accent, 0.22)}`,
+                }}
+                animate={{ y: ['0%', isHero ? '190px' : '92px'], opacity: [0, 0.8, 0] }}
+                transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
             />
             <div
                 className="absolute inset-y-0 right-[14%] w-[36%]"
                 style={{
-                    background: `linear-gradient(180deg, transparent 0%, ${withAlpha(theme.accent_color, 0.18)} 24%, ${withAlpha(theme.accent_color, 0.04)} 100%)`,
+                    background: `linear-gradient(180deg, transparent 0%, ${withAlpha(accent, 0.2)} 24%, ${withAlpha(accent, 0.04)} 100%)`,
                     clipPath: 'polygon(58% 0, 100% 0, 46% 100%, 4% 100%)'
                 }}
             />
@@ -255,94 +262,215 @@ function GridEffect({ theme, isHero, intensity, className = '' }) {
                         height: isHero ? '4px' : '3px',
                         left: `${node.x}%`,
                         top: `${node.y}%`,
-                        backgroundColor: theme.accent_color,
-                        boxShadow: `0 0 8px ${withAlpha(theme.accent_color, 0.9)}, 0 0 18px ${withAlpha(theme.accent_color, 0.26)}`
+                        backgroundColor: accent,
+                        boxShadow: particleGlow(accent, node.size + 1, 1.1),
+                        willChange: 'transform, opacity',
                     }}
-                    animate={{ opacity: [0.8, 0.16, 0.8], scale: [1, 1.5, 1] }}
-                    transition={{ duration: 1.4 + node.delay * 0.3, repeat: Infinity, delay: node.delay * 0.2 }}
+                    animate={{ opacity: [0.84, 0.16, 0.84], scale: [1, 1.58, 1] }}
+                    transition={{ duration: 1.5 + node.delay * 0.14, repeat: Infinity, delay: node.delay * 0.18 }}
                 />
             ))}
         </div>
     );
 }
 
-function OverlayCosmos({ isHero, className = '' }) {
-    const stars = isHero ? STAR_PARTICLES : STAR_PARTICLES_SM;
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #2a0845 0%, #0a0020 40%, #1a0060 70%, #2a0845 100%)',
-                backgroundSize: '300% 300%',
-                animation: 'themeAurora 8s ease infinite',
-                opacity: 0.7,
-            }} />
-            <div className="absolute" style={{
-                width: '70%', height: '70%',
-                top: '-10%', right: '-10%',
-                background: 'radial-gradient(ellipse, #7c3aed40 0%, transparent 70%)',
-                animation: 'themeGlowPulse 5s ease-in-out infinite',
-            }} />
-            {stars.map((star) => (
-                <div key={star.id} className="absolute rounded-full bg-white" style={{
-                    width: `${star.size}px`,
-                    height: `${star.size}px`,
-                    left: `${star.x}%`,
-                    top: `${star.y}%`,
-                    animationDelay: `${star.delay}s`,
-                    animationDuration: `${star.duration}s`,
-                    animation: `themeTwinkle ${star.duration}s ${star.delay}s ease-in-out infinite`,
-                    opacity: star.opacity,
-                }} />
-            ))}
-        </div>
-    );
-}
+function OverlayRiven({ theme, isHero, className = '' }) {
+    const { accent, background } = getThemeParticleTokens(theme);
+    const spores = isHero ? RIVEN_SPORES : RIVEN_SPORES.slice(0, 10);
 
-function OverlayDepths({ isHero, className = '' }) {
-    const bubbles = isHero ? BUBBLE_PARTICLES : BUBBLE_PARTICLES_SM;
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(180deg, #000814 0%, #001a2e 50%, #00355a 100%)',
-                opacity: 0.6,
-            }} />
-            <div className="absolute inset-0" style={{
-                background: 'repeating-linear-gradient(105deg, transparent 0%, #00d4e812 8%, transparent 16%)',
-                animation: 'themeCaustic 6s ease-in-out infinite',
-                opacity: 0.4,
-            }} />
-            {bubbles.map((bubble) => (
-                <Motion.div key={bubble.id}
+        <div data-particle-overlay="riven" className={overlayClass(className)}>
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `radial-gradient(circle at 20% 18%, ${withAlpha(accent, 0.17)} 0%, transparent 42%), radial-gradient(circle at 76% 72%, ${withAlpha('#4e7f71', 0.14)} 0%, transparent 48%), linear-gradient(180deg, transparent 0%, ${withAlpha(background, 0.18)} 100%)`
+                }}
+            />
+            <div
+                className="absolute inset-y-0 right-[18%] w-[30%]"
+                style={{
+                    background: `linear-gradient(180deg, transparent 0%, ${withAlpha(accent, 0.16)} 38%, transparent 100%)`,
+                    clipPath: 'polygon(66% 0, 100% 0, 48% 100%, 14% 100%)',
+                    animation: 'themeShimmer 7.5s ease-in-out infinite',
+                }}
+            />
+            {spores.map((spore) => (
+                <Motion.div
+                    key={spore.id}
                     className="absolute rounded-full"
                     style={{
-                        width: `${3 + bubble.size * 2}px`,
-                        height: `${3 + bubble.size * 2}px`,
-                        left: `${bubble.x}%`,
-                        bottom: '-8%',
-                        border: '1px solid rgba(0,212,232,0.35)',
-                        backgroundColor: 'rgba(0,212,232,0.06)',
+                        width: `${1.8 + spore.size * (isHero ? 2.8 : 1.8)}px`,
+                        height: `${1.8 + spore.size * (isHero ? 2.8 : 1.8)}px`,
+                        left: `${spore.x}%`,
+                        top: `${spore.y}%`,
+                        background: radialParticleBackground(accent, { coreAlpha: 0.62, midAlpha: 0.2, outerAlpha: 0.05 }),
+                        boxShadow: particleGlow(accent, spore.size + 1, 0.62),
                     }}
-                    animate={{ y: [0, isHero ? -180 : -90], opacity: [0.7, 0] }}
-                    transition={{ duration: 3 + bubble.duration, repeat: Infinity, delay: bubble.delay * 0.6, ease: 'easeOut' }}
+                    animate={{
+                        y: [0, -(16 + spore.drift * 34), 0],
+                        x: [0, (spore.spin - 0.5) * 22, 0],
+                        opacity: [0.08, spore.opacity * 0.86, 0.08],
+                    }}
+                    transition={{ duration: 6 + spore.duration * 0.55, repeat: Infinity, delay: spore.delay * 0.22, ease: 'easeInOut' }}
                 />
             ))}
         </div>
     );
 }
 
-function OverlayCyber({ isHero, className = '' }) {
-    const rings = isHero ? [110, 150, 190] : [70, 96];
-    const nodes = isHero ? CYBER_NODES : CYBER_NODES.slice(0, 4);
+function OverlayRivenLight({ theme, isHero, className = '' }) {
+    const { accent } = getThemeParticleTokens(theme);
+    const motes = isHero ? RIVEN_LIGHT_MOTES : RIVEN_LIGHT_MOTES.slice(0, 9);
+
     return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(145deg, #08161b 0%, #0b1f25 48%, #103036 100%)',
-                opacity: 0.55,
-            }} />
-            <div className="absolute inset-0" style={{
-                backgroundImage: 'linear-gradient(rgba(113,214,202,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(113,214,202,0.06) 1px, transparent 1px)',
-                backgroundSize: isHero ? '22px 22px' : '12px 12px',
-            }} />
+        <div data-particle-overlay="riven-light" className={overlayClass(className)}>
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `radial-gradient(circle at 18% 16%, ${withAlpha(accent, 0.16)} 0%, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.26) 0%, ${withAlpha('#f3eadf', 0.34)} 100%)`
+                }}
+            />
+            <div
+                className="absolute inset-0 opacity-40"
+                style={{
+                    backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(86,72,50,0.12) 1px, transparent 0)',
+                    backgroundSize: '10px 10px',
+                }}
+            />
+            {motes.map((mote) => (
+                <Motion.div
+                    key={mote.id}
+                    className="absolute rounded-full"
+                    style={{
+                        width: `${1.4 + mote.size * (isHero ? 2.5 : 1.6)}px`,
+                        height: `${1.4 + mote.size * (isHero ? 2.5 : 1.6)}px`,
+                        left: `${mote.x}%`,
+                        top: `${mote.y}%`,
+                        background: radialParticleBackground(accent, { highlight: 0.96, coreAlpha: 0.5, midAlpha: 0.18, outerAlpha: 0.04 }),
+                        boxShadow: particleGlow(accent, mote.size + 1, 0.44),
+                    }}
+                    animate={{
+                        opacity: [0.08, mote.opacity * 0.72, 0.08],
+                        y: [0, -(8 + mote.drift * 20), 0],
+                    }}
+                    transition={{ duration: 6.5 + mote.duration * 0.5, repeat: Infinity, delay: mote.delay * 0.24, ease: 'easeInOut' }}
+                />
+            ))}
+        </div>
+    );
+}
+
+function OverlayManuscript({ theme, isHero, className = '' }) {
+    const { accent, text } = getThemeParticleTokens(theme);
+    const flecks = isHero ? MANUSCRIPT_FIBERS : MANUSCRIPT_FIBERS.slice(0, 10);
+
+    return (
+        <div data-particle-overlay="manuscript" className={overlayClass(className)}>
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `linear-gradient(180deg, rgba(255,255,255,0.5) 0%, ${withAlpha(accent, 0.1)} 100%)`
+                }}
+            />
+            <div
+                className="absolute inset-0 opacity-50"
+                style={{
+                    backgroundImage: `linear-gradient(${withAlpha(text, 0.04)} 1px, transparent 1px), radial-gradient(circle at 1px 1px, ${withAlpha(accent, 0.12)} 1px, transparent 0)`,
+                    backgroundSize: '100% 22px, 11px 11px',
+                }}
+            />
+            <div
+                className="absolute inset-y-0 left-[18%] w-px"
+                style={{ background: `linear-gradient(180deg, transparent 0%, ${withAlpha(accent, 0.4)} 36%, transparent 100%)` }}
+            />
+            {flecks.map((fleck) => (
+                <Motion.div
+                    key={fleck.id}
+                    className="absolute"
+                    style={{
+                        width: `${3 + fleck.size * 2.4}px`,
+                        height: '1px',
+                        left: `${fleck.x}%`,
+                        top: `${fleck.y}%`,
+                        background: withAlpha(text, 0.18 + fleck.opacity * 0.22),
+                        borderRadius: '999px',
+                        transform: `rotate(${(fleck.spin - 0.5) * 26}deg)`,
+                    }}
+                    animate={{ opacity: [0.1, fleck.opacity * 0.74, 0.1], x: [0, (fleck.spin - 0.5) * 10, 0] }}
+                    transition={{ duration: 5 + fleck.duration * 0.5, repeat: Infinity, delay: fleck.delay * 0.2, ease: 'easeInOut' }}
+                />
+            ))}
+        </div>
+    );
+}
+
+function OverlayDepths({ theme, isHero, className = '' }) {
+    const { accent, background } = getThemeParticleTokens(theme);
+    const particles = isHero ? DEPTH_PARTICLES : DEPTH_PARTICLES.slice(0, 10);
+
+    return (
+        <div data-particle-overlay="depths" className={overlayClass(className)}>
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `linear-gradient(180deg, ${withAlpha(background, 0.12)} 0%, ${withAlpha('#001a2e', 0.36)} 54%, ${withAlpha(accent, 0.16)} 100%)`
+                }}
+            />
+            <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                    background: `repeating-linear-gradient(105deg, transparent 0%, ${withAlpha(accent, 0.1)} 8%, transparent 18%)`,
+                    animation: 'themeCaustic 8.5s ease-in-out infinite',
+                }}
+            />
+            {particles.map((particle) => {
+                const isBubble = particle.id % 4 === 0;
+                return (
+                    <Motion.div
+                        key={particle.id}
+                        className="absolute rounded-full"
+                        style={{
+                            width: `${isBubble ? 4 + particle.size * 3 : 2 + particle.size * 1.4}px`,
+                            height: `${isBubble ? 4 + particle.size * 3 : 2 + particle.size * 1.4}px`,
+                            left: `${particle.x}%`,
+                            bottom: isBubble ? '-8%' : `${particle.y}%`,
+                            border: isBubble ? `1px solid ${withAlpha(accent, 0.32)}` : undefined,
+                            background: isBubble
+                                ? withAlpha(accent, 0.07)
+                                : radialParticleBackground(accent, { coreAlpha: 0.46, midAlpha: 0.16, outerAlpha: 0.05 }),
+                            boxShadow: particleGlow(accent, particle.size + 1, isBubble ? 0.34 : 0.68),
+                        }}
+                        animate={isBubble
+                            ? { y: [0, -(isHero ? 180 : 96)], x: [0, (particle.spin - 0.5) * 22], opacity: [0, 0.62, 0] }
+                            : { y: [0, -(12 + particle.drift * 18), 0], opacity: [0.08, particle.opacity * 0.76, 0.08] }}
+                        transition={{ duration: 4.8 + particle.duration * 0.5, repeat: Infinity, delay: particle.delay * 0.24, ease: 'easeInOut' }}
+                    />
+                );
+            })}
+        </div>
+    );
+}
+
+function OverlaySignal({ theme, isHero, className = '' }) {
+    const { accent, background } = getThemeParticleTokens(theme);
+    const nodes = isHero ? SIGNAL_NODES : SIGNAL_NODES.slice(0, 7);
+    const rings = isHero ? [112, 150, 192] : [70, 98];
+
+    return (
+        <div data-particle-overlay="signal" className={overlayClass(className)}>
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `linear-gradient(145deg, ${withAlpha(background, 0.34)} 0%, ${withAlpha(accent, 0.14)} 100%)`
+                }}
+            />
+            <div
+                className="absolute inset-0"
+                style={{
+                    backgroundImage: `linear-gradient(${withAlpha(accent, 0.1)} 1px, transparent 1px), linear-gradient(90deg, ${withAlpha(accent, 0.07)} 1px, transparent 1px)`,
+                    backgroundSize: isHero ? '22px 22px' : '12px 12px',
+                }}
+            />
             {rings.map((size, index) => (
                 <div
                     key={size}
@@ -352,262 +480,70 @@ function OverlayCyber({ isHero, className = '' }) {
                         height: `${size}px`,
                         right: isHero ? `${18 + index * 8}px` : `${10 + index * 6}px`,
                         top: isHero ? `${8 + index * 16}px` : `${4 + index * 10}px`,
-                        borderColor: `rgba(113, 214, 202, ${0.18 - index * 0.04})`,
-                        boxShadow: index === 0 ? '0 0 32px rgba(113,214,202,0.14)' : 'none',
+                        borderColor: withAlpha(accent, 0.2 - index * 0.04),
+                        boxShadow: index === 0 ? `0 0 32px ${withAlpha(accent, 0.14)}` : 'none',
                     }}
                 />
             ))}
-            <div className="absolute inset-y-0 right-[14%] w-[36%]" style={{
-                background: 'linear-gradient(180deg, transparent 0%, rgba(113,214,202,0.18) 18%, rgba(113,214,202,0.04) 100%)',
-                clipPath: 'polygon(58% 0, 100% 0, 46% 100%, 4% 100%)',
-                animation: 'themeShimmer 4.8s ease-in-out infinite',
-            }} />
+            <Motion.div
+                className="absolute inset-y-0 right-[14%] w-[36%]"
+                style={{
+                    background: `linear-gradient(180deg, transparent 0%, ${withAlpha(accent, 0.22)} 18%, ${withAlpha(accent, 0.04)} 100%)`,
+                    clipPath: 'polygon(58% 0, 100% 0, 46% 100%, 4% 100%)',
+                }}
+                animate={{ opacity: [0.28, 0.7, 0.28] }}
+                transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
             {nodes.map((node) => (
-                <Motion.div key={node.id}
-                    className="absolute"
+                <Motion.div
+                    key={node.id}
+                    className="absolute rounded-full"
                     style={{
                         width: isHero ? '4px' : '3px',
                         height: isHero ? '4px' : '3px',
                         left: `${node.x}%`,
                         top: `${node.y}%`,
-                        backgroundColor: '#71d6ca',
-                        boxShadow: '0 0 8px rgba(113,214,202,0.9), 0 0 20px rgba(113,214,202,0.32)',
-                        borderRadius: '50%',
+                        backgroundColor: accent,
+                        boxShadow: particleGlow(accent, node.size + 1, 1.1),
                     }}
-                    animate={{ opacity: [1, 0.1, 1], scale: [1, 1.5, 1] }}
-                    transition={{ duration: 1.2 + node.delay * 0.3, repeat: Infinity, delay: node.delay * 0.2 }}
+                    animate={{ opacity: [1, 0.12, 1], scale: [1, 1.52, 1] }}
+                    transition={{ duration: 1.3 + node.delay * 0.16, repeat: Infinity, delay: node.delay * 0.18 }}
                 />
             ))}
-            {isHero ? (
-                <>
-                    <div className="absolute top-3 left-3 h-5 w-5 border-t border-l" style={{ borderColor: 'rgba(113,214,202,0.45)' }} />
-                    <div className="absolute bottom-3 right-3 h-5 w-5 border-b border-r" style={{ borderColor: 'rgba(113,214,202,0.45)' }} />
-                </>
-            ) : null}
-        </div>
-    );
-}
-
-function OverlayBloom({ isHero, className = '' }) {
-    const hearts = isHero ? HEART_PARTICLES : HEART_PARTICLES_SM;
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #3d0050 0%, #1a0020 35%, #4a0060 65%, #1a0020 100%)',
-                backgroundSize: '400% 400%',
-                animation: 'themeAurora 5s ease infinite',
-                opacity: 0.65,
-            }} />
-            <div className="absolute" style={{
-                width: '60%', height: '60%',
-                top: '-5%', left: '20%',
-                background: 'radial-gradient(ellipse, #ff4da640 0%, transparent 70%)',
-                animation: 'themeGlowPulse 3.5s ease-in-out infinite',
-            }} />
-            {hearts.map((heart) => (
-                <div key={heart.id} className="absolute select-none" style={{
-                    fontSize: `${(isHero ? 10 : 7) + heart.size * 2}px`,
-                    left: `${heart.x}%`,
-                    bottom: '-5%',
-                    color: `hsl(${320 + heart.id * 15}deg 100% 75%)`,
-                    animation: `themeHeartFloat ${2 + heart.duration * 0.4}s ${heart.delay * 0.5}s ease-out infinite`,
-                    lineHeight: 1,
-                }}>♥</div>
-            ))}
-        </div>
-    );
-}
-
-function OverlayWarmlight({ isHero, className = '' }) {
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #3d1a00 0%, #1a0800 40%, #2d1000 70%, #3d1a00 100%)',
-                backgroundSize: '300% 300%',
-                animation: 'themeGradientDrift 10s ease infinite',
-                opacity: 0.6,
-            }} />
-            <div className="absolute" style={{
-                width: '80%', height: '80%',
-                bottom: '-20%', right: '-20%',
-                background: 'radial-gradient(ellipse, #f5a62330 0%, transparent 65%)',
-                animation: 'themeGlowPulse 6s ease-in-out infinite',
-            }} />
-            <div className="absolute inset-y-0 w-1/3" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(245,166,35,0.15), transparent)',
-                animation: 'themeShimmer 4s ease-in-out infinite',
-            }} />
-            {isHero ? generateParticles(4242, 8).map((particle) => (
-                <Motion.div key={particle.id}
-                    className="absolute rounded-full"
+            {GLINTS.slice(0, isHero ? 6 : 3).map((glint) => (
+                <Motion.div
+                    key={glint.id}
+                    className="absolute h-px"
                     style={{
-                        width: `${particle.size}px`,
-                        height: `${particle.size}px`,
-                        left: `${particle.x}%`,
-                        top: `${particle.y}%`,
-                        backgroundColor: '#f5a623',
-                        opacity: 0,
+                        width: `${18 + glint.size * 8}px`,
+                        left: `${glint.x}%`,
+                        top: `${glint.y}%`,
+                        background: `linear-gradient(90deg, transparent, ${withAlpha(accent, 0.54)}, transparent)`,
                     }}
-                    animate={{ opacity: [0, particle.opacity * 0.4, 0], y: [0, -20] }}
-                    transition={{ duration: particle.duration * 1.5, repeat: Infinity, delay: particle.delay, ease: 'easeInOut' }}
-                />
-            )) : null}
-        </div>
-    );
-}
-
-function OverlayEmber({ className = '' }) {
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(160deg, #3d0800 0%, #1a0500 45%, #2d0a00 100%)',
-                backgroundSize: '300% 300%',
-                animation: 'themeGradientDrift 8s ease infinite',
-                opacity: 0.65,
-            }} />
-            <div className="absolute" style={{
-                width: '90%', height: '60%',
-                bottom: '-10%', left: '-5%',
-                background: 'radial-gradient(ellipse, #ff603020 0%, transparent 70%)',
-                animation: 'themeGlowPulse 4s ease-in-out infinite',
-            }} />
-            <div className="absolute inset-y-0 w-1/4" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(255,96,48,0.12), transparent)',
-                animation: 'themeShimmer 5s ease-in-out infinite',
-            }} />
-        </div>
-    );
-}
-
-function OverlayCrystal({ isHero, className = '' }) {
-    const panes = isHero
-        ? [
-            { width: '36%', height: '84%', left: '-4%', top: '-10%', opacity: 0.38, clipPath: 'polygon(12% 0, 100% 0, 70% 100%, 0 100%)' },
-            { width: '42%', height: '66%', left: '28%', top: '-14%', opacity: 0.26, clipPath: 'polygon(18% 0, 100% 0, 82% 100%, 0 100%)' },
-            { width: '28%', height: '88%', right: '-4%', top: '10%', opacity: 0.22, clipPath: 'polygon(26% 0, 100% 0, 70% 100%, 0 100%)' },
-        ]
-        : [
-            { width: '40%', height: '82%', left: '-10%', top: '-12%', opacity: 0.32, clipPath: 'polygon(20% 0, 100% 0, 72% 100%, 0 100%)' },
-            { width: '28%', height: '70%', right: '-6%', top: '12%', opacity: 0.18, clipPath: 'polygon(30% 0, 100% 0, 70% 100%, 0 100%)' },
-        ];
-
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.88) 0%, rgba(233,243,248,0.8) 48%, rgba(205,228,236,0.72) 100%)',
-                opacity: 0.52,
-            }} />
-            <div className="absolute inset-y-0 -left-[12%] w-[56%]" style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 18%, rgba(137,195,212,0.28) 46%, rgba(255,255,255,0.52) 62%, transparent 100%)',
-                animation: 'themeShimmer 5.8s ease-in-out infinite',
-                filter: 'blur(2px)',
-            }} />
-            {panes.map((pane, index) => (
-                <div
-                    key={index}
-                    className="absolute border"
-                    style={{
-                        ...pane,
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(137,195,212,0.08) 100%)',
-                        borderColor: `rgba(137, 195, 212, ${0.22 - index * 0.04})`,
-                        boxShadow: index === 0 ? '0 0 24px rgba(137,195,212,0.14)' : 'none',
-                    }}
+                    animate={{ opacity: [0, 0.72, 0], x: [0, 24] }}
+                    transition={{ duration: 2.4 + glint.duration * 0.22, repeat: Infinity, delay: glint.delay * 0.22, ease: 'easeInOut' }}
                 />
             ))}
-            {SNOW_PARTICLES.slice(0, isHero ? 6 : 4).map((particle) => (
-                <div key={particle.id} className="absolute rounded-full" style={{
-                    width: `${1 + particle.size}px`,
-                    height: `${1 + particle.size}px`,
-                    left: `${particle.x}%`,
-                    top: `${particle.y}%`,
-                    background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(137,195,212,0.18) 65%, transparent 100%)',
-                    animation: `themeTwinkle ${particle.duration}s ${particle.delay}s ease-in-out infinite`,
-                    boxShadow: '0 0 8px rgba(137,195,212,0.25)',
-                }} />
-            ))}
         </div>
     );
 }
 
-function OverlayVerdant({ themeName, isHero, className = '' }) {
-    const accent = themeName === 'Botanical Garden' ? '#5cdb7a' : '#7dde82';
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: `radial-gradient(ellipse at 25% 70%, ${accent}28 0%, transparent 55%), radial-gradient(ellipse at 75% 25%, ${accent}18 0%, transparent 50%)`,
-                animation: 'themeColorBloom 6s ease-in-out infinite',
-            }} />
-            {isHero ? generateParticles(8888, 6).map((particle) => (
-                <div key={particle.id} className="absolute rounded-full" style={{
-                    width: `${8 + particle.size * 10}px`,
-                    height: `${8 + particle.size * 10}px`,
-                    left: `${particle.x}%`,
-                    top: `${particle.y}%`,
-                    background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)`,
-                    animation: `themeGlowPulse ${3 + particle.duration}s ${particle.delay}s ease-in-out infinite`,
-                }} />
-            )) : null}
-        </div>
-    );
-}
-
-function OverlayDusk({ className = '' }) {
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'radial-gradient(ellipse at 45% 55%, #e8856a28 0%, transparent 60%), radial-gradient(ellipse at 72% 22%, #c4896e20 0%, transparent 50%)',
-                animation: 'themeGlowPulse 5s ease-in-out infinite',
-            }} />
-            <div className="absolute inset-y-0 w-1/3" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(232,133,106,0.1), transparent)',
-                animation: 'themeShimmer 6s 1s ease-in-out infinite',
-            }} />
-        </div>
-    );
-}
-
-function OverlayVoid({ className = '' }) {
-    return (
-        <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(239,234,227,0.68) 100%)',
-                opacity: 0.48,
-            }} />
-            <div className="absolute inset-y-0 left-[16%] w-px" style={{
-                background: 'linear-gradient(180deg, transparent 0%, rgba(200,130,89,0.48) 30%, transparent 100%)',
-            }} />
-            <div className="absolute inset-y-0 right-[24%] w-[22%]" style={{
-                background: 'linear-gradient(180deg, rgba(200,130,89,0.06) 0%, rgba(200,130,89,0.14) 100%)',
-                borderLeft: '1px solid rgba(200,130,89,0.2)',
-            }} />
-            <div className="absolute inset-0" style={{
-                backgroundImage: 'linear-gradient(rgba(24,21,18,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(24,21,18,0.03) 1px, transparent 1px)',
-                backgroundSize: '100% 20px, 28px 100%',
-                maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.32), transparent 100%)',
-            }} />
-            <div className="absolute inset-y-0 -left-[18%] w-[42%]" style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 30%, rgba(200,130,89,0.12) 54%, transparent 100%)',
-                animation: 'themeShimmer 7.2s 0.8s ease-in-out infinite',
-            }} />
-        </div>
-    );
-}
-
-function DefaultThemeOverlay({ themeName, isHero, className = '' }) {
-    const archetype = THEME_ARCHETYPES[themeName] || 'default';
+function DefaultThemeOverlay({ theme, isHero, className = '' }) {
+    const archetype = THEME_ARCHETYPES[theme?.name] || 'default';
 
     switch (archetype) {
-        case 'cosmos': return <OverlayCosmos isHero={isHero} className={className} />;
-        case 'depths': return <OverlayDepths isHero={isHero} className={className} />;
-        case 'cyber': return <OverlayCyber isHero={isHero} className={className} />;
-        case 'bloom': return <OverlayBloom isHero={isHero} className={className} />;
-        case 'warmlight': return <OverlayWarmlight isHero={isHero} className={className} />;
-        case 'ember': return <OverlayEmber className={className} />;
-        case 'crystal': return <OverlayCrystal isHero={isHero} className={className} />;
-        case 'verdant': return <OverlayVerdant themeName={themeName} isHero={isHero} className={className} />;
-        case 'dusk': return <OverlayDusk className={className} />;
-        case 'void': return <OverlayVoid className={className} />;
-        default: return null;
+        case 'riven':
+            return <OverlayRiven theme={theme} isHero={isHero} className={className} />;
+        case 'riven-light':
+            return <OverlayRivenLight theme={theme} isHero={isHero} className={className} />;
+        case 'manuscript':
+            return <OverlayManuscript theme={theme} isHero={isHero} className={className} />;
+        case 'depths':
+            return <OverlayDepths theme={theme} isHero={isHero} className={className} />;
+        case 'signal':
+            return <OverlaySignal theme={theme} isHero={isHero} className={className} />;
+        default:
+            return null;
     }
 }
 
@@ -637,7 +573,7 @@ export function ThemeEffectOverlay({ theme, isHero = false, simplifyMotion = fal
         if (!hasDefaultOverlay(theme?.name)) return null;
         return simplifyMotion
             ? <StaticEffectWash theme={theme} className={className} />
-            : <DefaultThemeOverlay themeName={theme.name} isHero={isHero} className={className} />;
+            : <DefaultThemeOverlay theme={theme} isHero={isHero} className={className} />;
     }
 
     return simplifyMotion

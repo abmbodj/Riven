@@ -110,6 +110,13 @@ function seedTheme(overrides = {}) {
   };
 }
 
+function getThemeSectionOrder() {
+  const sectionNames = new Set(['Your Gallery', 'Foundation', 'Professional']);
+  return [...document.querySelectorAll('h2')]
+    .map((heading) => heading.textContent?.trim())
+    .filter((name) => sectionNames.has(name));
+}
+
 vi.mock('motion/react', () => {
   const createMotionComponent = (tag) =>
     React.forwardRef(({ children, ...props }, ref) => (
@@ -268,6 +275,61 @@ describe('ThemeSettings theme studio', () => {
         currentTier: 'free',
       })
     );
+  });
+
+  it('moves Your Gallery above default themes when custom themes exist', () => {
+    mockUser.subscription_tier = 'supporter';
+    mockThemes.push(
+      seedTheme({ id: 1, name: 'Riven', is_active: true }),
+      seedTheme({
+        id: 2,
+        name: 'Lavender Dusk',
+        bg_color: '#171226',
+        surface_color: '#221a34',
+        text_color: '#efe7ff',
+        secondary_text_color: '#b6a4e6',
+        border_color: '#30244b',
+        accent_color: '#b89bf3',
+      }),
+      seedTheme({
+        id: 31,
+        name: 'Custom Drift',
+        is_default: false,
+        bg_color: '#252136',
+        surface_color: '#302a44',
+        text_color: '#f6f1ff',
+        secondary_text_color: '#b7accd',
+        border_color: '#4c4466',
+        accent_color: '#6195ff',
+      })
+    );
+
+    render(<ThemeSettings />);
+
+    expect(getThemeSectionOrder()).toEqual(['Your Gallery', 'Foundation', 'Professional']);
+    expect(screen.getByRole('button', { name: /edit theme/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /delete theme/i })).toBeInTheDocument();
+  });
+
+  it('keeps the empty custom gallery below default themes', () => {
+    mockThemes.push(
+      seedTheme({ id: 1, name: 'Riven', is_active: true }),
+      seedTheme({
+        id: 2,
+        name: 'Lavender Dusk',
+        bg_color: '#171226',
+        surface_color: '#221a34',
+        text_color: '#efe7ff',
+        secondary_text_color: '#b6a4e6',
+        border_color: '#30244b',
+        accent_color: '#b89bf3',
+      })
+    );
+
+    render(<ThemeSettings />);
+
+    expect(getThemeSectionOrder()).toEqual(['Foundation', 'Professional', 'Your Gallery']);
+    expect(screen.getByText('Your gallery awaits.')).toBeInTheDocument();
   });
 
   it('opens the mobile Theme Mixer and keeps expert tokens collapsed until requested', async () => {

@@ -1742,7 +1742,7 @@
   100% { background-position: 0% 50%; }
 }
 
-/* Shimmer — light sweep: Arctic Frost */
+/* Shimmer — light sweep: Manuscript and glass accents */
 @keyframes themeShimmer {
   0%   { transform: translateX(-120%) skewX(-12deg); }
   100% { transform: translateX(280%) skewX(-12deg); }
@@ -1768,7 +1768,7 @@
   100% { background-position: 0% 0%; }
 }
 
-/* Scanline — CRT sweep: Tech Innovation */
+/* Scanline — precision sweep: Signal Glass */
 @keyframes themeScanline {
   0%   { transform: translateY(-100%); opacity: 0; }
   5%   { opacity: 1; }

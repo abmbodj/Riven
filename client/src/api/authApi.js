@@ -8,6 +8,7 @@ import {
 } from '../lib/authPersistence';
 import {
     DEPRECATED_DEFAULT_THEME_NAMES,
+    DEFAULT_THEME_REPLACEMENTS,
     getDefaultThemes,
     THEME_VISUAL_FIELDS,
 } from '../themeCatalog.js';
@@ -3357,9 +3358,15 @@ const activateThemeViaDirectUpdate = async (id) => {
 };
 
 export const getThemes = async () => {
+    const defaultThemeOrder = new Map(getDefaultThemes().map((theme, index) => [theme.name, index]));
     const sortThemes = (themes) => (themes || []).sort((left, right) => {
         const defaultDelta = Number(right.is_default) - Number(left.is_default);
         if (defaultDelta !== 0) return defaultDelta;
+        if (left.is_default && right.is_default) {
+            const leftOrder = defaultThemeOrder.has(left.name) ? defaultThemeOrder.get(left.name) : Number.MAX_SAFE_INTEGER;
+            const rightOrder = defaultThemeOrder.has(right.name) ? defaultThemeOrder.get(right.name) : Number.MAX_SAFE_INTEGER;
+            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        }
         return (left.name || '').localeCompare(right.name || '');
     });
 
@@ -3369,15 +3376,26 @@ export const getThemes = async () => {
         return (data || []).map(normalizeThemeRow);
     };
 
-    const pruneDeprecatedDefaultThemes = async (themes) => {
+    const migrateDeprecatedDefaultThemes = async (themes) => {
         if (!getToken()) return false;
 
-        const deprecatedThemeIds = (themes || [])
-            .filter((theme) => theme.is_default && DEPRECATED_DEFAULT_THEME_NAMES.includes(theme.name))
+        const deprecatedThemes = (themes || [])
+            .filter((theme) => theme.is_default && DEPRECATED_DEFAULT_THEME_NAMES.includes(theme.name));
+        const deprecatedThemeIds = deprecatedThemes
             .map((theme) => theme.id)
             .filter(Boolean);
 
         if (deprecatedThemeIds.length === 0) return false;
+
+        const activeDeprecatedTheme = deprecatedThemes.find((theme) => theme.is_active);
+        const replacementName = activeDeprecatedTheme ? DEFAULT_THEME_REPLACEMENTS[activeDeprecatedTheme.name] : null;
+        const replacementTheme = replacementName
+            ? (themes || []).find((theme) => theme.is_default && theme.name === replacementName)
+            : null;
+
+        if (replacementTheme?.id) {
+            await activateTheme(replacementTheme.id);
+        }
 
         const { error } = await supabase
             .from('themes')
@@ -3458,10 +3476,10 @@ export const getThemes = async () => {
     };
 
     let themes = await selectThemes();
-    if (await pruneDeprecatedDefaultThemes(themes)) {
+    if (await syncDefaultThemes(themes)) {
         themes = await selectThemes();
     }
-    if (await syncDefaultThemes(themes)) {
+    if (await migrateDeprecatedDefaultThemes(themes)) {
         themes = await selectThemes();
     }
     if (await repairMissingActiveTheme(themes)) {
