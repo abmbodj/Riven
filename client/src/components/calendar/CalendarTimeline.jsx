@@ -448,8 +448,8 @@ export default function CalendarTimeline({
                                         style={{ top: currentTimeTop }}
                                         aria-hidden="true"
                                     >
-                                        <div className={`absolute -left-1.5 top-[-5px] rounded-full bg-claude-accent shadow-[0_0_0_3px_rgba(225,111,181,0.18)] ${tightDensity ? (denseDensity ? 'h-2 w-2' : 'h-2.5 w-2.5') : 'h-3 w-3'}`} />
-                                        <div className="border-t border-claude-accent/70" />
+                                        <div className={`absolute -left-2 top-[-6px] rounded-full bg-claude-accent shadow-[0_0_0_4px_rgba(225,111,181,0.20),0_0_8px_rgba(225,111,181,0.25)] ${tightDensity ? (denseDensity ? 'h-2.5 w-2.5' : 'h-3 w-3') : 'h-3.5 w-3.5'}`} />
+                                        <div className="border-t-2 border-claude-accent/60" />
                                     </div>
                                 )}
 

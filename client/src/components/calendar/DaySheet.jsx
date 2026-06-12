@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 
 function isSameDay(a, b) {
@@ -40,6 +40,8 @@ export default function DaySheet({ selectedDay, onClose, assignments, scheduleSl
     const navigate = useNavigate();
     const showAssignments = contentMode === 'assignments' || contentMode === 'both';
     const showClasses = contentMode === 'classes' || contentMode === 'both';
+    const sheetY = useMotionValue(0);
+    const backdropOpacity = useTransform(sheetY, [0, 200], [1, 0]);
 
     const classMap = useMemo(() => {
         const m = {};
@@ -87,6 +89,7 @@ export default function DaySheet({ selectedDay, onClose, assignments, scheduleSl
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={fadeTransition}
+                        style={{ opacity: backdropOpacity }}
                         onClick={onClose}
                         className="fixed inset-0 z-40 bg-black/40"
                         aria-hidden="true"
@@ -101,10 +104,21 @@ export default function DaySheet({ selectedDay, onClose, assignments, scheduleSl
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={springTransition}
+                        drag="y"
+                        dragConstraints={{ top: 0 }}
+                        dragElastic={{ top: 0, bottom: 0.25 }}
+                        dragMomentum={false}
+                        style={{ y: sheetY }}
+                        onDragEnd={(_, info) => {
+                            if (!prefersReducedMotion && (info.offset.y > 80 || info.velocity.y > 400)) onClose();
+                            else sheetY.set(0);
+                        }}
                         className="fixed bottom-0 left-0 right-0 z-50 rounded-t-[2rem] bg-claude-surface border-t border-claude-border/30 max-h-[72vh] flex flex-col pb-safe"
                     >
-                        {/* Drag handle */}
-                        <div className="w-10 h-1 bg-claude-border/40 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+                        {/* Drag handle — touch target intentionally tall */}
+                        <div className="flex justify-center pt-3 pb-2 shrink-0 cursor-grab active:cursor-grabbing touch-none">
+                            <div className="w-12 h-1.5 bg-claude-border/50 rounded-full" />
+                        </div>
 
                         {/* Scrollable content */}
                         <div className="overflow-y-auto flex-1 px-5 pt-2 pb-6">

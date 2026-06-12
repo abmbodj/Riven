@@ -806,7 +806,7 @@ function EditBubble({ value, inputRef, onChange, onSubmit, onCancel }) {
 
 function ChatInput({ inputRef, value, onChange, onKeyDown, onSend, sending }) {
     return (
-        <div className="shrink-0 px-3 py-3 border-t border-claude-border/30">
+        <div className="shrink-0 px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-claude-border/30">
             <div className="flex items-end gap-2 rounded-2xl bg-claude-surface/50 border border-claude-border/50 px-3 py-2 focus-within:border-claude-accent/40 transition-colors">
                 <textarea
                     ref={inputRef}
@@ -821,7 +821,7 @@ function ChatInput({ inputRef, value, onChange, onKeyDown, onSend, sending }) {
                 <button
                     onClick={onSend}
                     disabled={!value.trim() || sending}
-                    className="shrink-0 p-2 rounded-xl bg-claude-accent/20 text-claude-accent hover:bg-claude-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                    className="shrink-0 p-2.5 rounded-xl bg-claude-accent/20 text-claude-accent hover:bg-claude-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                     <Send className="w-4 h-4" />
                 </button>
