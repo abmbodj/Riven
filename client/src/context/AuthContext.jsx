@@ -24,6 +24,13 @@ export function AuthProvider({ children }) {
         }
     }, [user?.id, user?.onboardingCompletedAt]);
 
+    // Hydrate the user-scoped persistent cache as soon as the user is known, so
+    // every persisted-SWR surface (groups, calendar) seeds its first paint from
+    // the previous session instead of flashing a skeleton. Idempotent per user.
+    useEffect(() => {
+        if (user?.id) cache.ensureUser(user.id);
+    }, [user?.id]);
+
     // Initial Session Check
     useEffect(() => {
         const initAuth = async () => {

@@ -2,6 +2,7 @@ import * as db from './db/indexedDB';
 import * as serverApi from './api/authApi';
 import { cache } from './utils/cache';
 import { groupKeys } from './utils/groupCacheKeys';
+import { calendarKeys } from './utils/calendarCacheKeys';
 
 // Check if user is logged in (has valid token)
 const isLoggedIn = () => !!serverApi.getToken();
@@ -39,6 +40,13 @@ const invalidateMeetups = () => {
     cache.deletePrefix(groupKeys.allSchedulesPrefix());
     cache.deletePrefix(groupKeys.joinedMeetupsPrefix());
 };
+
+// Personal-calendar seeds: drop on any mutation that changes the underlying rows
+// so the next cache.peek() seed (and revalidation) reflects the change instead of
+// flashing stale data. Assignments clear by prefix because they're keyed per-class.
+const invalidateAssignments = () => cache.deletePrefix(calendarKeys.assignmentsPrefix());
+const invalidateSchedule = () => cache.delete(calendarKeys.schedule());
+const invalidateCalendarSources = () => cache.delete(calendarKeys.calendarSources());
 
 // Hybrid API - uses server when logged in, IndexedDB otherwise
 export const api = {
@@ -104,21 +112,26 @@ export const api = {
     },
     deleteClass: (id) => {
         cache.delete(cacheKey('classes'));
+        // Deleting a class cascades to its assignments and schedule slots.
+        invalidateAssignments();
+        invalidateSchedule();
         return isLoggedIn()
             ? serverApi.deleteClass(id)
             : Promise.reject(new Error('Must be logged in to manage classes'));
     },
 
     // ============ ASSIGNMENTS ============
-    getAssignments: (classId) => isLoggedIn() ? serverApi.getAssignments(classId) : Promise.resolve([]),
+    getAssignments: (classId) => isLoggedIn()
+        ? swrRead(calendarKeys.assignments(classId), () => serverApi.getAssignments(classId))
+        : Promise.resolve([]),
     createAssignment: (class_id, title, description, due_date, type) => isLoggedIn()
-        ? serverApi.createAssignment(class_id, title, description, due_date, type)
+        ? mutate(() => serverApi.createAssignment(class_id, title, description, due_date, type), invalidateAssignments)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
     updateAssignment: (id, updates) => isLoggedIn()
-        ? serverApi.updateAssignment(id, updates)
+        ? mutate(() => serverApi.updateAssignment(id, updates), invalidateAssignments)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
     deleteAssignment: (id) => isLoggedIn()
-        ? serverApi.deleteAssignment(id)
+        ? mutate(() => serverApi.deleteAssignment(id), invalidateAssignments)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
     // ============ LMS (Canvas) ============
     connectCanvas: (icalUrl) => isLoggedIn() ? serverApi.connectCanvas(icalUrl) : Promise.reject(new Error('Must be logged in to connect LMS')),
@@ -137,6 +150,7 @@ export const api = {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to sync LMS'));
         return serverApi.syncCanvas(adGranted).then(res => {
             cache.delete(cacheKey('classes'));
+            invalidateAssignments();
             return res;
         });
     },
@@ -147,6 +161,8 @@ export const api = {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to manage Canvas classes'));
         return serverApi.archiveCanvasSemesterClasses(classIds).then(res => {
             cache.delete(cacheKey('classes'));
+            invalidateAssignments();
+            invalidateSchedule();
             return res;
         });
     },
@@ -154,6 +170,8 @@ export const api = {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to manage Canvas classes'));
         return serverApi.restoreArchivedClass(classId).then(res => {
             cache.delete(cacheKey('classes'));
+            invalidateAssignments();
+            invalidateSchedule();
             return res;
         });
     },
@@ -346,12 +364,14 @@ export const api = {
         : Promise.reject(new Error('Must be logged in to update topic mastery')),
 
     // ============ SCHEDULE ============
-    getSchedule: () => isLoggedIn() ? serverApi.getSchedule() : Promise.resolve([]),
+    getSchedule: () => isLoggedIn()
+        ? swrRead(calendarKeys.schedule(), () => serverApi.getSchedule())
+        : Promise.resolve([]),
     createScheduleSlot: (class_id, day_of_week, start_time, end_time) => isLoggedIn()
-        ? serverApi.createScheduleSlot(class_id, day_of_week, start_time, end_time)
+        ? mutate(() => serverApi.createScheduleSlot(class_id, day_of_week, start_time, end_time), invalidateSchedule)
         : Promise.reject(new Error('Must be logged in to manage schedule')),
     deleteScheduleSlot: (id) => isLoggedIn()
-        ? serverApi.deleteScheduleSlot(id)
+        ? mutate(() => serverApi.deleteScheduleSlot(id), invalidateSchedule)
         : Promise.reject(new Error('Must be logged in to manage schedule')),
 
     // ============ DECKS ============
@@ -615,20 +635,23 @@ export const api = {
     syncRevenueCat: (opts) => isLoggedIn() ? serverApi.syncRevenueCat(opts) : Promise.reject(new Error('Must be logged in')),
 
     // ============ CALENDAR SOURCES ============
-    getCalendarSources: () => isLoggedIn() ? serverApi.getCalendarSources() : Promise.resolve([]),
+    getCalendarSources: () => isLoggedIn()
+        ? swrRead(calendarKeys.calendarSources(), () => serverApi.getCalendarSources())
+        : Promise.resolve([]),
     addCalendarSource: (data) => isLoggedIn()
-        ? serverApi.addCalendarSource(data)
+        ? mutate(() => serverApi.addCalendarSource(data), invalidateCalendarSources)
         : Promise.reject(new Error('Must be logged in to add calendar sources')),
     deleteCalendarSource: (id) => isLoggedIn()
-        ? serverApi.deleteCalendarSource(id)
+        ? mutate(() => serverApi.deleteCalendarSource(id), () => { invalidateCalendarSources(); invalidateAssignments(); })
         : Promise.reject(new Error('Must be logged in to delete calendar sources')),
+    // Sync/import create assignment rows, so they must also drop the assignment seeds.
     syncCalendarSource: (id) => isLoggedIn()
-        ? serverApi.syncCalendarSource(id)
+        ? mutate(() => serverApi.syncCalendarSource(id), () => { invalidateCalendarSources(); invalidateAssignments(); })
         : Promise.reject(new Error('Must be logged in to sync calendar sources')),
     importCalendarSourceFile: (data) => isLoggedIn()
-        ? serverApi.importCalendarSourceFile(data)
+        ? mutate(() => serverApi.importCalendarSourceFile(data), () => { invalidateCalendarSources(); invalidateAssignments(); })
         : Promise.reject(new Error('Must be logged in to import calendar files')),
     replaceCalendarSourceFile: (data) => isLoggedIn()
-        ? serverApi.replaceCalendarSourceFile(data)
+        ? mutate(() => serverApi.replaceCalendarSourceFile(data), () => { invalidateCalendarSources(); invalidateAssignments(); })
         : Promise.reject(new Error('Must be logged in to replace calendar files')),
 };

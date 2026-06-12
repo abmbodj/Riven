@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useCalendarData } from '../hooks/useCalendarData';
 import { useToast } from '../hooks/useToast';
 import CalendarHeader from '../components/calendar/CalendarHeader';
 import CalendarGrid from '../components/calendar/CalendarGrid';
@@ -20,37 +20,17 @@ export default function Calendar() {
     const [activeFilters, setActiveFilters] = useState([]);
     const [contentMode, setContentMode] = useState('both');
 
-    const [assignments, setAssignments] = useState([]);
-    const [classes, setClasses] = useState([]);
-    const [scheduleSlots, setScheduleSlots] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // Instant calendar: the shared hook seeds assignments/classes/schedule from
+    // cache on first paint and revalidates in the background, so navigating to
+    // the Calendar never flashes a skeleton after the first cold load.
+    const { data, loading, refresh } = useCalendarData({ kind: 'personal' });
+    const { assignments, classes, scheduleSlots } = data;
 
     useEffect(() => {
         if (!isLoggedIn) {
             navigate('/account');
         }
     }, [isLoggedIn, navigate]);
-
-    const loadData = useCallback(async () => {
-        try {
-            const [assignData, classData, schedData] = await Promise.all([
-                api.getAssignments().catch(() => []),
-                api.getClasses().catch(() => []),
-                api.getSchedule().catch(() => []),
-            ]);
-            setAssignments(assignData || []);
-            setClasses(classData || []);
-            setScheduleSlots(schedData || []);
-        } catch (err) {
-            console.error('Calendar load error', err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
 
     const handlePrev = useCallback(() => {
         setAnchorDate((current) => {
@@ -192,7 +172,7 @@ export default function Calendar() {
                 )}
 
                 {/* External calendar sources */}
-                <CalendarSources onSyncComplete={loadData} toast={toast} />
+                <CalendarSources onSyncComplete={refresh} toast={toast} />
             </div>
 
             {/* Day sheet */}
