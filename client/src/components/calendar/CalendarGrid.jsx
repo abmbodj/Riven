@@ -164,8 +164,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
                 'min-w-0 cursor-pointer tap-action transition-colors duration-150',
                 'bg-claude-surface',
                 isSelected ? 'bg-claude-accent/10' : '',
-                isToday ? 'ring-2 ring-inset ring-claude-accent/60' : '',
-                !inMonth ? 'opacity-30' : '',
+                !inMonth ? 'opacity-25' : '',
                 'hover:bg-claude-accent/[0.06] active:bg-claude-accent/15',
                 // Desktop: taller cells with title preview
                 compact ? 'lg:aspect-auto lg:min-h-[48px] lg:items-start lg:px-[3px]' : 'lg:aspect-auto lg:min-h-[90px] lg:items-start lg:px-1.5',
@@ -176,7 +175,7 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
                 className={[
                     `font-mono font-bold leading-none ${compact ? 'text-[9px]' : 'text-[11px]'}`,
                     isToday
-                        ? `w-5 h-5 flex items-center justify-center rounded-full bg-claude-accent text-claude-text ${compact ? 'text-[8px]' : 'text-[10px]'}` 
+                        ? `flex items-center justify-center rounded-full bg-claude-accent text-white shadow-[0_0_0_2px_rgba(var(--accent-color-rgb,225,111,181),0.25)] ${compact ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[10px]'}`
                         : 'text-claude-text',
                     !inMonth ? 'text-claude-secondary' : '',
                 ].filter(Boolean).join(' ')}

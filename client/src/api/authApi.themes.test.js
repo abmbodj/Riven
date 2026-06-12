@@ -55,7 +55,7 @@ describe('authApi themes PostgREST', () => {
       data: [
         { id: 2, name: 'Custom Drift', is_default: 0 },
         { id: 1, name: 'Riven', is_default: 1 },
-        { id: 3, name: 'Arctic Frost', is_default: 1 },
+        { id: 3, name: 'Manuscript', is_default: 1 },
       ],
       error: null,
     });
@@ -65,7 +65,7 @@ describe('authApi themes PostgREST', () => {
     const themes = await authApi.getThemes();
 
     expect(select).toHaveBeenCalledWith('*');
-    expect(themes.map((theme) => theme.name)).toEqual(['Arctic Frost', 'Riven', 'Custom Drift']);
+    expect(themes.map((theme) => theme.name)).toEqual(['Riven', 'Manuscript', 'Custom Drift']);
   });
 
   it('syncs missing default themes for authenticated users before returning results', async () => {
@@ -105,19 +105,21 @@ describe('authApi themes PostgREST', () => {
       is_default: 1,
     }));
     expect(themes.filter((theme) => theme.is_default)).toHaveLength(defaultThemes.length);
-    expect(themes.some((theme) => theme.name === 'Tech Innovation')).toBe(true);
+    expect(themes.some((theme) => theme.name === 'Signal Glass')).toBe(true);
+    expect(themes.some((theme) => theme.name === 'Tech Innovation')).toBe(false);
     expect(themes.some((theme) => theme.name === 'Lavender Dusk')).toBe(true);
   });
 
-  it('removes deprecated default themes and repairs Riven active when cleanup leaves no active theme', async () => {
+  it('removes deprecated default themes and maps active retired foundation themes to replacements', async () => {
     authApi.setToken('supabase-token');
     const defaultThemes = getDefaultThemes();
     const rivenTheme = defaultThemes.find((theme) => theme.name === 'Riven');
+    const deepCurrentTheme = defaultThemes.find((theme) => theme.name === 'Deep Current');
 
     const select = vi.fn()
       .mockResolvedValueOnce({
         data: [
-          { id: 1, name: 'Rose', is_default: 1, is_active: 1 },
+          { id: 1, name: 'Arctic Frost', is_default: 1, is_active: 1 },
           { id: 2, ...rivenTheme, is_default: 1, is_active: 0 },
           { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
         ],
@@ -125,13 +127,7 @@ describe('authApi themes PostgREST', () => {
       })
       .mockResolvedValueOnce({
         data: [
-          { id: 2, ...rivenTheme, is_default: 1, is_active: 0 },
-          { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
-        ],
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: [
+          { id: 1, name: 'Arctic Frost', is_default: 1, is_active: 1 },
           ...defaultThemes.map((theme, index) => ({
             id: index + 10,
             ...theme,
@@ -146,7 +142,7 @@ describe('authApi themes PostgREST', () => {
           ...defaultThemes.map((theme, index) => ({
             id: index + 10,
             ...theme,
-            is_active: theme.name === 'Riven' ? 1 : 0,
+            is_active: theme.name === 'Deep Current' ? 1 : 0,
           })),
           { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
         ],
@@ -161,7 +157,7 @@ describe('authApi themes PostgREST', () => {
 
     supabase.from.mockImplementation(() => ({ select, delete: deleteTheme, insert, update }));
     supabase.rpc.mockResolvedValue({
-      data: { id: 10, ...rivenTheme, is_active: 1 },
+      data: { id: 13, ...deepCurrentTheme, is_active: 1 },
       error: null,
     });
 
@@ -171,9 +167,10 @@ describe('authApi themes PostgREST', () => {
     expect(deleteIn).toHaveBeenCalledWith('id', [1]);
     expect(insert).toHaveBeenCalledTimes(defaultThemes.length - 1);
     expect(update).not.toHaveBeenCalledWith({ is_active: 1 });
-    expect(supabase.rpc).toHaveBeenCalledWith('activate_theme', { target_theme_id: 10 });
+    expect(supabase.rpc).toHaveBeenCalledWith('activate_theme', { target_theme_id: 13 });
     expect(themes.filter((theme) => theme.is_default)).toHaveLength(defaultThemes.length);
-    expect(themes.find((theme) => theme.is_active)?.name).toBe('Riven');
+    expect(themes.find((theme) => theme.is_active)?.name).toBe('Deep Current');
+    expect(themes.some((theme) => theme.name === 'Arctic Frost')).toBe(false);
   });
 
   it('creates custom themes in Supabase with the current app user id', async () => {

@@ -81,419 +81,15 @@ function getThemeBackground(theme, fallbackField = 'bg_color', alpha = 1) {
         : theme[fallbackField];
 }
 
-// Deterministic pseudo-random from a seed (no Math.random() in render)
-function seededRandom(seed) {
-    let s = seed;
-    return () => {
-        s = (s * 1664525 + 1013904223) & 0xffffffff;
-        return (s >>> 0) / 4294967296;
-    };
-}
-
 // ─── Theme Archetypes ─────────────────────────────────────────────────────────
 // Maps theme name → visual archetype for card rendering
 const THEME_ARCHETYPES = {
-    'Tech Innovation': 'cyber',
-    'Arctic Frost': 'crystal',
-    'Modern Minimal': 'void',
+    'Manuscript': 'void',
+    'Deep Current': 'depths',
+    'Signal Glass': 'cyber',
     'Riven': 'default',
     'Riven Light': 'default',
 };
-
-// ─── Stable Particle Seeds ────────────────────────────────────────────────────
-// Pre-generate stable positions per archetype so renders are deterministic
-function generateParticles(seed, count, bounds = { x: [5, 95], y: [5, 90] }) {
-    const rand = seededRandom(seed);
-    return Array.from({ length: count }, (_, i) => ({
-        id: i,
-        x: bounds.x[0] + rand() * (bounds.x[1] - bounds.x[0]),
-        y: bounds.y[0] + rand() * (bounds.y[1] - bounds.y[0]),
-        size: 0.8 + rand() * 1.8,
-        delay: rand() * 3,
-        duration: 1.5 + rand() * 2.5,
-        opacity: 0.4 + rand() * 0.6,
-    }));
-}
-
-const STAR_PARTICLES = generateParticles(7919, 24);   // Midnight Galaxy hero
-const STAR_PARTICLES_SM = generateParticles(7919, 10); // Midnight Galaxy card
-const HEART_PARTICLES = generateParticles(1337, 10);   // Rose hero
-const HEART_PARTICLES_SM = generateParticles(1337, 6); // Rose card
-const SNOW_PARTICLES = generateParticles(2357, 8);     // Arctic Frost
-const BUBBLE_PARTICLES = generateParticles(5051, 8);   // Ocean Depths hero
-const BUBBLE_PARTICLES_SM = generateParticles(5051, 5);// Ocean Depths card
-const CYBER_NODES = generateParticles(9001, 6, { x: [10, 90], y: [15, 85] });
-
-// ─── Per-Theme Animation Overlays ─────────────────────────────────────────────
-
-function OverlayCosmos({ isHero }) {
-    const stars = isHero ? STAR_PARTICLES : STAR_PARTICLES_SM;
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Deep aurora gradient */}
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #2a0845 0%, #0a0020 40%, #1a0060 70%, #2a0845 100%)',
-                backgroundSize: '300% 300%',
-                animation: 'themeAurora 8s ease infinite',
-                opacity: 0.7,
-            }} />
-            {/* Purple nebula bloom */}
-            <div className="absolute" style={{
-                width: '70%', height: '70%',
-                top: '-10%', right: '-10%',
-                background: 'radial-gradient(ellipse, #7c3aed40 0%, transparent 70%)',
-                animation: 'themeGlowPulse 5s ease-in-out infinite',
-            }} />
-            {/* Stars */}
-            {stars.map(s => (
-                <div key={s.id} className="absolute rounded-full bg-white" style={{
-                    width: s.size + 'px',
-                    height: s.size + 'px',
-                    left: s.x + '%',
-                    top: s.y + '%',
-                    animationDelay: s.delay + 's',
-                    animationDuration: s.duration + 's',
-                    animation: `themeTwinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
-                    opacity: s.opacity,
-                }} />
-            ))}
-        </div>
-    );
-}
-
-function OverlayDepths({ isHero }) {
-    const bubbles = isHero ? BUBBLE_PARTICLES : BUBBLE_PARTICLES_SM;
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Deep bioluminescent gradient */}
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(180deg, #000814 0%, #001a2e 50%, #00355a 100%)',
-                opacity: 0.6,
-            }} />
-            {/* Caustic light rays */}
-            <div className="absolute inset-0" style={{
-                background: 'repeating-linear-gradient(105deg, transparent 0%, #00d4e812 8%, transparent 16%)',
-                animation: 'themeCaustic 6s ease-in-out infinite',
-                opacity: 0.4,
-            }} />
-            {/* Rising bubbles */}
-            {bubbles.map(b => (
-                <Motion.div key={b.id}
-                    className="absolute rounded-full"
-                    style={{
-                        width: (3 + b.size * 2) + 'px',
-                        height: (3 + b.size * 2) + 'px',
-                        left: b.x + '%',
-                        bottom: '-8%',
-                        border: '1px solid rgba(0,212,232,0.35)',
-                        backgroundColor: 'rgba(0,212,232,0.06)',
-                    }}
-                    animate={{ y: [0, isHero ? -180 : -90], opacity: [0.7, 0] }}
-                    transition={{ duration: 3 + b.duration, repeat: Infinity, delay: b.delay * 0.6, ease: 'easeOut' }}
-                />
-            ))}
-        </div>
-    );
-}
-
-function OverlayCyber({ isHero }) {
-    const rings = isHero ? [110, 150, 190] : [70, 96];
-    const nodes = isHero ? CYBER_NODES : CYBER_NODES.slice(0, 4);
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Blueprint wash */}
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(145deg, #08161b 0%, #0b1f25 48%, #103036 100%)',
-                opacity: 0.55,
-            }} />
-            {/* Utility grid */}
-            <div className="absolute inset-0" style={{
-                backgroundImage: 'linear-gradient(rgba(113,214,202,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(113,214,202,0.06) 1px, transparent 1px)',
-                backgroundSize: isHero ? '22px 22px' : '12px 12px',
-            }} />
-            {/* Orbital field */}
-            {rings.map((size, index) => (
-                <div
-                    key={size}
-                    className="absolute rounded-full border"
-                    style={{
-                        width: `${size}px`,
-                        height: `${size}px`,
-                        right: isHero ? `${18 + index * 8}px` : `${10 + index * 6}px`,
-                        top: isHero ? `${8 + index * 16}px` : `${4 + index * 10}px`,
-                        borderColor: `rgba(113, 214, 202, ${0.18 - index * 0.04})`,
-                        boxShadow: index === 0 ? '0 0 32px rgba(113,214,202,0.14)' : 'none',
-                    }}
-                />
-            ))}
-            {/* Signal beam */}
-            <div className="absolute inset-y-0 right-[14%] w-[36%]" style={{
-                background: 'linear-gradient(180deg, transparent 0%, rgba(113,214,202,0.18) 18%, rgba(113,214,202,0.04) 100%)',
-                clipPath: 'polygon(58% 0, 100% 0, 46% 100%, 4% 100%)',
-                animation: 'themeShimmer 4.8s ease-in-out infinite',
-            }} />
-            {/* Data nodes */}
-            {nodes.map(n => (
-                <Motion.div key={n.id}
-                    className="absolute"
-                    style={{
-                        width: isHero ? '4px' : '3px',
-                        height: isHero ? '4px' : '3px',
-                        left: n.x + '%',
-                        top: n.y + '%',
-                        backgroundColor: '#71d6ca',
-                        boxShadow: '0 0 8px rgba(113,214,202,0.9), 0 0 20px rgba(113,214,202,0.32)',
-                        borderRadius: '50%',
-                    }}
-                    animate={{ opacity: [1, 0.1, 1], scale: [1, 1.5, 1] }}
-                    transition={{ duration: 1.2 + n.delay * 0.3, repeat: Infinity, delay: n.delay * 0.2 }}
-                />
-            ))}
-            {/* Measurement brackets */}
-            {isHero && (<>
-                <div className="absolute top-3 left-3 w-5 h-5 border-t border-l" style={{ borderColor: 'rgba(113,214,202,0.45)' }} />
-                <div className="absolute bottom-3 right-3 w-5 h-5 border-b border-r" style={{ borderColor: 'rgba(113,214,202,0.45)' }} />
-            </>)}
-        </div>
-    );
-}
-
-function OverlayBloom({ isHero }) {
-    const hearts = isHero ? HEART_PARTICLES : HEART_PARTICLES_SM;
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Hot pink aurora */}
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #3d0050 0%, #1a0020 35%, #4a0060 65%, #1a0020 100%)',
-                backgroundSize: '400% 400%',
-                animation: 'themeAurora 5s ease infinite',
-                opacity: 0.65,
-            }} />
-            {/* Magenta bloom */}
-            <div className="absolute" style={{
-                width: '60%', height: '60%',
-                top: '-5%', left: '20%',
-                background: 'radial-gradient(ellipse, #ff4da640 0%, transparent 70%)',
-                animation: 'themeGlowPulse 3.5s ease-in-out infinite',
-            }} />
-            {/* Floating hearts */}
-            {hearts.map(h => (
-                <div key={h.id} className="absolute select-none" style={{
-                    fontSize: (isHero ? 10 : 7) + h.size * 2 + 'px',
-                    left: h.x + '%',
-                    bottom: '-5%',
-                    color: `hsl(${320 + h.id * 15}deg 100% 75%)`,
-                    animation: `themeHeartFloat ${2 + h.duration * 0.4}s ${h.delay * 0.5}s ease-out infinite`,
-                    lineHeight: 1,
-                }}>♥</div>
-            ))}
-        </div>
-    );
-}
-
-function OverlayWarmlight({ isHero }) {
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Warm gradient sweep */}
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #3d1a00 0%, #1a0800 40%, #2d1000 70%, #3d1a00 100%)',
-                backgroundSize: '300% 300%',
-                animation: 'themeGradientDrift 10s ease infinite',
-                opacity: 0.6,
-            }} />
-            {/* Sun bloom */}
-            <div className="absolute" style={{
-                width: '80%', height: '80%',
-                bottom: '-20%', right: '-20%',
-                background: 'radial-gradient(ellipse, #f5a62330 0%, transparent 65%)',
-                animation: 'themeGlowPulse 6s ease-in-out infinite',
-            }} />
-            {/* Gold shimmer */}
-            <div className="absolute inset-y-0 w-1/3" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(245,166,35,0.15), transparent)',
-                animation: 'themeShimmer 4s ease-in-out infinite',
-            }} />
-            {/* Dust motes */}
-            {isHero && generateParticles(4242, 8).map(p => (
-                <Motion.div key={p.id}
-                    className="absolute rounded-full"
-                    style={{
-                        width: p.size + 'px', height: p.size + 'px',
-                        left: p.x + '%',
-                        top: p.y + '%',
-                        backgroundColor: '#f5a623',
-                        opacity: 0,
-                    }}
-                    animate={{ opacity: [0, p.opacity * 0.4, 0], y: [0, -20] }}
-                    transition={{ duration: p.duration * 1.5, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
-                />
-            ))}
-        </div>
-    );
-}
-
-function OverlayEmber() {
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(160deg, #3d0800 0%, #1a0500 45%, #2d0a00 100%)',
-                backgroundSize: '300% 300%',
-                animation: 'themeGradientDrift 8s ease infinite',
-                opacity: 0.65,
-            }} />
-            {/* Ember glow */}
-            <div className="absolute" style={{
-                width: '90%', height: '60%',
-                bottom: '-10%', left: '-5%',
-                background: 'radial-gradient(ellipse, #ff603020 0%, transparent 70%)',
-                animation: 'themeGlowPulse 4s ease-in-out infinite',
-            }} />
-            {/* Heat shimmer */}
-            <div className="absolute inset-y-0 w-1/4" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(255,96,48,0.12), transparent)',
-                animation: 'themeShimmer 5s ease-in-out infinite',
-            }} />
-        </div>
-    );
-}
-
-function OverlayCrystal({ isHero }) {
-    const panes = isHero
-        ? [
-            { width: '36%', height: '84%', left: '-4%', top: '-10%', opacity: 0.38, clipPath: 'polygon(12% 0, 100% 0, 70% 100%, 0 100%)' },
-            { width: '42%', height: '66%', left: '28%', top: '-14%', opacity: 0.26, clipPath: 'polygon(18% 0, 100% 0, 82% 100%, 0 100%)' },
-            { width: '28%', height: '88%', right: '-4%', top: '10%', opacity: 0.22, clipPath: 'polygon(26% 0, 100% 0, 70% 100%, 0 100%)' },
-        ]
-        : [
-            { width: '40%', height: '82%', left: '-10%', top: '-12%', opacity: 0.32, clipPath: 'polygon(20% 0, 100% 0, 72% 100%, 0 100%)' },
-            { width: '28%', height: '70%', right: '-6%', top: '12%', opacity: 0.18, clipPath: 'polygon(30% 0, 100% 0, 70% 100%, 0 100%)' },
-        ];
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Cold paper wash */}
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.88) 0%, rgba(233,243,248,0.8) 48%, rgba(205,228,236,0.72) 100%)',
-                opacity: 0.52,
-            }} />
-            {/* Refracted sweep */}
-            <div className="absolute inset-y-0 -left-[12%] w-[56%]" style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 18%, rgba(137,195,212,0.28) 46%, rgba(255,255,255,0.52) 62%, transparent 100%)',
-                animation: 'themeShimmer 5.8s ease-in-out infinite',
-                filter: 'blur(2px)',
-            }} />
-            {/* Glass panes */}
-            {panes.map((pane, index) => (
-                <div
-                    key={index}
-                    className="absolute border"
-                    style={{
-                        ...pane,
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(137,195,212,0.08) 100%)',
-                        borderColor: `rgba(137, 195, 212, ${0.22 - index * 0.04})`,
-                        boxShadow: index === 0 ? '0 0 24px rgba(137,195,212,0.14)' : 'none',
-                    }}
-                />
-            ))}
-            {/* Prism dust */}
-            {SNOW_PARTICLES.slice(0, isHero ? 6 : 4).map((particle) => (
-                <div key={particle.id} className="absolute rounded-full" style={{
-                    width: `${1 + particle.size}px`,
-                    height: `${1 + particle.size}px`,
-                    left: `${particle.x}%`,
-                    top: `${particle.y}%`,
-                    background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(137,195,212,0.18) 65%, transparent 100%)',
-                    animation: `themeTwinkle ${particle.duration}s ${particle.delay}s ease-in-out infinite`,
-                    boxShadow: '0 0 8px rgba(137,195,212,0.25)',
-                }} />
-            ))}
-        </div>
-    );
-}
-
-function OverlayVerdant({ themeName, isHero }) {
-    const accent = themeName === 'Botanical Garden' ? '#5cdb7a' : '#7dde82';
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Deep canopy gradient */}
-            <div className="absolute inset-0" style={{
-                background: `radial-gradient(ellipse at 25% 70%, ${accent}28 0%, transparent 55%), radial-gradient(ellipse at 75% 25%, ${accent}18 0%, transparent 50%)`,
-                animation: 'themeColorBloom 6s ease-in-out infinite',
-            }} />
-            {/* Dappled light */}
-            {isHero && generateParticles(8888, 6).map(p => (
-                <div key={p.id} className="absolute rounded-full" style={{
-                    width: (8 + p.size * 10) + 'px',
-                    height: (8 + p.size * 10) + 'px',
-                    left: p.x + '%',
-                    top: p.y + '%',
-                    background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)`,
-                    animation: `themeGlowPulse ${3 + p.duration}s ${p.delay}s ease-in-out infinite`,
-                }} />
-            ))}
-        </div>
-    );
-}
-
-function OverlayDusk() {
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-0" style={{
-                background: 'radial-gradient(ellipse at 45% 55%, #e8856a28 0%, transparent 60%), radial-gradient(ellipse at 72% 22%, #c4896e20 0%, transparent 50%)',
-                animation: 'themeGlowPulse 5s ease-in-out infinite',
-            }} />
-            {/* Silk shimmer */}
-            <div className="absolute inset-y-0 w-1/3" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(232,133,106,0.1), transparent)',
-                animation: 'themeShimmer 6s 1s ease-in-out infinite',
-            }} />
-        </div>
-    );
-}
-
-function OverlayVoid() {
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-0" style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(239,234,227,0.68) 100%)',
-                opacity: 0.48,
-            }} />
-            <div className="absolute inset-y-0 left-[16%] w-px" style={{
-                background: 'linear-gradient(180deg, transparent 0%, rgba(200,130,89,0.48) 30%, transparent 100%)',
-            }} />
-            <div className="absolute inset-y-0 right-[24%] w-[22%]" style={{
-                background: 'linear-gradient(180deg, rgba(200,130,89,0.06) 0%, rgba(200,130,89,0.14) 100%)',
-                borderLeft: '1px solid rgba(200,130,89,0.2)',
-            }} />
-            <div className="absolute inset-0" style={{
-                backgroundImage: 'linear-gradient(rgba(24,21,18,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(24,21,18,0.03) 1px, transparent 1px)',
-                backgroundSize: '100% 20px, 28px 100%',
-                maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.32), transparent 100%)',
-            }} />
-            <div className="absolute inset-y-0 -left-[18%] w-[42%]" style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 30%, rgba(200,130,89,0.12) 54%, transparent 100%)',
-                animation: 'themeShimmer 7.2s 0.8s ease-in-out infinite',
-            }} />
-        </div>
-    );
-}
-
-// Master dispatcher
-function ThemeAnimationOverlay({ themeName, isHero = false }) {
-    const archetype = THEME_ARCHETYPES[themeName] || 'default';
-    switch (archetype) {
-        case 'cosmos':   return <OverlayCosmos isHero={isHero} />;
-        case 'depths':   return <OverlayDepths isHero={isHero} />;
-        case 'cyber':    return <OverlayCyber isHero={isHero} />;
-        case 'bloom':    return <OverlayBloom isHero={isHero} />;
-        case 'warmlight': return <OverlayWarmlight isHero={isHero} />;
-        case 'ember':    return <OverlayEmber />;
-        case 'crystal':  return <OverlayCrystal isHero={isHero} />;
-        case 'verdant':  return <OverlayVerdant themeName={themeName} isHero={isHero} />;
-        case 'dusk':     return <OverlayDusk />;
-        case 'void':     return <OverlayVoid />;
-        default:         return null;
-    }
-}
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -690,6 +286,51 @@ export default function ThemeSettings() {
         professional: themes.filter(t => t.is_default && !FOUNDATION_THEME_NAMES.includes(t.name)),
         custom: themes.filter(t => !t.is_default)
     }), [themes]);
+    const hasCustomThemes = categories.custom.length > 0;
+
+    const customThemeSection = (
+        <ThemeSection
+            title="Your Gallery"
+            subtitle="Handcrafted by you"
+            themes={categories.custom}
+            activeThemeId={activeTheme?.id}
+            onSelect={(id) => handleSwitchTheme(id, false)}
+            isCustom={true}
+            onEdit={handleEditTheme}
+            onDelete={handleDeleteClick}
+            onCreateNew={handleCreateNew}
+            simplifyMotion={simplifyThemeEffects}
+            carouselIndex={carouselIndices.custom}
+            onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, custom: i }))}
+        />
+    );
+
+    const defaultThemeSections = (
+        <>
+            <ThemeSection
+                title="Foundation"
+                subtitle="Core aesthetic experiences"
+                themes={categories.official}
+                activeThemeId={activeTheme?.id}
+                onSelect={(id) => handleSwitchTheme(id, false)}
+                isPro={false}
+                simplifyMotion={simplifyThemeEffects}
+                carouselIndex={carouselIndices.official}
+                onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, official: i }))}
+            />
+            <ThemeSection
+                title="Professional"
+                subtitle="Masterfully crafted environments"
+                themes={categories.professional}
+                activeThemeId={activeTheme?.id}
+                onSelect={(id) => handleSwitchTheme(id, true)}
+                isPro={true}
+                simplifyMotion={simplifyThemeEffects}
+                carouselIndex={carouselIndices.professional}
+                onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, professional: i }))}
+            />
+        </>
+    );
 
     return (
         <div className="max-w-4xl md:max-w-7xl mx-auto pb-32 md:px-12 lg:px-24 relative mb-safe min-h-screen">
@@ -736,42 +377,9 @@ export default function ThemeSettings() {
 
             {/* Sections */}
             <div className="space-y-16 relative z-10">
-                <ThemeSection
-                    title="Foundation"
-                    subtitle="Core aesthetic experiences"
-                    themes={categories.official}
-                    activeThemeId={activeTheme?.id}
-                    onSelect={(id) => handleSwitchTheme(id, false)}
-                    isPro={false}
-                    simplifyMotion={simplifyThemeEffects}
-                    carouselIndex={carouselIndices.official}
-                    onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, official: i }))}
-                />
-                <ThemeSection
-                    title="Professional"
-                    subtitle="Masterfully crafted environments"
-                    themes={categories.professional}
-                    activeThemeId={activeTheme?.id}
-                    onSelect={(id) => handleSwitchTheme(id, true)}
-                    isPro={true}
-                    simplifyMotion={simplifyThemeEffects}
-                    carouselIndex={carouselIndices.professional}
-                    onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, professional: i }))}
-                />
-                <ThemeSection
-                    title="Your Gallery"
-                    subtitle="Handcrafted by you"
-                    themes={categories.custom}
-                    activeThemeId={activeTheme?.id}
-                    onSelect={(id) => handleSwitchTheme(id, false)}
-                    isCustom={true}
-                    onEdit={handleEditTheme}
-                    onDelete={handleDeleteClick}
-                    onCreateNew={handleCreateNew}
-                    simplifyMotion={simplifyThemeEffects}
-                    carouselIndex={carouselIndices.custom}
-                    onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, custom: i }))}
-                />
+                {hasCustomThemes && customThemeSection}
+                {defaultThemeSections}
+                {!hasCustomThemes && customThemeSection}
             </div>
 
             <ConfirmModal

@@ -1,5 +1,9 @@
 import { openDB } from 'idb';
-import { getDefaultThemes } from '../themeCatalog.js';
+import {
+    DEPRECATED_DEFAULT_THEME_NAMES,
+    DEFAULT_THEME_REPLACEMENTS,
+    getDefaultThemes
+} from '../themeCatalog.js';
 import { scheduleCard } from '../utils/fsrs.js';
 
 const DB_NAME = 'riven-db';
@@ -102,19 +106,49 @@ async function getDB() {
             } else {
                 // Migration: update default themes and add missing ones
                 const existingThemes = await db.getAll('themes');
+                const activeDeprecatedTheme = existingThemes.find(theme => (
+                    theme.is_default
+                    && theme.is_active
+                    && DEPRECATED_DEFAULT_THEME_NAMES.includes(theme.name)
+                ));
+                const replacementName = activeDeprecatedTheme
+                    ? DEFAULT_THEME_REPLACEMENTS[activeDeprecatedTheme.name]
+                    : null;
+
                 for (const theme of defaultThemes) {
                     const existing = existingThemes.find(t => t.name === theme.name && t.is_default);
+                    const isActiveReplacement = replacementName === theme.name;
                     if (existing) {
                         // Update existing default theme with new colors/fonts
-                        await db.put('themes', { ...existing, ...theme });
+                        await db.put('themes', {
+                            ...existing,
+                            ...theme,
+                            is_active: isActiveReplacement ? 1 : existing.is_active
+                        });
                     } else {
                         // Add if missing
-                        await db.add('themes', theme);
+                        await db.add('themes', {
+                            ...theme,
+                            is_active: isActiveReplacement ? 1 : theme.is_active
+                        });
+                    }
+                }
+
+                const refreshedThemes = await db.getAll('themes');
+                for (const theme of refreshedThemes) {
+                    if (theme.is_default && DEPRECATED_DEFAULT_THEME_NAMES.includes(theme.name)) {
+                        await db.delete('themes', theme.id);
+                        continue;
+                    }
+
+                    if (replacementName && theme.is_active && theme.name !== replacementName) {
+                        await db.put('themes', { ...theme, is_active: 0 });
                     }
                 }
 
                 // Ensure all existing themes have newer optional fields
-                for (const theme of existingThemes) {
+                const normalizedThemes = await db.getAll('themes');
+                for (const theme of normalizedThemes) {
                     if (
                         !theme.font_family_display
                         || !theme.effect_preset

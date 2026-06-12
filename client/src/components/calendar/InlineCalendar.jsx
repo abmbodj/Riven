@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { api } from '../../api';
+import React, { useState, useCallback, useMemo } from 'react';
 import CalendarHeader from './CalendarHeader';
 import CalendarGrid from './CalendarGrid';
 import CalendarTimeline from './CalendarTimeline';
 import DaySheet from './DaySheet';
 import CalendarSources from './CalendarSources';
 import { useToast } from '../../hooks/useToast';
+import { useCalendarData } from '../../hooks/useCalendarData';
+
+const ASSIGNMENTS_ONLY = { kind: 'personal', resources: ['assignments'] };
 
 export default function InlineCalendar({ classes, scheduleSlots }) {
     const toast = useToast();
@@ -15,23 +17,10 @@ export default function InlineCalendar({ classes, scheduleSlots }) {
     const [view, setView] = useState('month');
     const [activeFilters, setActiveFilters] = useState([]);
     const [contentMode, setContentMode] = useState('both');
-    const [assignments, setAssignments] = useState([]);
-    const [loadingAssignments, setLoadingAssignments] = useState(true);
-
-    const loadAssignments = useCallback(async () => {
-        try {
-            const data = await api.getAssignments();
-            setAssignments(data || []);
-        } catch (err) {
-            console.error('Calendar: failed to load assignments', err);
-        } finally {
-            setLoadingAssignments(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadAssignments();
-    }, [loadAssignments]);
+    // Seeds assignments from cache on first paint (classes/schedule arrive as
+    // props from the Classes page), so the inline calendar never flashes.
+    const { data: calendarData, loading: loadingAssignments, refresh: loadAssignments } = useCalendarData(ASSIGNMENTS_ONLY);
+    const assignments = calendarData.assignments;
 
     const handleFilterToggle = useCallback((id) => {
         if (id === 'all') { setActiveFilters([]); return; }

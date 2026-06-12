@@ -156,9 +156,9 @@ module.exports = function registerAuthRoutes({
     const DEFAULT_THEMES = [
         ['Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'solid', [], 135, 'medium', 1],
         ['Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
-        ['Arctic Frost', '#eaf2f6', '#f9fdff', '#163038', '#607983', '#cad8de', '#89c3d4', 'Instrument Serif', 'Space Grotesk', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
-        ['Modern Minimal', '#efeae3', '#fbf8f3', '#181512', '#70665d', '#d7cec2', '#c88259', 'Space Grotesk', 'Space Grotesk', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
-        ['Tech Innovation', '#061317', '#0b1d22', '#e7faf8', '#88a7ab', '#1f3a40', '#71d6ca', 'JetBrains Mono', 'Space Grotesk', 'auto', 'medium', 'solid', [], 135, 'medium', 0],
+        ['Manuscript', '#f3eee3', '#fffaf1', '#211b16', '#75695b', '#d8cdbb', '#8a9b55', 'Instrument Serif', 'Lora', 'dust', 'soft', 'gradient', ['#f3eee3', '#fffaf1', '#d9c8ac'], 145, 'soft', 0],
+        ['Deep Current', '#071a1d', '#0f2a2d', '#e7f2eb', '#8ca9a5', '#1f4546', '#7bcbb8', 'Cormorant Garamond', 'Lora', 'auto', 'medium', 'gradient', ['#061013', '#0a2c31', '#124d4c'], 160, 'rich', 0],
+        ['Signal Glass', '#081114', '#101d20', '#e8f3ef', '#90a6a3', '#26383a', '#8be2d1', 'JetBrains Mono', 'Space Grotesk', 'grid', 'medium', 'gradient', ['#071013', '#102026', '#17353a'], 135, 'medium', 0],
     ];
 
     const insertDefaultThemes = async (userId) => {

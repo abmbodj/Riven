@@ -15,7 +15,6 @@ import {
 import {
     calculateBestTimes,
     formatDateLabel,
-    formatMemberName,
     formatMeetupRange,
     formatTimeLabel,
     fromLocalDateTimeValue,
@@ -27,6 +26,7 @@ import {
     summarizeDay,
     toLocalDateTimeValue,
 } from './groupScheduleUtils.js';
+import { groupToCalendar, MEETUP_SOURCE_ID } from '../../utils/calendarModel';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import CalendarHeader from '../calendar/CalendarHeader.jsx';
 import CalendarGrid from '../calendar/CalendarGrid.jsx';
@@ -55,9 +55,6 @@ const SHARE_MODES = [
 
 const DURATION_OPTIONS = [45, 60, 90, 120];
 const EMPTY_ARRAY = [];
-const MEETUP_SOURCE_ID = 'group-meetups';
-const MEETUP_COLOR = '#deb96a';
-const MEMBER_COLORS = ['#7a9e72', '#5e7b8f', '#c47c7c', '#8b5cf6', '#06b6d4', '#f59e0b', '#22c55e', '#ec4899'];
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 const schedulePanelClass = 'glass-panel-premium rounded-[1.5rem] border border-white/10 shadow-[0_18px_42px_rgba(3,7,11,0.2)]';
@@ -106,10 +103,6 @@ function createDefaultComposerDate(selectedDate = new Date()) {
     }
 
     return base;
-}
-
-function getMemberSourceId(memberId) {
-    return `member:${memberId}`;
 }
 
 function getCalendarVisibleRange(anchorDate, view) {
@@ -529,48 +522,14 @@ export default function GroupScheduleHub({
     // so switching month/week/day needs no new fetch.
     const fetchRange = useMemo(() => getVisibleMonthRange(anchorDate), [anchorDate]);
 
-    const calendarSources = useMemo(() => {
-        const memberSources = members
-            .filter((member) => member.share_mode !== 'hidden')
-            .map((member, index) => ({
-                id: getMemberSourceId(member.id),
-                name: formatMemberName(member),
-                color: MEMBER_COLORS[index % MEMBER_COLORS.length],
-                room: member.share_mode === 'full' ? 'Full schedule' : 'Busy/free',
-            }));
-
-        return [
-            {
-                id: MEETUP_SOURCE_ID,
-                name: 'Study Sessions',
-                color: MEETUP_COLOR,
-                room: 'Group meetup',
-            },
-            ...memberSources,
-        ];
-    }, [members]);
-
-    const groupScheduleSlots = useMemo(() => {
-        const visibleMemberSourceIds = new Set(calendarSources.map((source) => source.id));
-
-        return scheduleSlots
-            .filter((slot) => slot.class_is_archived !== true)
-            .map((slot) => ({
-                ...slot,
-                class_id: getMemberSourceId(slot.user_id),
-            }))
-            .filter((slot) => visibleMemberSourceIds.has(slot.class_id));
-    }, [calendarSources, scheduleSlots]);
-
-    const groupMeetupAssignments = useMemo(() => meetups.map((meetup) => ({
-        id: meetup.id,
-        title: meetup.topic,
-        due_date: meetup.start_at,
-        end_date: meetup.end_at,
-        class_id: MEETUP_SOURCE_ID,
-        assignment_type: meetup.status === 'cancelled' ? 'cancelled' : 'study session',
-        calendar_kind: 'meetup',
-    })), [meetups]);
+    const {
+        sources: calendarSources,
+        scheduleSlots: groupScheduleSlots,
+        events: groupMeetupAssignments,
+    } = useMemo(
+        () => groupToCalendar({ members, schedule_slots: scheduleSlots, meetups }),
+        [members, scheduleSlots, meetups],
+    );
 
     const selectedDaySummary = useMemo(() => {
         const showSessions = contentMode === 'assignments' || contentMode === 'both';

@@ -125,7 +125,7 @@ export default function CalendarHeader({
                     {!inCurrentRange && (
                         <button
                             onClick={onToday}
-                            className={`rounded-xl border border-claude-border/30 bg-claude-surface/65 font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer ${tightDensity ? (denseDensity ? 'px-2 py-1 text-[8px]' : 'px-2.5 py-1.5 text-[9px]') : 'px-3 py-2 text-[10px]'}`}
+                            className={`rounded-xl border border-claude-border/30 bg-claude-surface/65 font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer touch-manipulation ${tightDensity ? (denseDensity ? 'px-2 py-1.5 text-[8px] min-h-[38px]' : 'px-2.5 py-2 text-[9px] min-h-[44px]') : 'px-3 py-2.5 text-[10px] min-h-[44px]'}`}
                         >
                             Today
                         </button>
@@ -191,7 +191,7 @@ function NavButton({ onClick, label, children, compact = false }) {
         <button
             onClick={onClick}
             aria-label={label}
-            className={`flex items-center justify-center rounded-xl border border-claude-border/25 bg-claude-surface/70 text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer ${compact ? 'h-7 w-7' : 'h-9 w-9'}`}
+            className={`flex items-center justify-center rounded-xl border border-claude-border/25 bg-claude-surface/70 text-claude-secondary transition-colors hover:text-claude-accent tap-action cursor-pointer touch-manipulation ${compact ? 'h-10 w-10' : 'h-11 w-11'}`}
         >
             {children}
         </button>
