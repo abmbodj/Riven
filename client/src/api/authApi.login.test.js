@@ -64,6 +64,8 @@ describe('authApi login migration bridge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     localStorage.clear();
     document.cookie = 'riven_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     authApi.setToken(null);
