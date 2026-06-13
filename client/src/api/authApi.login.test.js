@@ -44,6 +44,15 @@ const jsonResponse = (body) => ({
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
 
+const errorJsonResponse = (status, body) => ({
+  ok: false,
+  status,
+  headers: {
+    get: () => 'application/json',
+  },
+  text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+});
+
 const createSelectSingleChain = (data, error = null) => {
   const single = vi.fn().mockResolvedValue({ data, error });
   const eq = vi.fn().mockReturnValue({ single });
@@ -290,6 +299,43 @@ describe('authApi login migration bridge', () => {
       require2FA: true,
       provider: 'supabase',
       factorId: 'factor-1',
+    });
+    expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
+  });
+
+  it('keeps existing Google OAuth users signed in when complete-registration is temporarily unavailable', async () => {
+    supabase.auth.signInWithIdToken.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+    const { select } = createSelectSingleChain({
+      id: 7,
+      username: 'tester',
+      email: 'test@example.com',
+      two_fa_enabled: false,
+    });
+    supabase.from.mockReturnValue({ select });
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(errorJsonResponse(503, {
+      error: 'registration unavailable',
+    }));
+
+    const result = await authApi.loginWithGoogle('google-id-token');
+
+    expect(supabase.auth.signInWithIdToken).toHaveBeenCalledWith({
+      provider: 'google',
+      token: 'google-id-token',
+    });
+    expect(result).toMatchObject({
+      user: {
+        id: 7,
+        email: 'test@example.com',
+        username: 'tester',
+        twoFAEnabled: false,
+      },
     });
     expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
   });

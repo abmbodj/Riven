@@ -631,6 +631,20 @@ const getLocalMe = async () => {
     return authFetch('/auth/me');
 };
 
+const completeRegistrationOrExistingUser = async (username) => {
+    try {
+        return await completeRegistration(username);
+    } catch (registrationError) {
+        try {
+            const user = await getLocalMe();
+            if (user?.id) return { user };
+        } catch {
+            // New OAuth users still need complete-registration to create the app row.
+        }
+        throw registrationError;
+    }
+};
+
 const getSupabaseMfaState = async () => {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -834,7 +848,7 @@ export const loginWithGoogle = async (credential, options = {}) => {
     });
     if (error) throw new Error(error.message);
     setToken(data.session.access_token);
-    const result = await completeRegistration();
+    const result = await completeRegistrationOrExistingUser();
     const mfaState = await getSupabaseMfaState().catch(() => ({
         hasSession: true,
         enabled: false,
@@ -951,7 +965,7 @@ export const loginWithApple = async (identityToken, rawNonce, appleUser, options
         console.warn('[authApi] Apple metadata update failed:', metadataError);
     });
 
-    const result = await completeRegistration();
+    const result = await completeRegistrationOrExistingUser();
     const mfaState = await getSupabaseMfaState().catch(() => ({
         hasSession: true,
         enabled: false,
@@ -3409,18 +3423,26 @@ export const getThemes = async () => {
     const syncDefaultThemes = async (themes) => {
         if (!getToken()) return false;
 
+        const themeNameKey = (name) => String(name || '').trim().toLowerCase();
+        const ownedNames = new Set(
+            (themes || [])
+                .map((theme) => themeNameKey(theme.name))
+                .filter(Boolean)
+        );
         const existingDefaults = new Map(
             (themes || [])
                 .filter((theme) => theme.is_default)
-                .map((theme) => [theme.name, theme])
+                .map((theme) => [themeNameKey(theme.name), theme])
         );
         const userId = await getAppUserId();
         let didMutate = false;
 
         for (const preset of getDefaultThemes()) {
-            const existing = existingDefaults.get(preset.name);
+            const presetNameKey = themeNameKey(preset.name);
+            const existing = existingDefaults.get(presetNameKey);
 
             if (!existing) {
+                if (ownedNames.has(presetNameKey)) continue;
                 const payload = {
                     user_id: userId,
                     ...preset,

@@ -96,7 +96,7 @@ export const api = {
 
     // ============ CLASSES ============
     getClasses: () => isLoggedIn()
-        ? cache.wrap(cacheKey('classes'), () => serverApi.getClasses(), CACHE_TTL.medium)
+        ? swrRead(calendarKeys.classes(), () => serverApi.getClasses())
         : Promise.resolve([]),
     createClass: (name, color, professor, room, zoom_link, subject) => {
         cache.delete(cacheKey('classes'));

@@ -53,9 +53,14 @@ function useSeeded(key, fetcher) {
             })
             .catch(() => {
                 // Keep already-fetched data on a failed revalidate; otherwise fall
-                // back to whatever the cache holds so `loading` still clears.
+                // back to a real cache seed. A cold failure should stay loading
+                // instead of rendering an indistinguishable empty calendar.
                 if (active && id === reqRef.current) {
-                    setFetched((prev) => (prev && prev.key === key ? prev : { key, value: cache.peek(key) }));
+                    setFetched((prev) => {
+                        if (prev && prev.key === key) return prev;
+                        const fallback = cache.peek(key);
+                        return fallback == null ? prev : { key, value: fallback };
+                    });
                 }
             });
         return () => { active = false; };
@@ -72,7 +77,11 @@ function useSeeded(key, fetcher) {
             })
             .catch((err) => {
                 if (id === reqRef.current) {
-                    setFetched((prev) => (prev && prev.key === key ? prev : { key, value: cache.peek(key) }));
+                    setFetched((prev) => {
+                        if (prev && prev.key === key) return prev;
+                        const fallback = cache.peek(key);
+                        return fallback == null ? prev : { key, value: fallback };
+                    });
                 }
                 throw err;
             });
@@ -168,9 +177,9 @@ export function useCalendarData(source, { rangeStart, rangeEnd } = {}) {
             classes: classes.value ?? EMPTY_ARRAY,
             scheduleSlots: schedule.value ?? EMPTY_ARRAY,
         },
-        // Reveal as soon as assignments (the primary layer) resolve; classes &
-        // schedule fill in without gating the whole calendar behind a skeleton.
-        loading: assignments.loading,
+        // Assignments are filtered by active classes, so revealing with assignments
+        // but without classes can make a populated calendar look empty.
+        loading: assignments.loading || classes.loading,
         refresh: () => Promise.all([assignments.refresh(), classes.refresh(), schedule.refresh()]),
         setData: {
             setAssignments: assignments.setValue,

@@ -110,6 +110,44 @@ describe('authApi themes PostgREST', () => {
     expect(themes.some((theme) => theme.name === 'Lavender Dusk')).toBe(true);
   });
 
+  it('does not fail default theme sync when a custom theme already owns a preset name', async () => {
+    authApi.setToken('supabase-token');
+
+    const defaultThemes = getDefaultThemes();
+    const rivenTheme = defaultThemes.find((theme) => theme.name === 'Riven');
+    const manuscriptTheme = defaultThemes.find((theme) => theme.name === 'Manuscript');
+    const initialThemes = [
+      { id: 1, ...rivenTheme, is_default: 1, is_active: 1 },
+      { id: 2, ...manuscriptTheme, name: 'manuscript', is_default: 0, is_active: 0 },
+    ];
+    const syncedThemes = [
+      ...initialThemes,
+      ...defaultThemes
+        .filter((theme) => !['Riven', 'Manuscript'].includes(theme.name))
+        .map((theme, index) => ({ id: index + 10, ...theme })),
+    ];
+
+    const select = vi.fn()
+      .mockResolvedValueOnce({ data: initialThemes, error: null })
+      .mockResolvedValueOnce({ data: syncedThemes, error: null });
+    const insert = vi.fn().mockResolvedValue({ data: null, error: null });
+    const updateEq = vi.fn().mockResolvedValue({ data: null, error: null });
+    const update = vi.fn().mockReturnValue({ eq: updateEq });
+
+    supabase.from.mockImplementation(() => ({ select, insert, update }));
+
+    const themes = await authApi.getThemes();
+
+    expect(insert).not.toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Manuscript',
+    }));
+    expect(insert).toHaveBeenCalledTimes(defaultThemes.length - 2);
+    expect(themes.find((theme) => theme.id === 2)).toMatchObject({
+      name: 'manuscript',
+      is_default: 0,
+    });
+  });
+
   it('removes deprecated default themes and maps active retired foundation themes to replacements', async () => {
     authApi.setToken('supabase-token');
     const defaultThemes = getDefaultThemes();
