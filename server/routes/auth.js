@@ -2,6 +2,21 @@ const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, 
 const { handleValidationErrors } = require('../utils/validate');
 const { revokeToken, invalidateUserTokens } = require('../tokenRevocation');
 
+// Mirrors resolvePremium() in supabase/functions/_shared/premiumAccess.mjs.
+// Must be kept in sync: supporter access requires subscription_expires_at > now
+// (null = not-yet-backfilled by reconcile = treat as active to avoid false lockout).
+const resolveEffectiveTier = (user, role) => {
+    if ((role === 'owner' || role === 'admin') && !user.simulate_free_tier) return 'lifetime';
+    if (role === 'friends') return 'lifetime';
+    if (user.subscription_tier === 'lifetime') return 'lifetime';
+    if (user.subscription_tier === 'supporter') {
+        const expiresAt = user.subscription_expires_at;
+        const active = !expiresAt || new Date(expiresAt).getTime() > Date.now();
+        return active ? 'supporter' : 'free';
+    }
+    return user.subscription_tier || 'free';
+};
+
 module.exports = function registerAuthRoutes({
     app,
     db,
@@ -404,7 +419,7 @@ module.exports = function registerAuthRoutes({
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
             });
 
-            const effectiveTier = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+            const effectiveTier = resolveEffectiveTier(user, userRole);
 
             res.json({
                 token,
@@ -510,7 +525,7 @@ module.exports = function registerAuthRoutes({
             maxAge: 30 * 24 * 60 * 60 * 1000
         });
 
-        const effectiveTier = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+        const effectiveTier = resolveEffectiveTier(user, userRole);
 
         res.json({
             token,
@@ -693,7 +708,7 @@ module.exports = function registerAuthRoutes({
                     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
                 });
 
-                const effectiveTier2FA = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+                const effectiveTier2FA = resolveEffectiveTier(user, userRole);
 
                 res.json({
                     token: newToken,
@@ -801,7 +816,7 @@ module.exports = function registerAuthRoutes({
 
             const petCustomization = user.pet_customization ? JSON.parse(user.pet_customization) : { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
 
-            const effectiveTierMe = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+            const effectiveTierMe = resolveEffectiveTier(user, userRole);
 
             res.json({
                 id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,

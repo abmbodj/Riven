@@ -77,16 +77,28 @@ serve(async (request: Request) => {
     const entitlements = data?.subscriber?.entitlements || {};
 
     let newTier = 'free';
-    if (entitlements.premium && !entitlements.premium.expires_date) {
-      newTier = 'supporter';
-    } else if (entitlements.premium && new Date(entitlements.premium.expires_date).getTime() > Date.now()) {
-      newTier = 'supporter';
-    } else {
-      const hasActive = Object.values(entitlements).some((e: any) => 
+    let newExpiresAt: string | null = null;
+
+    const premiumEnt = entitlements.premium as { expires_date?: string } | undefined;
+    if (premiumEnt) {
+      if (!premiumEnt.expires_date) {
+        // Non-renewing or lifetime-like — no expiry date means perpetual.
+        newTier = 'supporter';
+        newExpiresAt = null;
+      } else if (new Date(premiumEnt.expires_date).getTime() > Date.now()) {
+        newTier = 'supporter';
+        newExpiresAt = new Date(premiumEnt.expires_date).toISOString();
+      }
+    }
+
+    if (newTier === 'free') {
+      // Fall back: scan all entitlements for any active one.
+      const activeEnt = Object.values(entitlements as Record<string, { expires_date?: string }>).find((e) =>
         !e.expires_date || new Date(e.expires_date).getTime() > Date.now()
       );
-      if (hasActive) {
+      if (activeEnt) {
         newTier = 'supporter';
+        newExpiresAt = activeEnt.expires_date ? new Date(activeEnt.expires_date).toISOString() : null;
       }
     }
 
@@ -94,7 +106,7 @@ serve(async (request: Request) => {
     const admin = getSupabaseAdmin();
     const { error: updateError } = await admin
       .from('users')
-      .update({ subscription_tier: newTier })
+      .update({ subscription_tier: newTier, subscription_expires_at: newExpiresAt })
       .eq('supabase_auth_id', user.id);
 
     if (updateError) {
@@ -104,6 +116,7 @@ serve(async (request: Request) => {
     // 5. Success
     return jsonResponse({
         subscription_tier: newTier,
+        subscription_expires_at: newExpiresAt,
     }, { status: 200 }, request);
 
   } catch (error: unknown) {

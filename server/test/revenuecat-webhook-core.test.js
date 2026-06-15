@@ -62,12 +62,15 @@ describe('RevenueCat webhook core processor', () => {
             role: 'user',
             simulate_free_tier: false,
             subscription_tier: 'free',
+            subscription_expires_at: '2026-06-14T00:00:00.000Z',
         });
 
+        const expiryMs = new Date('2026-06-14T00:00:00.000Z').getTime();
         const result = await processRevenueCatWebhookEvent({
             event: {
                 type: 'EXPIRATION',
                 app_user_id: 'user-21',
+                expiration_at_ms: expiryMs,
             },
             persistence,
             logger,
@@ -78,10 +81,49 @@ describe('RevenueCat webhook core processor', () => {
             tier: 'free',
             notified: true,
         });
+        // Verify expiresAt was passed through to the persistence layer.
+        expect(persistence.updateUserTierByAppUserId).toHaveBeenCalledWith(
+            'user-21',
+            'free',
+            '2026-06-14T00:00:00.000Z',
+        );
         expect(persistence.createUserNotification).toHaveBeenCalledWith(expect.objectContaining({
             userId: 21,
             kind: 'subscription_expired',
         }));
+    });
+
+    it('captures expiry on RENEWAL', async () => {
+        persistence.getUserByAppUserId.mockResolvedValue({
+            id: 30,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'supporter',
+        });
+        persistence.updateUserTierByAppUserId.mockResolvedValue({
+            id: 30,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'supporter',
+            subscription_expires_at: '2026-07-15T00:00:00.000Z',
+        });
+
+        const renewalExpiryMs = new Date('2026-07-15T00:00:00.000Z').getTime();
+        await processRevenueCatWebhookEvent({
+            event: {
+                type: 'RENEWAL',
+                app_user_id: 'user-30',
+                expiration_at_ms: renewalExpiryMs,
+            },
+            persistence,
+            logger,
+        });
+
+        expect(persistence.updateUserTierByAppUserId).toHaveBeenCalledWith(
+            'user-30',
+            'supporter',
+            '2026-07-15T00:00:00.000Z',
+        );
     });
 
     it('does not create an expiration notice when role-based premium remains active', async () => {

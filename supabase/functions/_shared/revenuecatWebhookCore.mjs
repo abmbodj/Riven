@@ -1,9 +1,4 @@
-const hasEffectivePremiumAccess = (user) => {
-  if (!user) return false;
-  if ((user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier) return true;
-  if (user.role === 'friends') return true;
-  return user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
-};
+import { isPremiumActive } from './premiumAccess.mjs';
 
 export const tierFromRevenueCatEvent = (type) => {
   switch (type) {
@@ -26,6 +21,17 @@ export const tierFromRevenueCatEvent = (type) => {
   }
 };
 
+/**
+ * Derive subscription_expires_at from a RevenueCat event.
+ * expiration_at_ms is provided by RC on purchase, renewal, and expiration events.
+ * Returns an ISO string, or null if not available.
+ */
+const expiresAtFromEvent = (event) => {
+  const ms = event?.expiration_at_ms;
+  if (!ms) return null;
+  return new Date(ms).toISOString();
+};
+
 export const processRevenueCatWebhookEvent = async ({
   event,
   persistence,
@@ -45,7 +51,12 @@ export const processRevenueCatWebhookEvent = async ({
     return { outcome: 'user-missing', tier: newTier };
   }
 
-  const updatedUser = await persistence.updateUserTierByAppUserId(appUserId, newTier);
+  // Capture the provider-authoritative period end for both upgrades and expirations.
+  // On EXPIRATION the timestamp is (past) — the live gate will deny correctly.
+  // On purchase / renewal it's the future period end — refreshes the window.
+  const expiresAt = expiresAtFromEvent(event);
+
+  const updatedUser = await persistence.updateUserTierByAppUserId(appUserId, newTier, expiresAt);
   if (!updatedUser?.id) {
     logger.error(`[revenuecat-webhook] Failed to update user: ${appUserId}`);
     return { outcome: 'update-missing', tier: newTier };
@@ -55,7 +66,7 @@ export const processRevenueCatWebhookEvent = async ({
   if (
     type === 'EXPIRATION'
     && previousUser.subscription_tier === 'supporter'
-    && !hasEffectivePremiumAccess(updatedUser)
+    && !isPremiumActive(updatedUser)
   ) {
     await persistence.createUserNotification({
       userId: Number(updatedUser.id),

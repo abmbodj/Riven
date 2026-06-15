@@ -12,9 +12,10 @@ type CheckoutUpdatePayload = {
   tier: string;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  expiresAt: string | null;
 };
 
-const USER_BILLING_STATE_SELECT = 'id, email, role, simulate_free_tier, subscription_tier';
+const USER_BILLING_STATE_SELECT = 'id, email, role, simulate_free_tier, subscription_tier, subscription_expires_at';
 
 const statusError = (status: number, message: string) => {
   const error = new Error(message) as Error & { status?: number };
@@ -75,6 +76,7 @@ const persistence = {
     tier,
     stripeCustomerId,
     stripeSubscriptionId,
+    expiresAt,
   }: CheckoutUpdatePayload) {
     const admin = getSupabaseAdmin();
     const { data, error } = await admin
@@ -83,6 +85,7 @@ const persistence = {
         subscription_tier: tier,
         stripe_customer_id: stripeCustomerId,
         stripe_subscription_id: stripeSubscriptionId,
+        subscription_expires_at: expiresAt ?? null,
       })
       .eq('id', userId)
       .select('id')
@@ -129,11 +132,11 @@ const persistence = {
     return data || null;
   },
 
-  async downgradeUserByCustomerId(stripeCustomerId: string) {
+  async downgradeUserByCustomerId(stripeCustomerId: string, expiresAt: string | null = null) {
     const admin = getSupabaseAdmin();
     const { data, error } = await admin
       .from('users')
-      .update({ subscription_tier: 'free' })
+      .update({ subscription_tier: 'free', subscription_expires_at: expiresAt })
       .eq('stripe_customer_id', stripeCustomerId)
       .select(USER_BILLING_STATE_SELECT)
       .maybeSingle();
@@ -142,18 +145,36 @@ const persistence = {
     return data || null;
   },
 
-  async downgradeUserByEmail(email: string) {
+  async downgradeUserByEmail(email: string, expiresAt: string | null = null) {
     const admin = getSupabaseAdmin();
     const normalizedEmail = email.toLowerCase();
     const { data, error } = await admin
       .from('users')
-      .update({ subscription_tier: 'free' })
+      .update({ subscription_tier: 'free', subscription_expires_at: expiresAt })
       .eq('email', normalizedEmail)
       .select(USER_BILLING_STATE_SELECT)
       .maybeSingle();
 
     if (error) throw error;
     return data || null;
+  },
+
+  async refreshSubscriptionExpiry({
+    stripeCustomerId,
+    stripeSubscriptionId,
+    expiresAt,
+  }: { stripeCustomerId: string; stripeSubscriptionId: string; expiresAt: string }) {
+    const admin = getSupabaseAdmin();
+    const { error } = await admin
+      .from('users')
+      .update({
+        subscription_expires_at: expiresAt,
+        stripe_subscription_id: stripeSubscriptionId,
+      })
+      .eq('stripe_customer_id', stripeCustomerId)
+      .eq('subscription_tier', 'supporter');
+
+    if (error) throw error;
   },
 
   async createUserNotification({

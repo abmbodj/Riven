@@ -22,7 +22,7 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
  * Docs: https://www.revenuecat.com/docs/integrations/webhooks/
  */
 
-const USER_STATE_SELECT = 'id, role, simulate_free_tier, subscription_tier';
+const USER_STATE_SELECT = 'id, role, simulate_free_tier, subscription_tier, subscription_expires_at';
 
 type UserLookup = {
   matchType: 'supabase_auth_id' | 'id';
@@ -66,10 +66,11 @@ const updateUserTier = async (
   admin: ReturnType<typeof getSupabaseAdmin>,
   lookup: { matchType: 'supabase_auth_id' | 'id'; matchValue: string | number },
   nextTier: string,
+  expiresAt: string | null = null,
 ) => {
   const query = admin
     .from('users')
-    .update({ subscription_tier: nextTier })
+    .update({ subscription_tier: nextTier, subscription_expires_at: expiresAt })
     .select(USER_STATE_SELECT)
     .maybeSingle();
 
@@ -148,10 +149,10 @@ serve(async (request: Request) => {
         const resolvedUser = await resolveUserLookup(admin, targetAppUserId);
         return resolvedUser?.user || null;
       },
-      async updateUserTierByAppUserId(targetAppUserId: string, nextTier: string) {
+      async updateUserTierByAppUserId(targetAppUserId: string, nextTier: string, expiresAt: string | null = null) {
         const resolvedUser = await resolveUserLookup(admin, targetAppUserId);
         if (!resolvedUser) return null;
-        return updateUserTier(admin, resolvedUser, nextTier);
+        return updateUserTier(admin, resolvedUser, nextTier, expiresAt);
       },
       async createUserNotification(payload: {
         userId: number;

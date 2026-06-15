@@ -1285,6 +1285,7 @@ const SELF_PROFILE_SELECT = [
     'created_at',
     'two_fa_enabled',
     'subscription_tier',
+    'subscription_expires_at',
     'stripe_customer_id',
     'stripe_subscription_id',
     'simulate_free_tier',
@@ -3718,7 +3719,11 @@ const mapOwnUserRow = (row) => {
     } else if (baseTier === 'lifetime') {
         premiumAccessSource = 'lifetime';
     } else if (baseTier === 'supporter') {
-        premiumAccessSource = 'subscription';
+        // supporter access requires subscription_expires_at > now.
+        // null means not-yet-backfilled — treat as active to avoid false client lockout.
+        const expiresAt = row.subscription_expires_at;
+        const supporterActive = !expiresAt || new Date(expiresAt).getTime() > Date.now();
+        premiumAccessSource = supporterActive ? 'subscription' : 'free';
     }
 
     const effectiveTier = premiumAccessSource === 'subscription'
@@ -3747,6 +3752,7 @@ const mapOwnUserRow = (row) => {
         twoFAEnabled: Boolean(row.two_fa_enabled),
         base_subscription_tier: baseTier,
         subscription_tier: effectiveTier,
+        subscription_expires_at: row.subscription_expires_at || null,
         stripe_customer_id: row.stripe_customer_id || null,
         stripe_subscription_id: row.stripe_subscription_id || null,
         premium_access_source: premiumAccessSource,

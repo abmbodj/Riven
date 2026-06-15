@@ -32,7 +32,7 @@ serve(async (request) => {
     const admin = getSupabaseAdmin();
     const { data: user, error } = await admin
       .from('users')
-      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier, subscription_expires_at')
       .eq('id', authUser.id)
       .maybeSingle();
 

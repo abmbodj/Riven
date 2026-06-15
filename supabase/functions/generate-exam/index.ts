@@ -76,7 +76,7 @@ serve(async (request) => {
       const [userResult, sourceResult, masteryResult] = await Promise.all([
         admin
           .from('users')
-          .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+          .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier, subscription_expires_at')
           .eq('id', authUser.id)
           .maybeSingle(),
         prepareAiSource({
@@ -271,7 +271,7 @@ serve(async (request) => {
     // ── BATCH PATH ──────────────────────────────────────
     const { data: user, error } = await admin
       .from('users')
-      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier, subscription_expires_at')
       .eq('id', authUser.id)
       .maybeSingle();
 

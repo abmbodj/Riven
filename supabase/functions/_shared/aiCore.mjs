@@ -7,6 +7,7 @@ import {
   validateTutorSessionQuality,
 } from './studyGuideCore.mjs';
 import { getSubjectStrategy, resolveNoteStrategy } from './subjectStrategies.mjs';
+import { isPremiumActive } from './premiumAccess.mjs';
 
 const FREE_LIMIT = 10;
 const PREMIUM_LIMIT = 50;
@@ -54,15 +55,7 @@ export const createHttpError = (message, status, extra = {}) => {
   return error;
 };
 
-const isPrivilegedUser = (user) => (
-  (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier
-);
-
-const isPremiumUser = (user) => (
-  isPrivilegedUser(user)
-  || user.subscription_tier === 'supporter'
-  || user.subscription_tier === 'lifetime'
-);
+const isPremiumUser = (user, now) => isPremiumActive(user, now);
 
 const appendText = (currentText, nextText) => {
   if (!nextText) return currentText || '';
@@ -259,7 +252,7 @@ const buildClassContents = ({ processedNotes, hasProcessedNotes, keepFile, file 
 };
 
 export const getAiLimitStatus = ({ user, now = new Date() }) => {
-  const isPremium = isPremiumUser(user);
+  const isPremium = isPremiumUser(user, now);
   const max = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
   const lastReset = user.last_ai_generation_reset ? new Date(user.last_ai_generation_reset) : null;
   const needsReset = !lastReset || (
