@@ -20,6 +20,7 @@ import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { getStripeClient } from '../_shared/stripe.ts';
+import { mergeProviderSubscriptionStates } from '../_shared/subscriptionReconcileCore.mjs';
 
 const BATCH_SIZE = 50;
 
@@ -144,34 +145,38 @@ const reconcileUser = async (
     return { userId, action: 'skipped', reason: 'not-yet-expired' };
   }
 
-  // Determine provider and fetch authoritative state.
-  let providerResult: { tier: 'supporter' | 'free'; expiresAt: string | null } | null = null;
+  // Check every available provider. Stripe web subscribers also have a
+  // Supabase auth UUID, so a RevenueCat miss must not prevent Stripe from
+  // retaining access.
+  const providerStates: Array<{ tier: 'supporter' | 'free'; expiresAt: string | null }> = [];
+  let hadProviderError = false;
 
   if (user.supabase_auth_id && rcApiKey) {
     try {
-      providerResult = await getRevenueCatExpiry(rcApiKey, user.supabase_auth_id, isSandbox);
+      providerStates.push(await getRevenueCatExpiry(rcApiKey, user.supabase_auth_id, isSandbox));
     } catch {
-      // Fall through to Stripe.
+      hadProviderError = true;
     }
   }
 
-  if (!providerResult && user.stripe_customer_id && stripe) {
+  if (user.stripe_customer_id && stripe) {
     try {
-      providerResult = await getStripeExpiry(stripe, user.stripe_customer_id);
+      providerStates.push(await getStripeExpiry(stripe, user.stripe_customer_id));
     } catch {
-      return { userId, action: 'error', reason: 'provider-fetch-failed' };
+      hadProviderError = true;
     }
   }
 
-  if (!providerResult) {
-    return { userId, action: 'error', reason: 'no-provider-configured' };
+  const providerResult = mergeProviderSubscriptionStates({ states: providerStates, hadProviderError });
+  if (providerResult.action === 'error') {
+    return { userId, action: 'error', reason: providerResult.reason };
   }
 
-  if (providerResult.tier === 'supporter') {
+  if (providerResult.action === 'active') {
     // Still active — refresh the expiry window (heals missed renewal webhooks).
     const { error } = await admin
       .from('users')
-      .update({ subscription_expires_at: providerResult.expiresAt })
+      .update({ subscription_expires_at: providerResult.state.expiresAt })
       .eq('id', userId);
 
     if (error) return { userId, action: 'error', reason: error.message };
@@ -183,7 +188,7 @@ const reconcileUser = async (
     .from('users')
     .update({
       subscription_tier: 'free',
-      subscription_expires_at: providerResult.expiresAt,
+      subscription_expires_at: providerResult.state.expiresAt,
     })
     .eq('id', userId)
     .select('id, subscription_tier, subscription_expires_at, role, simulate_free_tier')
