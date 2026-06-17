@@ -194,9 +194,10 @@ serve(async (request) => {
     }
 
     return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
-  } catch (error) {
-    console.error('[hearts edge function] error', error);
-    const status = typeof error?.status === 'number' ? error.status : 500;
-    return jsonResponse({ error: error?.message || 'Internal server error' }, { status }, request);
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error as Error & { status?: number } : new Error(String(error));
+    console.error('[hearts edge function] error', err);
+    const status = typeof err.status === 'number' ? err.status : 500;
+    return jsonResponse({ error: err.message || 'Internal server error' }, { status }, request);
   }
 });
