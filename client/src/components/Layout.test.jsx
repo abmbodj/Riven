@@ -47,7 +47,7 @@ vi.mock('../hooks/useMobileVisualBudget.js', () => ({
 function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
   return render(
     <MemoryRouter initialEntries={[pathname]}>
-      <AuthContext.Provider value={{ isLoggedIn }}>
+      <AuthContext.Provider value={{ isLoggedIn, getUserNotifications: vi.fn().mockResolvedValue([]), dismissUserNotification: vi.fn() }}>
         <UIContext.Provider value={{
           hideBottomNav: false,
           showBottomNav: vi.fn(),
@@ -113,7 +113,7 @@ function StatefulLayoutHarness({ initialCollapsed = false, initialWidth = 220, p
 
   return (
     <MemoryRouter initialEntries={[pathname]}>
-      <AuthContext.Provider value={{ isLoggedIn: true }}>
+      <AuthContext.Provider value={{ isLoggedIn: true, getUserNotifications: vi.fn().mockResolvedValue([]), dismissUserNotification: vi.fn() }}>
         <UIContext.Provider value={{
           hideBottomNav: false,
           showBottomNav: vi.fn(),
@@ -248,7 +248,7 @@ describe('Layout primary navigation', () => {
   it('applies the desktop sidebar width as the main content offset', () => {
     render(
       <MemoryRouter initialEntries={['/classes']}>
-        <AuthContext.Provider value={{ isLoggedIn: true }}>
+        <AuthContext.Provider value={{ isLoggedIn: true, getUserNotifications: vi.fn().mockResolvedValue([]), dismissUserNotification: vi.fn() }}>
           <UIContext.Provider value={{
             hideBottomNav: false,
             showBottomNav: vi.fn(),
@@ -365,7 +365,7 @@ describe('Layout primary navigation', () => {
 
     render(
       <MemoryRouter initialEntries={['/classes']}>
-        <AuthContext.Provider value={{ isLoggedIn: true }}>
+        <AuthContext.Provider value={{ isLoggedIn: true, getUserNotifications: vi.fn().mockResolvedValue([]), dismissUserNotification: vi.fn() }}>
           <UIContext.Provider value={{
             hideBottomNav: false,
             showBottomNav: vi.fn(),
