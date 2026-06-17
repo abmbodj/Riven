@@ -468,14 +468,17 @@ function DashboardHome() {
             }
 
             // Class pills slide in
-            gsap.from('.gsap-class-pill', {
-                x: 30,
-                opacity: 0,
-                duration: DURATION.normal,
-                stagger: STAGGER.tight,
-                ease: EASE.organic,
-                delay: 0.25
-            });
+            const classPills = gsap.utils.toArray('.gsap-class-pill');
+            if (classPills.length) {
+                gsap.from(classPills, {
+                    x: 30,
+                    opacity: 0,
+                    duration: DURATION.normal,
+                    stagger: STAGGER.tight,
+                    ease: EASE.organic,
+                    delay: 0.25
+                });
+            }
 
             // Scroll-triggered sections (skip ScrollTrigger on mobile — lighter main thread during scroll)
             if (lightVisualBudget) {
@@ -993,7 +996,7 @@ function DashboardHome() {
                                             <Link
                                                 key={classItem.id}
                                                 to={`/class/${classItem.id}`}
-                                                className="tap-action group flex items-center gap-3 rounded-xl px-2 py-2 transition-[background-color,color] hover:bg-claude-bg/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                                className="gsap-class-pill tap-action group flex items-center gap-3 rounded-xl px-2 py-2 transition-[background-color,color] hover:bg-claude-bg/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
                                             >
                                                 <div
                                                     className="h-2 w-2 shrink-0 rounded-full"

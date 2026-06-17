@@ -32,7 +32,11 @@ class ErrorBoundary extends React.Component {
     }
 
     handleReset = () => {
-        try { sessionStorage.removeItem('riven:deploy-update-recovery-attempted'); } catch {}
+        try {
+            sessionStorage.removeItem('riven:deploy-update-recovery-attempted');
+        } catch {
+            // private browsing or storage quota — safe to ignore
+        }
         this.setState({ hasError: false, error: null });
         window.location.href = '/';
     };

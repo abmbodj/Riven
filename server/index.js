@@ -141,6 +141,7 @@ const helmetConnectSrc = [
     'https://*.vercel.app',
     'https://*.ingest.sentry.io',
     'https://*.ingest.us.sentry.io',
+    'https://*.posthog.com',
 ];
 
 app.use(helmet({
