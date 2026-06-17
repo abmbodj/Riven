@@ -6,8 +6,12 @@ import Onboarding from './Onboarding.jsx';
 
 const mockNavigate = vi.fn();
 const mockSaveOnboardingProgress = vi.fn();
+const mockSignUp = vi.fn();
 const mockToastError = vi.fn();
 const trackOnboarding = vi.fn();
+const generateDeckPreview = vi.fn();
+const savePreviewDeck = vi.fn();
+const setOnboardingMaterial = vi.fn();
 
 let mockUser = {
     id: 1,
@@ -26,21 +30,30 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../hooks/useAuth', () => ({
     useAuth: () => ({
         user: mockUser,
+        loading: false,
+        signUp: mockSignUp,
         saveOnboardingProgress: mockSaveOnboardingProgress,
     }),
 }));
 
 vi.mock('../hooks/useToast', () => ({
-    useToast: () => ({
-        error: mockToastError,
-        success: vi.fn(),
-        show: vi.fn(),
-    }),
+    useToast: () => ({ error: mockToastError, success: vi.fn(), show: vi.fn() }),
+}));
+
+vi.mock('../hooks/useHaptics', () => ({
+    default: () => ({ light: vi.fn(), medium: vi.fn(), heavy: vi.fn(), success: vi.fn(), error: vi.fn(), selection: vi.fn() }),
 }));
 
 vi.mock('../utils/onboardingGate', () => ({
     isMobileOnboardingEligible: vi.fn(() => true),
     userNeedsOnboarding: vi.fn(() => true),
+    canUseOnboardingFunnel: vi.fn(() => true),
+    setOnboardingMaterial: (...args) => setOnboardingMaterial(...args),
+}));
+
+vi.mock('../api/onboardingApi', () => ({
+    generateDeckPreview: (...args) => generateDeckPreview(...args),
+    savePreviewDeck: (...args) => savePreviewDeck(...args),
 }));
 
 vi.mock('../utils/onboardingAnalytics', () => ({
@@ -49,10 +62,6 @@ vi.mock('../utils/onboardingAnalytics', () => ({
 
 vi.mock('../utils/matchMediaSubscribe', () => ({
     subscribeMediaQueryList: vi.fn(() => () => {}),
-}));
-
-vi.mock('../components/OnboardingArt', () => ({
-    default: () => <div data-testid="onboarding-art" />,
 }));
 
 function renderOnboarding() {
@@ -65,17 +74,17 @@ function renderOnboarding() {
     );
 }
 
-describe('Onboarding', () => {
+describe('Onboarding (activation flow)', () => {
     beforeEach(() => {
         mockNavigate.mockReset();
-        mockSaveOnboardingProgress.mockReset();
+        mockSaveOnboardingProgress.mockReset().mockResolvedValue({});
+        mockSignUp.mockReset();
         mockToastError.mockReset();
         trackOnboarding.mockReset();
-        mockUser = {
-            id: 1,
-            onboardingStep: 0,
-            onboardingCompletedAt: null,
-        };
+        generateDeckPreview.mockReset();
+        savePreviewDeck.mockReset().mockResolvedValue({ id: 10 });
+        setOnboardingMaterial.mockReset();
+        mockUser = { id: 1, onboardingStep: 0, onboardingCompletedAt: null };
 
         Object.defineProperty(window, 'matchMedia', {
             writable: true,
@@ -90,55 +99,58 @@ describe('Onboarding', () => {
         });
     });
 
-    it('lets the user choose an answer and advance to the next screen', async () => {
-        mockSaveOnboardingProgress.mockResolvedValue({
-            ...mockUser,
-            onboardingStep: 1,
-        });
-
+    it('opens on the promise screen with the magic-moment CTA', () => {
         renderOnboarding();
-        const layout = screen.getByTestId('onboarding-main-layout');
-
-        expect(layout.className).not.toContain('justify-between');
-        expect(layout.className).not.toContain('overflow-y-auto');
-        expect(screen.queryByText(/riven mobile setup/i)).not.toBeInTheDocument();
-
-        const examOption = screen.getByRole('button', { name: /get exam-ready faster/i });
-        fireEvent.click(examOption);
-
-        expect(examOption).toHaveAttribute('aria-pressed', 'true');
-
-        fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
-        await waitFor(() => {
-            expect(mockSaveOnboardingProgress).toHaveBeenCalledWith({ nextStep: 1 });
-        });
-
-        expect(trackOnboarding).toHaveBeenCalledWith('onboarding_continue', { fromStep: 0 });
-        expect(await screen.findByText(/what do you usually/i)).toBeInTheDocument();
+        expect(screen.getByText(/walk out ready/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /get started/i })).toBeInTheDocument();
     });
 
-    it('completes onboarding from the final screen and routes to Today', async () => {
-        mockUser = {
-            id: 1,
-            onboardingStep: 2,
-            onboardingCompletedAt: null,
-        };
-        mockSaveOnboardingProgress.mockResolvedValue({
-            ...mockUser,
-            onboardingCompletedAt: '2026-03-19T12:00:00.000Z',
+    it('runs the full magic loop: topic → generate → taste → save → reveal → dashboard', async () => {
+        generateDeckPreview.mockResolvedValue({
+            topic: 'Photosynthesis',
+            deckName: 'Photosynthesis',
+            cards: [
+                { front: 'Q1', back: 'A1', position: 0 },
+                { front: 'Q2', back: 'A2', position: 1 },
+                { front: 'Q3', back: 'A3', position: 2 },
+            ],
         });
 
         renderOnboarding();
 
-        fireEvent.click(screen.getByRole('button', { name: /go to today/i }));
+        // S1 promise → S2 topic
+        fireEvent.click(screen.getByRole('button', { name: /get started/i }));
+        const input = await screen.findByLabelText(/what are you studying/i);
+        fireEvent.change(input, { target: { value: 'Photosynthesis' } });
 
-        await waitFor(() => {
-            expect(mockSaveOnboardingProgress).toHaveBeenCalledWith({ markComplete: true });
-        });
+        // S2 → S3 generate (kicks off the anonymous preview)
+        fireEvent.click(screen.getByRole('button', { name: /make my set/i }));
+        await waitFor(() => expect(generateDeckPreview).toHaveBeenCalledWith('Photosynthesis'));
 
-        await waitFor(() => {
-            expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true });
-        });
+        // Reveal → S4 taste
+        fireEvent.click(await screen.findByRole('button', { name: /see my cards/i }));
+
+        // Answer 3 cards (reveal then "Got it")
+        for (let i = 0; i < 3; i += 1) {
+            fireEvent.click(await screen.findByText(`Q${i + 1}`));
+            fireEvent.click(await screen.findByRole('button', { name: /got it/i }));
+        }
+
+        // Save (signed-in path): persists the previewed deck + marks complete, then reveals
+        const saveBtn = await screen.findByRole('button', { name: /save & keep going/i });
+        await waitFor(() => expect(saveBtn).not.toBeDisabled());
+        fireEvent.click(saveBtn);
+
+        await waitFor(() => expect(savePreviewDeck).toHaveBeenCalledWith('Photosynthesis', expect.any(Array)));
+        await waitFor(() => expect(mockSaveOnboardingProgress).toHaveBeenCalledWith({ markComplete: true }));
+
+        // S5 capabilities reveal (material question doubles as the hero tile)
+        const audioTile = await screen.findByRole('button', { name: /record a lecture/i });
+        fireEvent.click(audioTile);
+        expect(setOnboardingMaterial).toHaveBeenCalledWith('audio');
+
+        // Finish → dashboard
+        fireEvent.click(screen.getByRole('button', { name: /start studying/i }));
+        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true }));
     });
 });

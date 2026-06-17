@@ -24,6 +24,7 @@ vi.mock('../api', () => ({
     getClasses: vi.fn().mockResolvedValue([]),
     getFriends: vi.fn().mockResolvedValue([]),
     getGroups: vi.fn().mockResolvedValue([]),
+    getStudyCoach: vi.fn().mockResolvedValue(null),
   },
 }));
 

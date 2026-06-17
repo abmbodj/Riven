@@ -2,6 +2,31 @@ import { Capacitor } from '@capacitor/core';
 import { getMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 
 const ONBOARDING_DONE_UID_KEY = 'riven_onboarding_done_uid';
+const ONBOARDING_MATERIAL_KEY = 'riven_onboarding_material';
+
+/**
+ * The material source a user picked during onboarding ('audio' | 'files' | 'notes').
+ * Stored client-side (the users table RLS allowlist doesn't cover arbitrary prefs columns) and
+ * read by the home/create surfaces to order the CREATE actions toward what the user said they
+ * reach for most — e.g. surface audio→notes first for lecture people.
+ */
+export function setOnboardingMaterial(material) {
+    if (!material || typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(ONBOARDING_MATERIAL_KEY, String(material));
+    } catch {
+        /* quota / private mode */
+    }
+}
+
+export function getOnboardingMaterial() {
+    if (typeof window === 'undefined') return null;
+    try {
+        return localStorage.getItem(ONBOARDING_MATERIAL_KEY) || null;
+    } catch {
+        return null;
+    }
+}
 
 export function markOnboardingDoneClient(userId) {
     if (userId == null || typeof window === 'undefined') return;

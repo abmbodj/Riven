@@ -3,15 +3,18 @@ import { AnimatePresence, motion } from 'motion/react';
 import Layers from 'lucide-react/dist/esm/icons/layers';
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles';
 import Play from 'lucide-react/dist/esm/icons/play';
+import Mic from 'lucide-react/dist/esm/icons/mic';
+import { api } from '../api';
+import { useToast } from '../hooks/useToast';
+import { getOnboardingMaterial } from '../utils/onboardingGate';
 
 const CREATE_ITEMS = [
     {
-        id: 'deck',
-        icon: Layers,
-        label: 'New Deck',
-        description: 'Build flashcards manually',
-        route: '/create',
-        accent: false,
+        id: 'audio',
+        icon: Mic,
+        label: 'Record a Lecture',
+        description: 'Turn a recording into notes + cards',
+        action: 'record',
     },
     {
         id: 'ai',
@@ -19,7 +22,13 @@ const CREATE_ITEMS = [
         label: 'Generate from Notes',
         description: 'Create a deck from notes or files',
         route: '/create?mode=ai',
-        accent: true,
+    },
+    {
+        id: 'deck',
+        icon: Layers,
+        label: 'New Deck',
+        description: 'Build flashcards manually',
+        route: '/create',
     },
     {
         id: 'youtube',
@@ -27,16 +36,42 @@ const CREATE_ITEMS = [
         label: 'Import YouTube',
         description: 'Turn a video into flashcards',
         route: '/youtube',
-        accent: false,
     },
 ];
 
+// Lead with whatever the user said they reach for most during onboarding (kept client-side).
+// Lecture people see "Record a Lecture" first (the audio→notes flagship); file/notes people lead
+// with AI generation. The leading item gets the accent treatment.
+const MATERIAL_TO_LEAD = { audio: 'audio', files: 'ai', notes: 'ai' };
+
+function orderItems(material) {
+    const leadId = MATERIAL_TO_LEAD[material];
+    const ordered = leadId
+        ? [...CREATE_ITEMS].sort((a, b) => (a.id === leadId ? -1 : b.id === leadId ? 1 : 0))
+        : CREATE_ITEMS;
+    return ordered.map((item, index) => ({ ...item, accent: index === 0 }));
+}
+
 export default function CreateSheet({ open, onClose }) {
     const navigate = useNavigate();
+    const toast = useToast();
 
-    const handleSelect = (route) => {
+    const items = orderItems(getOnboardingMaterial());
+
+    const handleSelect = async (item) => {
         onClose();
-        navigate(route);
+        if (item.action === 'record') {
+            // Create a fresh note and open it; the user taps the mic themselves so we never
+            // request microphone permission before it's actually needed.
+            try {
+                const note = await api.createNote('Untitled', {}, null);
+                navigate(`/note/${note.id}`);
+            } catch (err) {
+                toast.error(err?.message || 'Failed to start a recording');
+            }
+            return;
+        }
+        navigate(item.route);
     };
 
     return (
@@ -73,13 +108,13 @@ export default function CreateSheet({ open, onClose }) {
 
                         {/* Items */}
                         <div className="space-y-2">
-                            {CREATE_ITEMS.map((item) => {
+                            {items.map((item) => {
                                 const Icon = item.icon;
                                 return (
                                     <button
                                         key={item.id}
                                         type="button"
-                                        onClick={() => handleSelect(item.route)}
+                                        onClick={() => handleSelect(item)}
                                         className={`flex items-center gap-3.5 w-full px-4 py-3.5 rounded-2xl transition-colors duration-200 cursor-pointer text-left ${
                                             item.accent
                                                 ? 'bg-claude-accent/10 border border-claude-accent/25 hover:bg-claude-accent/15 active:bg-claude-accent/20'
@@ -94,9 +129,7 @@ export default function CreateSheet({ open, onClose }) {
                                             <Icon className="w-5 h-5" />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className={`font-mono text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                                                item.accent ? 'text-claude-text' : 'text-claude-text'
-                                            }`}>
+                                            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-claude-text">
                                                 {item.label}
                                             </p>
                                             <p className="text-[11px] text-claude-secondary/70 mt-0.5 font-sans">

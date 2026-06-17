@@ -439,6 +439,9 @@ verify_jwt = false
 [functions.generate-deck]
 verify_jwt = false
 
+[functions.generate-deck-preview]
+verify_jwt = false
+
 [functions.generate-class]
 verify_jwt = false
 
