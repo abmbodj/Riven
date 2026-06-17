@@ -57,18 +57,18 @@ serve(async (request) => {
       return jsonResponse({ error: 'Exam attempt not found' }, { status: 404 }, request);
     }
 
-    const { data: existingStats, error: statsError } = await admin
-      .from('study_user_stats')
-      .select('xp_total, level, sessions_completed, topics_mastered')
-      .eq('user_id', authUser.id)
-      .maybeSingle();
-    if (statsError) throw statsError;
-
-    const currentXp = toNumber(existingStats?.xp_total, 0);
-    const currentLevel = levelFromXp(currentXp);
-
     // Already credited: idempotent no-op.
     if (attempt.xp_awarded != null) {
+      const { data: existingStats, error: statsError } = await admin
+        .from('study_user_stats')
+        .select('xp_total')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      if (statsError) throw statsError;
+
+      const currentXp = toNumber(existingStats?.xp_total, 0);
+      const currentLevel = levelFromXp(currentXp);
+
       return jsonResponse({
         xpEarned: 0,
         alreadyAwarded: true,
@@ -83,37 +83,42 @@ serve(async (request) => {
 
     const xpEarned = computeExamXp(toNumber(attempt.score, 0), toNumber(attempt.total, 0));
 
-    // Mark the attempt first so a concurrent replay cannot double-grant.
-    const { error: markError } = await admin
-      .from('exam_attempts')
-      .update({ xp_awarded: xpEarned })
-      .eq('id', attemptId)
-      .eq('user_id', authUser.id)
-      .is('xp_awarded', null);
-    if (markError) throw markError;
+    const { data: award, error: awardError } = await admin
+      .rpc('award_exam_attempt_xp', {
+        p_attempt_id: attemptId,
+        p_user_id: authUser.id,
+        p_xp_awarded: xpEarned,
+      })
+      .single();
+    if (awardError) throw awardError;
 
-    const nextXpTotal = currentXp + xpEarned;
+    if (award?.already_awarded === true) {
+      const currentXp = toNumber(award.xp_total, 0);
+      const currentLevel = levelFromXp(currentXp);
+      return jsonResponse({
+        xpEarned: 0,
+        alreadyAwarded: true,
+        stats: {
+          xpTotal: currentXp,
+          level: currentLevel,
+          previousLevel: currentLevel,
+          leveledUp: false,
+        },
+      }, { status: 200 }, request);
+    }
+
+    const previousXpTotal = toNumber(award?.previous_xp_total, 0);
+    const previousLevel = levelFromXp(previousXpTotal);
+    const nextXpTotal = toNumber(award?.xp_total, previousXpTotal + xpEarned);
     const nextLevel = levelFromXp(nextXpTotal);
-
-    const { error: upsertError } = await admin
-      .from('study_user_stats')
-      .upsert({
-        user_id: authUser.id,
-        xp_total: nextXpTotal,
-        level: nextLevel,
-        last_study_at: new Date().toISOString(),
-        sessions_completed: toNumber(existingStats?.sessions_completed, 0),
-        topics_mastered: toNumber(existingStats?.topics_mastered, 0),
-      }, { onConflict: 'user_id' });
-    if (upsertError) throw upsertError;
 
     return jsonResponse({
       xpEarned,
       stats: {
         xpTotal: nextXpTotal,
         level: nextLevel,
-        previousLevel: currentLevel,
-        leveledUp: nextLevel > currentLevel,
+        previousLevel,
+        leveledUp: nextLevel > previousLevel,
       },
     }, { status: 200 }, request);
   } catch (error: unknown) {

@@ -1,3 +1,5 @@
+import { isPremiumActive } from './premiumAccess.mjs';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const CANVAS_AUTO_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 export const CANVAS_AUTO_SYNC_ATTEMPT_COOLDOWN_MS = 60 * 60 * 1000;
@@ -53,10 +55,6 @@ const createHttpError = (message, status, extra = {}) => {
   return error;
 };
 
-const isPrivilegedUser = (user) => (
-  (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier
-);
-
 const toValidDate = (value) => {
   if (!value) {
     return null;
@@ -66,13 +64,7 @@ const toValidDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-export const isPremiumCanvasUser = (user) => (
-  Boolean(
-    isPrivilegedUser(user)
-    || user?.subscription_tier === 'supporter'
-    || user?.subscription_tier === 'lifetime'
-  )
-);
+export const isPremiumCanvasUser = (user, now = new Date()) => isPremiumActive(user, now);
 
 // RIV-002: structural SSRF guard. Synchronous (no DNS) so it stays portable across the
 // Deno edge runtime and the Node test runner; DNS-rebinding is a documented residual risk.
@@ -132,7 +124,7 @@ export const applyCanvasSyncQuota = async ({
   resetSyncState,
   incrementSyncCount,
 }) => {
-  if (isPremiumCanvasUser(user)) {
+  if (isPremiumCanvasUser(user, now)) {
     return;
   }
 
@@ -169,7 +161,7 @@ export const isCanvasAutoSyncDue = ({
     return false;
   }
 
-  if (!isPremiumCanvasUser(user)) {
+  if (!isPremiumCanvasUser(user, now)) {
     return false;
   }
 

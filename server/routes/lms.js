@@ -2,6 +2,12 @@ const { canvasConnectSchema } = require('../schemas/lms');
 const { handleValidationErrors } = require('../utils/validate');
 const { assertSafePublicUrl } = require('../utils/ssrfGuard');
 
+let premiumAccessPromise;
+const loadPremiumAccess = () => {
+    premiumAccessPromise ||= import('../../supabase/functions/_shared/premiumAccess.mjs');
+    return premiumAccessPromise;
+};
+
 module.exports = function ({ app, db, authMiddleware }) {
 
     // 1. Save Canvas credentials (now just an iCal link)
@@ -69,7 +75,7 @@ module.exports = function ({ app, db, authMiddleware }) {
     app.post('/api/lms/sync', authMiddleware, async (req, res) => {
         try {
             const user = await db.queryOne(
-                'SELECT canvas_ical_url, subscription_tier, role, simulate_free_tier, lms_sync_count, lms_sync_reset_at FROM users WHERE id = $1',
+                'SELECT canvas_ical_url, subscription_tier, subscription_expires_at, role, simulate_free_tier, lms_sync_count, lms_sync_reset_at FROM users WHERE id = $1',
                 [req.user.id]
             );
 
@@ -78,8 +84,8 @@ module.exports = function ({ app, db, authMiddleware }) {
             }
 
             // Premium gate: free users get 1 free sync per day, then need ad or upgrade
-            const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
-            const isPremium = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+            const { isPremiumActive } = await loadPremiumAccess();
+            const isPremium = isPremiumActive(user);
 
             if (!isPremium) {
                 const now = new Date();

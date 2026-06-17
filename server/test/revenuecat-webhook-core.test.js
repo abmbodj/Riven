@@ -157,6 +157,33 @@ describe('RevenueCat webhook core processor', () => {
         expect(persistence.createUserNotification).not.toHaveBeenCalled();
     });
 
+    it('does not let RevenueCat expiration downgrade lifetime access', async () => {
+        persistence.getUserByAppUserId.mockResolvedValue({
+            id: 23,
+            role: 'user',
+            simulate_free_tier: false,
+            subscription_tier: 'lifetime',
+        });
+
+        const result = await processRevenueCatWebhookEvent({
+            event: {
+                type: 'EXPIRATION',
+                app_user_id: 'user-23',
+                expiration_at_ms: new Date('2026-06-14T00:00:00.000Z').getTime(),
+            },
+            persistence,
+            logger,
+        });
+
+        expect(result).toEqual({
+            outcome: 'skipped-lifetime',
+            tier: 'lifetime',
+            notified: false,
+        });
+        expect(persistence.updateUserTierByAppUserId).not.toHaveBeenCalled();
+        expect(persistence.createUserNotification).not.toHaveBeenCalled();
+    });
+
     it('maps only true entitlement-loss events to free tier', () => {
         expect(tierFromRevenueCatEvent('CANCELLATION')).toBeNull();
         expect(tierFromRevenueCatEvent('BILLING_ISSUE')).toBeNull();

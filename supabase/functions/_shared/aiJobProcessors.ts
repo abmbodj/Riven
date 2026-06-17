@@ -1190,7 +1190,7 @@ const processYoutubeDerivedJob = async ({
   // Consume AI quota only after confirming source job succeeded
   const { data: quotaUser, error: quotaUserError } = await admin
     .from('users')
-    .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+    .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier, subscription_expires_at')
     .eq('id', job.user_id)
     .maybeSingle();
 

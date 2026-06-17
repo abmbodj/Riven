@@ -8,6 +8,19 @@ module.exports = function ({ app, db }) {
     }
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+    async function fetchSubscriptionExpiresAt(subscriptionId) {
+        if (!subscriptionId) return null;
+        try {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            return subscription?.current_period_end
+                ? new Date(subscription.current_period_end * 1000).toISOString()
+                : null;
+        } catch (err) {
+            console.warn(`[Stripe Webhook] ⚠️ Could not fetch subscription ${subscriptionId} period end:`, err.message);
+            return null;
+        }
+    }
+
     // ── Environment Guard ─────────────────────────────────────────
     if (process.env.NODE_ENV === 'production') {
         if (!process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')) {
@@ -125,14 +138,18 @@ module.exports = function ({ app, db }) {
                     const stripeSubscriptionId = typeof session.subscription === 'string'
                         ? session.subscription
                         : session.subscription?.id;
+                    const subscriptionExpiresAt = tier === 'supporter'
+                        ? await fetchSubscriptionExpiresAt(stripeSubscriptionId)
+                        : null;
 
                     const result = await db.execute(
                         `UPDATE users 
                          SET subscription_tier = $1, 
                              stripe_customer_id = $2, 
-                             stripe_subscription_id = $3 
-                         WHERE id = $4`,
-                        [tier, stripeCustomerId, stripeSubscriptionId, parseInt(userId)]
+                             stripe_subscription_id = $3,
+                             subscription_expires_at = $4
+                         WHERE id = $5`,
+                        [tier, stripeCustomerId, stripeSubscriptionId, subscriptionExpiresAt, parseInt(userId)]
                     );
 
                     if (result.rowCount === 0) {
@@ -202,16 +219,54 @@ module.exports = function ({ app, db }) {
                         break;
                     }
 
-                    let result = await db.execute('UPDATE users SET subscription_tier = $1 WHERE stripe_customer_id = $2', ['free', stripeCustomerId]);
+                    const subscriptionExpiresAt = subscription.current_period_end
+                        ? new Date(subscription.current_period_end * 1000).toISOString()
+                        : null;
+                    let result = await db.execute(
+                        'UPDATE users SET subscription_tier = $1, subscription_expires_at = $2 WHERE stripe_customer_id = $3',
+                        ['free', subscriptionExpiresAt, stripeCustomerId]
+                    );
 
                     // Fallback to email if we haven't saved the Stripe ID yet
                     if (result.rowCount === 0) {
                         const customer = await stripe.customers.retrieve(stripeCustomerId);
                         if (customer.email) {
                             console.info(`[Stripe Webhook] ⚠️ ID match failed, falling back to email ${customer.email}`);
-                            await db.execute('UPDATE users SET subscription_tier = $1 WHERE email = $2', ['free', customer.email]);
+                            await db.execute(
+                                'UPDATE users SET subscription_tier = $1, subscription_expires_at = $2 WHERE email = $3',
+                                ['free', subscriptionExpiresAt, customer.email]
+                            );
                         }
                     }
+                    break;
+                }
+
+                case 'invoice.paid': {
+                    const invoice = event.data.object;
+                    const stripeCustomerId = typeof invoice.customer === 'string'
+                        ? invoice.customer
+                        : invoice.customer?.id;
+                    const stripeSubscriptionId = typeof invoice.subscription === 'string'
+                        ? invoice.subscription
+                        : invoice.subscription?.id;
+
+                    if (!stripeCustomerId || !stripeSubscriptionId) {
+                        break;
+                    }
+
+                    const subscriptionExpiresAt = await fetchSubscriptionExpiresAt(stripeSubscriptionId);
+                    if (!subscriptionExpiresAt) {
+                        break;
+                    }
+
+                    await db.execute(
+                        `UPDATE users
+                         SET subscription_expires_at = $1,
+                             stripe_subscription_id = $2
+                         WHERE stripe_customer_id = $3
+                           AND subscription_tier = 'supporter'`,
+                        [subscriptionExpiresAt, stripeSubscriptionId, stripeCustomerId]
+                    );
                     break;
                 }
 

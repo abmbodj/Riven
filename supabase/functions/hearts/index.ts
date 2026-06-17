@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
+import { isPremiumActive } from '../_shared/premiumAccess.mjs';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -14,7 +15,7 @@ const getHeartsRow = async (userId: number) => {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from('users')
-    .select('id, role, subscription_tier, hearts, last_heart_refill, simulate_free_tier, practice_refill_count, practice_refill_reset_at')
+    .select('id, role, subscription_tier, subscription_expires_at, hearts, last_heart_refill, simulate_free_tier, practice_refill_count, practice_refill_reset_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -31,9 +32,8 @@ const updateUser = async (userId: number, updates: Record<string, unknown>) => {
 
 const getUpdatedHearts = async (userId: number) => {
   const user = await getHeartsRow(userId);
-  const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
 
-  if (isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime') {
+  if (isPremiumActive(user)) {
     return { hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true };
   }
 

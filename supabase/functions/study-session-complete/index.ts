@@ -354,13 +354,6 @@ serve(async (request) => {
       if (topicUpsertError) throw topicUpsertError;
     }
 
-    const { data: existingStats, error: existingStatsError } = await admin
-      .from('study_user_stats')
-      .select('xp_total, level, sessions_completed, topics_mastered')
-      .eq('user_id', authUser.id)
-      .maybeSingle();
-    if (existingStatsError) throw existingStatsError;
-
     const { count: masteredCount, error: masteredCountError } = await admin
       .from('study_topic_progress')
       .select('id', { count: 'exact', head: true })
@@ -369,22 +362,21 @@ serve(async (request) => {
     if (masteredCountError) throw masteredCountError;
 
     const topicsMastered = toNumber(masteredCount ?? 0, 0);
-    const prevLevel = levelFromXp(toNumber(existingStats?.xp_total, 0));
-    const nextXpTotal = toNumber(existingStats?.xp_total, 0) + xpEarned;
-    const nextLevel = levelFromXp(nextXpTotal);
-    const nextSessionsCompleted = toNumber(existingStats?.sessions_completed, 0) + 1;
+    const { data: statsResult, error: statsUpdateError } = await admin
+      .rpc('increment_study_user_stats', {
+        p_user_id: authUser.id,
+        p_xp_earned: xpEarned,
+        p_sessions_completed_delta: 1,
+        p_topics_mastered: topicsMastered,
+        p_last_study_at: nowIso,
+      })
+      .single();
+    if (statsUpdateError) throw statsUpdateError;
 
-    const { error: statsUpsertError } = await admin
-      .from('study_user_stats')
-      .upsert({
-        user_id: authUser.id,
-        xp_total: nextXpTotal,
-        level: nextLevel,
-        last_study_at: nowIso,
-        sessions_completed: nextSessionsCompleted,
-        topics_mastered: topicsMastered,
-      }, { onConflict: 'user_id' });
-    if (statsUpsertError) throw statsUpsertError;
+    const prevLevel = levelFromXp(toNumber(statsResult?.previous_xp_total, 0));
+    const nextXpTotal = toNumber(statsResult?.xp_total, xpEarned);
+    const nextLevel = levelFromXp(nextXpTotal);
+    const nextSessionsCompleted = toNumber(statsResult?.sessions_completed, 1);
 
     const { data: userRow, error: userRowError } = await admin
       .from('users')

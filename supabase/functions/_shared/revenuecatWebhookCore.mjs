@@ -51,6 +51,11 @@ export const processRevenueCatWebhookEvent = async ({
     return { outcome: 'user-missing', tier: newTier };
   }
 
+  if (previousUser.subscription_tier === 'lifetime') {
+    logger.info(`[revenuecat-webhook] Skipping ${type} tier update for lifetime user: ${appUserId}`);
+    return { outcome: 'skipped-lifetime', tier: 'lifetime', notified: false };
+  }
+
   // Capture the provider-authoritative period end for both upgrades and expirations.
   // On EXPIRATION the timestamp is (past) — the live gate will deny correctly.
   // On purchase / renewal it's the future period end — refreshes the window.

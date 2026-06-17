@@ -41,6 +41,7 @@ serve(async (request) => {
         'canvas_ical_url',
         'canvas_auto_sync_enabled',
         'subscription_tier',
+        'subscription_expires_at',
         'role',
         'simulate_free_tier',
         'last_canvas_sync_at',

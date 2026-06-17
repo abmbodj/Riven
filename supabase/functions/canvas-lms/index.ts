@@ -307,7 +307,7 @@ serve(async (request) => {
     if (action === 'sync') {
       const { data: user, error: userError } = await admin
         .from('users')
-        .select('canvas_ical_url, subscription_tier, role, simulate_free_tier, lms_sync_count, lms_sync_reset_at')
+        .select('canvas_ical_url, subscription_tier, subscription_expires_at, role, simulate_free_tier, lms_sync_count, lms_sync_reset_at')
         .eq('id', authUser.id)
         .maybeSingle();
 

@@ -89,6 +89,32 @@ describe('canvasLmsCore', () => {
     expect(incrementCalls).toEqual([1]);
   });
 
+  it('applies free Canvas sync quota to expired supporters', async () => {
+    const resetSyncState = vi.fn();
+    const incrementSyncCount = vi.fn();
+
+    await expect(applyCanvasSyncQuota({
+      user: {
+        subscription_tier: 'supporter',
+        subscription_expires_at: '2026-03-13T12:00:00.000Z',
+        role: 'user',
+        simulate_free_tier: false,
+        lms_sync_count: 1,
+        lms_sync_reset_at: '2026-03-14T00:00:00.000Z',
+      },
+      adGranted: false,
+      now: new Date('2026-03-14T12:00:00.000Z'),
+      resetSyncState,
+      incrementSyncCount,
+    })).rejects.toMatchObject({
+      message: 'Free sync limit reached for today. Watch an ad or upgrade for more syncs.',
+      status: 429,
+      canWatchAd: true,
+    });
+    expect(resetSyncState).not.toHaveBeenCalled();
+    expect(incrementSyncCount).not.toHaveBeenCalled();
+  });
+
   it('creates classes and assignments from Canvas VEVENT rows while skipping duplicates', async () => {
     const createdClasses = [];
     const createdAssignments = [];
@@ -175,6 +201,7 @@ describe('canvasLmsCore', () => {
           canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_1.ics',
           canvas_auto_sync_enabled: true,
           subscription_tier: 'supporter',
+          subscription_expires_at: '2026-03-28T00:00:00.000Z',
           role: 'user',
           simulate_free_tier: false,
           last_canvas_sync_at: '2026-03-20T00:00:00.000Z',
@@ -195,6 +222,7 @@ describe('canvasLmsCore', () => {
           canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_3.ics',
           canvas_auto_sync_enabled: true,
           subscription_tier: 'supporter',
+          subscription_expires_at: '2026-03-28T00:00:00.000Z',
           role: 'admin',
           simulate_free_tier: true,
           last_canvas_sync_at: null,
@@ -209,6 +237,17 @@ describe('canvasLmsCore', () => {
           simulate_free_tier: false,
           last_canvas_sync_at: '2026-03-21T02:00:00.000Z',
           last_canvas_auto_sync_attempt_at: '2026-03-21T11:20:00.000Z',
+        },
+        {
+          id: 5,
+          canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_5.ics',
+          canvas_auto_sync_enabled: true,
+          subscription_tier: 'supporter',
+          subscription_expires_at: '2026-03-20T00:00:00.000Z',
+          role: 'user',
+          simulate_free_tier: false,
+          last_canvas_sync_at: null,
+          last_canvas_auto_sync_attempt_at: null,
         },
       ],
     });

@@ -1,5 +1,11 @@
 const express = require('express');
 
+let premiumAccessPromise;
+const loadPremiumAccess = () => {
+    premiumAccessPromise ||= import('../../supabase/functions/_shared/premiumAccess.mjs');
+    return premiumAccessPromise;
+};
+
 module.exports = function ({ app, db, authMiddleware }) {
 
     const REGEN_MINUTES = 15;
@@ -7,12 +13,12 @@ module.exports = function ({ app, db, authMiddleware }) {
 
     // Helper to calculate time-based heart regeneration
     async function getUpdatedHearts(userId) {
-        const userRes = await db.query('SELECT subscription_tier, hearts, last_heart_refill, role, simulate_free_tier FROM users WHERE id = $1', [userId]);
+        const userRes = await db.query('SELECT subscription_tier, subscription_expires_at, hearts, last_heart_refill, role, simulate_free_tier FROM users WHERE id = $1', [userId]);
         if (!userRes.length) throw new Error('User not found');
         const user = userRes[0];
+        const { isPremiumActive } = await loadPremiumAccess();
 
-        const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
-        if (isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime') {
+        if (isPremiumActive(user)) {
             return { hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true };
         }
 

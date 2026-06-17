@@ -102,8 +102,26 @@ serve(async (request: Request) => {
       }
     }
 
-    // 4. Update the user in the database using admin privileges
+    // 4. Update the user in the database using admin privileges. RevenueCat
+    // should not weaken lifetime access granted by Stripe/referrals/admin tooling.
     const admin = getSupabaseAdmin();
+    const { data: existingUser, error: existingUserError } = await admin
+      .from('users')
+      .select('subscription_tier, subscription_expires_at')
+      .eq('supabase_auth_id', user.id)
+      .maybeSingle();
+
+    if (existingUserError) {
+      return jsonResponse({ error: 'Failed to read current subscription state', details: existingUserError }, { status: 500 }, request);
+    }
+
+    if (existingUser?.subscription_tier === 'lifetime') {
+      return jsonResponse({
+        subscription_tier: 'lifetime',
+        subscription_expires_at: existingUser.subscription_expires_at ?? null,
+      }, { status: 200 }, request);
+    }
+
     const { error: updateError } = await admin
       .from('users')
       .update({ subscription_tier: newTier, subscription_expires_at: newExpiresAt })
