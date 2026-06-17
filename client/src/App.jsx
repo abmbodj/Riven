@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { BrowserRouter, HashRouter, useRoutes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, useLocation, useRoutes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AppProviders } from './AppProviders.jsx';
 import { RootLayout } from './components/layout/RootLayout.jsx';
@@ -22,16 +22,21 @@ function App() {
           <GroupMeetupReminderBridge />
           <PosthogPageviewTracker />
           <RootLayout>
-            <ErrorBoundary>
+            <RouteAwareErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <AppRoutes />
               </Suspense>
-            </ErrorBoundary>
+            </RouteAwareErrorBoundary>
           </RootLayout>
         </AppRouter>
       </WebAppUpdateManager>
     </AppProviders>
   );
+}
+
+function RouteAwareErrorBoundary({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;
 }
 
 function AppRoutes() {
