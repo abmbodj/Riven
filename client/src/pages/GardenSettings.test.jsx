@@ -88,6 +88,29 @@ describe('GardenSettings simulate-free behavior', () => {
 
   beforeEach(() => {
     mockGalleryMock.mockReset();
+    mockSetStageOverride.mockReset();
+    mockAuthState.isLoggedIn = true;
+    mockAuthState.isOwner = false;
+    mockAuthState.user.subscription_tier = 'free';
+    mockAuthState.user.simulate_free_tier = false;
+    mockStreak.status = 'healthy';
+    mockStreak.hoursRemaining = 12;
+    mockStreak.studiedToday = true;
+    mockStreak.currentStreak = 7;
+    mockStreak.longestStreak = 12;
+    mockStreak.lastStudyDate = '2026-03-14T12:00:00.000Z';
+    mockStreak.pastStreaks = [];
+  });
+
+  it('surfaces next milestone progress in the garden hero', () => {
+    renderGardenSettings();
+
+    expect(screen.getByText(/current streak/i)).toBeInTheDocument();
+    expect(screen.getByText('Next milestone')).toBeInTheDocument();
+    expect(screen.getByText('Blooming Patch')).toBeInTheDocument();
+    expect(screen.getByText('7 days to next stage')).toBeInTheDocument();
+    expect(screen.getByText('Stage 4 of 16')).toBeInTheDocument();
+    expect(screen.getByLabelText('0% progress to Blooming Patch')).toBeInTheDocument();
   });
 
   it('removes the owner stage override while simulated free mode is active', () => {

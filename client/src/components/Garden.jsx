@@ -486,6 +486,15 @@ export default function Garden({
     const isWilting = status === 'broken';
     const isAtRisk = status === 'at-risk';
     const statusFilter = isWilting ? 'grayscale(0.82) saturate(0.78) opacity(0.72)' : isAtRisk ? 'saturate(0.84) sepia(0.12)' : 'none';
+    const lightVisualBudget = useMobileVisualBudget();
+    const isHighStage = stageIndex >= 12;
+    const isFinalStage = stageIndex >= 15;
+    const statusDensity = isWilting ? 0.48 : isAtRisk ? 0.72 : 1;
+    const highStageDensity = isHighStage ? (lightVisualBudget ? 0.55 : 0.68) : 1;
+    const detailOpacity = statusDensity * highStageDensity;
+    const bandOpacity = Math.max(0.12, detailOpacity * 0.72);
+    const plantDetailOpacity = isHighStage ? (isWilting ? 0.58 : 0.74) : 1;
+    const foregroundSparkleOpacity = isHighStage ? (isWilting ? 0.18 : 0.28) : 1;
 
     const ids = {
         sky: `garden-sky-${uniqueId}`,
@@ -499,6 +508,8 @@ export default function Garden({
         leaf: `garden-leaf-${uniqueId}`,
         blossom: `garden-blossom-${uniqueId}`,
         light: `garden-light-${uniqueId}`,
+        cosmic: `garden-cosmic-${uniqueId}`,
+        ribbon: `garden-ribbon-${uniqueId}`,
         vignette: `garden-vignette-${uniqueId}`,
         blur: `garden-blur-${uniqueId}`,
         glow: `garden-glow-${uniqueId}`,
@@ -510,10 +521,16 @@ export default function Garden({
     const blossomFill = `url(#${ids.blossom})`;
     const barkStroke = `url(#${ids.bark})`;
     const lightFill = `url(#${ids.light})`;
+    const cosmicStroke = `url(#${ids.cosmic})`;
+    const ribbonStroke = `url(#${ids.ribbon})`;
     const moonX = stageIndex >= 10 ? 284 : 264;
     const moonY = stageIndex >= 8 ? 84 : 72;
     const moonRadius = stageIndex >= 12 ? 48 : stageIndex >= 8 ? 40 : 28 + (stageIndex * 2);
-    const fireflyCount = stageIndex >= 13 ? 18 : stageIndex >= 9 ? 12 : stageIndex >= 5 ? 8 : stageIndex >= 2 ? 4 : 0;
+    const fireflyCount = stageIndex >= 14
+        ? (lightVisualBudget ? 4 : 6)
+        : stageIndex >= 13
+            ? (lightVisualBudget ? 6 : 8)
+        : stageIndex >= 9 ? 12 : stageIndex >= 5 ? 8 : stageIndex >= 2 ? 4 : 0;
     const fireflies = radialScatter(
         fireflyCount,
         220,
@@ -523,19 +540,38 @@ export default function Garden({
         stageIndex * 11
     );
     const pollen = radialScatter(
-        stageIndex >= 12 ? 24 : stageIndex >= 7 ? 18 : stageIndex >= 3 ? 10 : 4,
+        stageIndex >= 14 ? (lightVisualBudget ? 3 : 5) : stageIndex >= 12 ? (lightVisualBudget ? 6 : 9) : stageIndex >= 7 ? 18 : stageIndex >= 3 ? 10 : 4,
         198,
         222,
         168,
         126,
         stageIndex * 17
     );
-    const stars = range(stageIndex >= 10 ? 16 : stageIndex >= 8 ? 9 : 0).map((index) => ({
+    const stars = range(stageIndex >= 12 ? (lightVisualBudget ? 6 : 8) : stageIndex >= 10 ? 16 : stageIndex >= 8 ? 9 : 0).map((index) => ({
         x: 34 + ((index * 47) % 320),
         y: 26 + ((index * 29) % 118),
         scale: 0.58 + ((index % 4) * 0.12),
         opacity: 0.3 + ((index % 3) * 0.14)
     }));
+
+    const constellationPoints = range(stageIndex >= 15 ? 5 : stageIndex >= 13 ? 5 : stageIndex >= 12 ? 4 : 0).map((index) => ({
+        x: 54 + ((index * 62) % 250),
+        y: 32 + ((index * 23) % 82),
+        scale: 0.84 + ((index % 3) * 0.16)
+    }));
+    const constellationPath = constellationPoints.length
+        ? constellationPoints.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' ')
+        : '';
+    const haloRings = range(stageIndex >= 15 ? 3 : stageIndex >= 14 ? 3 : stageIndex >= 12 ? 2 : 0);
+    const archRings = range(stageIndex >= 15 ? 2 : stageIndex >= 13 ? 1 : 0);
+    const cosmicDust = radialScatter(
+        stageIndex >= 15 ? (lightVisualBudget ? 5 : 8) : stageIndex >= 14 ? (lightVisualBudget ? 4 : 6) : 0,
+        204,
+        116,
+        142,
+        58,
+        stageIndex * 23
+    );
 
     const reeds = [
         { x: 112, y: 304, lean: -10, height: 34, min: 1, scale: 0.82 },
@@ -570,9 +606,14 @@ export default function Garden({
         { x: 298, y: 156, min: 11, scale: 0.68, rotate: 26 }
     ];
 
-    const orbitNodes = range(stageIndex >= 14 ? 8 : stageIndex >= 11 ? 6 : 0).map((index) => {
-        const angle = (360 / (stageIndex >= 14 ? 8 : 6)) * index;
-        const radius = stageIndex >= 14 ? 84 : 72;
+    const visibleFronds = fronds.filter((frond) => stageIndex >= frond.min).slice(0, stageIndex >= 14 ? 4 : fronds.length);
+    const visibleCanopyBlooms = canopyBlooms.filter((bloom) => stageIndex >= bloom.min).slice(0, stageIndex >= 14 ? 3 : canopyBlooms.length);
+    const visiblePondBlooms = pondBlooms.filter((bloom) => stageIndex >= bloom.min).slice(0, stageIndex >= 14 ? 3 : pondBlooms.length);
+
+    const orbitNodeCount = isFinalStage ? 0 : stageIndex >= 14 ? 4 : stageIndex >= 11 ? 6 : 0;
+    const orbitNodes = range(orbitNodeCount).map((index) => {
+        const angle = (360 / orbitNodeCount) * index;
+        const radius = stageIndex >= 14 ? 78 : 72;
         const radians = angle * (Math.PI / 180);
         return {
             x: moonX + (Math.cos(radians) * radius),
@@ -580,8 +621,6 @@ export default function Garden({
             light: index % 2 === 0
         };
     });
-
-    const lightVisualBudget = useMobileVisualBudget();
 
     const { container } = useGSAP(({ selector }) => {
         const q = selector;
@@ -813,6 +852,18 @@ export default function Garden({
                         <stop offset="0%" stopColor={palette.blossom} />
                         <stop offset="100%" stopColor={palette.light} />
                     </linearGradient>
+                    <linearGradient id={ids.cosmic} x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor={palette.leafLight} stopOpacity="0.16" />
+                        <stop offset="45%" stopColor={palette.light} stopOpacity="0.72" />
+                        <stop offset="100%" stopColor={palette.blossomCore} stopOpacity="0.28" />
+                    </linearGradient>
+                    <linearGradient id={ids.ribbon} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={palette.leafLight} stopOpacity="0" />
+                        <stop offset="22%" stopColor={palette.leafLight} stopOpacity="0.62" />
+                        <stop offset="54%" stopColor={palette.light} stopOpacity="0.92" />
+                        <stop offset="82%" stopColor={palette.blossomCore} stopOpacity="0.62" />
+                        <stop offset="100%" stopColor={palette.blossomCore} stopOpacity="0" />
+                    </linearGradient>
                     <radialGradient id={ids.light} cx="50%" cy="42%" r="62%">
                         <stop offset="0%" stopColor={palette.light} stopOpacity="0.9" />
                         <stop offset="44%" stopColor={palette.light} stopOpacity="0.44" />
@@ -857,6 +908,68 @@ export default function Garden({
                     data-parallax="far"
                 />
 
+                {stageIndex >= 12 ? (
+                    <g className="garden-reveal" data-parallax="far" opacity={bandOpacity}>
+                        <g className="garden-orbit" data-duration={stageIndex >= 15 ? '92' : '118'} data-origin={`${moonX}px ${moonY}px`}>
+                            {haloRings.map((_, index) => (
+                                <ellipse
+                                    key={`moon-halo-${index}`}
+                                    cx={moonX}
+                                    cy={moonY}
+                                    rx={moonRadius + 22 + (index * 14)}
+                                    ry={moonRadius + 9 + (index * 8)}
+                                    fill="none"
+                                    stroke={cosmicStroke}
+                                    strokeWidth={1.1 - (index * 0.12)}
+                                    strokeDasharray={index % 2 === 0 ? '3 24' : '12 28'}
+                                    opacity={0.22 - (index * 0.035)}
+                                    transform={`rotate(${(index * 18) - 22} ${moonX} ${moonY})`}
+                                />
+                            ))}
+                        </g>
+                    </g>
+                ) : null}
+
+                {constellationPoints.length ? (
+                    <g className="garden-reveal" data-parallax="far" opacity={bandOpacity}>
+                        <path
+                            d={constellationPath}
+                            fill="none"
+                            stroke={cosmicStroke}
+                            strokeWidth="0.9"
+                            strokeDasharray={stageIndex >= 14 ? '9 18' : '4 16'}
+                            strokeLinecap="round"
+                            opacity={stageIndex >= 14 ? '0.3' : '0.22'}
+                            className="garden-drift"
+                            data-x="2"
+                            data-y="-1.2"
+                            data-duration="18"
+                        />
+                        {constellationPoints.map((point, index) => (
+                            <g
+                                key={`constellation-${index}`}
+                                className="garden-twinkle"
+                                data-origin={`${point.x}px ${point.y}px`}
+                            >
+                                <path
+                                    d={STAR_PATH}
+                                    transform={`translate(${point.x} ${point.y}) scale(${point.scale})`}
+                                    fill={index % 2 === 0 ? palette.light : palette.leafLight}
+                                    opacity={stageIndex >= 14 ? '0.58' : '0.42'}
+                                />
+                                <circle
+                                    cx={point.x}
+                                    cy={point.y}
+                                    r={5.6 * point.scale}
+                                    fill={lightFill}
+                                    opacity="0.06"
+                                    className="garden-breath"
+                                />
+                            </g>
+                        ))}
+                    </g>
+                ) : null}
+
                 {stars.map((star, index) => (
                     <path
                         key={`star-${index}`}
@@ -894,6 +1007,27 @@ export default function Garden({
                     data-duration="20"
                     data-parallax="far"
                 />
+
+                {archRings.length ? (
+                    <g className="garden-reveal" data-parallax="mid" opacity={bandOpacity}>
+                        {archRings.map((_, index) => (
+                            <path
+                                key={`celestial-arch-${index}`}
+                                d={`M${54 + (index * 16)} ${244 - (index * 8)} C ${118 + (index * 8)} ${116 - (index * 8)} ${278 - (index * 8)} ${116 - (index * 8)} ${346 - (index * 16)} ${244 - (index * 8)}`}
+                                fill="none"
+                                stroke={cosmicStroke}
+                                strokeWidth={1.05 - (index * 0.12)}
+                                strokeDasharray={index % 2 === 0 ? '10 24' : '2 18'}
+                                strokeLinecap="round"
+                                opacity={0.18 - (index * 0.035)}
+                                className="garden-drift"
+                                data-x={index % 2 === 0 ? '1.8' : '-1.8'}
+                                data-y="-1.2"
+                                data-duration={18 + (index * 2)}
+                            />
+                        ))}
+                    </g>
+                ) : null}
 
                 <ellipse
                     cx="200"
@@ -942,6 +1076,37 @@ export default function Garden({
                         data-parallax="near"
                     />
                 ))}
+
+                {stageIndex >= 14 ? (
+                    <g className="garden-reveal" data-parallax="far" opacity={bandOpacity}>
+                        <path
+                            d="M46 148 C 106 114 146 120 198 150 C 252 180 300 180 356 136"
+                            fill="none"
+                            stroke={ribbonStroke}
+                            strokeWidth={stageIndex >= 15 ? '2.8' : '2.2'}
+                            strokeLinecap="round"
+                            opacity={stageIndex >= 15 ? '0.28' : '0.18'}
+                            filter={`url(#${ids.glow})`}
+                            className="garden-drift"
+                            data-x="2.2"
+                            data-y="-1.4"
+                            data-duration="16"
+                        />
+                        <path
+                            d="M52 174 C 114 144 148 148 198 172 C 252 196 302 194 352 162"
+                            fill="none"
+                            stroke={cosmicStroke}
+                            strokeWidth="1.05"
+                            strokeLinecap="round"
+                            strokeDasharray="8 18"
+                            opacity="0.18"
+                            className="garden-drift"
+                            data-x="-1.8"
+                            data-y="1.2"
+                            data-duration="19"
+                        />
+                    </g>
+                ) : null}
 
                 <g data-parallax="mid" className="garden-reveal">
                     <path
@@ -1003,8 +1168,8 @@ export default function Garden({
                     </g>
                 ) : null}
 
-                {pondBlooms.filter((bloom) => stageIndex >= bloom.min).map((bloom, index) => (
-                    <g key={`pond-bloom-${bloom.x}`} data-parallax="near" className="garden-reveal">
+                {visiblePondBlooms.map((bloom, index) => (
+                    <g key={`pond-bloom-${bloom.x}`} data-parallax="near" className="garden-reveal" opacity={plantDetailOpacity}>
                         <ellipse
                             cx={bloom.x}
                             cy={bloom.y + 10}
@@ -1061,7 +1226,7 @@ export default function Garden({
                             ) : null}
                         </g>
 
-                        {fronds.filter((frond) => stageIndex >= frond.min).map((frond, index) => (
+                        {visibleFronds.map((frond, index) => (
                             <WillowFrond
                                 key={`frond-${frond.x}-${frond.y}`}
                                 x={frond.x}
@@ -1077,37 +1242,70 @@ export default function Garden({
                             />
                         ))}
 
-                        {canopyBlooms.filter((bloom) => stageIndex >= bloom.min).map((bloom) => (
-                            <LotusBloom
-                                key={`canopy-bloom-${bloom.x}`}
-                                x={bloom.x}
-                                y={bloom.y}
-                                petals={7}
-                                radius={14 * bloom.scale}
-                                petalScale={0.25 * bloom.scale}
-                                petalFill={blossomFill}
-                                coreFill={palette.blossomCore}
-                                coreRadius={3.2 * bloom.scale}
-                                rotate={bloom.rotate}
-                                glowFill={lightFill}
-                                glowOpacity={0.1}
-                                ringStroke={stageIndex >= 12 ? palette.light : null}
-                                ringRadius={stageIndex >= 12 ? 10 * bloom.scale : 0}
-                                className="garden-breath"
-                            />
-                        ))}
+                        <g opacity={plantDetailOpacity}>
+                            {visibleCanopyBlooms.map((bloom) => (
+                                <LotusBloom
+                                    key={`canopy-bloom-${bloom.x}`}
+                                    x={bloom.x}
+                                    y={bloom.y}
+                                    petals={stageIndex >= 14 ? 6 : 7}
+                                    radius={14 * bloom.scale}
+                                    petalScale={(stageIndex >= 14 ? 0.21 : 0.25) * bloom.scale}
+                                    petalFill={blossomFill}
+                                    coreFill={palette.blossomCore}
+                                    coreRadius={3.2 * bloom.scale}
+                                    rotate={bloom.rotate}
+                                    glowFill={lightFill}
+                                    glowOpacity={stageIndex >= 14 ? 0.04 : 0.1}
+                                    ringStroke={stageIndex >= 12 && stageIndex < 14 ? palette.light : null}
+                                    ringRadius={stageIndex >= 12 && stageIndex < 14 ? 10 * bloom.scale : 0}
+                                    className="garden-breath"
+                                />
+                            ))}
+                        </g>
                     </g>
                 ) : null}
 
-                {stageIndex >= 11 ? (
-                    <g className="garden-orbit garden-reveal" data-duration={stageIndex >= 14 ? '54' : '66'} data-origin={`${moonX}px ${moonY}px`} data-parallax="near">
-                        <circle cx={moonX} cy={moonY} r={stageIndex >= 14 ? '84' : '72'} fill="none" stroke={palette.light} strokeWidth="1.2" strokeDasharray="4 18" opacity="0.28" />
+                {orbitNodes.length ? (
+                    <g className="garden-orbit garden-reveal" data-duration={stageIndex >= 14 ? '64' : '66'} data-origin={`${moonX}px ${moonY}px`} data-parallax="near" opacity={bandOpacity}>
+                        <circle cx={moonX} cy={moonY} r={stageIndex >= 14 ? '78' : '72'} fill="none" stroke={palette.light} strokeWidth="0.9" strokeDasharray="4 24" opacity="0.18" />
                         {orbitNodes.map((node, index) => (
                             <g key={`orbit-node-${index}`} className="garden-drift" data-x={node.light ? '2.2' : '-2.2'} data-y={node.light ? '-1.8' : '1.8'} data-duration={8.4 + (index * 0.6)}>
                                 <circle cx={node.x} cy={node.y} r={node.light ? '4.4' : '3.4'} fill={node.light ? palette.light : palette.leafLight} className="garden-twinkle" />
                                 <circle cx={node.x} cy={node.y} r={node.light ? '10' : '8'} fill={lightFill} opacity="0.16" className="garden-breath" />
                             </g>
                         ))}
+                    </g>
+                ) : null}
+
+                {stageIndex >= 15 ? (
+                    <g className="garden-reveal" data-parallax="far" opacity={bandOpacity}>
+                        <path
+                            d="M74 104 C 112 72 154 72 196 104 C 238 136 280 136 326 104 C 280 72 238 72 196 104 C 154 136 112 136 74 104 Z"
+                            fill="none"
+                            stroke={ribbonStroke}
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity="0.34"
+                            filter={`url(#${ids.glow})`}
+                            className="garden-drift"
+                            data-x="1.6"
+                            data-y="-1.8"
+                            data-duration="15"
+                        />
+                        <path
+                            d="M112 104 C 142 84 170 84 196 104 C 224 126 254 126 286 104 C 254 84 224 84 196 104 C 170 126 142 126 112 104 Z"
+                            fill="none"
+                            stroke={palette.light}
+                            strokeWidth="0.85"
+                            strokeLinecap="round"
+                            strokeDasharray="5 14"
+                            opacity="0.3"
+                            className="garden-orbit"
+                            data-duration="72"
+                            data-origin="200px 104px"
+                        />
                     </g>
                 ) : null}
 
@@ -1125,14 +1323,33 @@ export default function Garden({
                             cy={point.y}
                             r={2.1 * point.scale}
                             fill={palette.light}
-                            opacity={stageIndex >= 9 ? 0.8 : 0.58}
+                            opacity={(stageIndex >= 9 ? 0.8 : 0.58) * foregroundSparkleOpacity}
                             filter={`url(#${ids.glow})`}
                             className="garden-twinkle"
                         />
                     </g>
                 ))}
 
-                <g data-parallax="near">
+                {cosmicDust.length ? (
+                    <g data-parallax="far" opacity={bandOpacity}>
+                        {cosmicDust.map((point, index) => (
+                            <circle
+                                key={`cosmic-dust-${index}`}
+                                cx={point.x}
+                                cy={point.y}
+                                r={(index % 4 === 0 ? 1.9 : 1.1) * point.scale}
+                                fill={index % 2 === 0 ? palette.blossomCore : palette.leafLight}
+                                opacity={0.14 + ((index % 3) * 0.04)}
+                                className="garden-drift garden-twinkle garden-reveal"
+                                data-x={index % 2 === 0 ? '2.4' : '-2.4'}
+                                data-y={-1.4 - (index % 3)}
+                                data-duration={12 + ((index % 5) * 0.8)}
+                            />
+                        ))}
+                    </g>
+                ) : null}
+
+                <g data-parallax="near" opacity={foregroundSparkleOpacity}>
                     {pollen.map((point, index) => (
                         <circle
                             key={`pollen-${index}`}
