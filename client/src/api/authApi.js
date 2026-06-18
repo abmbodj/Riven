@@ -4452,8 +4452,27 @@ export const getGroupScheduleCalendar = async (groupId, rangeStart, rangeEnd) =>
     return data || {
         members: [],
         schedule_slots: [],
+        availability: [],
+        my_availability: [],
+        my_schedule_slots: [],
         meetups: [],
     };
+};
+
+// Replace-set the caller's painted "free" cells for a group. `cells` is an array
+// of { day_of_week (0-6), hour (0-23) } in the member's local week.
+export const setGroupAvailability = async (groupId, cells = []) => {
+    const data = await callGroupRpc('set_group_availability', {
+        target_group_id: groupId,
+        cells: Array.isArray(cells)
+            ? cells.map((cell) => ({
+                day_of_week: Number(cell?.day_of_week),
+                hour: Number(cell?.hour),
+            }))
+            : [],
+    });
+
+    return data;
 };
 
 export const getGroupScheduleShare = async (groupId) => {
@@ -4587,6 +4606,15 @@ export const subscribeToGroupMeetupEvents = (groupId, handlers = {}) => {
             filter: `group_id=eq.${groupId}`,
         }, (payload) => {
             handlers.onAttendanceChanged?.(payload);
+            handlers.onChanged?.(payload);
+        })
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'group_member_availability',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            handlers.onAvailabilityChanged?.(payload);
             handlers.onChanged?.(payload);
         });
 

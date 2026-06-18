@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import {
+  buildGroupMeetupPushPayload,
   buildInactivityPushPayload,
   buildMessagePushPayload,
   getInactivityReminderDecision,
@@ -343,6 +344,72 @@ const handleMessageCreated = async (messageId: number) => {
   return sendPushToTokens(uniqueTokens, payload);
 };
 
+const handleGroupMeetupEvent = async (meetupId: string, eventType: string) => {
+  const admin = getSupabaseAdmin();
+  const { data: meetup, error: meetupError } = await admin
+    .from('group_meetups')
+    .select('id, group_id, created_by, topic')
+    .eq('id', meetupId)
+    .maybeSingle();
+
+  if (meetupError) throw meetupError;
+  if (!meetup) {
+    return { delivered: 0, reason: 'meetup_not_found' };
+  }
+
+  const groupId = Number((meetup as Record<string, unknown>).group_id ?? 0) ||
+    String((meetup as Record<string, unknown>).group_id ?? '');
+  const createdBy = Number((meetup as Record<string, unknown>).created_by);
+
+  const [{ data: members, error: membersError }, { data: group }, { data: creator }] = await Promise.all([
+    admin.from('group_members').select('user_id').eq('group_id', (meetup as Record<string, unknown>).group_id),
+    admin.from('study_groups').select('name').eq('id', (meetup as Record<string, unknown>).group_id).maybeSingle(),
+    admin.from('users').select('display_name, username').eq('id', createdBy).maybeSingle(),
+  ]);
+
+  if (membersError) throw membersError;
+
+  const recipientIds = ((members || []) as Array<{ user_id: number }>)
+    .map((row) => Number(row.user_id))
+    .filter((userId) => userId && userId !== createdBy);
+
+  if (!recipientIds.length) {
+    return { delivered: 0, reason: 'no_recipients' };
+  }
+
+  const payload = buildGroupMeetupPushPayload({
+    eventType,
+    groupId,
+    groupName: (group as Record<string, unknown> | null)?.name as string | null,
+    topic: (meetup as Record<string, unknown>).topic as string | null,
+    actorName: eventType === 'cancelled'
+      ? null
+      : ((creator as Record<string, unknown> | null)?.display_name as string | null)
+        || ((creator as Record<string, unknown> | null)?.username as string | null),
+  });
+
+  let delivered = 0;
+  for (const userId of recipientIds) {
+    const [preferences, devices] = await Promise.all([
+      fetchPushPreferencesForUser(userId),
+      fetchActiveIosDevicesForUser(userId),
+    ]);
+
+    // Meetup pushes are interpersonal/social — gated by the same toggle as DMs.
+    if (!preferences.messagesEnabled) continue;
+
+    const uniqueTokens = Array.from(new Set(
+      devices.map((device) => device.push_token).filter((token): token is string => Boolean(token)),
+    ));
+    if (!uniqueTokens.length) continue;
+
+    const result = await sendPushToTokens(uniqueTokens, payload);
+    delivered += result.delivered;
+  }
+
+  return { delivered, recipients: recipientIds.length };
+};
+
 const fetchGroupedDevices = async () => {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
@@ -510,6 +577,16 @@ serve(async (request) => {
       }
 
       return jsonResponse(await handleMessageCreated(messageId), {}, request);
+    }
+
+    if (action === 'group_meetup_event') {
+      const meetupId = String(body?.meetupId || '').trim();
+      const eventType = String(body?.eventType || '').trim();
+      if (!meetupId) {
+        return jsonResponse({ error: 'meetupId is required' }, { status: 400 }, request);
+      }
+
+      return jsonResponse(await handleGroupMeetupEvent(meetupId, eventType), {}, request);
     }
 
     if (action === 'reengagement_scan') {

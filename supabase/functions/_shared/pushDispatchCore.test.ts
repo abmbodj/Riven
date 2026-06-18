@@ -1,4 +1,5 @@
 import {
+  buildGroupMeetupPushPayload,
   buildInactivityPushPayload,
   buildMessagePushBody,
   buildMessagePushPayload,
@@ -47,6 +48,41 @@ Deno.test('buildMessagePushBody formats preview text and shared-resource labels'
     buildMessagePushBody({ message_type: 'image', content: '' }),
     'sent a photo.',
     'Expected photo copy for image messages',
+  );
+});
+
+Deno.test('buildGroupMeetupPushPayload routes to the group and reads the topic', () => {
+  assertEquals(
+    buildGroupMeetupPushPayload({
+      eventType: 'proposed',
+      groupId: 'grp-1',
+      groupName: 'Orgo Crew',
+      topic: 'Problem set 4',
+      actorName: 'Bianca',
+    }),
+    {
+      kind: 'group_meetup',
+      route: '/groups/grp-1',
+      title: 'Orgo Crew',
+      body: 'Bianca proposed "Problem set 4".',
+    },
+    'Expected a proposed-session payload routed to the group',
+  );
+
+  assertEquals(
+    buildGroupMeetupPushPayload({
+      eventType: 'cancelled',
+      groupId: 'grp-1',
+      groupName: '',
+      topic: 'Problem set 4',
+    }),
+    {
+      kind: 'group_meetup',
+      route: '/groups/grp-1',
+      title: 'Session cancelled',
+      body: 'Someone cancelled "Problem set 4".',
+    },
+    'Expected a cancelled payload with sensible fallbacks',
   );
 });
 

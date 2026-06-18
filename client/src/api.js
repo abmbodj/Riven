@@ -563,6 +563,11 @@ export const api = {
             cache.deletePrefix(groupKeys.schedulePrefix(id));
         })
         : Promise.reject(new Error('Must be logged in')),
+    setGroupAvailability: (id, cells) => isLoggedIn()
+        ? mutate(() => serverApi.setGroupAvailability(id, cells), () => {
+            cache.deletePrefix(groupKeys.schedulePrefix(id));
+        })
+        : Promise.reject(new Error('Must be logged in')),
     createGroupMeetup: (id, meetup) => isLoggedIn()
         ? mutate(() => serverApi.createGroupMeetup(id, meetup), () => {
             cache.deletePrefix(groupKeys.schedulePrefix(id));

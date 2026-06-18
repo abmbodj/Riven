@@ -91,6 +91,34 @@ export const buildMessagePushPayload = ({
   body: buildMessagePushBody(message),
 });
 
+export const buildGroupMeetupPushPayload = ({
+  eventType,
+  groupId,
+  groupName,
+  topic,
+  actorName,
+}: {
+  eventType: string;
+  groupId: string | number;
+  groupName?: string | null;
+  topic?: string | null;
+  actorName?: string | null;
+}) => {
+  const who = sanitizePreviewText(actorName) || 'Someone';
+  const what = sanitizePreviewText(topic) || 'a study session';
+  const where = sanitizePreviewText(groupName);
+  const isCancelled = eventType === 'cancelled';
+
+  return {
+    kind: 'group_meetup',
+    route: `/groups/${groupId}`,
+    title: where || (isCancelled ? 'Session cancelled' : 'New study session'),
+    body: isCancelled
+      ? `${who} cancelled "${what}".`
+      : `${who} proposed "${what}".`,
+  };
+};
+
 export const getMostRecentLastSeenAt = (
   devices: Array<{ last_seen_at?: string | null; lastSeenAt?: string | null }>,
 ): Date | null => {

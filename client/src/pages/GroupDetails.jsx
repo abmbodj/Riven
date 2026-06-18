@@ -616,6 +616,17 @@ export default function GroupDetails() {
         }
     };
 
+    const handleSaveAvailability = async (cells) => {
+        try {
+            await api.setGroupAvailability(id, cells);
+            await refreshScheduleRange();
+            toast.success('Availability saved.');
+        } catch (err) {
+            toast.error(err.message || 'Failed to save availability');
+            throw err;
+        }
+    };
+
     const handleCreateMeetup = async (meetupPayload) => {
         try {
             await api.createGroupMeetup(id, meetupPayload);
@@ -872,6 +883,7 @@ export default function GroupDetails() {
                         composerRequestKey={scheduleComposerRequestKey}
                         onRangeChange={handleScheduleRangeChange}
                         onSetShareMode={handleSetShareMode}
+                        onSaveAvailability={handleSaveAvailability}
                         onCreateMeetup={handleCreateMeetup}
                         onJoinMeetup={handleJoinMeetup}
                         onLeaveMeetup={handleLeaveMeetup}
@@ -1101,6 +1113,7 @@ export default function GroupDetails() {
                             composerRequestKey={scheduleComposerRequestKey}
                             onRangeChange={handleScheduleRangeChange}
                             onSetShareMode={handleSetShareMode}
+                            onSaveAvailability={handleSaveAvailability}
                             onCreateMeetup={handleCreateMeetup}
                             onJoinMeetup={handleJoinMeetup}
                             onLeaveMeetup={handleLeaveMeetup}

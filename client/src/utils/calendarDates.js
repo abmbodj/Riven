@@ -429,6 +429,193 @@ export function calculateBestTimes({
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Availability heatmap (coordination-first group calendar)
+// ──────────────────────────────────────────────────────────────────────────
+
+export const HEATMAP_DEFAULT_START_HOUR = 8;
+export const HEATMAP_DEFAULT_END_HOUR = 23; // exclusive upper bound (last row = 22:00)
+const HEATMAP_MIN_HOUR = 6;
+const HEATMAP_MAX_HOUR = 24;
+
+function availabilityKey(dayOfWeek, hour) {
+    return `${dayOfWeek}-${hour}`;
+}
+
+/**
+ * Pick a sensible waking-hour window for the heatmap, tightened to the hours
+ * members actually painted (plus a 1h buffer), clamped to a reasonable range.
+ */
+export function resolveAvailabilityWindow(availability = [], scheduleSlots = []) {
+    const hours = [];
+
+    availability.forEach((cell) => {
+        const hour = Number(cell?.hour);
+        if (Number.isFinite(hour)) hours.push(hour);
+    });
+
+    scheduleSlots.forEach((slot) => {
+        const startHour = Math.floor(getMinutesSinceStart(slot?.start_time) / 60);
+        const endHour = Math.ceil(getMinutesSinceStart(slot?.end_time) / 60);
+        if (Number.isFinite(startHour)) hours.push(startHour);
+        if (Number.isFinite(endHour)) hours.push(endHour);
+    });
+
+    if (hours.length === 0) {
+        return { startHour: HEATMAP_DEFAULT_START_HOUR, endHour: HEATMAP_DEFAULT_END_HOUR };
+    }
+
+    const earliest = Math.min(...hours) - 1;
+    const latest = Math.max(...hours) + 1;
+
+    return {
+        startHour: Math.max(HEATMAP_MIN_HOUR, Math.min(HEATMAP_DEFAULT_START_HOUR, earliest)),
+        endHour: Math.min(HEATMAP_MAX_HOUR, Math.max(HEATMAP_DEFAULT_END_HOUR, latest)),
+    };
+}
+
+function indexClassSlotsByMember(scheduleSlots = []) {
+    const byMember = new Map();
+
+    scheduleSlots.forEach((slot) => {
+        const memberId = toIdentity(slot.user_id);
+        if (!memberId) return;
+
+        const entry = byMember.get(memberId) || [];
+        entry.push({
+            dayOfWeek: Number(slot.day_of_week),
+            startMinutes: getMinutesSinceStart(slot.start_time),
+            endMinutes: getMinutesSinceStart(slot.end_time),
+        });
+        byMember.set(memberId, entry);
+    });
+
+    return byMember;
+}
+
+function memberHasClassAt(classSlots, dayOfWeek, hour) {
+    if (!classSlots) return false;
+    const cellStart = hour * 60;
+    const cellEnd = (hour + 1) * 60;
+    return classSlots.some((slot) => (
+        slot.dayOfWeek === dayOfWeek
+        && slot.startMinutes < cellEnd
+        && slot.endMinutes > cellStart
+    ));
+}
+
+function activeMeetupForCell(meetups, date, hour) {
+    const cellStart = new Date(startOfDay(date));
+    cellStart.setHours(hour, 0, 0, 0);
+    const cellEnd = new Date(cellStart.getTime() + 60 * 60 * 1000);
+
+    return meetups.find((meetup) => (
+        meetup.status !== 'cancelled'
+        && new Date(meetup.start_at).getTime() < cellEnd.getTime()
+        && new Date(meetup.end_at).getTime() > cellStart.getTime()
+    )) || null;
+}
+
+/**
+ * Build the graded availability heatmap for a visible week.
+ *
+ * A member counts toward the denominator only if they participate (share_mode is
+ * not 'hidden') AND have painted at least one free cell — members with no data are
+ * excluded so they never inflate "everyone free".
+ *
+ * A participating member is FREE at a cell when they painted it free AND have no
+ * class then. Any active meetup overlapping a cell marks that cell as "taken".
+ *
+ * @returns {{
+ *   cells: Map<string, { dayIndex:number, hour:number, freeCount:number,
+ *     freeMemberIds:Array, busyMemberIds:Array, meetup:Object|null }>,
+ *   denominator: number,
+ *   maxFree: number,
+ *   startHour: number,
+ *   endHour: number,
+ *   participatingMemberIds: Array,
+ * }}
+ */
+export function buildAvailabilityHeatmap({
+    weekDays = [],
+    startHour = HEATMAP_DEFAULT_START_HOUR,
+    endHour = HEATMAP_DEFAULT_END_HOUR,
+    members = [],
+    availability = [],
+    scheduleSlots = [],
+    meetups = [],
+} = {}) {
+    // Painted cells per member.
+    const paintedByMember = new Map();
+    availability.forEach((cell) => {
+        const memberId = toIdentity(cell.user_id);
+        if (!memberId) return;
+        const set = paintedByMember.get(memberId) || new Set();
+        set.add(availabilityKey(Number(cell.day_of_week), Number(cell.hour)));
+        paintedByMember.set(memberId, set);
+    });
+
+    // Participating members with data drive the denominator.
+    const participatingMemberIds = members
+        .filter((member) => member.share_mode && member.share_mode !== 'hidden')
+        .map((member) => toIdentity(member.id))
+        .filter((memberId) => paintedByMember.get(memberId)?.size);
+
+    const denominator = participatingMemberIds.length;
+    const classSlotsByMember = indexClassSlotsByMember(scheduleSlots);
+
+    const cells = new Map();
+    let maxFree = 0;
+
+    weekDays.forEach((date, dayIndex) => {
+        const dayOfWeek = startOfDay(date).getDay();
+
+        for (let hour = startHour; hour < endHour; hour += 1) {
+            const key = `${dayIndex}-${hour}`;
+            const meetup = activeMeetupForCell(meetups, date, hour);
+
+            if (meetup) {
+                cells.set(key, {
+                    dayIndex,
+                    hour,
+                    freeCount: 0,
+                    freeMemberIds: [],
+                    busyMemberIds: [],
+                    meetup,
+                });
+                continue;
+            }
+
+            const freeMemberIds = [];
+            const busyMemberIds = [];
+
+            participatingMemberIds.forEach((memberId) => {
+                const painted = paintedByMember.get(memberId);
+                const isFree = painted?.has(availabilityKey(dayOfWeek, hour))
+                    && !memberHasClassAt(classSlotsByMember.get(memberId), dayOfWeek, hour);
+
+                if (isFree) {
+                    freeMemberIds.push(memberId);
+                } else {
+                    busyMemberIds.push(memberId);
+                }
+            });
+
+            maxFree = Math.max(maxFree, freeMemberIds.length);
+            cells.set(key, {
+                dayIndex,
+                hour,
+                freeCount: freeMemberIds.length,
+                freeMemberIds,
+                busyMemberIds,
+                meetup: null,
+            });
+        }
+    });
+
+    return { cells, denominator, maxFree, startHour, endHour, participatingMemberIds };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Timeline (week/day) layout
 // ──────────────────────────────────────────────────────────────────────────
 
