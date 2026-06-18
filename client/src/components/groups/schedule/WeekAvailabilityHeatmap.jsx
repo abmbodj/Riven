@@ -8,10 +8,71 @@ import {
 } from '../../../utils/calendarDates';
 import { getHeatmapCellStyle, MEETUP_COLOR } from '../../../utils/calendarModel';
 
+const MAX_CELL_AVATARS = 3;
+
 function formatHourLabel(hour) {
     const meridiem = hour >= 12 ? 'p' : 'a';
     const normalized = hour % 12 || 12;
     return `${normalized}${meridiem}`;
+}
+
+function getMemberName(member, fallbackId) {
+    return member?.display_name || member?.username || fallbackId || 'Member';
+}
+
+function getMemberAvatar(member, fallbackId) {
+    const seed = member?.username || member?.id || fallbackId || 'member';
+    return member?.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${seed}`;
+}
+
+function getCellMembers(memberIds = [], memberById) {
+    return memberIds.map((memberId) => {
+        const key = String(memberId);
+        const member = memberById?.get(key);
+        return {
+            id: String(member?.id || key),
+            name: getMemberName(member, key),
+            avatar: getMemberAvatar(member, key),
+        };
+    });
+}
+
+function buildAvailabilityLabel(dayOfWeek, hour, freeCount, denominator, freeMembers) {
+    const base = denominator
+        ? `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}: ${freeCount} of ${denominator} free`
+        : `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}`;
+    const freeNames = freeMembers.map((member) => member.name).filter(Boolean);
+    return freeNames.length ? `${base}; free: ${freeNames.join(', ')}` : base;
+}
+
+function FreeMemberAvatarStack({ members = [] }) {
+    if (!members.length) return null;
+
+    const visibleMembers = members.slice(0, MAX_CELL_AVATARS);
+    const overflowCount = members.length - visibleMembers.length;
+
+    return (
+        <span data-testid="free-member-avatar-stack" className="flex min-w-0 items-center justify-center -space-x-1 overflow-hidden px-0.5">
+            {visibleMembers.map((member) => (
+                <img
+                    key={member.id}
+                    src={member.avatar}
+                    alt=""
+                    loading="lazy"
+                    data-testid="free-member-avatar"
+                    className="h-3.5 w-3.5 shrink-0 rounded-full border border-[rgba(24,42,49,0.88)] bg-white/90 object-cover p-[1px] shadow-[0_1px_2px_rgba(0,0,0,0.24)] md:h-4 md:w-4"
+                />
+            ))}
+            {overflowCount > 0 && (
+                <span
+                    data-testid="free-member-avatar-overflow"
+                    className="relative z-10 flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full border border-[rgba(24,42,49,0.88)] bg-[rgba(15,26,18,0.82)] px-1 font-mono text-[7px] font-bold leading-none text-[#e9f2df] md:h-4 md:min-w-[1rem]"
+                >
+                    +{overflowCount}
+                </span>
+            )}
+        </span>
+    );
 }
 
 function buildBlockedHours(myClassSlots = []) {
@@ -42,6 +103,7 @@ export default function WeekAvailabilityHeatmap({
     startHour,
     endHour,
     heatmap = null,
+    memberById = null,
     myCells = null,
     myClassSlots = [],
     highlightedMeetupId = null,
@@ -156,26 +218,23 @@ export default function WeekAvailabilityHeatmap({
                             }
 
                             const freeCount = cell?.freeCount ?? 0;
+                            const freeMembers = getCellMembers(cell?.freeMemberIds || [], memberById);
                             const style = getHeatmapCellStyle(freeCount, denominator);
                             const canPropose = Boolean(onProposeCell);
+                            const availabilityLabel = buildAvailabilityLabel(dayOfWeek, hour, freeCount, denominator, freeMembers);
 
                             return (
                                 <button
                                     key={dayIndex}
                                     type="button"
                                     disabled={!canPropose}
-                                    aria-label={denominator
-                                        ? `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}: ${freeCount} of ${denominator} free`
-                                        : `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}`}
+                                    aria-label={availabilityLabel}
+                                    title={availabilityLabel}
                                     onClick={() => onProposeCell?.(date, hour, cell)}
                                     className="flex h-7 items-center justify-center rounded-[3px] border border-white/5 transition-transform enabled:hover:scale-[1.04] enabled:hover:border-white/20 md:h-full md:min-h-[1.35rem]"
                                     style={style}
                                 >
-                                    {denominator > 0 && freeCount > 0 && (
-                                        <span className="font-mono text-[8px] font-bold text-[#0f1a12]/80">
-                                            {freeCount}
-                                        </span>
-                                    )}
+                                    {denominator > 0 && freeCount > 0 && <FreeMemberAvatarStack members={freeMembers} />}
                                 </button>
                             );
                         })}

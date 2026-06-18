@@ -124,6 +124,11 @@ export default function GroupScheduleHub({
         members.forEach((member) => map.set(String(member.id), formatMemberName(member)));
         return map;
     }, [members]);
+    const memberById = useMemo(() => {
+        const map = new Map();
+        members.forEach((member) => map.set(String(member.id), member));
+        return map;
+    }, [members]);
 
     const myAvailabilitySet = useMemo(
         () => new Set(myAvailability.map((cell) => cellKey(Number(cell.day_of_week), Number(cell.hour)))),
@@ -432,6 +437,7 @@ export default function GroupScheduleHub({
                                     startHour={startHour}
                                     endHour={endHour}
                                     heatmap={heatmap}
+                                    memberById={memberById}
                                     myCells={draftCells}
                                     myClassSlots={visibleMyScheduleSlots}
                                     highlightedMeetupId={highlightedMeetupId}

@@ -168,6 +168,7 @@ const makeSharedSchedule = ({
         id: 'visible-user',
         username: 'visible',
         display_name: 'Visible Member',
+        avatar: 'https://cdn.test/visible.png',
         share_mode: 'busy_free',
       },
     ],
@@ -701,6 +702,7 @@ describe('GroupDetails upload flow', () => {
         id: 'active-user',
         username: 'active',
         display_name: 'Active Member',
+        avatar: 'https://cdn.test/active.png',
         share_mode: 'full',
       }],
       availability: [
@@ -752,7 +754,10 @@ describe('GroupDetails upload flow', () => {
 
     const primaryHub = screen.getAllByTestId('group-schedule-hub')[0];
     expect(within(primaryHub).getByRole('button', { name: new RegExp(`${dayLabel} 9a: 0 of 1 free`, 'i') })).toBeInTheDocument();
-    expect(within(primaryHub).getByRole('button', { name: new RegExp(`${dayLabel} 11a: 1 of 1 free`, 'i') })).toBeInTheDocument();
+    const availableCell = within(primaryHub).getByRole('button', { name: new RegExp(`${dayLabel} 11a: 1 of 1 free; free: Active Member`, 'i') });
+    expect(availableCell).toBeInTheDocument();
+    expect(within(availableCell).getByTestId('free-member-avatar')).toHaveAttribute('src', 'https://cdn.test/active.png');
+    expect(within(availableCell).queryByText('1')).not.toBeInTheDocument();
     expect(within(primaryHub).queryByText('Visible Class')).not.toBeInTheDocument();
     expect(within(primaryHub).queryByText('Archived Class')).not.toBeInTheDocument();
   });
