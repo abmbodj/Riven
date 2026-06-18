@@ -2,12 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, X } from 'lucide-react';
 import { formatMeetupRange } from '../../../utils/calendarDates';
-import { isMeetupCancelled } from '../../../utils/calendarModel';
+import { getMeetupStateLabel, isMeetupCancelled, isMeetupEnded } from '../../../utils/calendarModel';
 import useBodyScrollLock from '../../../hooks/useBodyScrollLock';
 
 export default function SessionDetailSheet({
     open,
     meetup,
+    nowMs,
     isAdmin,
     onClose,
     onJoin,
@@ -16,6 +17,7 @@ export default function SessionDetailSheet({
 }) {
     const [rsvpDone, setRsvpDone] = useState(false);
     const [cancelPending, setCancelPending] = useState(false);
+    const [mountedNowMs] = useState(() => Date.now());
     const cancelTimerRef = useRef(null);
     const titleId = useId();
 
@@ -62,8 +64,11 @@ export default function SessionDetailSheet({
         }, 3000);
     };
 
+    const effectiveNowMs = nowMs ?? mountedNowMs;
     const cancelled = isMeetupCancelled(meetup);
-    const showCancel = !cancelled && (isAdmin || meetup?.is_creator);
+    const ended = isMeetupEnded(meetup, effectiveNowMs);
+    const stateLabel = getMeetupStateLabel(meetup, effectiveNowMs);
+    const showCancel = !cancelled && !ended && (isAdmin || meetup?.is_creator);
 
     return (
         <AnimatePresence>
@@ -90,9 +95,9 @@ export default function SessionDetailSheet({
                         {/* Header */}
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                                {cancelled && (
-                                    <p className="mb-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-400/80">
-                                        Cancelled
+                                {(cancelled || ended) && (
+                                    <p className={`mb-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] ${cancelled ? 'text-red-400/80' : 'text-claude-secondary'}`}>
+                                        {stateLabel}
                                     </p>
                                 )}
                                 <h3
@@ -118,12 +123,12 @@ export default function SessionDetailSheet({
                         {/* Attendee count */}
                         {meetup.attendee_count > 0 && (
                             <p className="mt-2 text-[12px] text-claude-secondary">
-                                {meetup.attendee_count} {meetup.attendee_count === 1 ? 'person' : 'people'} going
+                                {meetup.attendee_count} {meetup.attendee_count === 1 ? 'person' : 'people'} {ended ? 'went' : 'going'}
                             </p>
                         )}
 
                         {/* RSVP */}
-                        {!cancelled && (
+                        {!cancelled && !ended && (
                             <div className="mt-5">
                                 {rsvpDone ? (
                                     <div className="flex items-center justify-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/12 px-5 py-3 text-sm font-semibold text-emerald-100">

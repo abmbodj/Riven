@@ -48,9 +48,20 @@ export function isMeetupCancelled(meetup) {
     return meetup?.status === 'cancelled';
 }
 
+/** True once a scheduled meetup has ended relative to a stable clock. */
+export function isMeetupEnded(meetup, nowMs = Date.now()) {
+    if (isMeetupCancelled(meetup)) return false;
+
+    const endTime = new Date(meetup?.end_at).getTime();
+    if (!Number.isFinite(endTime)) return false;
+
+    return endTime < nowMs;
+}
+
 /** Short status chip label for a session card. */
-export function getMeetupStateLabel(meetup) {
+export function getMeetupStateLabel(meetup, nowMs = Date.now()) {
     if (isMeetupCancelled(meetup)) return 'Cancelled';
+    if (isMeetupEnded(meetup, nowMs)) return 'Ended';
     if (meetup?.is_joined) return 'Going';
     if (meetup?.is_creator) return 'You proposed';
     return 'Open';

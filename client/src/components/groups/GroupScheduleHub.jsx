@@ -82,6 +82,7 @@ export default function GroupScheduleHub({
     const [selectedMeetup, setSelectedMeetup] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
     const [detailKey, setDetailKey] = useState(0);
+    const [nowMs] = useState(() => Date.now());
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
@@ -123,6 +124,11 @@ export default function GroupScheduleHub({
 
     // Fetch at month granularity so week + month share one payload.
     const fetchRange = useMemo(() => getVisibleMonthRange(anchorDate), [anchorDate]);
+    const visibleSessionRange = useMemo(() => (
+        view === 'month'
+            ? fetchRange
+            : { start: weekDays[0], end: weekDays[6] }
+    ), [fetchRange, view, weekDays]);
     useEffect(() => {
         onRangeChange?.(fetchRange.start, fetchRange.end);
     }, [onRangeChange, fetchRange.start, fetchRange.end]);
@@ -440,6 +446,10 @@ export default function GroupScheduleHub({
                 <section className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-2.5 md:p-3 lg:sticky lg:top-4 lg:self-start`}>
                     <UpcomingSessions
                         meetups={meetups}
+                        rangeStart={visibleSessionRange.start}
+                        rangeEnd={visibleSessionRange.end}
+                        view={view}
+                        nowMs={nowMs}
                         isAdmin={isAdmin}
                         onJoin={onJoinMeetup}
                         onLeave={onLeaveMeetup}
@@ -465,6 +475,7 @@ export default function GroupScheduleHub({
                 key={detailKey}
                 open={detailOpen}
                 meetup={selectedMeetup}
+                nowMs={nowMs}
                 isAdmin={isAdmin}
                 onClose={() => setDetailOpen(false)}
                 onJoin={() => onJoinMeetup?.(selectedMeetup?.id)}

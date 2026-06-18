@@ -4,6 +4,29 @@ import { CalendarDays, CalendarPlus2 } from 'lucide-react';
 import { formatDateLabel, isSameLocalDay, startOfDay } from '../../../utils/calendarDates';
 import MeetupCard from './MeetupCard';
 
+function getValidTime(value) {
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? time : null;
+}
+
+function getRangeEndExclusive(rangeEnd) {
+    if (!rangeEnd) return null;
+
+    const end = startOfDay(rangeEnd);
+    end.setDate(end.getDate() + 1);
+    return end.getTime();
+}
+
+function overlapsVisibleRange(meetup, rangeStart, rangeEnd) {
+    const meetupStart = getValidTime(meetup?.start_at);
+    const meetupEnd = getValidTime(meetup?.end_at);
+    if (meetupStart === null || meetupEnd === null) return false;
+
+    const rangeStartTime = rangeStart ? startOfDay(rangeStart).getTime() : -Infinity;
+    const rangeEndTime = getRangeEndExclusive(rangeEnd) ?? Infinity;
+    return meetupStart < rangeEndTime && meetupEnd >= rangeStartTime;
+}
+
 function groupByDay(meetups) {
     const groups = [];
     meetups.forEach((meetup) => {
@@ -19,12 +42,16 @@ function groupByDay(meetups) {
 }
 
 /**
- * The scrollable "Upcoming sessions" list — the actionable counterpart to the
- * availability heatmap. Sessions are grouped by day; tapping one highlights its
- * slot on the week strip via `onSelectMeetup`.
+ * The scrollable sessions list for the currently visible calendar range.
+ * Sessions are grouped by day; tapping one highlights its slot on the week strip
+ * via `onSelectMeetup`.
  */
 export default function UpcomingSessions({
     meetups = [],
+    rangeStart = null,
+    rangeEnd = null,
+    view = 'week',
+    nowMs,
     isAdmin,
     onJoin,
     onLeave,
@@ -34,19 +61,21 @@ export default function UpcomingSessions({
 }) {
     // Stable "now" per mount (the schedule tab re-mounts on entry); avoids an
     // impure Date.now() during render.
-    const [now] = useState(() => Date.now());
+    const [mountedNowMs] = useState(() => Date.now());
+    const effectiveNowMs = nowMs ?? mountedNowMs;
+    const rangeName = view === 'month' ? 'month' : 'week';
     const dayGroups = useMemo(() => {
-        const upcoming = meetups
-            .filter((meetup) => meetup.status !== 'cancelled' && new Date(meetup.end_at).getTime() >= now)
+        const sessions = meetups
+            .filter((meetup) => meetup.status !== 'cancelled' && overlapsVisibleRange(meetup, rangeStart, rangeEnd))
             .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
-        return groupByDay(upcoming);
-    }, [meetups, now]);
+        return groupByDay(sessions);
+    }, [meetups, rangeEnd, rangeStart]);
 
     return (
         <section data-testid="upcoming-sessions" className="space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <h3 className="font-display text-[1.15rem] font-bold italic leading-tight tracking-tight text-claude-text">
-                    Upcoming sessions
+                    Sessions this {rangeName}
                 </h3>
                 <button
                     type="button"
@@ -64,9 +93,13 @@ export default function UpcomingSessions({
                         <CalendarDays className="h-4 w-4 text-claude-secondary" />
                     </div>
                     <div>
-                        <p className="font-display text-[1rem] font-bold italic tracking-tight text-claude-text">No sessions yet</p>
+                        <p className="font-display text-[1rem] font-bold italic tracking-tight text-claude-text">
+                            No sessions this {rangeName}
+                        </p>
                         <p className="mt-0.5 text-[11px] leading-4 text-claude-secondary">
-                            Tap an open slot on the week to propose one.
+                            {view === 'month'
+                                ? 'Use Propose to add one.'
+                                : 'Tap an open slot on the week to propose one.'}
                         </p>
                     </div>
                 </div>
@@ -90,6 +123,7 @@ export default function UpcomingSessions({
                                     >
                                         <MeetupCard
                                             meetup={meetup}
+                                            nowMs={effectiveNowMs}
                                             isAdmin={isAdmin}
                                             onJoin={onJoin}
                                             onLeave={onLeave}

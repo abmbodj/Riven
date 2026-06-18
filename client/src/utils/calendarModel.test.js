@@ -5,6 +5,7 @@ import {
     getHeatmapCellStyle,
     getMeetupStateLabel,
     isMeetupCancelled,
+    isMeetupEnded,
     MEETUP_COLOR,
 } from './calendarModel';
 
@@ -51,10 +52,30 @@ describe('meetup state helpers', () => {
         expect(isMeetupCancelled({ status: 'scheduled' })).toBe(false);
     });
 
+    it('detects ended meetups relative to a stable clock', () => {
+        const now = new Date('2026-06-18T17:00:00Z').getTime();
+
+        expect(isMeetupEnded({
+            status: 'scheduled',
+            end_at: '2026-06-18T16:59:00Z',
+        }, now)).toBe(true);
+        expect(isMeetupEnded({
+            status: 'scheduled',
+            end_at: '2026-06-18T17:01:00Z',
+        }, now)).toBe(false);
+        expect(isMeetupEnded({
+            status: 'cancelled',
+            end_at: '2026-06-18T16:59:00Z',
+        }, now)).toBe(false);
+    });
+
     it('labels meetup state by membership', () => {
+        const now = new Date('2026-06-18T17:00:00Z').getTime();
+
         expect(getMeetupStateLabel({ status: 'cancelled' })).toBe('Cancelled');
-        expect(getMeetupStateLabel({ is_joined: true })).toBe('Going');
-        expect(getMeetupStateLabel({ is_creator: true })).toBe('You proposed');
-        expect(getMeetupStateLabel({})).toBe('Open');
+        expect(getMeetupStateLabel({ status: 'scheduled', end_at: '2026-06-18T16:59:00Z' }, now)).toBe('Ended');
+        expect(getMeetupStateLabel({ is_joined: true }, now)).toBe('Going');
+        expect(getMeetupStateLabel({ is_creator: true }, now)).toBe('You proposed');
+        expect(getMeetupStateLabel({}, now)).toBe('Open');
     });
 });

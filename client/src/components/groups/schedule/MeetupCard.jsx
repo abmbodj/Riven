@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Clock3, Link2, MapPin } from 'lucide-react';
 import { formatMeetupRange } from '../../../utils/calendarDates';
-import { getMeetupStateLabel, isMeetupCancelled } from '../../../utils/calendarModel';
+import { getMeetupStateLabel, isMeetupCancelled, isMeetupEnded } from '../../../utils/calendarModel';
 import AvatarStack from './AvatarStack';
 
 function getLocalTimezoneLabel(value) {
@@ -20,10 +21,13 @@ function getLocalTimezoneLabel(value) {
  * list. Tapping the card body (outside the action buttons) calls `onSelect` so
  * the parent can highlight the session's slot on the week strip.
  */
-export default function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel, onSelect, dense = false }) {
-    const stateLabel = getMeetupStateLabel(meetup);
+export default function MeetupCard({ meetup, nowMs, isAdmin, onJoin, onLeave, onCancel, onSelect, dense = false }) {
+    const [mountedNowMs] = useState(() => Date.now());
+    const effectiveNowMs = nowMs ?? mountedNowMs;
+    const stateLabel = getMeetupStateLabel(meetup, effectiveNowMs);
     const cancelled = isMeetupCancelled(meetup);
-    const canCancel = !cancelled && (Boolean(meetup?.is_creator) || isAdmin);
+    const ended = isMeetupEnded(meetup, effectiveNowMs);
+    const canCancel = !cancelled && !ended && (Boolean(meetup?.is_creator) || isAdmin);
     const locationHref = meetup.location_url || null;
     const locationLabel = meetup.location_label || (locationHref ? 'Shared link available' : '');
 
@@ -47,7 +51,7 @@ export default function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel,
                             {stateLabel}
                         </span>
                         <span className="text-[11px] font-medium text-claude-secondary">
-                            {meetup.attendee_count || 0} going
+                            {meetup.attendee_count || 0} {ended ? 'went' : 'going'}
                         </span>
                     </div>
                     <h3 className={`line-clamp-2 font-semibold leading-5 text-claude-text ${dense ? 'mt-2 text-[14px]' : 'mt-2.5 text-[15px]'}`}>
@@ -94,6 +98,10 @@ export default function MeetupCard({ meetup, isAdmin, onJoin, onLeave, onCancel,
                 {cancelled ? (
                     <div className={`rounded-full border border-white/10 bg-white/[0.05] font-medium text-claude-secondary ${dense ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-[11px]'}`}>
                         This session has been cancelled.
+                    </div>
+                ) : ended ? (
+                    <div className={`rounded-full border border-white/10 bg-white/[0.05] font-medium text-claude-secondary ${dense ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-[11px]'}`}>
+                        This session has ended.
                     </div>
                 ) : meetup.is_joined ? (
                     <button
