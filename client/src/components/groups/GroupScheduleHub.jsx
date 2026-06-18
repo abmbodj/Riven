@@ -24,6 +24,7 @@ import WeekAvailabilityHeatmap from './schedule/WeekAvailabilityHeatmap.jsx';
 import UpcomingSessions from './schedule/UpcomingSessions.jsx';
 import MonthOverview from './schedule/MonthOverview.jsx';
 import ProposeSessionSheet from './schedule/ProposeSessionSheet.jsx';
+import SessionDetailSheet from './schedule/SessionDetailSheet.jsx';
 
 const EMPTY_ARRAY = [];
 const schedulePanelClass = 'glass-panel-premium rounded-[1.5rem] border border-white/10 shadow-[0_18px_42px_rgba(3,7,11,0.2)]';
@@ -78,6 +79,9 @@ export default function GroupScheduleHub({
     const [proposeContext, setProposeContext] = useState({ start: null, freeNames: [], denominator: 0 });
     const [proposeKey, setProposeKey] = useState(0);
     const [submitting, setSubmitting] = useState(false);
+    const [selectedMeetup, setSelectedMeetup] = useState(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+    const [detailKey, setDetailKey] = useState(0);
 
     const members = calendarData?.members ?? EMPTY_ARRAY;
     const scheduleSlots = calendarData?.schedule_slots ?? EMPTY_ARRAY;
@@ -212,6 +216,9 @@ export default function GroupScheduleHub({
         setView('week');
         setMode('group');
         setAnchorDate(startOfWeek(new Date(meetup.start_at)));
+        setSelectedMeetup(meetup);
+        setDetailKey((k) => k + 1);
+        setDetailOpen(true);
     };
 
     const handleNavigate = (direction) => {
@@ -452,6 +459,17 @@ export default function GroupScheduleHub({
                 submitting={submitting}
                 onClose={() => (submitting ? undefined : setProposeOpen(false))}
                 onSubmit={handleProposeSubmit}
+            />
+
+            <SessionDetailSheet
+                key={detailKey}
+                open={detailOpen}
+                meetup={selectedMeetup}
+                isAdmin={isAdmin}
+                onClose={() => setDetailOpen(false)}
+                onJoin={() => onJoinMeetup?.(selectedMeetup?.id)}
+                onLeave={() => onLeaveMeetup?.(selectedMeetup?.id)}
+                onCancel={(id) => { onCancelMeetup?.(id); setDetailOpen(false); }}
             />
         </div>
     );
