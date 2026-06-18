@@ -29,6 +29,7 @@ async function getPosthog() {
             person_profiles: 'identified_only',
             capture_pageview: false,
             capture_pageleave: true,
+            capture_dead_clicks: false,
         })
         initialized = true
     }
