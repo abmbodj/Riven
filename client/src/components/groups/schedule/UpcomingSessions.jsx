@@ -72,8 +72,8 @@ export default function UpcomingSessions({
     }, [meetups, rangeEnd, rangeStart]);
 
     return (
-        <section data-testid="upcoming-sessions" className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
+        <section data-testid="upcoming-sessions" className="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0 md:gap-3">
+            <div className="flex shrink-0 items-center justify-between gap-3">
                 <h3 className="font-display text-[1.15rem] font-bold italic leading-tight tracking-tight text-claude-text">
                     Sessions this {rangeName}
                 </h3>
@@ -88,7 +88,7 @@ export default function UpcomingSessions({
             </div>
 
             {dayGroups.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-[1.4rem] border border-white/10 bg-white/[0.03] py-8 text-center">
+                <div className="flex flex-col items-center gap-2 rounded-[1.4rem] border border-white/10 bg-white/[0.03] py-8 text-center md:flex-1 md:justify-center">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
                         <CalendarDays className="h-4 w-4 text-claude-secondary" />
                     </div>
@@ -104,7 +104,7 @@ export default function UpcomingSessions({
                     </div>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 md:min-h-0 md:flex-1 md:overflow-y-auto md:pr-1 md:no-scrollbar">
                     {dayGroups.map((group) => (
                         <div key={group.date.toISOString()} className="space-y-2">
                             <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-claude-secondary">

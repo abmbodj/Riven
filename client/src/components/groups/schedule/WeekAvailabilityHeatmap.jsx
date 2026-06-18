@@ -61,10 +61,10 @@ export default function WeekAvailabilityHeatmap({
     const isEdit = mode === 'edit';
 
     return (
-        <div data-testid="week-availability-heatmap" data-mode={mode} className="select-none">
+        <div data-testid="week-availability-heatmap" data-mode={mode} className="select-none md:flex md:min-h-0 md:flex-1 md:flex-col">
             {/* Day headers */}
             <div
-                className="grid items-end gap-px"
+                className="grid shrink-0 items-end gap-px"
                 style={{ gridTemplateColumns: '2rem repeat(7, minmax(0, 1fr))' }}
             >
                 <div />
@@ -84,14 +84,17 @@ export default function WeekAvailabilityHeatmap({
             </div>
 
             {/* Hour rows */}
-            <div className="space-y-px">
+            <div
+                className="space-y-px md:grid md:min-h-0 md:flex-1 md:space-y-0 md:gap-px"
+                style={{ gridTemplateRows: `repeat(${hours.length}, minmax(1.35rem, 1fr))` }}
+            >
                 {hours.map((hour) => (
                     <div
                         key={hour}
-                        className="grid gap-px"
+                        className="grid gap-px md:min-h-0"
                         style={{ gridTemplateColumns: '2rem repeat(7, minmax(0, 1fr))' }}
                     >
-                        <div className="flex items-start justify-end pr-1 pt-0.5 font-mono text-[8px] font-medium text-claude-secondary/70">
+                        <div className="flex items-start justify-end pr-1 pt-0.5 font-mono text-[8px] font-medium text-claude-secondary/70 md:h-full">
                             {formatHourLabel(hour)}
                         </div>
 
@@ -110,7 +113,7 @@ export default function WeekAvailabilityHeatmap({
                                         <div
                                             key={dayIndex}
                                             aria-label="Class time (locked)"
-                                            className="flex h-7 items-center justify-center rounded-[3px] bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.07),rgba(255,255,255,0.07)_3px,transparent_3px,transparent_6px)]"
+                                            className="flex h-7 items-center justify-center rounded-[3px] bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.07),rgba(255,255,255,0.07)_3px,transparent_3px,transparent_6px)] md:h-full md:min-h-[1.35rem]"
                                         >
                                             <Lock className="h-2.5 w-2.5 text-claude-secondary/60" />
                                         </div>
@@ -124,7 +127,7 @@ export default function WeekAvailabilityHeatmap({
                                         aria-pressed={Boolean(isFree)}
                                         aria-label={`${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)} ${isFree ? 'free' : 'not set'}`}
                                         onClick={() => onToggleCell?.(dayOfWeek, hour)}
-                                        className={`h-7 rounded-[3px] border transition-colors ${
+                                        className={`h-7 rounded-[3px] border transition-colors md:h-full md:min-h-[1.35rem] ${
                                             isFree
                                                 ? 'border-[#7a9e72]/50 bg-[rgba(122,158,114,0.55)]'
                                                 : 'border-white/5 bg-white/[0.03] hover:bg-white/[0.07]'
@@ -142,10 +145,10 @@ export default function WeekAvailabilityHeatmap({
                                         type="button"
                                         aria-label={`Session: ${meetup.topic}`}
                                         onClick={() => onMeetupSelect?.(meetup)}
-                                        className={`h-7 overflow-hidden rounded-[3px] border text-left ${isHighlighted ? 'ring-2 ring-claude-accent' : ''}`}
+                                        className={`h-7 overflow-hidden rounded-[3px] border text-left md:h-full md:min-h-[1.35rem] ${isHighlighted ? 'ring-2 ring-claude-accent' : ''}`}
                                         style={{ backgroundColor: `${MEETUP_COLOR}40`, borderColor: `${MEETUP_COLOR}99` }}
                                     >
-                                        <span className="block truncate px-1 text-[8px] font-semibold leading-7 text-claude-accent">
+                                        <span className="flex h-full items-center truncate px-1 text-[8px] font-semibold leading-7 text-claude-accent md:leading-none">
                                             {meetup.topic}
                                         </span>
                                     </button>
@@ -165,7 +168,7 @@ export default function WeekAvailabilityHeatmap({
                                         ? `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}: ${freeCount} of ${denominator} free`
                                         : `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}`}
                                     onClick={() => onProposeCell?.(date, hour, cell)}
-                                    className="flex h-7 items-center justify-center rounded-[3px] border border-white/5 transition-transform enabled:hover:scale-[1.04] enabled:hover:border-white/20"
+                                    className="flex h-7 items-center justify-center rounded-[3px] border border-white/5 transition-transform enabled:hover:scale-[1.04] enabled:hover:border-white/20 md:h-full md:min-h-[1.35rem]"
                                     style={style}
                                 >
                                     {denominator > 0 && freeCount > 0 && (

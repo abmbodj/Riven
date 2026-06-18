@@ -92,11 +92,19 @@ export default function GroupScheduleHub({
     const meetups = calendarData?.meetups ?? EMPTY_ARRAY;
     const myShareMode = calendarData?.my_share_mode || null;
     const isShared = myShareMode && myShareMode !== 'hidden';
+    const visibleScheduleSlots = useMemo(
+        () => scheduleSlots.filter((slot) => slot?.class_is_archived !== true),
+        [scheduleSlots],
+    );
+    const visibleMyScheduleSlots = useMemo(
+        () => myScheduleSlots.filter((slot) => slot?.class_is_archived !== true),
+        [myScheduleSlots],
+    );
 
     const weekDays = useMemo(() => getRollingWeekDays(startOfWeek(anchorDate)), [anchorDate]);
     const { startHour, endHour } = useMemo(
-        () => resolveAvailabilityWindow(availability, scheduleSlots),
-        [availability, scheduleSlots],
+        () => resolveAvailabilityWindow(availability, visibleScheduleSlots),
+        [availability, visibleScheduleSlots],
     );
     const heatmap = useMemo(
         () => buildAvailabilityHeatmap({
@@ -105,10 +113,10 @@ export default function GroupScheduleHub({
             endHour,
             members,
             availability,
-            scheduleSlots,
+            scheduleSlots: visibleScheduleSlots,
             meetups,
         }),
-        [weekDays, startHour, endHour, members, availability, scheduleSlots, meetups],
+        [weekDays, startHour, endHour, members, availability, visibleScheduleSlots, meetups],
     );
 
     const memberNameById = useMemo(() => {
@@ -256,20 +264,20 @@ export default function GroupScheduleHub({
 
     if (loading) {
         return (
-            <div data-testid="group-schedule-hub" className="space-y-4">
-                <div className="h-16 animate-pulse rounded-[1.5rem] border border-white/10 bg-white/[0.04]" />
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_340px]">
-                    <div className="h-[420px] animate-pulse rounded-[1.5rem] border border-white/10 bg-white/[0.04]" />
-                    <div className="h-[420px] animate-pulse rounded-[1.5rem] border border-white/10 bg-white/[0.04]" />
+            <div data-testid="group-schedule-hub" className="space-y-4 md:flex md:h-full md:min-h-0 md:w-full md:flex-col md:space-y-0 md:gap-3">
+                <div className="h-16 shrink-0 animate-pulse rounded-[1.5rem] border border-white/10 bg-white/[0.04]" />
+                <div className="grid gap-3 md:min-h-0 md:flex-1 lg:grid-cols-[minmax(0,1.6fr)_340px]">
+                    <div className="h-[420px] animate-pulse rounded-[1.5rem] border border-white/10 bg-white/[0.04] md:h-full md:min-h-0" />
+                    <div className="h-[420px] animate-pulse rounded-[1.5rem] border border-white/10 bg-white/[0.04] md:h-full md:min-h-0" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div data-testid="group-schedule-hub" className="mx-auto max-w-4xl space-y-3">
+        <div data-testid="group-schedule-hub" className="mx-auto max-w-4xl space-y-3 md:flex md:h-full md:min-h-0 md:w-full md:flex-col md:space-y-0 md:gap-3">
             {/* Controls */}
-            <section className={`${schedulePanelClass} p-2.5 md:p-3`}>
+            <section className={`${schedulePanelClass} p-2.5 md:shrink-0 md:p-3`}>
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                     <div className="flex items-center gap-1.5">
                         <button
@@ -337,12 +345,12 @@ export default function GroupScheduleHub({
                 )}
             </section>
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_340px]">
+            <div data-testid="group-schedule-main-grid" className="grid gap-3 md:min-h-0 md:flex-1 md:overflow-hidden lg:grid-cols-[minmax(0,1.6fr)_340px]">
                 {/* Calendar surface */}
-                <section className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-2.5 md:p-3`}>
+                <section data-testid="group-schedule-calendar-surface" className={`${schedulePanelClass} bg-[radial-gradient(circle_at_top,rgba(31,41,60,0.20),rgba(9,13,21,0.94)_62%)] p-2.5 md:flex md:min-h-0 md:flex-col md:overflow-hidden md:p-3`}>
                     <AnimatePresence mode="wait" initial={false}>
                         {view === 'month' ? (
-                            <motion.div key="month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+                            <motion.div key="month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="md:h-full md:min-h-0">
                                 <MonthOverview
                                     anchorDate={anchorDate}
                                     meetups={meetups}
@@ -360,7 +368,7 @@ export default function GroupScheduleHub({
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.12 }}
-                                className="flex flex-col items-center gap-3 px-4 py-12 text-center"
+                                className="flex flex-col items-center gap-3 px-4 py-12 text-center md:h-full md:justify-center md:py-6"
                             >
                                 <div className="flex h-12 w-12 items-center justify-center rounded-full border border-claude-accent/30 bg-claude-accent/12">
                                     <Sparkles className="h-5 w-5 text-claude-accent" />
@@ -391,9 +399,9 @@ export default function GroupScheduleHub({
                                 </div>
                             </motion.div>
                         ) : (
-                            <motion.div key={`week-${mode}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+                            <motion.div key={`week-${mode}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="md:flex md:h-full md:min-h-0 md:flex-col">
                                 {mode === 'edit' && (
-                                    <div className="mb-2.5 flex items-center justify-between gap-2 rounded-[1rem] border border-white/10 bg-white/[0.03] px-3 py-2">
+                                    <div className="mb-2.5 flex items-center justify-between gap-2 rounded-[1rem] border border-white/10 bg-white/[0.03] px-3 py-2 md:shrink-0">
                                         <p className="text-[11px] leading-4 text-claude-secondary">
                                             Tap the hours you&apos;re usually free. Class times are locked.
                                         </p>
@@ -425,7 +433,7 @@ export default function GroupScheduleHub({
                                     endHour={endHour}
                                     heatmap={heatmap}
                                     myCells={draftCells}
-                                    myClassSlots={myScheduleSlots}
+                                    myClassSlots={visibleMyScheduleSlots}
                                     highlightedMeetupId={highlightedMeetupId}
                                     onProposeCell={mode === 'group' ? handleProposeCell : undefined}
                                     onToggleCell={handleToggleCell}
@@ -443,7 +451,7 @@ export default function GroupScheduleHub({
                 </section>
 
                 {/* Sessions rail */}
-                <section className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-2.5 md:p-3 lg:sticky lg:top-4 lg:self-start`}>
+                <section data-testid="group-schedule-sessions-rail" className={`${schedulePanelClass} bg-[linear-gradient(160deg,rgba(20,26,38,0.94),rgba(10,14,23,0.92))] p-2.5 md:flex md:min-h-0 md:flex-col md:overflow-hidden md:p-3`}>
                     <UpcomingSessions
                         meetups={meetups}
                         rangeStart={visibleSessionRange.start}

@@ -20,8 +20,8 @@ export default function MonthOverview({ anchorDate, meetups = [], selectedDate, 
     const days = useMemo(() => getMonthGridDays(anchorDate), [anchorDate]);
 
     return (
-        <div data-testid="month-overview">
-            <div className="grid grid-cols-7 gap-px pb-1">
+        <div data-testid="month-overview" className="md:flex md:h-full md:min-h-0 md:flex-col">
+            <div className="grid shrink-0 grid-cols-7 gap-px pb-1">
                 {SHORT_DAY_LABELS.map((label) => (
                     <div key={label} className="text-center font-mono text-[8px] font-bold uppercase tracking-[0.1em] text-claude-secondary">
                         {label[0]}
@@ -29,7 +29,7 @@ export default function MonthOverview({ anchorDate, meetups = [], selectedDate, 
                 ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-px">
+            <div className="grid grid-cols-7 gap-px md:min-h-0 md:flex-1 md:auto-rows-fr">
                 {days.map((date) => {
                     const inMonth = isSameLocalMonth(date, anchorDate);
                     const isToday = isSameLocalDay(date, today);
@@ -42,7 +42,7 @@ export default function MonthOverview({ anchorDate, meetups = [], selectedDate, 
                             key={date.toISOString()}
                             type="button"
                             onClick={() => onDaySelect?.(date)}
-                            className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[6px] border text-[11px] transition-colors ${
+                            className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[6px] border text-[11px] transition-colors md:aspect-auto md:min-h-0 ${
                                 isSelected
                                     ? 'border-claude-accent/45 bg-claude-accent/12'
                                     : 'border-white/5 hover:bg-white/[0.05]'

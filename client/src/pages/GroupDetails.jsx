@@ -826,9 +826,9 @@ export default function GroupDetails() {
     if (!group) return null;
 
     return (
-        <div className="min-h-screen bg-claude-bg text-claude-text font-sans pb-24 md:pb-0" ref={container}>
+        <div className="min-h-screen bg-claude-bg text-claude-text font-sans pb-24 md:min-h-0 md:pb-0" ref={container}>
             {/* --- DESKTOP VIEW --- */}
-            <div className="hidden md:flex flex-col max-w-[1400px] mx-auto px-6 py-6 h-screen overflow-hidden">
+            <div className="hidden md:flex h-[calc(100dvh-6rem)] min-h-0 flex-col overflow-hidden px-6 py-6 lg:mx-auto lg:max-w-[1400px]">
                 {/* Desktop Header */}
                 <header className="gsap-header flex items-center justify-between shrink-0 mb-6 bg-claude-surface/30 backdrop-blur-2xl p-4 rounded-3xl border border-claude-border/50">
                     <div className="flex items-center gap-4">
@@ -874,7 +874,7 @@ export default function GroupDetails() {
                     ))}
                 </div>
 
-                <div data-testid="group-schedule-scroll" className={`flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2 pb-10 no-scrollbar ${activeTab !== 'schedule' ? 'hidden' : ''}`}>
+                <div data-testid="group-schedule-scroll" className={`flex-1 min-h-0 overflow-hidden ${activeTab !== 'schedule' ? 'hidden' : ''}`}>
                     <GroupScheduleHub
                         group={group}
                         calendarData={groupSchedule}
