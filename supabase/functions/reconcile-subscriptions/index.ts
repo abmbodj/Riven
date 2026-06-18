@@ -51,7 +51,9 @@ const getRevenueCatExpiry = async (
     },
   });
 
-  if (!resp.ok) return { tier: 'free', expiresAt: null };
+  if (!resp.ok) {
+    throw new Error(`RevenueCat lookup failed with status ${resp.status}`);
+  }
 
   const body = await resp.json().catch(() => ({}));
   const entitlements = body?.subscriber?.entitlements ?? {};
@@ -128,6 +130,19 @@ type ReconcileResult = {
   reason?: string;
 };
 
+type ProviderResult = { tier: 'supporter' | 'free'; expiresAt: string | null };
+
+const latestExpiry = (results: ProviderResult[]) => {
+  let latest: string | null = null;
+  for (const result of results) {
+    if (!result.expiresAt) continue;
+    if (!latest || new Date(result.expiresAt).getTime() > new Date(latest).getTime()) {
+      latest = result.expiresAt;
+    }
+  }
+  return latest;
+};
+
 const reconcileUser = async (
   user: ReconcileUser,
   admin: ReturnType<typeof getSupabaseAdmin>,
@@ -144,39 +159,66 @@ const reconcileUser = async (
     return { userId, action: 'skipped', reason: 'not-yet-expired' };
   }
 
-  // Determine provider and fetch authoritative state.
-  let providerResult: { tier: 'supporter' | 'free'; expiresAt: string | null } | null = null;
+  const inactiveResults: ProviderResult[] = [];
+  const providerErrors: string[] = [];
+
+  // Stripe customers must be checked against Stripe first. Every app user has a
+  // Supabase auth id, so querying RevenueCat first would classify web-only Stripe
+  // subscribers as free before their active Stripe subscription is considered.
+  if (user.stripe_customer_id) {
+    if (!stripe) {
+      providerErrors.push('stripe-not-configured');
+    } else {
+      try {
+        const stripeResult = await getStripeExpiry(stripe, user.stripe_customer_id);
+        if (stripeResult.tier === 'supporter') {
+          const { error } = await admin
+            .from('users')
+            .update({ subscription_expires_at: stripeResult.expiresAt })
+            .eq('id', userId);
+
+          if (error) return { userId, action: 'error', reason: error.message };
+          return { userId, action: 'refreshed' };
+        }
+        inactiveResults.push(stripeResult);
+      } catch {
+        providerErrors.push('stripe-fetch-failed');
+      }
+    }
+  }
 
   if (user.supabase_auth_id && rcApiKey) {
     try {
-      providerResult = await getRevenueCatExpiry(rcApiKey, user.supabase_auth_id, isSandbox);
+      const revenueCatResult = await getRevenueCatExpiry(rcApiKey, user.supabase_auth_id, isSandbox);
+      if (revenueCatResult.tier === 'supporter') {
+        const { error } = await admin
+          .from('users')
+          .update({ subscription_expires_at: revenueCatResult.expiresAt })
+          .eq('id', userId);
+
+        if (error) return { userId, action: 'error', reason: error.message };
+        return { userId, action: 'refreshed' };
+      }
+      inactiveResults.push(revenueCatResult);
     } catch {
-      // Fall through to Stripe.
+      providerErrors.push('revenuecat-fetch-failed');
     }
+  } else if (!user.stripe_customer_id && user.supabase_auth_id) {
+    providerErrors.push('revenuecat-not-configured');
   }
 
-  if (!providerResult && user.stripe_customer_id && stripe) {
-    try {
-      providerResult = await getStripeExpiry(stripe, user.stripe_customer_id);
-    } catch {
-      return { userId, action: 'error', reason: 'provider-fetch-failed' };
-    }
+  if (providerErrors.length > 0) {
+    return { userId, action: 'error', reason: providerErrors.join(',') };
   }
 
-  if (!providerResult) {
+  if (inactiveResults.length === 0) {
     return { userId, action: 'error', reason: 'no-provider-configured' };
   }
 
-  if (providerResult.tier === 'supporter') {
-    // Still active — refresh the expiry window (heals missed renewal webhooks).
-    const { error } = await admin
-      .from('users')
-      .update({ subscription_expires_at: providerResult.expiresAt })
-      .eq('id', userId);
-
-    if (error) return { userId, action: 'error', reason: error.message };
-    return { userId, action: 'refreshed' };
-  }
+  const providerResult: ProviderResult = {
+    tier: 'free',
+    expiresAt: latestExpiry(inactiveResults),
+  };
 
   // Truly expired — downgrade.
   const { data: updatedUser, error: updateError } = await admin
