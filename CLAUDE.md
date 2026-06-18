@@ -27,6 +27,15 @@ from **both** runtimes (Node via `server/test/*-core.test.js`, Deno at runtime).
 those modules runtime-agnostic (no Node-only or Deno-only APIs). Edge-only helpers
 (Deno-specific or TypeScript-typed) live alongside them as `.ts` files.
 
+### Client API layers
+
+| Layer | File | Purpose |
+|---|---|---|
+| Raw API | `client/src/api/authApi.js` | All auth, server, and edge function calls. Private `edgeFunctionFetch(name, opts)` invokes Supabase edge functions. |
+| Cache wrapper | `client/src/api.js` | Thin stale-while-revalidate layer above `authApi.js`. Most component reads go here, not directly to authApi. |
+| Offline store | `client/src/db/indexedDB.js` | IndexedDB persistence via `idb`. Seeded by the cache wrapper for offline and first-paint paths. |
+| Shared state | `client/src/context/` | `AuthContext`, `UIContext`, `ToastContext`, `StreakContext`, etc. — consumed via hooks (`useAuth`, `useToast`, …). |
+
 ## Commands
 
 ```bash
@@ -53,9 +62,9 @@ npx supabase functions deploy <function-name> # deploy only changed function
 
 ## Active Server Routes
 
-The live Express routes in `server/routes/` are: `auth`, `email`, `health`, `hearts`,
-`lms`, `referrals`, `stripe`, `study`, `webhooks`. All other feature routes were
-removed in the 2026-06 remediation. Do not add new feature routes here — add edge functions.
+The live Express routes in `server/routes/` are: `auth`, `health`, `hearts`, `lms`,
+`referrals`, `stripe`, `study`, `webhooks`. All other feature routes were removed in
+the 2026-06 remediation. Do not add new feature routes here — add edge functions.
 
 ## authApi.js Modularization (RIV-025)
 
@@ -95,4 +104,4 @@ This prevents unrelated exports from becoming `undefined` in tests.
 
 - Match the surrounding file's style. Express routes are registered via
   `register*Routes({ app, db, authMiddleware, ... })` from `server/index.js`.
-- Client API calls go through `client/src/api/authApi.js` (and its `api.js` wrapper).
+- Client API calls go through `client/src/api/authApi.js` (and its `client/src/api.js` cache wrapper). Components should prefer `api.js` for reads to benefit from SWR caching and IndexedDB seeding.
