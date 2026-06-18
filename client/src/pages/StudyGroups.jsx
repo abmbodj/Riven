@@ -139,6 +139,15 @@ export default function StudyGroups() {
         };
     }, [groups]);
 
+    // Prefetch the GroupDetails code chunk so the first open in a session is instant.
+    useEffect(() => {
+        const hasIdle = typeof requestIdleCallback === 'function';
+        const handle = hasIdle
+            ? requestIdleCallback(() => { import('../pages/GroupDetails.jsx').catch(() => {}); }, { timeout: 3000 })
+            : setTimeout(() => { import('../pages/GroupDetails.jsx').catch(() => {}); }, 0);
+        return () => { if (hasIdle) cancelIdleCallback(handle); else clearTimeout(handle); };
+    }, []);
+
     // Pre-warm the detail bundle for the first few groups (during idle time) so
     // opening one is instant. Only warms groups not already cached.
     // On a cold start (seededGroups === null) we warm conservatively — just the
@@ -172,6 +181,16 @@ export default function StudyGroups() {
             else clearTimeout(handle);
         };
     }, [groups]);
+
+    const warmGroupRef = useRef(null);
+    if (!warmGroupRef.current) {
+        warmGroupRef.current = (groupId) => {
+            if (cache.peek(groupKeys.info(groupId))) return;
+            const { start, end } = getVisibleMonthRange(new Date());
+            api.getGroupInfo(groupId).catch(() => {});
+            api.getGroupScheduleCalendar(groupId, start, end).catch(() => {});
+        };
+    }
 
     const handleCreate = async (e) => {
         e.preventDefault();
@@ -337,6 +356,8 @@ export default function StudyGroups() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                                     onClick={() => navigate(`/groups/${group.id}`)}
+                                    onMouseEnter={() => warmGroupRef.current(group.id)}
+                                    onTouchStart={() => warmGroupRef.current(group.id)}
                                     className="glass-panel-premium rounded-[1.5rem] p-6 hover:shadow-[0_8px_40px_rgba(222,185,106,0.12)] hover:border-claude-accent/30 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 cursor-pointer tap-action group relative overflow-hidden flex flex-col justify-between min-h-[160px] hover:-translate-y-0.5"
                                 >
                                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />

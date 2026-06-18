@@ -65,6 +65,13 @@ vi.mock('../api/authApi', async (importOriginal) => ({
   getGroupMessages: vi.fn().mockResolvedValue([]),
   subscribeToGroupMessages: vi.fn(() => () => {}),
   subscribeToGroupTypingPresence: vi.fn(() => ({ startTyping: vi.fn(), stopTyping: vi.fn(), unsubscribe: vi.fn() })),
+  // Schedule mutations called via useGroupSchedule (not api.*)
+  createGroupMeetup: vi.fn(),
+  setGroupScheduleShare: vi.fn(),
+  setGroupAvailability: vi.fn(),
+  joinGroupMeetup: vi.fn(),
+  leaveGroupMeetup: vi.fn(),
+  cancelGroupMeetup: vi.fn(),
 }));
 
 vi.mock('../hooks/useToast', () => ({
@@ -222,6 +229,13 @@ describe('GroupDetails upload flow', () => {
     api.joinGroupMeetup.mockResolvedValue({ status: 'joined' });
     api.leaveGroupMeetup.mockResolvedValue({ status: 'left' });
     api.cancelGroupMeetup.mockResolvedValue({ status: 'cancelled' });
+    // useGroupSchedule calls authApi.* directly for schedule mutations
+    authApi.createGroupMeetup.mockResolvedValue({ id: 'meetup-1' });
+    authApi.setGroupScheduleShare.mockResolvedValue({ visibility_mode: 'busy_free' });
+    authApi.setGroupAvailability.mockResolvedValue(null);
+    authApi.joinGroupMeetup.mockResolvedValue({ status: 'joined' });
+    authApi.leaveGroupMeetup.mockResolvedValue({ status: 'left' });
+    authApi.cancelGroupMeetup.mockResolvedValue({ status: 'cancelled' });
     api.listJoinedGroupMeetups.mockResolvedValue([]);
     api.uploadGroupFile.mockResolvedValue({
       id: 'file-1',
@@ -367,7 +381,7 @@ describe('GroupDetails upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /propose session/i }));
 
     await waitFor(() => {
-      expect(api.createGroupMeetup).toHaveBeenCalledWith(
+      expect(authApi.createGroupMeetup).toHaveBeenCalledWith(
         'group-1',
         expect.objectContaining({
           topic: 'Chapter 5 review',
@@ -376,7 +390,7 @@ describe('GroupDetails upload flow', () => {
       );
     });
 
-    expect(api.joinGroupMeetup).not.toHaveBeenCalled();
+    expect(authApi.joinGroupMeetup).not.toHaveBeenCalled();
     expect(screen.queryByText('Cram Page')).not.toBeInTheDocument();
     expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
   }, 10000);
@@ -405,32 +419,36 @@ describe('GroupDetails upload flow', () => {
     expect(screen.queryByText('Next 7 Days')).not.toBeInTheDocument();
   });
 
-  it('dedupes repeated schedule load errors for the same visible range', async () => {
+  it('handles schedule fetch errors gracefully: no error toasts, realtime refresh still fires', async () => {
     let meetupHandlers;
-    const timeoutError = new Error('canceling statement due to statement timeout');
-
     authApi.subscribeToGroupMeetupEvents.mockImplementationOnce((_groupId, handlers) => {
       meetupHandlers = handlers;
       return vi.fn();
     });
-    api.getGroupScheduleCalendar.mockRejectedValue(timeoutError);
+    // Use mockResolvedValue for warmed calls so they don't emit unhandled rejections;
+    // only the very first fetch is rejected to simulate a cold-start failure.
+    api.getGroupScheduleCalendar.mockRejectedValueOnce(new Error('canceling statement due to statement timeout'));
 
     renderGroupDetails();
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith('canceling statement due to statement timeout');
+      expect(screen.getAllByText('Biology Lab').length).toBeGreaterThan(0);
     });
-    expect(mockToast.error.mock.calls.filter(([message]) => message === timeoutError.message)).toHaveLength(1);
 
+    // Fetch errors are silent in the SWR-based hook — no toast spam for transient failures
+    expect(mockToast.error).not.toHaveBeenCalledWith('canceling statement due to statement timeout');
+
+    const callCountBeforeRefresh = api.getGroupScheduleCalendar.mock.calls.length;
+
+    // Realtime onChanged still triggers a background refresh
     await act(async () => {
       meetupHandlers.onChanged();
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(api.getGroupScheduleCalendar).toHaveBeenCalledTimes(2);
+      expect(api.getGroupScheduleCalendar.mock.calls.length).toBeGreaterThan(callCountBeforeRefresh);
     });
-    expect(mockToast.error.mock.calls.filter(([message]) => message === timeoutError.message)).toHaveLength(1);
   });
 
   it('shows month sessions in the visible month range', async () => {
@@ -600,7 +618,7 @@ describe('GroupDetails upload flow', () => {
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {
-    api.createGroupMeetup.mockRejectedValueOnce(new Error('Create failed'));
+    authApi.createGroupMeetup.mockRejectedValueOnce(new Error('Create failed'));
 
     renderGroupDetails();
 
@@ -648,7 +666,7 @@ describe('GroupDetails upload flow', () => {
     fireEvent.click(within(primaryHub).getByRole('button', { name: /hidden/i }));
 
     await waitFor(() => {
-      expect(api.setGroupScheduleShare).toHaveBeenCalledWith('group-1', 'busy_free');
+      expect(authApi.setGroupScheduleShare).toHaveBeenCalledWith('group-1', 'busy_free');
     });
 
     fireEvent.click(within(primaryHub).getAllByRole('button', { name: /propose/i })[0]);

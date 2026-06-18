@@ -58,6 +58,7 @@ function SegmentToggle({ options, value, onChange }) {
 export default function GroupScheduleHub({
     calendarData,
     loading,
+    revalidating = false,
     isAdmin,
     composerRequestKey = 0,
     onRangeChange,
@@ -311,6 +312,9 @@ export default function GroupScheduleHub({
                         <span className="ml-1 font-display text-[1.05rem] font-bold italic tracking-tight text-claude-text">
                             {periodLabel}
                         </span>
+                        {revalidating && (
+                            <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-claude-accent/60 animate-pulse" aria-label="Loading" />
+                        )}
                     </div>
 
                     <SegmentToggle

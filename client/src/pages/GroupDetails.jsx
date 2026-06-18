@@ -18,16 +18,10 @@ import FileViewer from '../components/FileViewer';
 import { supabase } from '../lib/supabaseClient';
 import GroupScheduleHub from '../components/groups/GroupScheduleHub.jsx';
 import GroupChatPanel from '../components/groups/GroupChatPanel.jsx';
-import { getVisibleMonthRange } from '../components/groups/groupScheduleUtils.js';
 import { scheduleMeetupNotifications } from '../utils/notifications.js';
 import { cache } from '../utils/cache';
 import { groupKeys } from '../utils/groupCacheKeys';
-
-const toDateIdentity = (value) => {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toISOString().slice(0, 10);
-};
+import { useGroupSchedule } from '../hooks/useGroupSchedule.js';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -40,31 +34,23 @@ export default function GroupDetails() {
     // Seed the first paint from the persisted cache so revisits render instantly
     // (skeletons only appear on a true cold load with nothing cached).
     useMemo(() => { cache.ensureUser(user?.id); }, [user?.id]);
-    const initialScheduleRange = useMemo(() => getVisibleMonthRange(new Date()), []);
     const seededInfo     = useMemo(() => cache.peek(groupKeys.info(id)), [id]);
     const seededMembers  = useMemo(() => cache.peek(groupKeys.members(id)), [id]);
     const seededDecks    = useMemo(() => cache.peek(groupKeys.decks(id)), [id]);
     const seededFolders  = useMemo(() => cache.peek(groupKeys.folders(id)), [id]);
-    const seededSchedule = useMemo(
-        () => cache.peek(groupKeys.schedule(id, initialScheduleRange.start, initialScheduleRange.end)),
-        [id, initialScheduleRange]
-    );
 
     const [group, setGroup] = useState(seededInfo || null);
     const [members, setMembers] = useState(seededMembers || []);
     const [sharedDecks, setSharedDecks] = useState(seededDecks || []);
     const [loading, setLoading] = useState(!seededInfo);
     const [activeTab, setActiveTab] = useState('schedule');
-    const [groupSchedule, setGroupSchedule] = useState(seededSchedule || null);
-    const [scheduleLoading, setScheduleLoading] = useState(!seededSchedule);
     const [scheduleComposerRequestKey, setScheduleComposerRequestKey] = useState(0);
-    const scheduleRangeRef = useRef(null);
-    const scheduleRequestIdRef = useRef(0);
-    const lastScheduleErrorToastRef = useRef({ key: '', at: 0 });
     const hasAnimatedRef = useRef(false);
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
+
+    const schedule = useGroupSchedule({ groupId: id, currentUserId, toast, haptics });
 
     const [showSettings, setShowSettings] = useState(false);
     const [showShareDeckModal, setShowShareDeckModal] = useState(false);
@@ -122,72 +108,6 @@ export default function GroupDetails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, navigate]);
 
-    const loadGroupSchedule = useCallback(async (rangeStart, rangeEnd, { showLoader: _showLoader = false } = {}) => {
-        const requestId = scheduleRequestIdRef.current + 1;
-        scheduleRequestIdRef.current = requestId;
-        const nextRange = {
-            start: rangeStart instanceof Date ? rangeStart : new Date(rangeStart),
-            end: rangeEnd instanceof Date ? rangeEnd : new Date(rangeEnd),
-        };
-        const rangeKey = `${toDateIdentity(nextRange.start)}:${toDateIdentity(nextRange.end)}`;
-
-        scheduleRangeRef.current = nextRange;
-        // Seed instantly from cache for this range so the calendar never flashes a
-        // second skeleton; otherwise show the loader on the first load of the range.
-        const seeded = cache.peek(groupKeys.schedule(id, nextRange.start, nextRange.end));
-        if (seeded) {
-            setGroupSchedule(seeded);
-            setScheduleLoading(false);
-        } else {
-            // Always show the loader when this range has no cached data — avoids
-            // a silent stale-data hang when navigating to an uncached month/week/day.
-            setScheduleLoading(true);
-        }
-
-        try {
-            const payload = await api.getGroupScheduleCalendar(id, nextRange.start, nextRange.end);
-            if (requestId !== scheduleRequestIdRef.current) return;
-            setGroupSchedule(payload || { members: [], schedule_slots: [], meetups: [] });
-            scheduleRangeRef.current = { ...nextRange, loadedOnce: true };
-
-            // Pre-warm adjacent months so prev/next navigation is instant.
-            // Only applies to month-view ranges (≥35 days); week/day ranges skip.
-            const rangeDays = Math.round((nextRange.end - nextRange.start) / 86400000);
-            if (rangeDays >= 35) {
-                const warmAdjacentMonth = (monthOffset) => {
-                    const anchor = new Date(nextRange.start.getTime() + 15 * 86400000);
-                    anchor.setMonth(anchor.getMonth() + monthOffset);
-                    const { start, end } = getVisibleMonthRange(anchor);
-                    if (!cache.peek(groupKeys.schedule(id, start, end))) {
-                        api.getGroupScheduleCalendar(id, start, end).catch(() => {});
-                    }
-                };
-                if (typeof requestIdleCallback === 'function') {
-                    requestIdleCallback(() => { warmAdjacentMonth(-1); warmAdjacentMonth(1); });
-                } else {
-                    setTimeout(() => { warmAdjacentMonth(-1); warmAdjacentMonth(1); }, 0);
-                }
-            }
-        } catch (err) {
-            if (requestId !== scheduleRequestIdRef.current) return;
-            console.error('Failed to load group schedule', err);
-            const message = err.message || 'Failed to load the group calendar';
-            const toastKey = `${rangeKey}:${message}`;
-            const now = Date.now();
-            const lastToast = lastScheduleErrorToastRef.current;
-
-            if (lastToast.key !== toastKey || now - lastToast.at > 5000) {
-                toast.error(message);
-                lastScheduleErrorToastRef.current = { key: toastKey, at: now };
-            }
-
-            setGroupSchedule((current) => current || { members: [], schedule_slots: [], meetups: [] });
-        } finally {
-            if (requestId === scheduleRequestIdRef.current) {
-                setScheduleLoading(false);
-            }
-        }
-    }, [id, toast]);
 
     const syncNativeMeetupNotifications = useCallback(async () => {
         if (!Capacitor.isNativePlatform()) return;
@@ -210,17 +130,8 @@ export default function GroupDetails() {
         }
     }, []);
 
-    const refreshScheduleRange = useCallback(async () => {
-        const currentRange = scheduleRangeRef.current;
-        if (!currentRange?.start || !currentRange?.end) return;
-        await loadGroupSchedule(currentRange.start, currentRange.end);
-    }, [loadGroupSchedule]);
-
     useEffect(() => {
-        const { start: initialStart, end: initialEnd } = getVisibleMonthRange(new Date());
-
         void loadGroup();
-        void loadGroupSchedule(initialStart, initialEnd, { showLoader: true });
 
         return authApi.subscribeToGroupMeetupEvents(id, {
             onMeetupCreated: (meetup) => {
@@ -229,10 +140,12 @@ export default function GroupDetails() {
                 }
             },
             onChanged: () => {
-                void refreshScheduleRange();
+                schedule.refreshRange();
             },
         });
-    }, [currentUserId, id, loadGroup, loadGroupSchedule, refreshScheduleRange, toast]);
+    // schedule.refreshRange is stable (useCallback with no deps) — omit from array
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserId, id, loadGroup, toast]);
 
     // Fetch files separately when folder changes (avoids full group re-fetch)
     useEffect(() => {
@@ -272,20 +185,12 @@ export default function GroupDetails() {
             hasAnimatedRef.current = true;
 
             gsap.fromTo('.gsap-header',
-                { y: -20, opacity: 0 },
-                { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
+                { y: -10, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.25, ease: 'power2.out' }
             );
-            gsap.fromTo('.gsap-left-item',
-                { x: -30, opacity: 0 },
-                { x: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.1 }
-            );
-            gsap.fromTo('.gsap-right-item',
-                { y: 30, opacity: 0 },
-                { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
-            );
-            gsap.fromTo('.gsap-mobile-item',
-                { y: 20, opacity: 0 },
-                { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out', delay: 0.1 }
+            gsap.fromTo(['.gsap-left-item', '.gsap-right-item', '.gsap-mobile-item'],
+                { y: 10, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.25, ease: 'power2.out' }
             );
         }
 
@@ -601,157 +506,33 @@ export default function GroupDetails() {
         setIsFileViewerOpen(true);
     };
 
-    const handleSetShareMode = async (visibilityMode) => {
-        try {
-            await api.setGroupScheduleShare(id, visibilityMode);
-            await refreshScheduleRange();
+    const handleCreateMeetup = useCallback(async (meetupPayload) => {
+        await schedule.createMeetup(meetupPayload);
+        syncNativeMeetupNotifications().catch((err) => console.error('Failed to sync meetup notifications', err));
+    }, [schedule, syncNativeMeetupNotifications]);
 
-            if (visibilityMode === 'hidden') {
-                toast.success('Your schedule is hidden for this group.');
-            } else {
-                toast.success('Availability updated.');
-            }
-        } catch (err) {
-            toast.error(err.message || 'Failed to update schedule sharing');
-        }
-    };
+    const handleJoinMeetup = useCallback(async (meetup) => {
+        await schedule.joinMeetup(meetup);
+        syncNativeMeetupNotifications().catch((err) => console.error('Failed to sync meetup notifications', err));
+    }, [schedule, syncNativeMeetupNotifications]);
 
-    const handleSaveAvailability = async (cells) => {
-        try {
-            await api.setGroupAvailability(id, cells);
-            await refreshScheduleRange();
-            toast.success('Availability saved.');
-        } catch (err) {
-            toast.error(err.message || 'Failed to save availability');
-            throw err;
-        }
-    };
+    const handleLeaveMeetup = useCallback(async (meetup) => {
+        await schedule.leaveMeetup(meetup);
+        syncNativeMeetupNotifications().catch((err) => console.error('Failed to sync meetup notifications', err));
+    }, [schedule, syncNativeMeetupNotifications]);
 
-    const handleCreateMeetup = async (meetupPayload) => {
-        try {
-            await api.createGroupMeetup(id, meetupPayload);
-            toast.success('Study session proposed.');
-            await refreshScheduleRange();
-            await syncNativeMeetupNotifications().catch((error) => {
-                console.error('Failed to sync meetup notifications', error);
-            });
-        } catch (err) {
-            toast.error(err.message || 'Failed to create study session');
-            throw err;
-        }
-    };
-
-    const handleJoinMeetup = async (meetup) => {
-        // Optimistic update — flip UI immediately, revert on error
-        setGroupSchedule((prev) => prev ? ({
-            ...prev,
-            meetups: prev.meetups.map((m) =>
-                m.id === meetup.id
-                    ? { ...m, is_joined: true, attendee_count: (m.attendee_count || 0) + 1 }
-                    : m,
-            ),
-        }) : prev);
-
-        try {
-            haptics.light?.();
-            await api.joinGroupMeetup(meetup.id);
-            toast.success("You're going.");
-            await syncNativeMeetupNotifications().catch((error) => {
-                console.error('Failed to sync meetup notifications', error);
-            });
-        } catch (err) {
-            // Revert on failure
-            setGroupSchedule((prev) => prev ? ({
-                ...prev,
-                meetups: prev.meetups.map((m) =>
-                    m.id === meetup.id
-                        ? { ...m, is_joined: false, attendee_count: Math.max(0, (m.attendee_count || 1) - 1) }
-                        : m,
-                ),
-            }) : prev);
-            toast.error(err.message || 'Failed to join the session');
-        }
-    };
-
-    const handleLeaveMeetup = async (meetup) => {
-        // Optimistic update
-        setGroupSchedule((prev) => prev ? ({
-            ...prev,
-            meetups: prev.meetups.map((m) =>
-                m.id === meetup.id
-                    ? { ...m, is_joined: false, attendee_count: Math.max(0, (m.attendee_count || 1) - 1) }
-                    : m,
-            ),
-        }) : prev);
-
-        try {
-            haptics.light?.();
-            await api.leaveGroupMeetup(meetup.id);
-            toast.success('You left the session.');
-            await syncNativeMeetupNotifications().catch((error) => {
-                console.error('Failed to sync meetup notifications', error);
-            });
-        } catch (err) {
-            // Revert on failure
-            setGroupSchedule((prev) => prev ? ({
-                ...prev,
-                meetups: prev.meetups.map((m) =>
-                    m.id === meetup.id
-                        ? { ...m, is_joined: true, attendee_count: (m.attendee_count || 0) + 1 }
-                        : m,
-                ),
-            }) : prev);
-            toast.error(err.message || 'Failed to leave the session');
-        }
-    };
-
-    const handleCancelMeetup = (meetup) => {
+    const handleCancelMeetup = useCallback((meetup) => {
         confirmAction(
             'Cancel Session',
             'This will cancel the scheduled study session for everyone in the group.',
             async () => {
-                const originalStatus = meetup.status; // capture before optimistic update
-
-                // Optimistic update
-                setGroupSchedule((prev) => prev ? ({
-                    ...prev,
-                    meetups: prev.meetups.map((m) =>
-                        m.id === meetup.id ? { ...m, status: 'cancelled' } : m,
-                    ),
-                }) : prev);
-
-                try {
-                    await api.cancelGroupMeetup(meetup.id);
-                    toast.success('Session cancelled');
-                    await syncNativeMeetupNotifications().catch((error) => {
-                        console.error('Failed to sync meetup notifications', error);
-                    });
-                } catch (err) {
-                    // Revert to original status on failure
-                    setGroupSchedule((prev) => prev ? ({
-                        ...prev,
-                        meetups: prev.meetups.map((m) =>
-                            m.id === meetup.id ? { ...m, status: originalStatus } : m,
-                        ),
-                    }) : prev);
-                    toast.error(err.message || 'Failed to cancel the session');
-                }
+                await schedule.cancelMeetup(meetup);
+                syncNativeMeetupNotifications().catch((err) => console.error('Failed to sync meetup notifications', err));
             },
         );
-    };
-
-    const handleScheduleRangeChange = useCallback((rangeStart, rangeEnd) => {
-        const currentRange = scheduleRangeRef.current;
-        if (
-            currentRange
-            && toDateIdentity(currentRange.start) === toDateIdentity(rangeStart)
-            && toDateIdentity(currentRange.end) === toDateIdentity(rangeEnd)
-        ) {
-            return;
-        }
-
-        void loadGroupSchedule(rangeStart, rangeEnd);
-    }, [loadGroupSchedule]);
+    // confirmAction is stable (setState wrapper) — omit from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [schedule, syncNativeMeetupNotifications]);
 
     // Push group actions into bottom nav context toolbar (mobile)
     useEffect(() => {
@@ -877,13 +658,14 @@ export default function GroupDetails() {
                 <div data-testid="group-schedule-scroll" className={`flex-1 min-h-0 overflow-hidden ${activeTab !== 'schedule' ? 'hidden' : ''}`}>
                     <GroupScheduleHub
                         group={group}
-                        calendarData={groupSchedule}
-                        loading={scheduleLoading}
+                        calendarData={schedule.calendarData}
+                        loading={schedule.loading}
+                        revalidating={schedule.revalidating}
                         isAdmin={isAdmin}
                         composerRequestKey={scheduleComposerRequestKey}
-                        onRangeChange={handleScheduleRangeChange}
-                        onSetShareMode={handleSetShareMode}
-                        onSaveAvailability={handleSaveAvailability}
+                        onRangeChange={schedule.setRange}
+                        onSetShareMode={schedule.setShareMode}
+                        onSaveAvailability={schedule.saveAvailability}
                         onCreateMeetup={handleCreateMeetup}
                         onJoinMeetup={handleJoinMeetup}
                         onLeaveMeetup={handleLeaveMeetup}
@@ -1107,13 +889,14 @@ export default function GroupDetails() {
                     <div className={activeTab !== 'schedule' ? 'hidden' : ''}>
                         <GroupScheduleHub
                             group={group}
-                            calendarData={groupSchedule}
-                            loading={scheduleLoading}
+                            calendarData={schedule.calendarData}
+                            loading={schedule.loading}
+                            revalidating={schedule.revalidating}
                             isAdmin={isAdmin}
                             composerRequestKey={scheduleComposerRequestKey}
-                            onRangeChange={handleScheduleRangeChange}
-                            onSetShareMode={handleSetShareMode}
-                            onSaveAvailability={handleSaveAvailability}
+                            onRangeChange={schedule.setRange}
+                            onSetShareMode={schedule.setShareMode}
+                            onSaveAvailability={schedule.saveAvailability}
                             onCreateMeetup={handleCreateMeetup}
                             onJoinMeetup={handleJoinMeetup}
                             onLeaveMeetup={handleLeaveMeetup}
