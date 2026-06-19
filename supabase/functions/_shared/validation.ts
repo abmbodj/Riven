@@ -46,6 +46,15 @@ export const canvasSemesterRestoreSchema = z.object({
   classId: z.string().uuid('Invalid class id.'),
 });
 
+export const canvasSchoolSearchSchema = z.object({
+  q: z.string().min(1, 'Search query is required').max(100),
+});
+
+export const canvasRequestSchoolSchema = z.object({
+  school: z.string().min(1, 'School name is required').max(200),
+  domain: z.string().max(200).optional(),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email format'),
 });

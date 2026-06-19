@@ -175,6 +175,12 @@ export const api = {
             return res;
         });
     },
+    searchCanvasSchools: (q) => isLoggedIn()
+        ? serverApi.searchCanvasSchools(q)
+        : Promise.reject(new Error('Must be logged in to search Canvas schools')),
+    requestSchoolSupport: (info) => isLoggedIn()
+        ? serverApi.requestSchoolSupport(info)
+        : Promise.reject(new Error('Must be logged in')),
 
     // AI Generation
     getAILimits: () => isLoggedIn()

@@ -13,11 +13,11 @@ import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import ClassTimeInput from '../components/schedule/ClassTimeInput';
 import useHaptics from '../hooks/useHaptics';
-import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
+import { classNameSchema } from '../schemas/forms';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { buildDefaultClassTimeRow, isValidTimeRange } from '../utils/classTime';
 import { inferSubject, SUBJECT_VALUES } from '../utils/subjectInference';
-import CanvasIcalGuide from '../components/canvas/CanvasIcalGuide';
+import CanvasConnectFlow from '../components/canvas/CanvasConnectFlow';
 import CanvasSemesterCleanupModal from '../components/canvas/CanvasSemesterCleanupModal';
 import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
@@ -156,7 +156,6 @@ export default function Classes() {
 
     const [creationMethod, setCreationMethod] = useState('manual'); // 'manual' | 'ai' | 'canvas'
     const [canvasStatus, setCanvasStatus] = useState({ isConnected: false, url: '', loading: true, syncing: false });
-    const [canvasFormUrl, setCanvasFormUrl] = useState('');
     const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
     const haptics = useHaptics();
     const activeClasses = classes.filter(cls => !cls.is_archived);
@@ -337,28 +336,6 @@ export default function Classes() {
             toast.error(err.message || 'Failed to process syllabus.');
         } finally {
             setIsGeneratingAI(false);
-        }
-    };
-
-    const handleCanvasConnect = async () => {
-        const result = canvasIcalUrlSchema.safeParse(canvasFormUrl.trim());
-        if (!result.success) {
-            toast.error(result.error.errors[0]?.message || 'Please enter a valid Canvas link.');
-            return;
-        }
-
-        setCanvasStatus(prev => ({ ...prev, loading: true }));
-        try {
-            await api.connectCanvas(result.data);
-            setCanvasStatus(prev => ({ ...prev, isConnected: true, url: 'Canvas Feed Active', loading: false }));
-            setCanvasFormUrl('');
-            toast.success('Canvas connected! Beginning initial sync...');
-
-            // Auto start sync
-            handleCanvasSync();
-        } catch (err) {
-            toast.error(err.message || 'Failed to connect Canvas.');
-            setCanvasStatus(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -753,23 +730,15 @@ export default function Classes() {
                                                                 <p className="text-xs font-mono text-claude-secondary">
                                                                     Connect your Canvas Calendar feed to instantly auto-fill your classes and assignments.
                                                                 </p>
-                                                                <CanvasIcalGuide compact />
-                                                                <input
-                                                                    type="url"
-                                                                    placeholder="Canvas Calendar Link (.ics)"
-                                                                    value={canvasFormUrl}
-                                                                    onChange={e => setCanvasFormUrl(e.target.value)}
-                                                                    className="w-full glass-panel border border-blue-500/30 rounded-xl px-4 py-3 font-mono text-sm text-claude-text focus:border-blue-500 outline-none placeholder-claude-secondary/50"
+                                                                <CanvasConnectFlow
+                                                                    compact
+                                                                    userEmail={user?.email}
+                                                                    onConnected={() => {
+                                                                        setCanvasStatus(prev => ({ ...prev, isConnected: true, url: 'Canvas Feed Active' }));
+                                                                        toast.success('Canvas connected! Beginning initial sync…');
+                                                                        handleCanvasSync();
+                                                                    }}
                                                                 />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => { haptics.medium(); handleCanvasConnect(); }}
-                                                                    disabled={canvasStatus.loading || !canvasFormUrl.trim()}
-                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
-                                                                >
-                                                                    {canvasStatus.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                                                                    {canvasStatus.loading ? 'Connecting...' : 'Connect & Sync'}
-                                                                </button>
                                                             </div>
                                                         )}
                                                     </div>

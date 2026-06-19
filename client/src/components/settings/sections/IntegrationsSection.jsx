@@ -1,7 +1,7 @@
 import React from 'react';
-import { Archive, Network, Lock, RefreshCw, Crown } from 'lucide-react';
+import { Archive, Network, RefreshCw, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import CanvasIcalGuide from '../../canvas/CanvasIcalGuide';
+import CanvasConnectFlow from '../../canvas/CanvasConnectFlow';
 import SectionHeader from '../SectionHeader';
 import SectionCard from '../SectionCard';
 import StatusNotice from '../StatusNotice';
@@ -38,14 +38,9 @@ const formatCanvasSyncTimestamp = (timestamp) => {
 export default function IntegrationsSection({
     isPremium,
     lmsStatus,
-    canvasForm,
-    setCanvasForm,
-    formErrors,
-    setFormErrors,
     canvasNotice,
-    canvasValidationHint,
-    connectingCanvas,
-    onConnectCanvas,
+    onConnected,
+    userEmail,
     onDisconnectCanvas,
     onSyncCanvas,
     onToggleAutoSync,
@@ -53,7 +48,6 @@ export default function IntegrationsSection({
     openModal,
     haptics,
 }) {
-    const hasCanvasUrl = canvasForm.url.trim().length > 0;
     const canvasCardState = !isPremium
         ? 'locked'
         : lmsStatus.loading
@@ -137,28 +131,10 @@ export default function IntegrationsSection({
                                     exit={{ opacity: 0, height: 0 }}
                                     className="space-y-4 pt-2"
                                 >
-                                    <div className="space-y-3">
-                                        <motion.div animate={formErrors.url ? { x: [-5, 5, -5, 5, 0] } : {}} transition={{ duration: 0.4 }}>
-                                            <input
-                                                type="url"
-                                                placeholder="Canvas Calendar Link (Ends in .ics)"
-                                                value={canvasForm.url}
-                                                onChange={e => {
-                                                    setCanvasForm(prev => ({ ...prev, url: e.target.value }));
-                                                    if (formErrors.url) setFormErrors(prev => ({ ...prev, url: false }));
-                                                }}
-                                                aria-describedby={canvasValidationHint ? 'canvas-ical-validation-hint' : undefined}
-                                                className={`w-full bg-claude-bg border ${formErrors.url ? 'border-red-400 focus:border-red-500 bg-red-500/5' : 'border-claude-secondary/20 focus:border-blue-400/50'} rounded-xl px-4 py-3.5 text-sm text-claude-text placeholder-claude-secondary/40 font-mono focus:outline-none transition-colors shadow-inner`}
-                                            />
-                                        </motion.div>
-
-                                        <CanvasIcalGuide validationHint={canvasValidationHint} />
-                                    </div>
-
-                                    <p className="text-[10px] font-mono text-claude-secondary/60 leading-relaxed text-center px-2">
-                                        Riven only needs the read-only calendar feed.
-                                    </p>
-
+                                    <CanvasConnectFlow
+                                        onConnected={onConnected}
+                                        userEmail={userEmail}
+                                    />
                                     {canvasNotice && (
                                         <StatusNotice
                                             tone={canvasNotice.tone}
@@ -166,15 +142,6 @@ export default function IntegrationsSection({
                                             detail={canvasNotice.detail}
                                         />
                                     )}
-
-                                    <button
-                                        onClick={onConnectCanvas}
-                                        disabled={connectingCanvas || !hasCanvasUrl}
-                                        className="tap-action w-full bg-claude-text hover:bg-claude-accent text-claude-bg font-mono text-[10px] uppercase tracking-[0.22em] py-3.5 rounded-[1.1rem] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
-                                    >
-                                        <Lock className="w-4 h-4" />
-                                        {connectingCanvas ? 'Connecting...' : 'Connect Calendar Feed'}
-                                    </button>
                                 </motion.div>
                             ) : (
                                 <motion.div

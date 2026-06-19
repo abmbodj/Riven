@@ -37,6 +37,8 @@ vi.mock('../api', () => ({
     disconnectCanvas: vi.fn(),
     setCanvasAutoSync: vi.fn(),
     syncCanvas: vi.fn(),
+    searchCanvasSchools: vi.fn().mockResolvedValue({ schools: [] }),
+    requestSchoolSupport: vi.fn().mockResolvedValue({}),
     previewCanvasSemesterCleanup: vi.fn(),
     archiveCanvasSemesterClasses: vi.fn(),
     getAssignments: vi.fn(),
@@ -369,8 +371,12 @@ describe('Settings LMS sync', () => {
 
     navigateToSection('Integrations');
 
-    const connectButton = await screen.findByRole('button', { name: /connect calendar feed/i });
-    expect(connectButton).toBeDisabled();
+    // New flow: user clicks the entry button first to reveal the paste/manual input stage.
+    const entryButton = await screen.findByRole('button', { name: /connect calendar feed/i });
+    fireEvent.click(entryButton);
+
+    const submitButton = await screen.findByRole('button', { name: /connect calendar feed/i });
+    expect(submitButton).toBeDisabled();
     expect(screen.getByRole('button', { name: /need help finding it/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/canvas calendar link/i), {
@@ -385,6 +391,9 @@ describe('Settings LMS sync', () => {
     await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
 
     navigateToSection('Integrations');
+
+    // New flow: click the entry button first to reveal the paste/manual input stage.
+    fireEvent.click(await screen.findByRole('button', { name: /connect calendar feed/i }));
 
     fireEvent.click(await screen.findByRole('button', { name: /need help finding it/i }));
     expect(screen.getByText('Open Canvas Calendar')).toBeInTheDocument();

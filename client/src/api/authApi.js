@@ -1685,6 +1685,14 @@ export const restoreArchivedClass = (classId) => callCanvasLmsEndpoint({
     action: 'restore-class',
     payload: { classId },
 });
+export const searchCanvasSchools = (q) => callCanvasLmsEndpoint({
+    action: 'school-search',
+    payload: { q },
+});
+export const requestSchoolSupport = ({ school, domain }) => callCanvasLmsEndpoint({
+    action: 'request-school',
+    payload: { school, domain },
+});
 
 // --- AI Generation ---
 export const getAILimits = () => edgeFunctionFetch('ai-limits', { method: 'GET' });

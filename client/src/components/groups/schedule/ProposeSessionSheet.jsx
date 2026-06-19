@@ -74,6 +74,10 @@ export default function ProposeSessionSheet({
             setError('Choose a valid start time.');
             return;
         }
+        if (startAt.getTime() < Date.now()) {
+            setError("Can't propose a session in the past.");
+            return;
+        }
         if (!topic.trim()) {
             setError("Add a topic so everyone knows what they're joining.");
             return;
@@ -164,6 +168,7 @@ export default function ProposeSessionSheet({
                                     type="datetime-local"
                                     name="session-start-at"
                                     value={startAtLocal}
+                                    min={toLocalDateTimeValue(new Date())}
                                     onChange={(event) => setStartAtLocal(event.target.value)}
                                     className="w-full rounded-[1.2rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-base text-claude-text outline-none transition-colors focus:border-claude-accent/40"
                                 />

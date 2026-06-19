@@ -8,7 +8,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"Space Grotesk"', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        prose: ['"Lora"', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {

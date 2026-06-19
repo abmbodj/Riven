@@ -37,6 +37,7 @@ vi.mock('motion/react', () => {
     motion: new Proxy({}, {
       get: (_, tag) => createMotionComponent(tag),
     }),
+    useReducedMotion: () => false,
   };
 });
 

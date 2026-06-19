@@ -128,8 +128,9 @@ export function useGroupSchedule({ groupId, currentUserId, toast, haptics }) {
         });
 
         try {
-            await serverApi.setGroupAvailability(groupId, cells);
-            if (enableShare) await serverApi.setGroupScheduleShare(groupId, 'busy_free');
+            await serverApi.setGroupAvailability(groupId, cells); // share flip is atomic in the RPC
+            cache.deletePrefix(groupKeys.schedulePrefix(groupId));
+            await Promise.resolve(); // let any in-flight revalidate for this key settle + leave _inflight
             void refreshRef.current(); // background reconcile — don't block the save button
             toast?.success('Availability saved.');
         } catch (err) {

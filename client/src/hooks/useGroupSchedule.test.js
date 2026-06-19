@@ -48,6 +48,7 @@ vi.mock('./useCalendarData', () => ({ useCalendarData: vi.fn() }));
 import { useGroupSchedule } from './useGroupSchedule';
 import { useCalendarData } from './useCalendarData';
 import * as serverApi from '../api/authApi';
+import { cache } from '../utils/cache';
 
 const GROUP_ID  = 'grp-1';
 const USER_ID   = 42;
@@ -168,6 +169,37 @@ describe('useGroupSchedule', () => {
             resolveServer();
             await act(() => Promise.resolve());
             expect(toast.success).toHaveBeenCalledWith('Availability saved.');
+        });
+
+        it('first-run (hidden): flips share_mode optimistically and never calls setGroupScheduleShare', async () => {
+            const firstRunData = {
+                ...SAMPLE_DATA,
+                my_share_mode: null,
+                members: [{ id: USER_ID, username: 'ab', share_mode: 'hidden' }],
+                availability: [],
+                my_availability: [],
+            };
+            stubCalendar({ data: firstRunData, loading: false });
+            const { result, rerender } = buildHook();
+            rerender();
+
+            const cells = [{ day_of_week: 2, hour: 14 }];
+            await act(() => result.current.saveAvailability(cells));
+
+            // RPC owns the share flip — client must not call setGroupScheduleShare
+            expect(serverApi.setGroupScheduleShare).not.toHaveBeenCalled();
+            expect(serverApi.setGroupAvailability).toHaveBeenCalledTimes(1);
+            // Cache must be invalidated so the post-save refresh sees fresh data
+            expect(cache.deletePrefix).toHaveBeenCalledWith(`gs:${GROUP_ID}:`);
+
+            // Optimistic state should have promoted the member to busy_free
+            const optimisticCall = mockSetData.mock.calls[0][0];
+            const next = optimisticCall(firstRunData);
+            expect(next.my_share_mode).toBe('busy_free');
+            const myMember = next.members.find((m) => m.id === USER_ID);
+            expect(myMember.share_mode).toBe('busy_free');
+            // Availability cells merged in
+            expect(next.availability.some((r) => r.user_id === USER_ID && r.day_of_week === 2)).toBe(true);
         });
 
         it('rolls back state and re-throws on server error', async () => {

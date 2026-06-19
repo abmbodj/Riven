@@ -144,7 +144,10 @@ describe('Onboarding (activation flow)', () => {
         await waitFor(() => expect(savePreviewDeck).toHaveBeenCalledWith('Photosynthesis', expect.any(Array)));
         await waitFor(() => expect(mockSaveOnboardingProgress).toHaveBeenCalledWith({ markComplete: true }));
 
-        // S5 capabilities reveal (material question doubles as the hero tile)
+        // S5 canvas (optional, non-premium path shows upsell — skip it)
+        fireEvent.click(await screen.findByRole('button', { name: /skip for now/i }));
+
+        // S6 capabilities reveal (material question doubles as the hero tile)
         const audioTile = await screen.findByRole('button', { name: /record a lecture/i });
         fireEvent.click(audioTile);
         expect(setOnboardingMaterial).toHaveBeenCalledWith('audio');

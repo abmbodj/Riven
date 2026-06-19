@@ -16,6 +16,8 @@ import { syncCanvasCalendarForUser, parseCanvasCalendar } from '../_shared/canva
 import {
   canvasAutoSyncSchema,
   canvasConnectSchema,
+  canvasRequestSchoolSchema,
+  canvasSchoolSearchSchema,
   canvasSemesterArchiveSchema,
   canvasSemesterRestoreSchema,
 } from '../_shared/validation.ts';
@@ -367,6 +369,57 @@ serve(async (request) => {
 
         throw error;
       }
+    }
+
+    if (action === 'school-search') {
+      const parsed = canvasSchoolSearchSchema.safeParse(body);
+      if (!parsed.success) {
+        return jsonResponse(
+          { error: parsed.error.errors[0]?.message ?? 'Invalid search query' },
+          { status: 400 },
+          request,
+        );
+      }
+
+      const searchUrl = `https://canvas.instructure.com/api/v1/accounts/search?search_term=${encodeURIComponent(parsed.data.q)}&per_page=10`;
+      let schools: Array<{ name: string; domain: string }> = [];
+
+      try {
+        const res = await fetch(searchUrl, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          const raw = await res.json() as Array<{ name: string; domain: string }>;
+          schools = raw
+            .filter((s) => s.domain && s.name)
+            .map((s) => ({ name: s.name, domain: s.domain }));
+        }
+      } catch {
+        // Network failure — return empty list; client falls back to manual host entry.
+      }
+
+      return jsonResponse({ schools }, {}, request);
+    }
+
+    if (action === 'request-school') {
+      const parsed = canvasRequestSchoolSchema.safeParse(body);
+      if (!parsed.success) {
+        return jsonResponse(
+          { error: parsed.error.errors[0]?.message ?? 'Invalid request' },
+          { status: 400 },
+          request,
+        );
+      }
+
+      const content = `[canvas-school-request] ${parsed.data.school}${parsed.data.domain ? ` (${parsed.data.domain})` : ''}`;
+      const { error: feedbackError } = await admin
+        .from('feedback_submissions')
+        .insert({ user_id: authUser.id, content });
+
+      if (feedbackError) throw feedbackError;
+
+      return jsonResponse({ message: 'School request logged.' }, {}, request);
     }
 
     return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);

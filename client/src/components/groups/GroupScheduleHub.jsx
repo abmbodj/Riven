@@ -327,9 +327,17 @@ export default function GroupScheduleHub({
                             onChange={(next) => (next === 'edit' ? enterEditMode() : exitEditMode())}
                         />
                         {mode === 'group' ? (
-                            <div className="flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-claude-secondary">
-                                <span className="inline-block h-2.5 w-2.5 rounded-[2px] bg-[rgba(122,158,114,0.7)]" />
-                                More free
+                            <div className="flex items-center gap-3 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-claude-secondary">
+                                <span className="flex items-center gap-1">
+                                    <span className="inline-block h-2.5 w-2.5 rounded-[2px] bg-[rgba(122,158,114,0.7)]" />
+                                    More free
+                                </span>
+                                {heatmap.maxFree >= 2 && (
+                                    <span className="flex items-center gap-1" style={{ color: '#7dd3c0' }}>
+                                        <span>★</span>
+                                        Best time
+                                    </span>
+                                )}
                             </div>
                         ) : (
                             <button
@@ -438,6 +446,7 @@ export default function GroupScheduleHub({
                                     myCells={draftCells}
                                     myClassSlots={visibleMyScheduleSlots}
                                     highlightedMeetupId={highlightedMeetupId}
+                                    nowMs={nowMs}
                                     onProposeCell={mode === 'group' ? handleProposeCell : undefined}
                                     onToggleCell={handleToggleCell}
                                     onMeetupSelect={handleSelectMeetup}

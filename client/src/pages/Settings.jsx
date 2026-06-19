@@ -12,7 +12,6 @@ import DeleteAccountModal from '../components/DeleteAccountModal';
 import FeedbackModal from '../components/FeedbackModal';
 import PricingModal from '../components/ui/PricingModal';
 import { useRevenueCat } from '../hooks/useRevenueCat';
-import { canvasIcalUrlSchema, getCanvasIcalValidationHint } from '../schemas/forms';
 import { checkNotificationPermissions, requestNotificationPermissions, scheduleAssignmentNotifications } from '../utils/notifications';
 import { checkPushPermissions, isNativeIos, registerPushNotifications, requestPushPermissions } from '../utils/pushNotifications.js';
 
@@ -106,9 +105,6 @@ export default function Settings() {
         lastSyncAt: null,
         lastAutoSyncError: '',
     });
-    const [canvasForm, setCanvasForm] = useState({ url: '', token: '' });
-    const [connectingCanvas, setConnectingCanvas] = useState(false);
-    const [formErrors, setFormErrors] = useState({ url: false, token: false });
     const [canvasNotice, setCanvasNotice] = useState(null);
     const [semesterCleanupOpen, setSemesterCleanupOpen] = useState(false);
 
@@ -144,7 +140,6 @@ export default function Settings() {
             ? 'Pro'
             : 'Free';
     const securitySummary = user?.twoFAEnabled ? '2FA enabled' : 'Password only';
-    const canvasValidationHint = getCanvasIcalValidationHint(canvasForm.url);
 
     // --- Data loading ---
     useEffect(() => {
@@ -160,7 +155,6 @@ export default function Settings() {
                     lastAutoSyncError: res.lastAutoSyncError || '',
                     loading: false
                 }));
-                if (res.canvasUrl) setCanvasForm(prev => ({ ...prev, url: res.canvasUrl }));
             } catch {
                 setLmsStatus(prev => ({ ...prev, loading: false }));
             }
@@ -244,48 +238,20 @@ export default function Settings() {
     }, []);
 
     // --- Canvas handlers ---
-    const handleConnectCanvas = async () => {
-        const result = canvasIcalUrlSchema.safeParse(canvasForm.url.trim());
-        if (!result.success) {
-            const msg = result.error.errors[0]?.message || 'Invalid Canvas link';
-            setFormErrors({ url: true });
-            haptics.error();
-            toast.error(msg);
-            setCanvasNotice({ tone: 'error', title: 'Canvas feed required', detail: msg });
-            setTimeout(() => setFormErrors({ url: false }), 2000);
-            return;
-        }
-
-        setConnectingCanvas(true);
-        try {
-            const submittedUrl = result.data;
-            await api.connectCanvas(submittedUrl);
-            toast.success('Canvas connected successfully!');
-            haptics.success();
-            setLmsStatus(prev => ({
-                ...prev,
-                isConnected: true,
-                canvasUrl: submittedUrl,
-                autoSyncEnabled: true,
-                lastAutoSyncError: '',
-            }));
-            setCanvasForm({ url: '' });
-            setCanvasNotice({
-                tone: 'success',
-                title: 'Feed saved',
-                detail: 'Auto-sync is now on every 12 hours. Run a sync now if you want your first import immediately.'
-            });
-        } catch (err) {
-            haptics.error();
-            toast.error(err.message || 'Failed to connect Canvas');
-            setCanvasNotice({
-                tone: 'error',
-                title: 'Connection failed',
-                detail: err.message || 'Check that your Canvas calendar feed is a valid .ics link.'
-            });
-        } finally {
-            setConnectingCanvas(false);
-        }
+    const handleCanvasConnected = () => {
+        toast.success('Canvas connected successfully!');
+        haptics.success();
+        setLmsStatus(prev => ({
+            ...prev,
+            isConnected: true,
+            autoSyncEnabled: true,
+            lastAutoSyncError: '',
+        }));
+        setCanvasNotice({
+            tone: 'success',
+            title: 'Feed saved',
+            detail: 'Auto-sync is on every 12 hours. Run a sync now for your first import.'
+        });
     };
 
     const handleDisconnectCanvas = async () => {
@@ -301,7 +267,6 @@ export default function Settings() {
                 lastSyncAt: null,
                 lastAutoSyncError: '',
             }));
-            setCanvasForm({ url: '', token: '' });
             setCanvasNotice({
                 tone: 'info',
                 title: 'Integration removed',
@@ -560,14 +525,9 @@ export default function Settings() {
                     <IntegrationsSection
                         isPremium={isPremium}
                         lmsStatus={lmsStatus}
-                        canvasForm={canvasForm}
-                        setCanvasForm={setCanvasForm}
-                        formErrors={formErrors}
-                        setFormErrors={setFormErrors}
                         canvasNotice={canvasNotice}
-                        canvasValidationHint={canvasValidationHint}
-                        connectingCanvas={connectingCanvas}
-                        onConnectCanvas={handleConnectCanvas}
+                        onConnected={handleCanvasConnected}
+                        userEmail={user?.email}
                         onDisconnectCanvas={handleDisconnectCanvas}
                         onSyncCanvas={handleSyncLms}
                         onToggleAutoSync={handleToggleCanvasAutoSync}

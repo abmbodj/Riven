@@ -46,6 +46,21 @@ const htmlResponse = (body: string, status = 200) =>
     headers: { 'Content-Type': 'text/html' },
   });
 
+const withSupadataApiKey = async (operation: () => Promise<void>) => {
+  const previous = Deno.env.get('SUPADATA_API_KEY');
+  Deno.env.set('SUPADATA_API_KEY', 'test-supadata-key');
+
+  try {
+    await operation();
+  } finally {
+    if (previous === undefined) {
+      Deno.env.delete('SUPADATA_API_KEY');
+    } else {
+      Deno.env.set('SUPADATA_API_KEY', previous);
+    }
+  }
+};
+
 Deno.test('selectCaptionTrack prefers manual captions over auto-generated captions for the requested language', () => {
   const selected = selectCaptionTrack([
     { baseUrl: 'https://captions.test/auto', languageCode: 'en', kind: 'asr' },
@@ -128,39 +143,137 @@ Deno.test('fetchTranscriptViaCaptionExtractor normalizes subtitle text returned 
   );
 });
 
-Deno.test('fetchYoutubeTranscriptWithDeps falls back to the package extractor when the custom caption strategies return no tracks', async () => {
-  let fetchCallCount = 0;
-  const fetchImpl: typeof fetch = async () => {
-    fetchCallCount += 1;
+Deno.test('fetchYoutubeTranscriptWithDeps uses custom captions before Supadata when both are configured', async () => {
+  await withSupadataApiKey(async () => {
+    let supadataCalls = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
 
-    if (fetchCallCount < 3) {
-      return jsonResponse({});
-    }
+      if (url.includes('api.supadata.ai')) {
+        supadataCalls += 1;
+        return jsonResponse({ content: 'Paid transcript should not be used' });
+      }
 
-    return htmlResponse('<html><body>No captions here</body></html>');
-  };
+      if (url.includes('captions.test')) {
+        return jsonResponse({
+          events: [
+            { segs: [{ utf8: 'Custom ' }, { utf8: 'captions' }] },
+          ],
+        });
+      }
 
-  const transcript = await fetchYoutubeTranscriptWithDeps(
-    'https://youtu.be/demo123',
-    'en',
-    {
-      fetchImpl,
-      getSubtitlesImpl: async () => [{ text: 'Recovered transcript' }],
-      logger: { warn: () => {} },
-    },
-  );
+      return jsonResponse({
+        captions: {
+          playerCaptionsTracklistRenderer: {
+            captionTracks: [
+              { baseUrl: 'https://captions.test/track', languageCode: 'en' },
+            ],
+          },
+        },
+      });
+    };
 
-  assertEquals(
-    transcript,
-    'Recovered transcript',
-    'Expected the package-backed extractor to recover when custom caption discovery fails',
-  );
+    const transcript = await fetchYoutubeTranscriptWithDeps(
+      'https://youtu.be/demo123',
+      'en',
+      {
+        fetchImpl,
+        getSubtitlesImpl: async () => [{ text: 'Package fallback should not be used' }],
+        logger: { warn: () => {} },
+      },
+    );
+
+    assertEquals(transcript, 'Custom captions', 'Expected the free custom caption strategy to win');
+    assertEquals(supadataCalls, 0, 'Expected Supadata not to be called after custom captions succeed');
+  });
 });
 
-Deno.test('fetchYoutubeTranscriptWithDeps throws a generic error when both caption strategies fail', async () => {
+Deno.test('fetchYoutubeTranscriptWithDeps falls back to the package extractor when the custom caption strategies return no tracks', async () => {
+  await withSupadataApiKey(async () => {
+    let supadataCalls = 0;
+    let fetchCallCount = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+
+      if (url.includes('api.supadata.ai')) {
+        supadataCalls += 1;
+        return jsonResponse({ content: 'Paid transcript should not be used' });
+      }
+
+      fetchCallCount += 1;
+
+      if (fetchCallCount < 3) {
+        return jsonResponse({});
+      }
+
+      return htmlResponse('<html><body>No captions here</body></html>');
+    };
+
+    const transcript = await fetchYoutubeTranscriptWithDeps(
+      'https://youtu.be/demo123',
+      'en',
+      {
+        fetchImpl,
+        getSubtitlesImpl: async () => [{ text: 'Recovered transcript' }],
+        logger: { warn: () => {} },
+      },
+    );
+
+    assertEquals(
+      transcript,
+      'Recovered transcript',
+      'Expected the package-backed extractor to recover when custom caption discovery fails',
+    );
+    assertEquals(supadataCalls, 0, 'Expected Supadata not to be called after package fallback succeeds');
+  });
+});
+
+Deno.test('fetchYoutubeTranscriptWithDeps uses Supadata only after free transcript strategies fail', async () => {
+  await withSupadataApiKey(async () => {
+    let supadataCalls = 0;
+    let fetchCallCount = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+
+      if (url.includes('api.supadata.ai')) {
+        supadataCalls += 1;
+        return jsonResponse({ content: 'Supadata fallback transcript' });
+      }
+
+      fetchCallCount += 1;
+
+      if (fetchCallCount < 3) {
+        return jsonResponse({});
+      }
+
+      return htmlResponse('<html><body>No captions here</body></html>');
+    };
+
+    const transcript = await fetchYoutubeTranscriptWithDeps(
+      'https://youtu.be/demo123',
+      'en',
+      {
+        fetchImpl,
+        getSubtitlesImpl: async () => [],
+        logger: { warn: () => {} },
+      },
+    );
+
+    assertEquals(transcript, 'Supadata fallback transcript', 'Expected Supadata to recover after free providers fail');
+    assertEquals(supadataCalls, 1, 'Expected Supadata to be called exactly once as the final fallback');
+  });
+});
+
+Deno.test('fetchYoutubeTranscriptWithDeps throws a generic error when all transcript strategies fail', async () => {
   const loggerCalls: unknown[] = [];
   let fetchCallCount = 0;
-  const fetchImpl: typeof fetch = async () => {
+  const fetchImpl: typeof fetch = async (input) => {
+    const url = String(input);
+
+    if (url.includes('api.supadata.ai')) {
+      return jsonResponse({ content: '' });
+    }
+
     fetchCallCount += 1;
 
     if (fetchCallCount < 3) {
@@ -180,4 +293,11 @@ Deno.test('fetchYoutubeTranscriptWithDeps throws a generic error when both capti
   );
 
   assert(loggerCalls.length === 1, 'Expected transcript strategy failures to be logged once');
+  const loggedArgs = loggerCalls[0] as unknown[] | undefined;
+  const loggedDetails = loggedArgs?.[1] as { strategyErrors?: string[] } | undefined;
+  assertEquals(
+    loggedDetails?.strategyErrors?.map((entry) => entry.split(':')[0]),
+    ['custom', 'caption-extractor', 'supadata'],
+    'Expected strategy failures to be logged in provider attempt order',
+  );
 });

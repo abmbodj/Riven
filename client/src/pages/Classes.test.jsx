@@ -183,7 +183,11 @@ describe('Classes page actions', () => {
     fireEvent.click(await screen.findByRole('button', { name: /canvas sync/i }));
 
     expect(await screen.findByText('Import from Canvas')).toBeInTheDocument();
-    expect(screen.getByTestId('canvas-ical-guide-compact')).toBeInTheDocument();
+
+    // On web (non-native), the flow starts in idle and needs one click to reach the fallback/guide.
+    fireEvent.click(await screen.findByRole('button', { name: /connect calendar feed/i }));
+
+    expect(await screen.findByTestId('canvas-ical-guide-compact')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /need help finding it/i }));
     expect(screen.getByText('Open Canvas Calendar')).toBeInTheDocument();

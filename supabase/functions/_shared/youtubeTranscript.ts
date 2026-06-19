@@ -317,15 +317,7 @@ export const fetchYoutubeTranscriptWithDeps = async (
 
   const strategyErrors: string[] = [];
 
-  // Strategy 1: Supadata API (reliable third-party service)
-  try {
-    return await fetchTranscriptViaSupadata(videoId, lang, fetchImpl);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    strategyErrors.push(`supadata:${message}`);
-  }
-
-  // Strategy 2: Custom innertube /player caption tracks (fallback)
+  // Strategy 1: Custom innertube /player caption tracks (free first)
   try {
     return await fetchTranscriptViaCustomStrategy(videoId, lang, fetchImpl);
   } catch (error) {
@@ -333,12 +325,20 @@ export const fetchYoutubeTranscriptWithDeps = async (
     strategyErrors.push(`custom:${message}`);
   }
 
-  // Strategy 3: youtube-caption-extractor (final fallback)
+  // Strategy 2: youtube-caption-extractor package fallback
   try {
     return await fetchTranscriptViaCaptionExtractor(videoId, lang, getSubtitlesImpl);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     strategyErrors.push(`caption-extractor:${message}`);
+  }
+
+  // Strategy 3: Supadata API (paid reliability fallback)
+  try {
+    return await fetchTranscriptViaSupadata(videoId, lang, fetchImpl);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    strategyErrors.push(`supadata:${message}`);
   }
 
   logger.warn('[youtubeTranscript] all transcript strategies failed', {

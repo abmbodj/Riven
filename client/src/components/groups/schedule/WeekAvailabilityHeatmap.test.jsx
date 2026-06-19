@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import WeekAvailabilityHeatmap from './WeekAvailabilityHeatmap.jsx';
 import { getRollingWeekDays, startOfWeek } from '../../../utils/calendarDates';
 
+// Week anchored to 2026-06-17 (Wed) — gives Sun 2026-06-14 through Sat 2026-06-20.
 const WEEK_DAYS = getRollingWeekDays(startOfWeek(new Date(2026, 5, 17)));
+
+// Before the week starts — all cells are in the future, so content renders normally.
+const BEFORE_WEEK_MS = new Date(2026, 5, 13, 0, 0, 0).getTime(); // Sat Jun 13 midnight
+
+// Mid-week — Sun/Mon/Tue/Wed cells at hour 10 are past.
+const MID_WEEK_MS = new Date(2026, 5, 18, 11, 0, 0).getTime(); // Thu Jun 18 11am
 
 const MEMBERS = new Map([
     ['a', { id: 'a', username: 'ada', display_name: 'Ada Lovelace', avatar: 'https://cdn.test/ada.png' }],
@@ -12,10 +19,10 @@ const MEMBERS = new Map([
     ['d', { id: 'd', username: 'dot', display_name: 'Dot Debugger' }],
 ]);
 
-function renderHeatmapCell({ freeMemberIds = [], denominator = 4 } = {}) {
-    const heatmap = {
+function makeFutureHeatmap({ freeMemberIds = [], denominator = 4, maxFree } = {}) {
+    return {
         denominator,
-        maxFree: freeMemberIds.length,
+        maxFree: maxFree ?? freeMemberIds.length,
         participatingMemberIds: ['a', 'b', 'c', 'd'],
         cells: new Map([
             ['0-10', {
@@ -28,7 +35,9 @@ function renderHeatmapCell({ freeMemberIds = [], denominator = 4 } = {}) {
             }],
         ]),
     };
+}
 
+function renderWithHeatmap(heatmap, { nowMs = BEFORE_WEEK_MS } = {}) {
     render(
         <WeekAvailabilityHeatmap
             mode="group"
@@ -37,16 +46,20 @@ function renderHeatmapCell({ freeMemberIds = [], denominator = 4 } = {}) {
             endHour={11}
             heatmap={heatmap}
             memberById={MEMBERS}
+            nowMs={nowMs}
             onProposeCell={vi.fn()}
         />,
     );
-
-    return screen.getByRole('button', { name: /Sun 10a/i });
 }
 
-describe('WeekAvailabilityHeatmap', () => {
+describe('WeekAvailabilityHeatmap — faces mode (denominator ≤ 4)', () => {
+    function renderFacesCell({ freeMemberIds = [] } = {}) {
+        renderWithHeatmap(makeFutureHeatmap({ freeMemberIds, denominator: 4 }));
+        return screen.getByRole('button', { name: /Sun 10a/i });
+    }
+
     it('renders one free member as an avatar without visible count text', () => {
-        const cell = renderHeatmapCell({ freeMemberIds: ['a'] });
+        const cell = renderFacesCell({ freeMemberIds: ['a'] });
 
         expect(cell).toHaveAccessibleName(/Sun 10a: 1 of 4 free; free: Ada Lovelace/i);
         expect(within(cell).getByTestId('free-member-avatar')).toHaveAttribute('src', 'https://cdn.test/ada.png');
@@ -55,7 +68,7 @@ describe('WeekAvailabilityHeatmap', () => {
     });
 
     it('renders multiple free members as overlapping avatars', () => {
-        const cell = renderHeatmapCell({ freeMemberIds: ['a', 'b', 'c'] });
+        const cell = renderFacesCell({ freeMemberIds: ['a', 'b', 'c'] });
 
         expect(cell).toHaveAccessibleName(/Ada Lovelace, Ben Bit, Cy Compiler/i);
         expect(within(cell).getAllByTestId('free-member-avatar')).toHaveLength(3);
@@ -63,14 +76,14 @@ describe('WeekAvailabilityHeatmap', () => {
     });
 
     it('renders three avatars plus a compact overflow badge for crowded cells', () => {
-        const cell = renderHeatmapCell({ freeMemberIds: ['a', 'b', 'c', 'd'] });
+        const cell = renderFacesCell({ freeMemberIds: ['a', 'b', 'c', 'd'] });
 
         expect(within(cell).getAllByTestId('free-member-avatar')).toHaveLength(3);
         expect(within(cell).getByTestId('free-member-avatar-overflow')).toHaveTextContent('+1');
     });
 
     it('uses the DiceBear fallback when a member has no avatar', () => {
-        const cell = renderHeatmapCell({ freeMemberIds: ['b'] });
+        const cell = renderFacesCell({ freeMemberIds: ['b'] });
 
         expect(within(cell).getByTestId('free-member-avatar')).toHaveAttribute(
             'src',
@@ -79,10 +92,85 @@ describe('WeekAvailabilityHeatmap', () => {
     });
 
     it('renders no avatars for a zero-free cell while preserving the count label', () => {
-        const cell = renderHeatmapCell({ freeMemberIds: [] });
+        const cell = renderFacesCell({ freeMemberIds: [] });
 
-        expect(cell).toHaveAccessibleName('Sun 10a: 0 of 4 free');
+        expect(cell).toHaveAccessibleName(/Sun 10a: 0 of 4 free/i);
         expect(within(cell).queryByTestId('free-member-avatar')).not.toBeInTheDocument();
         expect(within(cell).queryByTestId('free-member-avatar-overflow')).not.toBeInTheDocument();
+    });
+});
+
+describe('WeekAvailabilityHeatmap — numbers mode (denominator > 4)', () => {
+    function renderNumbersCell({ freeMemberIds = [] } = {}) {
+        renderWithHeatmap(
+            makeFutureHeatmap({ freeMemberIds, denominator: 6, maxFree: freeMemberIds.length }),
+        );
+        return screen.getByRole('button', { name: /Sun 10a/i });
+    }
+
+    it('shows count badge instead of avatars', () => {
+        const cell = renderNumbersCell({ freeMemberIds: ['a', 'b', 'c'] });
+
+        expect(within(cell).queryByTestId('free-member-avatar')).not.toBeInTheDocument();
+        expect(within(cell).getByTestId('free-count-badge')).toBeInTheDocument();
+    });
+
+    it('count badge contains the free count and denominator', () => {
+        const cell = renderNumbersCell({ freeMemberIds: ['a', 'b', 'c'] });
+        const badge = within(cell).getByTestId('free-count-badge');
+
+        expect(badge).toHaveTextContent('3');
+        expect(badge).toHaveTextContent('/6');
+    });
+
+    it('shows no badge when zero are free', () => {
+        const cell = renderNumbersCell({ freeMemberIds: [] });
+
+        expect(within(cell).queryByTestId('free-count-badge')).not.toBeInTheDocument();
+        expect(within(cell).queryByTestId('free-member-avatar')).not.toBeInTheDocument();
+    });
+});
+
+describe('WeekAvailabilityHeatmap — best-slot marker', () => {
+    function renderBestSlot({ freeCount, maxFree, denominator = 4 }) {
+        const freeMemberIds = ['a', 'b'].slice(0, freeCount);
+        renderWithHeatmap(makeFutureHeatmap({ freeMemberIds, denominator, maxFree }));
+        return screen.getByRole('button', { name: /Sun 10a/i });
+    }
+
+    it('shows star marker when cell is at peak overlap (≥2)', () => {
+        const cell = renderBestSlot({ freeCount: 2, maxFree: 2 });
+        expect(within(cell).getByTestId('best-slot-star')).toBeInTheDocument();
+    });
+
+    it('does NOT show star marker when maxFree is 1', () => {
+        const cell = renderBestSlot({ freeCount: 1, maxFree: 1 });
+        expect(within(cell).queryByTestId('best-slot-star')).not.toBeInTheDocument();
+    });
+
+    it('does NOT show star marker when cell is below peak', () => {
+        const cell = renderBestSlot({ freeCount: 1, maxFree: 3 });
+        expect(within(cell).queryByTestId('best-slot-star')).not.toBeInTheDocument();
+    });
+
+    it('aria-label includes "best time" hint for peak cells', () => {
+        const cell = renderBestSlot({ freeCount: 2, maxFree: 2 });
+        expect(cell).toHaveAccessibleName(/best time/i);
+    });
+});
+
+describe('WeekAvailabilityHeatmap — past cells', () => {
+    it('past cell is not a button (non-interactive)', () => {
+        // Sun Jun 14 10a is past relative to Thu Jun 18 11am.
+        renderWithHeatmap(makeFutureHeatmap({ freeMemberIds: ['a', 'b'], maxFree: 2 }), { nowMs: MID_WEEK_MS });
+
+        expect(screen.queryByRole('button', { name: /Sun 10a/i })).not.toBeInTheDocument();
+    });
+
+    it('aria-label for past cell includes "unavailable"', () => {
+        renderWithHeatmap(makeFutureHeatmap({ freeMemberIds: ['a', 'b'], maxFree: 2 }), { nowMs: MID_WEEK_MS });
+
+        const cell = screen.getByLabelText(/Sun 10a/i);
+        expect(cell).toHaveAccessibleName(/unavailable/i);
     });
 });

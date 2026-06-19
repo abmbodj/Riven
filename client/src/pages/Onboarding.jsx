@@ -19,12 +19,13 @@ import TopicStep from '../components/onboarding/TopicStep';
 import TasteStudyStep, { TASTE_TARGET } from '../components/onboarding/TasteStudyStep';
 import CapabilitiesRevealStep from '../components/onboarding/CapabilitiesRevealStep';
 import AccountStep from '../components/onboarding/AccountStep';
+import CanvasConnectFlow from '../components/canvas/CanvasConnectFlow';
 
 // Activation-first flow (see docs / plan): deliver the magic (typed topic → real deck → a taste
 // of studying) BEFORE asking for an account, then use that artifact as the reason to sign up.
 // Funnel (logged-out) gets the account wall; an already-signed-in user needing onboarding skips it.
-const FUNNEL_STEP_IDS = ['promise', 'topic', 'generate', 'taste', 'account', 'capabilities'];
-const SIGNED_IN_STEP_IDS = ['promise', 'topic', 'generate', 'taste', 'capabilities'];
+const FUNNEL_STEP_IDS = ['promise', 'topic', 'generate', 'taste', 'account', 'canvas', 'capabilities'];
+const SIGNED_IN_STEP_IDS = ['promise', 'topic', 'generate', 'taste', 'canvas', 'capabilities'];
 
 const STASH_KEY = 'riven_onboarding_funnel_stash';
 
@@ -52,13 +53,13 @@ const getCopy = (id, { topic, cardCount, isFunnel }) => {
             return {
                 eyebrow: 'Welcome to Riven',
                 title: { lead: 'Drop in any subject —', highlight: 'walk out ready', tail: '' },
-                description: 'Type what you’re studying and Riven builds you a study set in seconds. No uploads, no setup.',
+                description: "Type what you're studying and Riven builds you a study set in seconds. No uploads, no setup.",
             };
         case 'topic':
             return {
                 eyebrow: 'Your topic',
                 title: { lead: 'What are you', highlight: 'studying', tail: 'right now?' },
-                description: 'A class, a chapter, a concept — anything. We’ll turn it into flashcards.',
+                description: "A class, a chapter, a concept — anything. We'll turn it into flashcards.",
             };
         case 'generate':
             return {
@@ -69,7 +70,7 @@ const getCopy = (id, { topic, cardCount, isFunnel }) => {
         case 'taste':
             return {
                 eyebrow: 'Your first cards',
-                title: { lead: 'Here’s your', highlight: cardCount ? `${cardCount}-card` : 'first', tail: 'set' },
+                title: { lead: "Here's your", highlight: cardCount ? `${cardCount}-card` : 'first', tail: 'set' },
                 description: 'Tap to reveal, then rate yourself. This is real spaced repetition.',
             };
         case 'account':
@@ -78,11 +79,17 @@ const getCopy = (id, { topic, cardCount, isFunnel }) => {
                 title: { lead: 'Keep your', highlight: 'deck', tail: '' },
                 description: 'Create a free account to save this deck and start your streak.',
             };
+        case 'canvas':
+            return {
+                eyebrow: 'Import your schedule',
+                title: { lead: 'Auto-fill from', highlight: 'Canvas', tail: '' },
+                description: "Connect your school's Canvas to pull in classes and assignments automatically.",
+            };
         case 'capabilities':
             return {
-                eyebrow: isFunnel ? 'You’re in' : 'One more thing',
+                eyebrow: isFunnel ? "You're in" : 'One more thing',
                 title: { lead: 'Riven also', highlight: 'does this', tail: '' },
-                description: 'Pick what you’ll reach for most — we’ll set up your home around it.',
+                description: "Pick what you'll reach for most — we'll set up your home around it.",
             };
         default:
             return { eyebrow: '', title: { lead: '', highlight: '', tail: '' }, description: '' };
@@ -243,7 +250,7 @@ export default function Onboarding() {
                 const data = await generateDeckPreview(value);
                 if (cancelled) return;
                 const cards = Array.isArray(data?.cards) ? data.cards : [];
-                if (!cards.length) throw new Error('We couldn’t build a set for that. Try a more specific topic.');
+                if (!cards.length) throw new Error("We couldn't build a set for that. Try a more specific topic.");
                 setPreviewCards(cards);
                 setDeckName(data.deckName || value);
                 setGenStatus('done');
@@ -265,7 +272,7 @@ export default function Onboarding() {
                 await saveOnboardingProgress(payload);
             } catch (err) {
                 console.error('[Onboarding] persist failed', err);
-                toast.error('Couldn’t save progress. Try again.');
+                toast.error("Couldn't save progress. Try again.");
                 throw err;
             } finally {
                 setBusy(false);
@@ -368,6 +375,9 @@ export default function Onboarding() {
             case 'account':
                 await submitAccount();
                 return;
+            case 'canvas':
+                goNext();
+                return;
             case 'capabilities':
                 await finishToDashboard();
                 return;
@@ -416,9 +426,10 @@ export default function Onboarding() {
         else primaryLabel = 'See my cards';
     } else if (currentId === 'taste') { primaryLabel = isFunnel ? 'Save my deck' : 'Save & keep going'; primaryDisabled = answeredCount < tasteTarget; }
     else if (currentId === 'account') primaryLabel = 'Create account';
+    else if (currentId === 'canvas') primaryLabel = 'Skip for now';
     else if (currentId === 'capabilities') primaryLabel = 'Start studying';
 
-    const showSkip = currentId === 'topic';
+    const showSkip = currentId === 'topic' || currentId === 'canvas';
     const primaryBusy = busy || submitting || (currentId === 'generate' && genStatus === 'loading');
 
     const containerVariants = reducedMotion
@@ -581,7 +592,7 @@ export default function Onboarding() {
                                                     {previewCards.length} cards, ready
                                                 </p>
                                                 <p className="max-w-[16rem] text-[13px] leading-5 text-claude-secondary">
-                                                    Built just for “{topic.trim()}”. Let’s try a few.
+                                                    Built just for “{topic.trim()}”. Let's try a few.
                                                 </p>
                                             </motion.div>
                                         ) : (
@@ -615,6 +626,24 @@ export default function Onboarding() {
                                             onOAuthError={(err) => setAccountError(err?.message || 'Sign-in failed. Try again.')}
                                             onBeforeOAuth={handleBeforeOAuth}
                                         />
+                                    </motion.div>
+                                ) : null}
+
+                                {currentId === 'canvas' ? (
+                                    <motion.div variants={itemVariants}>
+                                        {(user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime') ? (
+                                            <CanvasConnectFlow
+                                                userEmail={user?.email}
+                                                onConnected={() => goNext()}
+                                            />
+                                        ) : (
+                                            <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 text-center space-y-3">
+                                                <p className="font-mono text-xs font-bold uppercase tracking-widest text-blue-400/80">Premium feature</p>
+                                                <p className="font-mono text-[12px] text-claude-secondary/80 leading-relaxed">
+                                                    Upgrade to automatically import your classes and assignments from Canvas every 12 hours — no copy-paste needed.
+                                                </p>
+                                            </div>
+                                        )}
                                     </motion.div>
                                 ) : null}
 

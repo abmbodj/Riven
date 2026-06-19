@@ -73,6 +73,9 @@ export class Cache {
         for (const key of this.store.keys()) {
             if (key.startsWith(prefix)) this.store.delete(key);
         }
+        for (const key of this._inflight.keys()) {
+            if (key.startsWith(prefix)) this._inflight.delete(key);
+        }
         let changed = false;
         for (const key of this._persist.keys()) {
             if (key.startsWith(prefix)) {

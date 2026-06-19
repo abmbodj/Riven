@@ -14,8 +14,12 @@ export const MEETUP_COLOR = '#deb96a';
 // Botanical green the heatmap fades in to signal "free".
 export const AVAILABILITY_RGB = '122, 158, 114'; // #7a9e72
 
-const MIN_FREE_ALPHA = 0.16;
-const MAX_FREE_ALPHA = 0.92;
+// Groups with this many sharers or fewer show member faces in cells;
+// larger groups show a count so the grid never becomes avatar-mush.
+export const FACES_MODE_MAX = 4;
+
+const MIN_FREE_ALPHA = 0.22;
+const MAX_FREE_ALPHA = 0.95;
 
 /**
  * Background style for a heatmap cell given how many members are free.

@@ -1,14 +1,18 @@
 import { useMemo } from 'react';
-import { Lock } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { Lock, Star } from 'lucide-react';
 import {
     getMinutesSinceStart,
     isSameLocalDay,
     SHORT_DAY_LABELS,
     startOfDay,
 } from '../../../utils/calendarDates';
-import { getHeatmapCellStyle, MEETUP_COLOR } from '../../../utils/calendarModel';
+import { FACES_MODE_MAX, getHeatmapCellStyle, MEETUP_COLOR } from '../../../utils/calendarModel';
 
 const MAX_CELL_AVATARS = 3;
+
+// Accent hue for the best-slot ring — distinct from meetup gold (#deb96a).
+const BEST_SLOT_RING = '#7dd3c0'; // teal-mint
 
 function formatHourLabel(hour) {
     const meridiem = hour >= 12 ? 'p' : 'a';
@@ -37,12 +41,15 @@ function getCellMembers(memberIds = [], memberById) {
     });
 }
 
-function buildAvailabilityLabel(dayOfWeek, hour, freeCount, denominator, freeMembers) {
+function buildAvailabilityLabel(dayOfWeek, hour, freeCount, denominator, freeMembers, isPast, isBest) {
     const base = denominator
         ? `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}: ${freeCount} of ${denominator} free`
         : `${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)}`;
     const freeNames = freeMembers.map((member) => member.name).filter(Boolean);
-    return freeNames.length ? `${base}; free: ${freeNames.join(', ')}` : base;
+    let label = freeNames.length ? `${base}; free: ${freeNames.join(', ')}` : base;
+    if (isBest) label += ' · best time';
+    if (isPast) label += ' · unavailable';
+    return label;
 }
 
 function FreeMemberAvatarStack({ members = [] }) {
@@ -75,9 +82,20 @@ function FreeMemberAvatarStack({ members = [] }) {
     );
 }
 
+function FreeCountBadge({ freeCount, denominator }) {
+    if (freeCount === 0) return null;
+    return (
+        <span
+            data-testid="free-count-badge"
+            className="flex items-baseline gap-[1px] font-mono leading-none"
+        >
+            <span className="text-[9px] font-bold text-white/90 md:text-[10px]">{freeCount}</span>
+            <span className="text-[7px] font-medium text-white/40 md:text-[8px]">/{denominator}</span>
+        </span>
+    );
+}
+
 function buildBlockedHours(myClassSlots = []) {
-    // Map<dayOfWeek, Set<hour>> of the current user's class hours (pre-blocked
-    // in edit mode — you can't mark yourself free during a class).
     const blocked = new Map();
     myClassSlots.forEach((slot) => {
         const day = Number(slot.day_of_week);
@@ -92,8 +110,8 @@ function buildBlockedHours(myClassSlots = []) {
 
 /**
  * The week availability grid. Two modes:
- *   - `group`: read-only graded heatmap of how many members are free per cell;
- *     tapping a free cell proposes a session prefilled to that slot.
+ *   - `group`: read-only hybrid heatmap (faces or count + best-slot ring);
+ *     tapping a free future cell proposes a session prefilled to that slot.
  *   - `edit`:  the same grid as a paint surface for the current user's own free
  *     cells; class hours are locked pre-blocks.
  */
@@ -107,20 +125,50 @@ export default function WeekAvailabilityHeatmap({
     myCells = null,
     myClassSlots = [],
     highlightedMeetupId = null,
+    nowMs = 0,
     onProposeCell,
     onToggleCell,
     onMeetupSelect,
 }) {
-    const today = useMemo(() => startOfDay(new Date()), []);
+    const today = useMemo(() => startOfDay(new Date(nowMs)), [nowMs]);
+    const shouldReduceMotion = useReducedMotion();
+
     const hours = useMemo(() => {
         const list = [];
         for (let hour = startHour; hour < endHour; hour += 1) list.push(hour);
         return list;
     }, [startHour, endHour]);
+
     const blockedHours = useMemo(() => buildBlockedHours(myClassSlots), [myClassSlots]);
 
     const denominator = heatmap?.denominator ?? 0;
+    const maxFree = heatmap?.maxFree ?? 0;
     const isEdit = mode === 'edit';
+    const useFacesMode = denominator <= FACES_MODE_MAX;
+
+    // Current time broken down for the "now" line.
+    const nowDate = useMemo(() => new Date(nowMs), [nowMs]);
+    const nowHour = nowDate.getHours();
+    const nowMinuteFraction = nowDate.getMinutes() / 60;
+
+    const rowVariants = shouldReduceMotion ? {} : {
+        hidden: { opacity: 0 },
+        visible: (i) => ({
+            opacity: 1,
+            transition: { delay: i * 0.012, duration: 0.15 },
+        }),
+    };
+
+    const bestSlotPulse = shouldReduceMotion ? {} : {
+        animate: {
+            boxShadow: [
+                `0 0 0 0px ${BEST_SLOT_RING}60`,
+                `0 0 0 3px ${BEST_SLOT_RING}30`,
+                `0 0 0 0px ${BEST_SLOT_RING}00`,
+            ],
+        },
+        transition: { duration: 2.2, repeat: Infinity, ease: 'easeInOut' },
+    };
 
     return (
         <div data-testid="week-availability-heatmap" data-mode={mode} className="select-none md:flex md:min-h-0 md:flex-1 md:flex-col">
@@ -150,11 +198,15 @@ export default function WeekAvailabilityHeatmap({
                 className="space-y-px md:grid md:min-h-0 md:flex-1 md:space-y-0 md:gap-px"
                 style={{ gridTemplateRows: `repeat(${hours.length}, minmax(1.35rem, 1fr))` }}
             >
-                {hours.map((hour) => (
-                    <div
+                {hours.map((hour, rowIndex) => (
+                    <motion.div
                         key={hour}
                         className="grid gap-px md:min-h-0"
                         style={{ gridTemplateColumns: '2rem repeat(7, minmax(0, 1fr))' }}
+                        custom={rowIndex}
+                        initial={shouldReduceMotion ? undefined : 'hidden'}
+                        animate={shouldReduceMotion ? undefined : 'visible'}
+                        variants={rowVariants}
                     >
                         <div className="flex items-start justify-end pr-1 pt-0.5 font-mono text-[8px] font-medium text-claude-secondary/70 md:h-full">
                             {formatHourLabel(hour)}
@@ -165,7 +217,12 @@ export default function WeekAvailabilityHeatmap({
                             const cell = heatmap?.cells.get(`${dayIndex}-${hour}`);
                             const meetup = cell?.meetup || null;
 
-                            // ---- Edit mode: paint your own free cells ----
+                            const isToday = isSameLocalDay(date, today);
+                            const cellEndMs = new Date(date).setHours(hour + 1, 0, 0, 0);
+                            const isPast = cellEndMs <= nowMs;
+                            const isCurrentHour = isToday && hour === nowHour;
+
+                            // ---- Edit mode ----
                             if (isEdit) {
                                 const isBlocked = blockedHours.get(dayOfWeek)?.has(hour);
                                 const isFree = myCells?.has(`${dayOfWeek}-${hour}`);
@@ -175,7 +232,7 @@ export default function WeekAvailabilityHeatmap({
                                         <div
                                             key={dayIndex}
                                             aria-label="Class time (locked)"
-                                            className="flex h-7 items-center justify-center rounded-[3px] bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.07),rgba(255,255,255,0.07)_3px,transparent_3px,transparent_6px)] md:h-full md:min-h-[1.35rem]"
+                                            className="flex h-9 items-center justify-center rounded-[3px] bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.07),rgba(255,255,255,0.07)_3px,transparent_3px,transparent_6px)] md:h-full md:min-h-[1.35rem]"
                                         >
                                             <Lock className="h-2.5 w-2.5 text-claude-secondary/60" />
                                         </div>
@@ -183,13 +240,14 @@ export default function WeekAvailabilityHeatmap({
                                 }
 
                                 return (
-                                    <button
+                                    <motion.button
                                         key={dayIndex}
                                         type="button"
                                         aria-pressed={Boolean(isFree)}
                                         aria-label={`${SHORT_DAY_LABELS[dayOfWeek]} ${formatHourLabel(hour)} ${isFree ? 'free' : 'not set'}`}
                                         onClick={() => onToggleCell?.(dayOfWeek, hour)}
-                                        className={`h-7 rounded-[3px] border transition-colors md:h-full md:min-h-[1.35rem] ${
+                                        whileTap={shouldReduceMotion ? undefined : { scale: 0.93 }}
+                                        className={`h-9 rounded-[3px] border transition-colors md:h-full md:min-h-[1.35rem] ${
                                             isFree
                                                 ? 'border-[#7a9e72]/50 bg-[rgba(122,158,114,0.55)]'
                                                 : 'border-white/5 bg-white/[0.03] hover:bg-white/[0.07]'
@@ -198,47 +256,99 @@ export default function WeekAvailabilityHeatmap({
                                 );
                             }
 
-                            // ---- Group mode: read heatmap, tap to propose ----
+                            // ---- Group mode: meetup cell ----
                             if (meetup) {
                                 const isHighlighted = highlightedMeetupId && meetup.id === highlightedMeetupId;
                                 return (
-                                    <button
+                                    <motion.button
                                         key={dayIndex}
                                         type="button"
                                         aria-label={`Session: ${meetup.topic}`}
                                         onClick={() => onMeetupSelect?.(meetup)}
-                                        className={`h-7 overflow-hidden rounded-[3px] border text-left md:h-full md:min-h-[1.35rem] ${isHighlighted ? 'ring-2 ring-claude-accent' : ''}`}
+                                        whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+                                        className={`h-9 overflow-hidden rounded-[3px] border text-left md:h-full md:min-h-[1.35rem] ${isHighlighted ? 'ring-2 ring-claude-accent' : ''}`}
                                         style={{ backgroundColor: `${MEETUP_COLOR}40`, borderColor: `${MEETUP_COLOR}99` }}
                                     >
-                                        <span className="flex h-full items-center truncate px-1 text-[8px] font-semibold leading-7 text-claude-accent md:leading-none">
+                                        <span className="flex h-full items-center truncate px-1 text-[8px] font-semibold leading-none text-claude-accent">
                                             {meetup.topic}
                                         </span>
-                                    </button>
+                                    </motion.button>
                                 );
                             }
 
+                            // ---- Group mode: availability cell ----
                             const freeCount = cell?.freeCount ?? 0;
                             const freeMembers = getCellMembers(cell?.freeMemberIds || [], memberById);
                             const style = getHeatmapCellStyle(freeCount, denominator);
-                            const canPropose = Boolean(onProposeCell);
-                            const availabilityLabel = buildAvailabilityLabel(dayOfWeek, hour, freeCount, denominator, freeMembers);
+                            const canPropose = Boolean(onProposeCell) && !isPast;
+                            const isBest = denominator > 0 && maxFree >= 2 && freeCount === maxFree;
+                            const availabilityLabel = buildAvailabilityLabel(dayOfWeek, hour, freeCount, denominator, freeMembers, isPast, isBest);
+
+                            // Today-column tint overlay classes
+                            const todayTint = isToday && !isPast ? 'ring-1 ring-inset ring-claude-accent/10' : '';
+
+                            // Past cells: muted, non-interactive
+                            if (isPast) {
+                                return (
+                                    <div
+                                        key={dayIndex}
+                                        aria-label={availabilityLabel}
+                                        className="flex h-9 items-center justify-center rounded-[3px] border border-white/[0.03] bg-white/[0.02] opacity-30 md:h-full md:min-h-[1.35rem]"
+                                    />
+                                );
+                            }
+
+                            const cellContent = denominator > 0 && freeCount > 0
+                                ? (useFacesMode
+                                    ? <FreeMemberAvatarStack members={freeMembers} />
+                                    : <FreeCountBadge freeCount={freeCount} denominator={denominator} />)
+                                : null;
 
                             return (
-                                <button
+                                <motion.button
                                     key={dayIndex}
                                     type="button"
                                     disabled={!canPropose}
                                     aria-label={availabilityLabel}
                                     title={availabilityLabel}
                                     onClick={() => onProposeCell?.(date, hour, cell)}
-                                    className="flex h-7 items-center justify-center rounded-[3px] border border-white/5 transition-transform enabled:hover:scale-[1.04] enabled:hover:border-white/20 md:h-full md:min-h-[1.35rem]"
+                                    whileTap={shouldReduceMotion || !canPropose ? undefined : { scale: 0.93 }}
+                                    data-testid={isBest ? 'best-slot-cell' : undefined}
+                                    className={`relative flex h-9 items-center justify-center rounded-[3px] border border-white/5 transition-colors enabled:hover:border-white/20 md:h-full md:min-h-[1.35rem] ${todayTint}`}
                                     style={style}
                                 >
-                                    {denominator > 0 && freeCount > 0 && <FreeMemberAvatarStack members={freeMembers} />}
-                                </button>
+                                    {/* "now" line within the current hour */}
+                                    {isCurrentHour && (
+                                        <span
+                                            className="pointer-events-none absolute inset-x-0 z-10 h-px bg-claude-accent/70"
+                                            style={{ top: `${nowMinuteFraction * 100}%` }}
+                                        />
+                                    )}
+
+                                    {/* Best-slot ring */}
+                                    {isBest && (
+                                        <motion.span
+                                            className="pointer-events-none absolute inset-0 rounded-[3px]"
+                                            style={{ outline: `2px solid ${BEST_SLOT_RING}`, outlineOffset: '-1px' }}
+                                            {...(shouldReduceMotion ? {} : bestSlotPulse)}
+                                        />
+                                    )}
+
+                                    {/* Cell content */}
+                                    {cellContent}
+
+                                    {/* Best-slot star marker */}
+                                    {isBest && (
+                                        <Star
+                                            data-testid="best-slot-star"
+                                            className="absolute right-0.5 top-0.5 h-2 w-2 shrink-0 fill-current"
+                                            style={{ color: BEST_SLOT_RING }}
+                                        />
+                                    )}
+                                </motion.button>
                             );
                         })}
-                    </div>
+                    </motion.div>
                 ))}
             </div>
         </div>
