@@ -301,7 +301,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
 
     // Initial load
     useEffect(() => {
-        if (!groupId) return;
+        if (!groupId || !currentUserId) return;
         let cancelled = false;
         const cachedMessages = groupChatCache.get(currentUserId, groupId).map(hydrateSender);
         setMessages(cachedMessages);

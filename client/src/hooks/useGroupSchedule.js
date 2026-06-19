@@ -115,7 +115,7 @@ export function useGroupSchedule({ groupId, currentUserId, toast, haptics }) {
 
         try {
             await serverApi.setGroupAvailability(groupId, cells);
-            await refreshRef.current(); // silent reconcile from server
+            void refreshRef.current(); // background reconcile — don't block the save button
             toast?.success('Availability saved.');
         } catch (err) {
             setDataRef.current(snapshot);
