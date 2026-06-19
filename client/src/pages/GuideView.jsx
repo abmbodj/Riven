@@ -842,8 +842,12 @@ export default function GuideView() {
         ? guideData?.knowledge_map?.concepts.find((concept) => concept.id === currentCard.concept_id) || null
         : null;
 
-    const isToctStyleCard = currentCard?.teaching?.worked_examples?.length >= 2
-        && Boolean(currentCard?.teaching?.intuition);
+    // The blackboard (TOCT) board is now the default teaching layout for every
+    // card that has teaching content. The old static "menu" layout is only a
+    // degenerate fallback for cards with no teaching block at all. The board
+    // renders whatever sections exist (explanation, worked examples, the fuzzy
+    // intuition reveal, or the legacy Breakdown/Why beats) via `teachSections`.
+    const useBoardLayout = Boolean(currentCard?.teaching);
 
     const teachSections = useMemo(() => {
         if (!currentCard?.teaching) return [];
@@ -1938,7 +1942,7 @@ export default function GuideView() {
                         })}
                         <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary">
                             {sessionStage === 'teach' && (
-                                isToctStyleCard && teachSections.length > 1
+                                useBoardLayout && teachSections.length > 1
                                     ? <span>Teach <span className="text-claude-accent">{teachSection + 1}/{teachSections.length}</span></span>
                                     : <span>Teach</span>
                             )}
@@ -2391,8 +2395,8 @@ export default function GuideView() {
                             </div>
                         </div>
                     </motion.section>
-                    ) : isToctStyleCard ? (
-                    /* ── Blackboard Lecture (TOCT-style cards) ── */
+                    ) : useBoardLayout ? (
+                    /* ── Blackboard Lecture (default board for all cards) ── */
                     <motion.section
                         data-testid="river-session-teach"
                         className="guide-perf-section mt-8"
@@ -2857,6 +2861,31 @@ export default function GuideView() {
                                         );
                                     })}
                                 </div>
+
+                                {/* ── Ask River (assist options) ── */}
+                                {assistOptions.length > 0 && (
+                                    <div className="mt-6 rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Ask River</p>
+                                        <div className="mt-3 flex flex-wrap gap-2.5">
+                                            {assistOptions.map((option) => (
+                                                <button
+                                                    key={option.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectAssist(option)}
+                                                    className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10"
+                                                    style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(228,219,201,0.9)' }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {activeAssistOption ? (
+                                            <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.92)' }}>
+                                                <SubjectRenderer content={activeAssistOption.text} />
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
 
                                 {/* ── Bottom actions ── */}
                                 <div

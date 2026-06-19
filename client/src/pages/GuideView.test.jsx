@@ -417,6 +417,18 @@ const legacyGuide = {
   content: { type: 'doc', content: [] },
 };
 
+// The blackboard board is the default teaching layout and reveals one section at
+// a time. Jump to the recall check via the always-present "Skip to question"
+// shortcut, or the final "I'm ready to answer" button on the last section.
+const goToCheck = (teach) => {
+  const skip = within(teach).queryByRole('button', { name: /skip to question/i });
+  if (skip) {
+    fireEvent.click(skip);
+    return;
+  }
+  fireEvent.click(within(teach).getByRole('button', { name: /ready to answer/i }));
+};
+
 describe('GuideView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -464,14 +476,14 @@ describe('GuideView', () => {
     fireEvent.click(within(intro).getByRole('button', { name: /start with river/i }));
 
     const teach = await screen.findByTestId('river-session-teach');
-    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'teach');
+    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
     expect(within(teach).getAllByText(/Mitosis is the division step/i).length).toBeGreaterThan(0);
     expect(within(teach).getByRole('button', { name: /Explain simply/i })).toBeInTheDocument();
     expect(within(teach).getByRole('button', { name: /Show another example/i })).toBeInTheDocument();
     expect(within(teach).getByRole('button', { name: /Break it down/i })).toBeInTheDocument();
     expect(within(teach).getByRole('button', { name: /Why this matters/i })).toBeInTheDocument();
 
-    fireEvent.click(within(teach).getByRole('button', { name: /i'm ready to answer/i }));
+    goToCheck(teach);
 
     const check = await screen.findByTestId('river-session-check');
     expect(within(check).queryByRole('button', { name: /ask river/i })).not.toBeInTheDocument();
@@ -644,7 +656,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('keeps thin teaching content in the legacy layout instead of the full chalkboard lecture', async () => {
+  it('renders thin teaching content on the blackboard board too (no legacy menu)', async () => {
     api.getStudyGuide.mockResolvedValue({
       ...makeToctGuide(),
       guide_data: {
@@ -681,9 +693,10 @@ describe('GuideView', () => {
     fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
     const teach = await screen.findByTestId('river-session-teach');
-    expect(within(teach).queryByTestId('river-board-frame')).not.toBeInTheDocument();
-    expect(within(teach).queryByTestId('desktop-board-teacher')).not.toBeInTheDocument();
-    expect(within(teach).getByText(/Breakdown/i)).toBeInTheDocument();
+    expect(within(teach).getByTestId('river-board-frame')).toBeInTheDocument();
+    expect(within(teach).getByTestId('desktop-board-teacher')).toBeInTheDocument();
+    // The thin card still teaches on the board; its explanation leads the lecture.
+    expect(within(teach).getAllByText(/A system design names components/i).length).toBeGreaterThan(0);
   });
 
   it('renders math tutor worked steps as equations with reasoning', async () => {
@@ -739,7 +752,7 @@ describe('GuideView', () => {
       expect(within(teach).getAllByText(/One cell copies its DNA/i).length).toBeGreaterThan(0);
     });
     expect(api.assistStudyCoach).not.toHaveBeenCalled();
-    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'teach');
+    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
   });
 
   it('uses gentle correction for misconception answers and still lets the learner continue', async () => {
@@ -756,7 +769,7 @@ describe('GuideView', () => {
     fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
     const teach = await screen.findByTestId('river-session-teach');
-    fireEvent.click(within(teach).getByRole('button', { name: /i'm ready to answer/i }));
+    goToCheck(teach);
 
     const check = await screen.findByTestId('river-session-check');
     fireEvent.change(within(check).getByLabelText(/your answer/i), {

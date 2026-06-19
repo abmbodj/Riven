@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    BookOpen, ChevronLeft, Sparkles, ArrowRight, Play, CheckSquare
+    BookOpen, ChevronLeft, Sparkles, ArrowRight, Play, CheckSquare, Clock3, Calendar, Target, X
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';

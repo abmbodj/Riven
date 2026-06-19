@@ -11,6 +11,8 @@ import {
   mergeGuidePayloadMeta,
   ensureApiKey,
   assertTutorSessionQuality,
+  buildGuideRepairPrompt,
+  mergeRepairedCards,
   parseAiJsonResponse,
   createHttpError,
   aiModelMap,
@@ -206,26 +208,15 @@ serve(async (request) => {
           // deepen only the failing cards, then re-validate. Hard-fail only if
           // they're still short after one repair attempt.
           const initialQuality = validateTutorSessionQuality(guideData);
-          if (!initialQuality.ok) {
-            const failingCardLabels = [...new Set(
-              initialQuality.issues.map((issue: string) => issue.split(':')[0].trim()),
-            )];
-            const repairPrompt = [
-              'The following cards in the tutor session you just generated are too shallow or missing required fields:',
-              failingCardLabels.map((label: string) => `- ${label}`).join('\n'),
-              '',
-              'Issues:',
-              initialQuality.issues.map((issue: string) => `- ${issue}`).join('\n'),
-              '',
-              'Return ONLY the updated JSON for those cards as an array: [{...card...}, ...].',
-              'Every card MUST have: teaching.explain ≥3 paragraphs ≥150 words, teaching.intuition ≥18 words,',
-              'teaching.worked_examples with ≥2 examples each having ≥2 steps with non-empty detail fields,',
-              'teaching.common_mistakes with ≥2 items each naming the error and correction.',
-              'Do not include any other cards or any wrapper object — just the array of repaired cards.',
-            ].join('\n');
+          if (!initialQuality.ok && !initialQuality.fatal) {
+            const { repairPrompt } = buildGuideRepairPrompt(initialQuality);
 
+            // Give the repair model the original source + its own prior draft so it
+            // can actually deepen the failing cards instead of working blind.
             const ai = createAiClient(apiKey);
             const repairMessages = [
+              ...messages,
+              { role: 'assistant' as const, content: fullText },
               { role: 'user' as const, content: repairPrompt },
             ];
             let repairText = '';
@@ -240,24 +231,17 @@ serve(async (request) => {
 
             try {
               const repairedCards = parseAiJsonResponse(repairText, 'Repair failed.');
-              if (Array.isArray(repairedCards) && repairedCards.length > 0) {
-                const cardMap = new Map(guideData.cards.map((c: any) => [c.id, c]));
-                for (const repaired of repairedCards) {
-                  if (repaired?.id && cardMap.has(repaired.id)) {
-                    cardMap.set(repaired.id, { ...(cardMap.get(repaired.id) as object), ...repaired });
-                  }
-                }
-                const mergedPayload = { ...guidePayload, cards: [...cardMap.values()] };
-                const repaired = normalizeStudyGuideData(mergedPayload);
-                if (repaired) guideData = repaired;
-              }
+              const mergedPayload = mergeRepairedCards(guidePayload, repairedCards);
+              const repaired = normalizeStudyGuideData(mergedPayload);
+              if (repaired) guideData = repaired;
             } catch {
-              // Repair parse failed — fall through to final assertTutorSessionQuality below
+              // Repair parse failed — keep the original (structurally valid) session.
             }
-
-            // Final gate: hard-fail if still shallow after repair
-            assertTutorSessionQuality(guideData);
           }
+
+          // Final gate: accept any structurally-valid session; only throws on
+          // broken/unparseable structure.
+          assertTutorSessionQuality(guideData);
 
           const guideContent = buildStudyGuideSummaryDoc(guideData);
           const studyState = createDefaultStudyGuideState(guideData);

@@ -732,12 +732,13 @@ export const normalizeStudyGuideData = (value) => {
   };
 };
 
-const QUALITY_MIN_EXPLAIN_WORDS = 150;
-const QUALITY_MIN_EXPLAIN_PARAGRAPHS = 3;
-const QUALITY_MIN_INTUITION_WORDS = 18;
+const QUALITY_MIN_EXPLAIN_WORDS = 100;
+const QUALITY_MIN_EXPLAIN_PARAGRAPHS = 2;
+const QUALITY_MIN_INTUITION_WORDS = 12;
 const QUALITY_MIN_EXAMPLES = 2;
 const QUALITY_MIN_EXAMPLE_STEPS = 2;
 const QUALITY_MIN_MISTAKES = 2;
+const QUALITY_MIN_STEP_DETAIL_WORDS = 6;
 const LATEX_MATH_RE = /(\$\$[\s\S]+?\$\$|(^|[^$])\$(?!\$)[^$\n]+?\$(?!\$))/u;
 const EQUATION_OPERATOR_RE = /(=|\\frac|\\sqrt|\\int|\\sum|\\lim|\\cdot|\\times|\\leq?|\\geq?|\^|[+\-*/])/u;
 const MATH_REASONING_RE = /\b(add|subtract|multiply|divide|factor|expand|simplify|isolate|cancel|substitute|differentiate|integrate|derive|apply|use|move|combine|because|since|so that|therefore|to get|to keep|both sides|inverse operation)\b/iu;
@@ -755,12 +756,26 @@ const qualityWords = (value) => (
 
 const qualityWordCount = (value) => qualityWords(value).length;
 
-const qualityParagraphs = (value) => (
-  normalizeText(value, '')
-    .split(/\n\s*\n/u)
+// Count paragraphs tolerantly: a small model rarely emits literal blank lines
+// inside a JSON string, so split on any newline run, not only `\n\n`. Short
+// fragments are still merged into the preceding paragraph to avoid over-counting
+// single wrapped lines.
+const qualityParagraphs = (value) => {
+  const text = normalizeText(value, '');
+  const blocks = text
+    .split(/\n+/u)
     .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-);
+    .filter(Boolean);
+  const paragraphs = [];
+  for (const block of blocks) {
+    if (qualityWordCount(block) < 8 && paragraphs.length > 0) {
+      paragraphs[paragraphs.length - 1] = `${paragraphs[paragraphs.length - 1]} ${block}`;
+    } else {
+      paragraphs.push(block);
+    }
+  }
+  return paragraphs;
+};
 
 const qualityContentWords = (value) => {
   const stopWords = new Set([
@@ -865,7 +880,18 @@ const validateMathTutorCardQuality = ({ card, label, teaching, workedExamples, m
 export const validateTutorSessionQuality = (guideData) => {
   const normalized = normalizeStudyGuideData(guideData);
   if (!normalized) {
-    return { ok: false, issues: ['Tutor session is missing the required v4 structure.'] };
+    return {
+      ok: false,
+      fatal: true,
+      issues: ['Tutor session is missing the required v4 structure.'],
+    };
+  }
+  if (!Array.isArray(normalized.cards) || normalized.cards.length === 0) {
+    return {
+      ok: false,
+      fatal: true,
+      issues: ['Tutor session has no usable cards.'],
+    };
   }
 
   const issues = [];
@@ -925,7 +951,7 @@ export const validateTutorSessionQuality = (guideData) => {
         issues.push(`${exampleLabel}: include a useful takeaway.`);
       }
       steps.forEach((step, stepIndex) => {
-        if (qualityWordCount(step.detail) < 8) {
+        if (qualityWordCount(step.detail) < QUALITY_MIN_STEP_DETAIL_WORDS) {
           issues.push(`${exampleLabel} step ${stepIndex + 1}: explain why the step works.`);
         }
       });
@@ -982,8 +1008,12 @@ export const validateTutorSessionQuality = (guideData) => {
     }
   });
 
+  // Depth/repetition issues are non-fatal: the structure is valid and usable,
+  // so callers may repair-then-accept rather than hard-fail. `fatal` is reserved
+  // for broken/unparseable structure handled in the early returns above.
   return {
     ok: issues.length === 0,
+    fatal: false,
     issues,
   };
 };

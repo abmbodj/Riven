@@ -446,8 +446,27 @@ describe('studyGuideCore', () => {
 
     expect(validateTutorSessionQuality(strongGuide)).toEqual({
       ok: true,
+      fatal: false,
       issues: [],
     });
+  });
+
+  it('accepts a strong explanation that uses single-newline paragraph breaks', () => {
+    const guideData = makeGuideData();
+    const teaching = {
+      ...makeStrongTeaching('mitosis'),
+      // Small models rarely emit literal blank lines inside JSON strings, so a
+      // single \n between paragraphs must still count as separate paragraphs.
+      explain: makeStrongTeaching('mitosis').explain.replace(/\n\n/g, '\n'),
+    };
+
+    const quality = validateTutorSessionQuality({
+      ...guideData,
+      knowledge_map: { concepts: [guideData.knowledge_map.concepts[0]] },
+      cards: [{ ...guideData.cards[0], teaching }],
+    });
+
+    expect(quality).toEqual({ ok: true, fatal: false, issues: [] });
   });
 
   it('rejects one-paragraph explanations', () => {
@@ -464,7 +483,38 @@ describe('studyGuideCore', () => {
     });
 
     expect(quality.ok).toBe(false);
-    expect(quality.issues.join(' ')).toContain('explanation must be at least 3 paragraphs');
+    expect(quality.fatal).toBe(false);
+    expect(quality.issues.join(' ')).toContain('explanation must be at least 2 paragraphs');
+  });
+
+  it('flags a shallow but structurally valid session as non-fatal', () => {
+    const guideData = makeGuideData();
+    const teaching = {
+      ...makeStrongTeaching('mitosis'),
+      explain: 'A single short sentence that is nowhere near deep enough to teach the concept.',
+      intuition: 'Too short.',
+      worked_examples: [],
+      common_mistakes: [],
+    };
+
+    const quality = validateTutorSessionQuality({
+      ...guideData,
+      knowledge_map: { concepts: [guideData.knowledge_map.concepts[0]] },
+      cards: [{ ...guideData.cards[0], teaching }],
+    });
+
+    // Depth problems must never be fatal: the caller repairs then accepts.
+    expect(quality.ok).toBe(false);
+    expect(quality.fatal).toBe(false);
+    expect(quality.issues.length).toBeGreaterThan(0);
+  });
+
+  it('flags missing v4 structure as fatal', () => {
+    expect(validateTutorSessionQuality(null)).toEqual({
+      ok: false,
+      fatal: true,
+      issues: ['Tutor session is missing the required v4 structure.'],
+    });
   });
 
   it('rejects repeated worked examples', () => {
@@ -507,6 +557,7 @@ describe('studyGuideCore', () => {
   it('accepts a strong math mini-lesson with LaTeX solved steps', () => {
     expect(validateTutorSessionQuality(makeMathGuideData())).toEqual({
       ok: true,
+      fatal: false,
       issues: [],
     });
   });

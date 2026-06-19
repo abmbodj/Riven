@@ -679,6 +679,7 @@ Required structure:
 Build a tutor session in the style of The Organic Chemistry Tutor: teach thoroughly first, THEN check understanding.
 Structure the experience like a deep lecture: intro -> thorough explanation -> worked examples -> common mistakes -> check understanding -> feedback -> complete.
 Create a 2-4 card, one-card-at-a-time training flow. Each card must teach a distinct concept and feel like a 5-8 minute mini lecture: objective -> explanation -> mental model -> 2-3 worked examples -> common mistakes -> concise recall prompt.
+NON-NEGOTIABLE: every single card MUST populate "teaching.explain" (multi-paragraph), "teaching.intuition" (a real mental model — this powers the blurred reveal beat), and "teaching.worked_examples" with at least 2 fully-worked examples. Never leave these empty or omit them. The legacy "teaching.steps", "teaching.example", and "teaching.why_it_matters" fields are optional secondary summaries — never use them as a substitute for explain/intuition/worked_examples.
 The "teaching.learning_objective" field MUST be specific and action-oriented. Bad: "understand architecture". Good: "Trace how a profile update moves from UI to API to database while naming the tradeoffs."
 The "teaching.explain" field MUST be 3-5 short paragraphs (≥150 words total). Build understanding layer by layer and make every paragraph add a new idea. Do not repeat the same sentence with different wording. Adapt depth to session_meta.student_level: beginners get more analogy and scaffolding; advanced students get first-principles derivation and edge cases. Use knowledge_map concept dependencies to build on what the student already knows.
 The "teaching.worked_examples" array MUST contain 2-3 complete worked examples. Each example must show every step with detailed reasoning in the "detail" field (never omit "detail"). Examples must progress from straightforward to more challenging. FOR STEM SUBJECTS (math, CS, physics, chemistry, economics, biology): include a "figure" field on every worked example — use a \`\`\`mermaid diagram for CS/biology/chemistry flow, a plot spec {\"fn\":\"...\",\"domain\":[-5,5]} for math/physics function graphs, or a chart spec {\"type\":\"bar\",\"data\":[...],\"xKey\":\"...\",\"series\":[...]} for data/stats.
@@ -695,15 +696,59 @@ Partial answers should usually count as good enough progress when the learner sh
 Keep prompts concise. Keep target answers concise. Keep River premium, calm, clear, and emotionally supportive.`;
 };
 
+// Hard-fail ONLY when the structure is broken/unparseable (`fatal`). Depth and
+// repetition issues are surfaced as warnings and returned so the caller can run a
+// repair pass and then accept a structurally-valid session rather than dead-end.
 export const assertTutorSessionQuality = (guideData) => {
   const quality = validateTutorSessionQuality(guideData);
-  if (!quality.ok) {
+  if (quality.fatal) {
     throw createHttpError(
-      'AI generated a tutor session that was too shallow or repetitive. Please try again with clearer source material.',
+      'AI failed to generate a valid tutor session. Please try again.',
       500,
       { qualityIssues: quality.issues },
     );
   }
+  if (!quality.ok) {
+    console.warn('[tutor session quality] accepting session with soft issues:', quality.issues);
+  }
+  return quality;
+};
+
+// Shared repair prompt used by both the batch and streaming generation paths.
+// Lists the failing cards and the relaxed depth requirements, and asks the model
+// to return ONLY an array of the repaired cards.
+export const buildGuideRepairPrompt = (quality) => {
+  const failingCardLabels = [...new Set(
+    quality.issues.map((issue) => issue.split(':')[0].trim()),
+  )];
+  const repairPrompt = [
+    'The following cards in the tutor session you just generated are too shallow or missing required fields:',
+    failingCardLabels.map((label) => `- ${label}`).join('\n'),
+    '',
+    'Issues:',
+    quality.issues.map((issue) => `- ${issue}`).join('\n'),
+    '',
+    'Return ONLY the updated JSON for those cards as an array: [{...card...}, ...].',
+    'Every card MUST have: teaching.explain ≥2 paragraphs ≥100 words, teaching.intuition ≥12 words,',
+    'teaching.worked_examples with ≥2 examples each having ≥2 steps with non-empty detail fields,',
+    'teaching.common_mistakes with ≥2 items each naming the error and correction.',
+    'Do not include any other cards or any wrapper object — just the array of repaired cards.',
+  ].join('\n');
+  return { failingCardLabels, repairPrompt };
+};
+
+// Merge an array of repaired cards (matched by `id`) back into a guide payload,
+// returning a new payload. Unknown/extra cards in the repaired array are ignored.
+export const mergeRepairedCards = (guidePayload, repairedCards) => {
+  if (!Array.isArray(repairedCards) || repairedCards.length === 0) return guidePayload;
+  const baseCards = Array.isArray(guidePayload?.cards) ? guidePayload.cards : [];
+  const cardMap = new Map(baseCards.map((card) => [card?.id, card]));
+  for (const repaired of repairedCards) {
+    if (repaired?.id && cardMap.has(repaired.id)) {
+      cardMap.set(repaired.id, { ...cardMap.get(repaired.id), ...repaired });
+    }
+  }
+  return { ...guidePayload, cards: [...cardMap.values()] };
 };
 
 export const normalizeCoachConfig = (value, { hasSourceMaterial = false } = {}) => {
@@ -863,21 +908,23 @@ export const generateStudyGuideFromAi = async ({
     );
   }
 
-  const rawResponse = await generateContent({
-    model: aiModelMap.guide,
-    contents: buildGuideContents({
-      processedNotes,
-      hasProcessedNotes,
-      keepFile,
-      file,
-      className,
-      subject,
-      coachConfig,
-      knowledgeContext,
-    }),
+  const guideContents = buildGuideContents({
+    processedNotes,
+    hasProcessedNotes,
+    keepFile,
+    file,
+    className,
+    subject,
+    coachConfig,
+    knowledgeContext,
   });
 
-  const guidePayload = mergeGuidePayloadMeta(
+  const rawResponse = await generateContent({
+    model: aiModelMap.guide,
+    contents: guideContents,
+  });
+
+  let guidePayload = mergeGuidePayloadMeta(
     parseAiJsonResponse(
     rawResponse,
     'AI generated invalid tutor session format. Please try again.',
@@ -885,10 +932,44 @@ export const generateStudyGuideFromAi = async ({
     coachMeta,
   );
 
-  const guideData = normalizeStudyGuideData(guidePayload);
+  let guideData = normalizeStudyGuideData(guidePayload);
   if (!guideData) {
     throw createHttpError('AI failed to generate a valid tutor session.', 500);
   }
+
+  // Quality repair pass: if any cards are too shallow, ask the model once to
+  // deepen only the failing cards (with the original source + its prior draft in
+  // context), then re-normalize. We never hard-fail on depth — a structurally
+  // valid session is always accepted (assertTutorSessionQuality only throws on
+  // broken structure).
+  const quality = validateTutorSessionQuality(guideData);
+  if (!quality.ok && !quality.fatal) {
+    const { failingCardLabels, repairPrompt } = buildGuideRepairPrompt(quality);
+    const failingCards = (guidePayload.cards || []).filter(
+      (card) => card?.id && failingCardLabels.includes(card.id),
+    );
+    try {
+      const repairRaw = await generateContent({
+        model: aiModelMap.guide,
+        contents: [
+          ...guideContents,
+          { text: `\n\nHere is the draft you produced for the cards that need work:\n${JSON.stringify(failingCards)}` },
+          { text: `\n\n${repairPrompt}` },
+        ],
+      });
+      const repairedCards = parseAiJsonResponse(repairRaw, 'Repair failed.');
+      const mergedPayload = mergeRepairedCards(guidePayload, repairedCards);
+      const repairedData = normalizeStudyGuideData(mergedPayload);
+      if (repairedData) {
+        guidePayload = mergedPayload;
+        guideData = repairedData;
+      }
+    } catch (repairError) {
+      // Repair is best-effort; keep the original session if repair fails to parse.
+      console.warn('[tutor session quality] repair pass failed, keeping original:', repairError);
+    }
+  }
+
   assertTutorSessionQuality(guideData);
 
   const guideContent = buildStudyGuideSummaryDoc(guideData);
