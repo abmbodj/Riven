@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValue } from 'motion/react';
-import { Check, FileText, Sparkles, Upload, X } from 'lucide-react';
+import { BookOpen, Check, FileText, Leaf, Sparkles, Target, Upload, X, Zap } from 'lucide-react';
 import RiverMascot from './RiverMascot.jsx';
 import { useToast } from '../../hooks/useToast.js';
 
@@ -14,9 +14,16 @@ const GEN_CAPTIONS = [
 ];
 
 const TONES = [
-  { value: 'calm review', emoji: '🍋', label: 'Chill' },
-  { value: 'focused',     emoji: '🎯', label: 'Focused' },
-  { value: 'challenge',   emoji: '⚡', label: 'Challenge' },
+  { value: 'calm review', Icon: Leaf,   label: 'Chill' },
+  { value: 'focused',     Icon: Target, label: 'Focused' },
+  { value: 'challenge',   Icon: Zap,    label: 'Challenge' },
+];
+
+// Lucide icons for cross-platform consistency — emoji render differently on iOS/Android/desktop
+const SOURCE_CARDS = [
+  { id: 'note', Icon: BookOpen, label: 'From notes'  },
+  { id: 'file', Icon: Upload,   label: 'Upload file' },
+  { id: 'none', Icon: Sparkles, label: 'Topic only'  },
 ];
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
@@ -71,18 +78,17 @@ function Step1({
   hasSource, canContinue,
   onContinue, onClose,
 }) {
-  const sourceCards = [
-    { id: 'note', emoji: '📝', label: 'From notes',  badge: selectedNoteIds.length || null },
-    { id: 'file', emoji: '📄', label: 'Upload file', badge: genFile ? 1 : null },
-    { id: 'none', emoji: '✦',  label: 'No source',   badge: null },
-  ];
+  const badges = {
+    note: selectedNoteIds.length || null,
+    file: genFile ? 1 : null,
+    none: null,
+  };
 
   return (
     <div className="flex flex-col">
       {/* Header row */}
       <div className="flex items-center justify-between px-5 pt-2 pb-4 sm:px-6">
         <ProgressDots step={1} />
-        <p className="font-serif italic text-lg text-claude-text">New session</p>
         <button
           type="button"
           onClick={onClose}
@@ -94,39 +100,46 @@ function Step1({
       </div>
 
       <div className="px-5 pb-8 sm:px-6 space-y-5">
+        {/* Warm heading — mirrors Step 2's "Tune your session" opening */}
+        <div>
+          <p className="font-serif italic text-2xl text-claude-text">What are we studying?</p>
+          <p className="mt-1 text-sm text-claude-secondary">River will build the whole session around this.</p>
+        </div>
+
         {/* Source cards */}
         <div>
           <p className="mb-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">
             Source material
           </p>
           <div className="grid grid-cols-3 gap-2.5">
-            {sourceCards.map((opt) => {
-              const isActive = genSource === opt.id;
+            {SOURCE_CARDS.map(({ id, Icon, label }) => {
+              const isActive = genSource === id;
+              const badge = badges[id];
               return (
                 <button
-                  key={opt.id}
+                  key={id}
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => {
-                    setGenSource(opt.id);
+                    setGenSource(id);
                     setSelectedNoteIds([]);
                     setGenFile(null);
                   }}
                   className={[
-                    'relative tap-action flex flex-col items-center gap-2 rounded-2xl border-2 py-4 px-2 text-center transition-all',
+                    'relative tap-action flex flex-col items-center gap-2.5 rounded-2xl border-2 py-4 px-2 text-center transition-all',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50',
                     isActive
                       ? 'border-claude-accent bg-claude-accent/10 text-claude-accent'
                       : 'border-claude-border bg-claude-surface/30 text-claude-secondary hover:border-claude-accent/40 hover:text-claude-text',
                   ].join(' ')}
                 >
-                  {opt.badge ? (
+                  {badge ? (
                     <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-claude-accent px-1 text-[10px] font-bold text-[#162a31]">
-                      {opt.badge}
+                      {badge}
                     </span>
                   ) : null}
-                  <span className="text-2xl leading-none">{opt.emoji}</span>
-                  <span className="text-[9px] font-mono font-bold uppercase tracking-[0.1em] leading-tight">{opt.label}</span>
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="text-xs font-mono font-semibold uppercase tracking-[0.08em] leading-tight">{label}</span>
                 </button>
               );
             })}
@@ -156,7 +169,7 @@ function Step1({
                 )}
                 {filteredNotes.length === 0 ? (
                   <p className="py-4 text-center font-serif text-sm italic text-claude-secondary">
-                    {allNotes.length === 0 ? 'No notes yet' : 'No notes match'}
+                    {allNotes.length === 0 ? 'Add notes to attach them here' : 'No notes match your search'}
                   </p>
                 ) : (
                   <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto">
@@ -273,7 +286,7 @@ function Step2({ genTone, setGenTone, weakTopics, setWeakTopics, onBack, onGener
         <button
           type="button"
           onClick={onBack}
-          className="tap-action text-[10px] font-mono uppercase tracking-widest text-claude-secondary transition-colors hover:text-claude-accent focus-visible:outline-none"
+          className="tap-action text-xs font-mono uppercase tracking-widest text-claude-secondary transition-colors hover:text-claude-accent focus-visible:outline-none"
         >
           ← Back
         </button>
@@ -282,31 +295,31 @@ function Step2({ genTone, setGenTone, weakTopics, setWeakTopics, onBack, onGener
       <div className="px-5 pb-8 sm:px-6 space-y-5">
         <div>
           <p className="font-serif italic text-2xl text-claude-text">Tune your session</p>
-          <p className="mt-1 text-sm text-claude-secondary">Both optional — skip straight to Generate if you&rsquo;re in a hurry.</p>
+          <p className="mt-1 text-sm text-claude-secondary">Both optional — jump straight to Generate if you&rsquo;re ready.</p>
         </div>
 
         {/* Tone */}
         <div>
           <p className="mb-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Tone</p>
           <div className="flex gap-2.5">
-            {TONES.map((t) => {
-              const isActive = genTone === t.value;
+            {TONES.map(({ value, Icon, label }) => {
+              const isActive = genTone === value;
               return (
                 <button
-                  key={t.value}
+                  key={value}
                   type="button"
                   aria-pressed={isActive}
-                  onClick={() => setGenTone(t.value)}
+                  onClick={() => setGenTone(value)}
                   className={[
-                    'tap-action flex flex-1 flex-col items-center gap-1.5 rounded-2xl border-2 py-3.5 px-2 transition-all',
+                    'tap-action flex flex-1 flex-col items-center gap-2 rounded-2xl border-2 py-3.5 px-2 transition-all',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50',
                     isActive
                       ? 'border-claude-accent bg-claude-accent/15 text-claude-accent'
                       : 'border-claude-border bg-claude-surface/30 text-claude-secondary hover:border-claude-accent/40 hover:text-claude-text',
                   ].join(' ')}
                 >
-                  <span className="text-2xl leading-none">{t.emoji}</span>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-[0.1em]">{t.label}</span>
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="text-xs font-mono font-semibold uppercase tracking-[0.08em]">{label}</span>
                 </button>
               );
             })}
@@ -343,14 +356,6 @@ function Step2({ genTone, setGenTone, weakTopics, setWeakTopics, onBack, onGener
           <Sparkles className="h-4 w-4" />
           Generate session
         </button>
-
-        <button
-          type="button"
-          onClick={onGenerate}
-          className="tap-action w-full py-1 text-center text-sm text-claude-secondary transition-colors hover:text-claude-accent focus-visible:outline-none"
-        >
-          Skip &amp; Generate
-        </button>
       </div>
     </div>
   );
@@ -359,22 +364,25 @@ function Step2({ genTone, setGenTone, weakTopics, setWeakTopics, onBack, onGener
 function GeneratingState({ captionIndex }) {
   return (
     <div className="flex min-h-[420px] flex-col items-center justify-center gap-6 px-6 py-10">
-      <div className="w-40">
+      <div className="w-48">
         <RiverMascot state="thinking" />
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={captionIndex}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.3 }}
-          className="text-center font-serif italic text-lg text-claude-text"
-        >
-          {GEN_CAPTIONS[captionIndex]}
-        </motion.p>
-      </AnimatePresence>
+      {/* aria-live so screen readers announce caption changes during generation */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="text-center">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={captionIndex}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3 }}
+            className="font-serif italic text-lg text-claude-text"
+          >
+            {GEN_CAPTIONS[captionIndex]}
+          </motion.p>
+        </AnimatePresence>
+      </div>
 
       <div className="w-full max-w-xs overflow-hidden rounded-full bg-claude-surface/40" style={{ height: 3 }}>
         <motion.div
@@ -413,10 +421,13 @@ export default function CreateSessionSheet({
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
   const dragY = useMotionValue(0);
+  // Captured on open — drag only active on mobile to avoid text-selection conflicts on desktop
+  const isMobileRef = useRef(false);
 
   // Reset when opened
   useEffect(() => {
     if (!open) return;
+    isMobileRef.current = typeof window !== 'undefined' && window.innerWidth < 768;
     setStep(1);
     setDirection(1);
     setGenSource('none');
@@ -548,6 +559,7 @@ export default function CreateSessionSheet({
   };
 
   const STEP_KEY = { 1: 's1', 2: 's2', generating: 'sgen' };
+  const isDraggable = step !== 'generating' && isMobileRef.current;
 
   return (
     <AnimatePresence>
@@ -571,12 +583,12 @@ export default function CreateSessionSheet({
             role="dialog"
             aria-modal="true"
             aria-label="Create Tutor Session"
-            drag={step !== 'generating' ? 'y' : false}
+            drag={isDraggable ? 'y' : false}
             dragConstraints={{ top: 0 }}
             dragElastic={{ top: 0, bottom: 0.35 }}
             dragMomentum={false}
             style={{ y: dragY }}
-            onDragEnd={step !== 'generating' ? handleDragEnd : undefined}
+            onDragEnd={isDraggable ? handleDragEnd : undefined}
             initial={{ opacity: 0, y: 48 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 48 }}
@@ -586,7 +598,9 @@ export default function CreateSessionSheet({
               'relative z-10 flex w-full flex-col overflow-hidden',
               'max-h-[92dvh] md:max-h-[90dvh] md:max-w-2xl',
               'rounded-t-[1.75rem] md:rounded-[1.75rem]',
-              'border-t border-x border-claude-border md:border',
+              // Mobile: top border only — sheet is edge-to-edge, side borders look wrong on a bottom sheet
+              // Desktop: full 4-side border via md:border
+              'border-t border-claude-border md:border',
               'bg-claude-bg',
               'shadow-[0_-20px_60px_rgba(0,0,0,0.45)] md:shadow-[0_30px_90px_rgba(0,0,0,0.45)]',
             ].join(' ')}
@@ -596,7 +610,7 @@ export default function CreateSessionSheet({
 
             {/* Drag handle — mobile only, hidden during generation */}
             {step !== 'generating' && (
-              <div className="md:hidden flex justify-center pt-3 pb-0 shrink-0 cursor-grab active:cursor-grabbing touch-none">
+              <div className="md:hidden flex justify-center pt-3 pb-0 shrink-0 touch-none">
                 <div className="w-10 h-1 rounded-full bg-claude-border/60" />
               </div>
             )}
