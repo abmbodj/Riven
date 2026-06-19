@@ -74,7 +74,6 @@ export default function GroupScheduleHub({
     const [anchorDate, setAnchorDate] = useState(() => startOfDay(new Date()));
     const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
     const [draftCells, setDraftCells] = useState(() => new Set());
-    const [savingAvailability, setSavingAvailability] = useState(false);
     const [highlightedMeetupId, setHighlightedMeetupId] = useState(null);
     const [proposeOpen, setProposeOpen] = useState(false);
     const [proposeContext, setProposeContext] = useState({ start: null, freeNames: [], denominator: 0 });
@@ -170,24 +169,20 @@ export default function GroupScheduleHub({
         });
     };
 
-    const handleSaveAvailability = async () => {
-        setSavingAvailability(true);
-        try {
-            const cells = [...draftCells].map((key) => {
-                const [dayOfWeek, hour] = key.split('-').map(Number);
-                return { day_of_week: dayOfWeek, hour };
-            });
-            await onSaveAvailability?.(cells);
-            // Painting implies participation — surface a nudge if still hidden.
-            if (!isShared && cells.length > 0) {
-                await onSetShareMode?.('busy_free');
-            }
-            setMode('group');
-        } catch {
-            // Toast handled upstream; stay in edit mode so the draft isn't lost.
-        } finally {
-            setSavingAvailability(false);
-        }
+    const handleSaveAvailability = () => {
+        const cells = [...draftCells].map((key) => {
+            const [dayOfWeek, hour] = key.split('-').map(Number);
+            return { day_of_week: dayOfWeek, hour };
+        });
+        // Optimistic + instant: the hook updates state synchronously (including
+        // flipping my share_mode when painting implies participation), so switch
+        // to the group view immediately instead of blocking on the round-trip.
+        // On failure the hook rolls back and we drop back into edit mode with the
+        // draft intact.
+        setMode('group');
+        Promise.resolve(onSaveAvailability?.(cells)).catch(() => {
+            setMode('edit');
+        });
     };
 
     const openPropose = (start, hour = null) => {
@@ -418,7 +413,6 @@ export default function GroupScheduleHub({
                                             <button
                                                 type="button"
                                                 onClick={exitEditMode}
-                                                disabled={savingAvailability}
                                                 className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold text-claude-text"
                                             >
                                                 Cancel
@@ -426,10 +420,9 @@ export default function GroupScheduleHub({
                                             <button
                                                 type="button"
                                                 onClick={handleSaveAvailability}
-                                                disabled={savingAvailability}
-                                                className="rounded-full bg-claude-accent px-3 py-1 text-[11px] font-semibold text-[#182a31] disabled:opacity-60"
+                                                className="rounded-full bg-claude-accent px-3 py-1 text-[11px] font-semibold text-[#182a31]"
                                             >
-                                                {savingAvailability ? 'Saving…' : 'Save'}
+                                                Save
                                             </button>
                                         </div>
                                     </div>

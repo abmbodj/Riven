@@ -97,24 +97,39 @@ export function useGroupSchedule({ groupId, currentUserId, toast, haptics }) {
 
     /**
      * Replace the caller's painted free cells.
-     * Optimistically updates my_availability + availability; rolls back on error.
+     * Optimistically updates my_availability + availability + my member row's
+     * share_mode; rolls back on error. Painting cells implies participation, so
+     * if the caller is currently hidden we flip them to busy_free in the same
+     * optimistic pass (and the same reconcile) — this keeps the heatmap
+     * denominator counting them immediately (it reads member.share_mode), so the
+     * group view never flashes the "Find a time to meet" empty state after a save.
      * Re-throws so GroupScheduleHub can stay in edit mode on failure.
      */
     const saveAvailability = useCallback(async (cells) => {
         const snapshot = lastDataRef.current;
         const myIdStr = String(currentUserId);
+        const wasHidden = !snapshot?.my_share_mode || snapshot.my_share_mode === 'hidden';
+        const enableShare = cells.length > 0 && wasHidden;
 
-        setDataRef.current((current) => ({
-            ...current,
-            my_availability: cells,
-            availability: [
-                ...(current?.availability ?? []).filter((r) => String(r.user_id) !== myIdStr),
-                ...cells.map((cell) => ({ ...cell, user_id: currentUserId })),
-            ],
-        }));
+        setDataRef.current((current) => {
+            const nextShareMode = enableShare ? 'busy_free' : (current?.my_share_mode ?? null);
+            return {
+                ...current,
+                my_availability: cells,
+                my_share_mode: nextShareMode,
+                availability: [
+                    ...(current?.availability ?? []).filter((r) => String(r.user_id) !== myIdStr),
+                    ...cells.map((cell) => ({ ...cell, user_id: currentUserId })),
+                ],
+                members: (current?.members ?? []).map((m) =>
+                    String(m.id) === myIdStr ? { ...m, share_mode: nextShareMode } : m,
+                ),
+            };
+        });
 
         try {
             await serverApi.setGroupAvailability(groupId, cells);
+            if (enableShare) await serverApi.setGroupScheduleShare(groupId, 'busy_free');
             void refreshRef.current(); // background reconcile — don't block the save button
             toast?.success('Availability saved.');
         } catch (err) {
@@ -138,6 +153,9 @@ export function useGroupSchedule({ groupId, currentUserId, toast, haptics }) {
             availability: visibilityMode === 'hidden'
                 ? (current?.availability ?? []).filter((r) => String(r.user_id) !== myIdStr)
                 : current?.availability ?? [],
+            members: (current?.members ?? []).map((m) =>
+                String(m.id) === myIdStr ? { ...m, share_mode: visibilityMode } : m,
+            ),
         }));
 
         try {
