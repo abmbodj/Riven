@@ -13,7 +13,7 @@ import {
   parseAiJsonResponse,
 } from '../_shared/aiCore.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
-import { fetchYoutubeTranscript } from '../_shared/youtubeTranscript.ts';
+import { getOrFetchYoutubeTranscript } from '../_shared/youtubeTranscriptCache.ts';
 import { prepareYoutubeTranscriptSource } from '../_shared/youtubeTranscriptPrep.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
@@ -107,7 +107,7 @@ serve(async (request) => {
     }
 
     // Fetch transcript (replaces Gemini's native video processing)
-    const transcript = await fetchYoutubeTranscript(normalizedUrl);
+    const transcript = await getOrFetchYoutubeTranscript({ admin, youtubeUrl: normalizedUrl });
     const ai = createAiClient(apiKey);
     const preparedSource = await prepareYoutubeTranscriptSource({
       transcript,

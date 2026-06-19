@@ -17,7 +17,7 @@ import {
 } from './notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
 import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer, buildKnowledgeContext, mergeMaxTokens } from './noteKnowledge.mjs';
-import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
+import { getOrFetchYoutubeTranscript } from './youtubeTranscriptCache.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
   createArrayStreamTracker,
@@ -1024,7 +1024,7 @@ const processYoutubeSourceJob = async ({
     source_key: sourceKey,
   });
 
-  const transcript = await fetchYoutubeTranscript(youtubeUrl);
+  const transcript = await getOrFetchYoutubeTranscript({ admin, youtubeUrl });
   const modelMap = getAiModelMap();
   const preparedSource = await prepareYoutubeTranscriptSource({
     transcript,

@@ -16,7 +16,7 @@ type TranscriptFetcher = typeof fetch;
 type SubtitleItem = { text?: string };
 type SubtitleRequest = { videoID: string; lang?: string };
 type GetSubtitlesImpl = (request: SubtitleRequest) => Promise<SubtitleItem[]>;
-type TranscriptLogger = Pick<Console, 'warn'>;
+type TranscriptLogger = Pick<Console, 'warn'> & Partial<Pick<Console, 'info'>>;
 
 type TranscriptDeps = {
   fetchImpl?: TranscriptFetcher;
@@ -269,33 +269,36 @@ export const fetchTranscriptViaCaptionExtractor = async (
   return transcript;
 };
 
-// Strategy using Supadata API — reliable third-party transcript service
-export const fetchTranscriptViaSupadata = async (
+// Strategy using TranscriptAPI — reliable third-party transcript service
+export const fetchTranscriptViaTranscriptApi = async (
   videoId: string,
   lang = 'en',
   fetchImpl: TranscriptFetcher = fetch,
 ): Promise<string> => {
-  const apiKey = Deno.env.get('SUPADATA_API_KEY');
+  const apiKey = Deno.env.get('TRANSCRIPTAPI_KEY');
   if (!apiKey) {
-    throw new Error('SUPADATA_API_KEY is not configured');
+    throw new Error('TRANSCRIPTAPI_KEY is not configured');
   }
 
-  const params = new URLSearchParams({ videoId, text: 'true', lang });
-  const res = await fetchImpl(`https://api.supadata.ai/v1/youtube/transcript?${params}`, {
-    headers: { 'x-api-key': apiKey },
+  const params = new URLSearchParams({ video_url: videoId, format: 'json', lang });
+  const res = await fetchImpl(`https://transcriptapi.com/api/v2/youtube/transcript?${params}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
   });
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Supadata API returned ${res.status}: ${body.substring(0, 200)}`);
+    throw new Error(`TranscriptAPI returned ${res.status}: ${body.substring(0, 200)}`);
   }
 
   const data = await res.json();
-  const content = typeof data?.content === 'string' ? data.content : '';
+  const segments = Array.isArray(data?.segments) ? data.segments : [];
+  const content = segments
+    .map((segment: { text?: string }) => (typeof segment?.text === 'string' ? segment.text : ''))
+    .join(' ');
   const transcript = normalizeText(content);
 
   if (!transcript) {
-    throw new Error('Supadata returned empty transcript');
+    throw new Error('TranscriptAPI returned empty transcript');
   }
 
   return transcript;
@@ -317,9 +320,15 @@ export const fetchYoutubeTranscriptWithDeps = async (
 
   const strategyErrors: string[] = [];
 
+  const logSuccess = (strategy: string) => {
+    logger.info?.('[youtubeTranscript] strategy succeeded', { videoId, strategy });
+  };
+
   // Strategy 1: Custom innertube /player caption tracks (free first)
   try {
-    return await fetchTranscriptViaCustomStrategy(videoId, lang, fetchImpl);
+    const transcript = await fetchTranscriptViaCustomStrategy(videoId, lang, fetchImpl);
+    logSuccess('custom');
+    return transcript;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     strategyErrors.push(`custom:${message}`);
@@ -327,18 +336,22 @@ export const fetchYoutubeTranscriptWithDeps = async (
 
   // Strategy 2: youtube-caption-extractor package fallback
   try {
-    return await fetchTranscriptViaCaptionExtractor(videoId, lang, getSubtitlesImpl);
+    const transcript = await fetchTranscriptViaCaptionExtractor(videoId, lang, getSubtitlesImpl);
+    logSuccess('caption-extractor');
+    return transcript;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     strategyErrors.push(`caption-extractor:${message}`);
   }
 
-  // Strategy 3: Supadata API (paid reliability fallback)
+  // Strategy 3: TranscriptAPI (paid reliability fallback)
   try {
-    return await fetchTranscriptViaSupadata(videoId, lang, fetchImpl);
+    const transcript = await fetchTranscriptViaTranscriptApi(videoId, lang, fetchImpl);
+    logSuccess('transcriptapi');
+    return transcript;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    strategyErrors.push(`supadata:${message}`);
+    strategyErrors.push(`transcriptapi:${message}`);
   }
 
   logger.warn('[youtubeTranscript] all transcript strategies failed', {

@@ -169,7 +169,7 @@ Common secrets used by functions include:
 | `RC_WEBHOOK_SECRET`, `RC_SECRET_KEY`, `RC_IOS_API_KEY` | RevenueCat webhooks and sync |
 | `CANVAS_AUTO_SYNC_SECRET` | Scheduled Canvas sync protection |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Edge rate limit backend |
-| `SUPADATA_API_KEY` | YouTube transcript support |
+| `TRANSCRIPTAPI_KEY` | YouTube transcript fallback (paid tier after free strategies) |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` | Edge Function error reporting |
 
 ## Architecture
@@ -191,7 +191,7 @@ flowchart LR
 
     edge --> postgres
     edge --> storage
-    edge --> edgeExternal["Stripe, RevenueCat, Resend, Groq, Supadata, Sentry"]
+    edge --> edgeExternal["Stripe, RevenueCat, Resend, Groq, TranscriptAPI, Sentry"]
 
     supabaseAuth --> postgres
 ```
