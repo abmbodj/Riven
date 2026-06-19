@@ -1,6 +1,6 @@
 import { extractTextFromDoc } from './sharedResources.js';
 
-export const STUDY_GUIDE_FORMAT_VERSION = 4;
+export const STUDY_GUIDE_FORMAT_VERSION = 5;
 export const ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION = 4;
 export const STUDY_GUIDE_CONFIDENCE_OPTIONS = [];
 export const STUDY_SESSION_STATUSES = Object.freeze({
@@ -275,6 +275,16 @@ const normalizeWorkedExampleStep = (value) => {
     };
 };
 
+const normalizeFigure = (value) => {
+    if (!value || typeof value !== 'object') return null;
+    const ALLOWED_TYPES = ['mermaid', 'plot', 'chart', 'code'];
+    const type = ALLOWED_TYPES.includes(value.type) ? value.type : null;
+    if (!type) return null;
+    const spec = normalizeText(value.spec, '');
+    if (!spec) return null;
+    return { type, spec, lang: typeof value.lang === 'string' ? value.lang : undefined };
+};
+
 const normalizeWorkedExample = (value, index) => {
     if (!value || typeof value !== 'object') return null;
     const problem = normalizeText(value.problem, '');
@@ -290,6 +300,7 @@ const normalizeWorkedExample = (value, index) => {
         steps,
         result: normalizeText(value.result, ''),
         takeaway: normalizeText(value.takeaway, ''),
+        figure: normalizeFigure(value.figure),
     };
 };
 
@@ -310,6 +321,33 @@ const normalizeTeaching = (value, card, concept) => {
         ? raw.worked_examples.map(normalizeWorkedExample).filter(Boolean).slice(0, 5)
         : [];
 
+    const normalizePredict = (v) => {
+        if (!v || typeof v !== 'object') return null;
+        const prompt = normalizeText(v.prompt, '');
+        const answer = normalizeText(v.answer, '');
+        if (!prompt || !answer) return null;
+        const after_beat = typeof v.after_beat === 'number' && Number.isFinite(v.after_beat)
+            ? Math.max(0, Math.min(20, Math.round(v.after_beat)))
+            : undefined;
+        return { prompt, answer, after_beat };
+    };
+
+    const normalizeBeat = (b) => {
+        if (!b || typeof b !== 'object') return null;
+        if (b.kind === 'text') return { kind: 'text', text: normalizeText(b.text, '') };
+        if (b.kind === 'block') {
+            const BLOCK_TYPES = ['code', 'mermaid', 'plot', 'chart', 'table', 'math'];
+            if (!BLOCK_TYPES.includes(b.blockType)) return null;
+            return { kind: 'block', blockType: b.blockType, raw: normalizeText(b.raw, '') };
+        }
+        if (b.kind === 'predict') {
+            const p = normalizePredict(b);
+            if (!p) return null;
+            return { kind: 'predict', ...p };
+        }
+        return null;
+    };
+
     return {
         learning_objective: normalizeText(
             raw.learning_objective ?? raw.learningObjective,
@@ -327,6 +365,12 @@ const normalizeTeaching = (value, card, concept) => {
                 ? `This matters because students often miss ${concept.weak_points[0].replace(/-/g, ' ')} when the pressure rises.`
                 : `This matters because ${concept?.title || 'this idea'} supports later questions and examples.`,
         ),
+        predicts: Array.isArray(raw.predicts)
+            ? raw.predicts.map(normalizePredict).filter(Boolean).slice(0, 3)
+            : [],
+        explain_beats: Array.isArray(raw.explain_beats)
+            ? raw.explain_beats.map(normalizeBeat).filter(Boolean)
+            : [],
     };
 };
 

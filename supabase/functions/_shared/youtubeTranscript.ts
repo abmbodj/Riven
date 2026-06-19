@@ -25,10 +25,17 @@ type TranscriptDeps = {
 };
 
 type TranscriptEvent = { segs?: Array<{ utf8?: string }> };
+type TranscriptErrorDetails = {
+  code?: string;
+  details?: string;
+  provider_status?: number;
+  strategy_errors?: string[];
+};
 
-const createHttpError = (message: string, status = 400) => {
-  const error = new Error(message);
-  (error as Error & { status?: number }).status = status;
+const createHttpError = (message: string, status = 400, details: TranscriptErrorDetails = {}) => {
+  const error = new Error(message) as Error & { status?: number } & TranscriptErrorDetails;
+  error.status = status;
+  Object.assign(error, details);
   return error;
 };
 
@@ -269,6 +276,56 @@ export const fetchTranscriptViaCaptionExtractor = async (
   return transcript;
 };
 
+const extractTranscriptApiDetail = (body: string): string => {
+  if (!body.trim()) return '';
+
+  try {
+    const data = JSON.parse(body);
+    const detail = data?.detail;
+    if (typeof detail === 'string') return normalizeText(detail).slice(0, 160);
+    if (typeof detail?.message === 'string') return normalizeText(detail.message).slice(0, 160);
+    if (typeof data?.message === 'string') return normalizeText(data.message).slice(0, 160);
+    if (typeof data?.error === 'string') return normalizeText(data.error).slice(0, 160);
+  } catch {
+    // Fall through to a short text excerpt below.
+  }
+
+  return normalizeText(body).slice(0, 160);
+};
+
+const throwTranscriptApiError = (message: string, providerStatus?: number, details?: string): never => {
+  const error = new Error(message) as Error & {
+    provider_status?: number;
+    details?: string;
+  };
+  if (providerStatus !== undefined) error.provider_status = providerStatus;
+  if (details) error.details = details;
+  throw error;
+};
+
+const extractTranscriptApiText = (data: unknown): string => {
+  if (!data || typeof data !== 'object') return '';
+
+  const record = data as {
+    transcript?: unknown;
+    segments?: unknown;
+  };
+
+  if (typeof record.transcript === 'string') {
+    return normalizeText(record.transcript);
+  }
+
+  const transcriptSegments = Array.isArray(record.transcript) ? record.transcript : [];
+  const legacySegments = Array.isArray(record.segments) ? record.segments : [];
+  const segments = transcriptSegments.length > 0 ? transcriptSegments : legacySegments;
+
+  return joinTranscriptParts(
+    segments.map((segment: { text?: unknown }) => (
+      typeof segment?.text === 'string' ? segment.text : ''
+    )),
+  );
+};
+
 // Strategy using TranscriptAPI — reliable third-party transcript service
 export const fetchTranscriptViaTranscriptApi = async (
   videoId: string,
@@ -287,18 +344,19 @@ export const fetchTranscriptViaTranscriptApi = async (
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`TranscriptAPI returned ${res.status}: ${body.substring(0, 200)}`);
+    const detail = extractTranscriptApiDetail(body);
+    throwTranscriptApiError(
+      `TranscriptAPI returned ${res.status}${detail ? `: ${detail}` : ''}`,
+      res.status,
+      detail,
+    );
   }
 
   const data = await res.json();
-  const segments = Array.isArray(data?.segments) ? data.segments : [];
-  const content = segments
-    .map((segment: { text?: string }) => (typeof segment?.text === 'string' ? segment.text : ''))
-    .join(' ');
-  const transcript = normalizeText(content);
+  const transcript = extractTranscriptApiText(data);
 
   if (!transcript) {
-    throw new Error('TranscriptAPI returned empty transcript');
+    throwTranscriptApiError('TranscriptAPI returned empty transcript');
   }
 
   return transcript;
@@ -360,8 +418,12 @@ export const fetchYoutubeTranscriptWithDeps = async (
   });
 
   throw createHttpError(
-    'Failed to fetch YouTube transcript. The video may not have captions available.',
+    'Riven could not access a transcript for this video.',
     400,
+    {
+      code: 'YOUTUBE_TRANSCRIPT_UNAVAILABLE',
+      strategy_errors: strategyErrors,
+    },
   );
 };
 

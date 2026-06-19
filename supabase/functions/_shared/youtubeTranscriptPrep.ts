@@ -1,7 +1,8 @@
 import { buildSubjectContext } from './aiCore.mjs';
 
-const DEFAULT_DIRECT_CHAR_LIMIT = 18_000;
+const DEFAULT_DIRECT_CHAR_LIMIT = 60_000;
 const DEFAULT_CHUNK_CHAR_LIMIT = 12_000;
+const DEFAULT_CHUNK_CONCURRENCY = 3;
 const CHUNK_SUMMARY_MAX_TOKENS = 900;
 const MERGE_SUMMARY_MAX_TOKENS = 1_400;
 const TIGHTEN_SUMMARY_MAX_TOKENS = 1_000;
@@ -20,6 +21,7 @@ type PrepareYoutubeTranscriptSourceArgs = {
   className?: string | null;
   directCharLimit?: number;
   chunkCharLimit?: number;
+  chunkConcurrency?: number;
   generateText: (prompt: string, maxTokens: number) => Promise<string>;
   onProgress?: (update: TranscriptPrepProgress) => Promise<void> | void;
 };
@@ -206,6 +208,7 @@ export const prepareYoutubeTranscriptSource = async ({
   className,
   directCharLimit = DEFAULT_DIRECT_CHAR_LIMIT,
   chunkCharLimit = DEFAULT_CHUNK_CHAR_LIMIT,
+  chunkConcurrency = DEFAULT_CHUNK_CONCURRENCY,
   generateText,
   onProgress,
 }: PrepareYoutubeTranscriptSourceArgs) => {
@@ -220,34 +223,46 @@ export const prepareYoutubeTranscriptSource = async ({
   }
 
   const chunks = splitTranscriptIntoChunks(normalizedTranscript, chunkCharLimit);
-  const chunkSummaries: string[] = [];
+  const chunkSummaries = new Array<string>(chunks.length);
+  const boundedConcurrency = Math.max(1, Math.floor(chunkConcurrency || DEFAULT_CHUNK_CONCURRENCY));
+  let nextChunkIndex = 0;
 
-  for (const [index, chunk] of chunks.entries()) {
-    await onProgress?.({
-      chunkCount: chunks.length,
-      chunkIndex: index + 1,
-      message: `Condensing transcript segment ${index + 1} of ${chunks.length}`,
-      step: 'summarizing',
-    });
+  const summarizeNextChunk = async () => {
+    while (nextChunkIndex < chunks.length) {
+      const index = nextChunkIndex;
+      nextChunkIndex += 1;
+      const chunk = chunks[index];
 
-    const summary = normalizeTranscriptText(
-      await generateText(
-        buildChunkSummaryPrompt({
-          className,
-          chunk,
-          chunkCount: chunks.length,
-          chunkIndex: index + 1,
-        }),
-        CHUNK_SUMMARY_MAX_TOKENS,
-      ),
-    );
+      await onProgress?.({
+        chunkCount: chunks.length,
+        chunkIndex: index + 1,
+        message: `Condensing transcript segment ${index + 1} of ${chunks.length}`,
+        step: 'summarizing',
+      });
 
-    if (!summary) {
-      throw new Error('AI returned an empty transcript segment summary.');
+      const summary = normalizeTranscriptText(
+        await generateText(
+          buildChunkSummaryPrompt({
+            className,
+            chunk,
+            chunkCount: chunks.length,
+            chunkIndex: index + 1,
+          }),
+          CHUNK_SUMMARY_MAX_TOKENS,
+        ),
+      );
+
+      if (!summary) {
+        throw new Error('AI returned an empty transcript segment summary.');
+      }
+
+      chunkSummaries[index] = summary;
     }
-
-    chunkSummaries.push(summary);
   }
+
+  await Promise.all(
+    Array.from({ length: Math.min(boundedConcurrency, chunks.length) }, () => summarizeNextChunk()),
+  );
 
   await onProgress?.({
     chunkCount: chunks.length,

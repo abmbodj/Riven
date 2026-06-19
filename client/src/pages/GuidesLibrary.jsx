@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    BookOpen, ChevronLeft, Sparkles, Calendar, Clock3, Loader2, X, Upload, Check, ArrowRight, Target, Play, CheckSquare
+    BookOpen, ChevronLeft, Sparkles, ArrowRight, Play, CheckSquare
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -21,22 +21,7 @@ import {
     normalizeGuideStudyState,
     STUDY_SESSION_STATUSES,
 } from '../utils/studyGuides';
-
-const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const COACH_TONES = ['calm review', 'focused', 'challenge'];
-const COACH_TONE_DETAILS = {
-    'calm review': 'Steady pacing, extra reassurance, and low-pressure recovery prompts.',
-    focused: 'Direct checkpoints, tighter feedback, and fewer detours.',
-    challenge: 'Harder first prompts, less hand-holding, and faster escalation.',
-};
-
-const parseListInput = (value) => (
-    String(value || '')
-        .split(/[\n,]/)
-        .map((item) => item.trim())
-        .filter(Boolean)
-);
+import CreateSessionSheet from '../components/study/CreateSessionSheet.jsx';
 
 const getGuideDisplayLabel = (guide) => (
     isActiveRecallGuide(guide) ? 'tutor session' : 'unsupported guide'
@@ -329,21 +314,9 @@ export default function GuidesLibrary() {
     const [error, setError] = useState(null);
     const [showGenerateModal, setShowGenerateModal] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
-    const [generating, setGenerating] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-
-    // Generate form
-    const [genSource, setGenSource] = useState('none'); // 'none' | 'note' | 'file'
-    const [selectedNotes, setSelectedNotes] = useState([]);
-    const [genFile, setGenFile] = useState(null);
-    const [genTitle, setGenTitle] = useState('');
-    const [genExamLabel, setGenExamLabel] = useState('');
-    const [genExamDate, setGenExamDate] = useState('');
-    const [genTopics, setGenTopics] = useState('');
-    const [genWeakTopics, setGenWeakTopics] = useState('');
-    const [genTone, setGenTone] = useState('calm review');
-    const [showSetupQuestions, setShowSetupQuestions] = useState(true);
+    const [studyNextTopics, setStudyNextTopics] = useState([]);
 
     const loadData = useCallback(async () => {
         try {
@@ -371,16 +344,6 @@ export default function GuidesLibrary() {
         isSelectMode, selectedIds, selectedCount, isAllSelected,
         enterSelectMode, exitSelectMode, toggleSelect, toggleSelectAll,
     } = useSelection(guides);
-    const sessionTitlePreview = genTitle.trim() || (genExamLabel.trim() ? `${genExamLabel.trim()} Tutor Session` : 'Tutor Session');
-    const sourceSummary = genSource === 'note'
-        ? selectedNotes.length
-            ? `${selectedNotes.length} note${selectedNotes.length === 1 ? '' : 's'} selected`
-            : 'Choose notes to attach'
-        : genSource === 'file'
-            ? genFile?.name || 'Upload pending'
-            : 'No source attached';
-    const setupSummary = showSetupQuestions ? 'Tune focus open' : 'Tune focus hidden';
-
     const handleBulkDelete = async () => {
         const ids = [...selectedIds];
         setGuides(prev => prev.filter(g => !selectedIds.has(g.id)));
@@ -395,109 +358,16 @@ export default function GuidesLibrary() {
         }
     };
 
-    const handleFileChange = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (file.size > MAX_FILE_SIZE) { toast.error('File must be under 5MB'); return; }
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result.split(',')[1];
-            setGenFile({ data: base64, mimeType: file.type, name: file.name });
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const extractTextFromNote = (note) => {
-        if (!note?.content?.content) return '';
-        const texts = [];
-        const walk = (nodes) => {
-            for (const node of nodes) {
-                if (node.text) texts.push(node.text);
-                if (node.content) walk(node.content);
-            }
-        };
-        walk(note.content.content);
-        return texts.join('\n');
-    };
-
-    const toggleNoteSelection = (noteId) => {
-        setSelectedNotes(prev =>
-            prev.includes(noteId)
-                ? prev.filter(id => id !== noteId)
-                : [...prev, noteId]
-        );
-    };
-
-    const handleGenerate = async () => {
-        let noteText = '';
-        let file = null;
-        let noteId = null;
-        let classId = null;
-        const examLabel = genExamLabel.trim();
-        const title = genTitle.trim() || (examLabel ? `${examLabel} Tutor Session` : 'Tutor Session');
-        const userTopics = parseListInput(genTopics);
-        const weakTopics = parseListInput(genWeakTopics);
-        const hasSelectedNotes = genSource === 'note' && selectedNotes.length > 0;
-        const hasUploadedFile = genSource === 'file' && Boolean(genFile);
-
-        if (!examLabel && !hasSelectedNotes && !hasUploadedFile) {
-            toast.error('Add a topic or attach source material first.');
-            return;
-        }
-
-        if (hasSelectedNotes) {
-            const selected = selectedNotes.map(id => notes.find(n => n.id === id)).filter(Boolean);
-            if (selected.length === 0) { toast.error('Select at least one note'); return; }
-            noteText = selected.map(note => {
-                const title = note.title || 'Untitled';
-                const text = extractTextFromNote(note);
-                return `--- ${title} ---\n${text}`;
-            }).join('\n\n');
-            if (!noteText.trim()) { toast.error('Selected notes are empty'); return; }
-            noteId = selected.length === 1 ? selected[0].id : null;
-            classId = selected[0].class_id;
-        } else if (hasUploadedFile) {
-            file = genFile;
-        }
-
-        const hasSource = Boolean(noteText.trim() || file);
-        const hasSetupDetails = Boolean(examLabel || genExamDate || userTopics.length || weakTopics.length || genTone);
-        const coachConfig = {
-            creationMode: hasSource && hasSetupDetails ? 'hybrid' : hasSource ? 'source' : 'setup',
-            ...(examLabel ? { examLabel } : {}),
-            ...(genExamDate ? { examDate: genExamDate } : {}),
-            ...(userTopics.length ? { userTopics } : {}),
-            ...(weakTopics.length ? { weakTopics } : {}),
-            ...(genTone ? { preferredTone: genTone } : {}),
-        };
-
-        const classData = classId ? classes.find(c => c.id === classId) : null;
+    const handleGenerate = async ({ noteText, file, title, noteId, classId, coachConfig }) => {
+        const classData = classId ? classes.find((c) => c.id === classId) : null;
         const className = classData?.name || null;
         const subject = classData?.subject || null;
-
-        setGenerating(true);
-        try {
-            const result = await api.generateAiGuide(
-                noteText || null,
-                file,
-                title,
-                noteId,
-                classId,
-                className,
-                null,
-                coachConfig,
-                subject,
-            );
-            toast.success('Tutor session generated!');
-            setShowGenerateModal(false);
-            navigate(`/guide/${result.guide_id}`);
-        } catch (err) {
-            if (err.status === 429) { setShowGenerateModal(false); setShowPricingModal(true); }
-            else toast.error(err.message || 'Failed to generate tutor session');
-        } finally {
-            setGenerating(false);
-        }
+        const result = await api.generateAiGuide(
+            noteText, file, title, noteId,
+            classId, className, null, coachConfig, subject,
+        );
+        toast.success('Tutor session generated!');
+        navigate(`/guide/${result.guide_id}`);
     };
 
     const handleDelete = async () => {
@@ -510,19 +380,9 @@ export default function GuidesLibrary() {
         }
     };
 
-    // Open the create flow pre-targeted at the topics that still need work, so the next
-    // session naturally fills the gaps in coverage.
+    // Open the create flow pre-targeted at the topics that still need work.
     const handleStudyNext = useCallback((topics = []) => {
-        setGenSource('none');
-        setSelectedNotes([]);
-        setGenFile(null);
-        setGenTitle('');
-        setGenExamLabel('');
-        setGenExamDate('');
-        setGenTopics((topics || []).join(', '));
-        setGenWeakTopics('');
-        setGenTone('calm review');
-        setShowSetupQuestions(true);
+        setStudyNextTopics(topics || []);
         setShowGenerateModal(true);
     }, []);
 
@@ -557,360 +417,14 @@ export default function GuidesLibrary() {
                 onCancel={() => setDeleteConfirm({ show: false, item: null })}
             />
 
-            {/* Generate Guide Modal */}
-            <AnimatePresence>
-                {showGenerateModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-3 py-[max(env(safe-area-inset-top,0px),0.75rem)] sm:p-6">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowGenerateModal(false)}
-                            className="absolute inset-0 bg-claude-bg/70 md:backdrop-blur-md"
-                        />
-                        <motion.div
-                            role="dialog"
-                            aria-modal="true"
-                            aria-labelledby="create-tutor-session-title"
-                            aria-describedby="create-tutor-session-description"
-                            initial={{ opacity: 0, y: 22, scale: 0.96 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 16, scale: 0.97 }}
-                            transition={{ type: 'spring', damping: 24, stiffness: 220 }}
-                            onClick={(event) => event.stopPropagation()}
-                            className="relative flex max-h-[88dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-claude-border bg-claude-bg shadow-[0_30px_90px_rgba(0,0,0,0.36)]"
-                        >
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(222,185,106,0.14),transparent_34%),radial-gradient(circle_at_85%_8%,rgba(122,158,114,0.14),transparent_30%)]" />
-
-                            <div className="relative flex items-start justify-between gap-4 border-b border-claude-border px-4 py-4 sm:px-6 sm:py-5">
-                                <div className="min-w-0">
-                                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/30 px-3 py-1">
-                                        <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
-                                        <span className="text-[9px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary">Session composer</span>
-                                    </div>
-                                    <h2 id="create-tutor-session-title" className="font-serif text-2xl font-bold italic leading-tight tracking-tight text-claude-text sm:text-3xl">
-                                        Create Tutor Session
-                                    </h2>
-                                    <p id="create-tutor-session-description" className="mt-1 max-w-2xl text-sm leading-6 text-claude-secondary">
-                                        Set the goal, choose the pressure points, and add source material only if it helps River build a sharper first pass.
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowGenerateModal(false)}
-                                    aria-label="Close create tutor session"
-                                    className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/25 text-claude-secondary transition-colors hover:border-claude-accent/40 hover:text-claude-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                                >
-                                    <X className="h-5 w-5" />
-                                </button>
-                            </div>
-
-                            <div className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(21rem,0.85fr)] lg:gap-5">
-                                    <section className="rounded-2xl border border-claude-border/80 bg-claude-surface/55 p-4">
-                                        <div className="mb-4 flex items-start gap-3">
-                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-accent/10 text-claude-accent">
-                                                <Target className="h-4 w-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">Quick start</p>
-                                                <h3 className="mt-0.5 font-serif text-xl font-bold italic leading-tight text-claude-text">Tell River the topic</h3>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="coach-exam-label" className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                What should River help with?
-                                            </label>
-                                            <input
-                                                id="coach-exam-label"
-                                                type="text"
-                                                value={genExamLabel}
-                                                onChange={e => setGenExamLabel(e.target.value)}
-                                                placeholder="Biology midterm, mitosis, lecture 6, organic chemistry quiz..."
-                                                className="w-full rounded-2xl border-2 border-claude-border bg-claude-bg/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
-                                            />
-                                            <p className="mt-2 text-xs leading-5 text-claude-secondary">
-                                                Required unless you attach notes or a file.
-                                            </p>
-                                        </div>
-
-                                        <div className="mt-4 rounded-2xl border border-claude-accent/25 bg-[linear-gradient(180deg,rgba(222,185,106,0.08),rgba(255,255,255,0.02))] p-4 shadow-[0_12px_36px_rgba(0,0,0,0.18)]">
-                                            <div className="mb-4 flex items-start gap-3">
-                                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-accent/10 text-claude-accent">
-                                                    <BookOpen className="h-4 w-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Source material</p>
-                                                    <p className="mt-1 text-sm leading-5 text-claude-secondary">Choose this before building if you want River grounded in notes or a file.</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid gap-2 sm:grid-cols-3">
-                                                {[
-                                                    {
-                                                        id: 'none',
-                                                        title: 'Brief only',
-                                                        description: 'Use the topic field',
-                                                        icon: Target,
-                                                    },
-                                                    {
-                                                        id: 'note',
-                                                        title: 'Notes',
-                                                        description: 'Pull from saved notes',
-                                                        icon: BookOpen,
-                                                    },
-                                                    {
-                                                        id: 'file',
-                                                        title: 'File',
-                                                        description: 'Upload source material',
-                                                        icon: Upload,
-                                                    },
-                                                ].map((option) => {
-                                                    const SourceIcon = option.icon;
-                                                    const isActive = genSource === option.id;
-                                                    return (
-                                                        <button
-                                                            key={option.id}
-                                                            type="button"
-                                                            aria-pressed={isActive}
-                                                            onClick={() => setGenSource(option.id)}
-                                                            className={`tap-action flex min-h-[84px] items-start gap-3 rounded-2xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50 ${
-                                                                isActive
-                                                                    ? 'border-claude-accent bg-claude-accent/15 text-claude-accent shadow-[0_0_0_1px_rgba(222,185,106,0.1)]'
-                                                                    : 'border-claude-border bg-claude-bg/25 text-claude-secondary hover:border-claude-accent/30 hover:text-claude-text'
-                                                            }`}
-                                                        >
-                                                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${isActive ? 'border-claude-accent/30 bg-claude-accent/15' : 'border-claude-border bg-claude-bg/30'}`}>
-                                                                <SourceIcon className="h-4 w-4" />
-                                                            </span>
-                                                            <span className="min-w-0">
-                                                                <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.16em]">{option.title}</span>
-                                                                <span className="mt-1 block text-xs leading-5 text-claude-secondary">{option.description}</span>
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 rounded-2xl border border-claude-border/70 bg-claude-bg/45 p-4">
-                                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                <div>
-                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Tune focus</p>
-                                                    <p className="mt-1 text-sm leading-5 text-claude-secondary">Optional timing, weak spots, and tone.</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowSetupQuestions((value) => !value)}
-                                                    className="tap-action inline-flex min-h-10 items-center justify-center rounded-full border border-claude-border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:border-claude-accent/40 hover:text-claude-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50"
-                                                >
-                                                    {showSetupQuestions ? 'Skip for now' : 'Show setup'}
-                                                </button>
-                                            </div>
-
-                                            {showSetupQuestions ? (
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <label htmlFor="coach-exam-date" className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                            What test or goal is this for, and when is it
-                                                        </label>
-                                                        <input
-                                                            id="coach-exam-date"
-                                                            type="date"
-                                                            value={genExamDate}
-                                                            onChange={(event) => setGenExamDate(event.target.value)}
-                                                            className="w-full rounded-2xl border border-claude-border bg-claude-surface/40 p-4 font-mono text-botanical-parchment outline-none transition-colors focus:border-claude-accent"
-                                                        />
-                                                    </div>
-
-                                                    <div className="grid gap-4 md:grid-cols-2">
-                                                        <div>
-                                                            <label htmlFor="coach-topics" className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                                What topics should we cover
-                                                            </label>
-                                                            <textarea
-                                                                id="coach-topics"
-                                                                value={genTopics}
-                                                                onChange={(event) => setGenTopics(event.target.value)}
-                                                                placeholder="Cells, mitosis, membrane transport"
-                                                                className="min-h-[88px] w-full resize-none rounded-2xl border border-claude-border bg-claude-surface/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label htmlFor="coach-weak-topics" className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                                Which topics feel weakest right now
-                                                            </label>
-                                                            <textarea
-                                                                id="coach-weak-topics"
-                                                                value={genWeakTopics}
-                                                                onChange={(event) => setGenWeakTopics(event.target.value)}
-                                                                placeholder="Mitosis, meiosis"
-                                                                className="min-h-[88px] w-full resize-none rounded-2xl border border-claude-border bg-claude-surface/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div>
-                                                        <span className="mb-2 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                            What tutor tone do you want
-                                                        </span>
-                                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                                            {COACH_TONES.map((tone) => (
-                                                                <button
-                                                                    key={tone}
-                                                                    type="button"
-                                                                    aria-pressed={genTone === tone}
-                                                                    onClick={() => setGenTone(tone)}
-                                                                    className={`tap-action min-h-[58px] rounded-2xl border px-3 py-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/50 ${
-                                                                        genTone === tone
-                                                                            ? 'border-claude-accent bg-claude-accent/15 text-claude-accent shadow-[0_0_0_1px_rgba(222,185,106,0.08)]'
-                                                                            : 'border-claude-border bg-claude-surface/40 text-claude-secondary hover:border-claude-accent/30 hover:text-claude-text'
-                                                                    }`}
-                                                                >
-                                                                    <span className="block font-mono text-xs font-bold capitalize">{tone}</span>
-                                                                    <span className="mt-0.5 block truncate text-[11px] normal-case leading-4 text-claude-secondary">{COACH_TONE_DETAILS[tone]}</span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="rounded-xl border border-claude-border bg-claude-surface/30 px-3 py-2 text-xs leading-5 text-claude-secondary">
-                                                    Optional focus details hidden.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </section>
-
-                                    <aside className="space-y-4">
-                                        <section className="rounded-2xl border border-claude-border/80 bg-claude-surface/50 p-4 sm:p-5">
-                                            <div className="mb-4 flex items-start gap-3">
-                                                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-claude-border bg-claude-bg/35 text-claude-accent">
-                                                    <BookOpen className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Session details</p>
-                                                    <h3 className="mt-1 font-serif text-xl font-bold italic leading-tight text-claude-text">Name the session</h3>
-                                                    <p className="mt-1 text-sm leading-6 text-claude-secondary">Set the title and review the source state before you build.</p>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <label htmlFor="coach-title" className="mb-3 block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">
-                                                    Coach title
-                                                </label>
-                                                <input
-                                                    id="coach-title"
-                                                    type="text"
-                                                    value={genTitle}
-                                                    onChange={e => setGenTitle(e.target.value)}
-                                                    placeholder={genExamLabel ? `${genExamLabel} Tutor Session` : 'Final Tutor Session'}
-                                                    className="w-full rounded-2xl border-2 border-claude-border bg-claude-bg/40 p-4 font-mono text-botanical-parchment outline-none transition-colors placeholder:text-claude-secondary/60 focus:border-claude-accent"
-                                                />
-                                            </div>
-
-                                            <div className="mt-5">
-                                                {genSource === 'note' ? (
-                                                    <div>
-                                                        {selectedNotes.length > 1 && (
-                                                            <p className="mb-2 text-[10px] font-mono tracking-wider text-claude-accent">{selectedNotes.length} notes selected - will be combined</p>
-                                                        )}
-                                                        <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-                                                            {notes.length === 0 ? (
-                                                                <p className="rounded-xl border border-dashed border-claude-border px-4 py-6 text-center font-serif text-sm italic text-claude-secondary">No notes yet</p>
-                                                            ) : notes.map(note => {
-                                                                const isSelected = selectedNotes.includes(note.id);
-                                                                return (
-                                                                    <button
-                                                                        key={note.id}
-                                                                        type="button"
-                                                                        onClick={() => toggleNoteSelection(note.id)}
-                                                                        className={`tap-action flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${isSelected ? 'border-claude-accent/40 bg-claude-accent/10 text-claude-accent' : 'border-claude-border bg-claude-bg/25 text-claude-text hover:border-claude-accent/30'}`}
-                                                                    >
-                                                                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all ${isSelected ? 'border-claude-accent bg-claude-accent' : 'border-claude-border'}`}>
-                                                                            {isSelected && <Check className="h-3 w-3 text-[#162a31]" />}
-                                                                        </div>
-                                                                        <span className="truncate font-serif text-sm italic">{note.title || 'Untitled'}</span>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                ) : genSource === 'file' ? (
-                                                    <div>
-                                                        {genFile ? (
-                                                            <div className="flex items-center gap-3 rounded-xl border border-claude-border bg-claude-bg/25 p-3">
-                                                                <Upload className="h-4 w-4 shrink-0 text-claude-accent" />
-                                                                <span className="min-w-0 flex-1 truncate font-mono text-xs text-claude-text">{genFile.name}</span>
-                                                                <button type="button" onClick={() => setGenFile(null)} aria-label="Remove uploaded file" className="text-claude-secondary transition-colors hover:text-red-400">
-                                                                    <X className="h-4 w-4" />
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-claude-border p-6 text-center transition-colors hover:border-claude-accent/30">
-                                                                <Upload className="mx-auto mb-2 h-8 w-8 text-claude-secondary" />
-                                                                <p className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Tap to upload (PDF, DOCX, TXT, Image)</p>
-                                                                <input type="file" accept={ACCEPTED_FILES} onChange={handleFileChange} className="hidden" />
-                                                            </label>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div className="rounded-2xl border border-dashed border-claude-border bg-claude-bg/20 px-4 py-5 text-sm leading-6 text-claude-secondary">
-                                                        Build from the setup answers now. You can attach notes or upload a file before starting if you want River to use source material.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </section>
-
-                                        <section className="rounded-2xl border border-claude-border/80 bg-claude-bg/35 p-4">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">Output brief</p>
-                                                    <h3 className="mt-1 truncate font-serif text-xl font-bold italic leading-tight text-claude-text">{sessionTitlePreview}</h3>
-                                                </div>
-                                                <div className="shrink-0 rounded-full border border-claude-accent/25 bg-claude-accent/10 px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                                    Ready
-                                                </div>
-                                            </div>
-                                            <div className="mt-3 grid gap-2 text-sm">
-                                                <div className="flex items-center justify-between gap-3 rounded-xl border border-claude-border bg-claude-bg/45 px-3 py-2">
-                                                    <p className="flex items-center gap-2 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"><Upload className="h-3.5 w-3.5" /> Source</p>
-                                                    <p className="min-w-0 truncate text-right text-claude-text">{sourceSummary}</p>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-3 rounded-xl border border-claude-border bg-claude-bg/45 px-3 py-2">
-                                                    <p className="flex items-center gap-2 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"><Calendar className="h-3.5 w-3.5" /> Setup</p>
-                                                    <p className="min-w-0 truncate text-right text-claude-text">{setupSummary}</p>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-3 rounded-xl border border-claude-border bg-claude-bg/45 px-3 py-2">
-                                                    <p className="flex items-center gap-2 text-[9px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary"><Clock3 className="h-3.5 w-3.5" /> Tone</p>
-                                                    <p className="min-w-0 truncate text-right capitalize text-claude-text">{genTone}</p>
-                                                </div>
-                                            </div>
-                                        </section>
-                                    </aside>
-                                </div>
-                            </div>
-
-                            <div className="relative flex flex-col gap-3 border-t border-claude-border bg-claude-bg/90 px-4 py-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                                <p className="text-xs leading-5 text-claude-secondary sm:max-w-md">
-                                    Required: what you are studying for. Source material is optional.
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={handleGenerate}
-                                    disabled={generating}
-                                    className="claude-button-primary w-full gap-2 py-4 text-base disabled:opacity-50 sm:w-auto sm:min-w-[15rem]"
-                                >
-                                    {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                                    {generating ? 'Building...' : 'Build Tutor Session'}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <CreateSessionSheet
+                open={showGenerateModal}
+                onClose={() => { setShowGenerateModal(false); setStudyNextTopics([]); }}
+                onGenerate={handleGenerate}
+                onPricingRequired={() => setShowPricingModal(true)}
+                notes={notes}
+                defaultTopics={studyNextTopics}
+            />
 
             {/* Header */}
             <div className="mb-6 pt-4 px-1 flex items-end justify-between">
@@ -945,17 +459,8 @@ export default function GuidesLibrary() {
                     )}
                     <button
                         onClick={() => {
+                            setStudyNextTopics([]);
                             setShowGenerateModal(true);
-                            setGenSource('none');
-                            setSelectedNotes([]);
-                            setGenFile(null);
-                            setGenTitle('');
-                            setGenExamLabel('');
-                            setGenExamDate('');
-                            setGenTopics('');
-                            setGenWeakTopics('');
-                            setGenTone('calm review');
-                            setShowSetupQuestions(true);
                         }}
                         className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
                         aria-label="Create tutor session"

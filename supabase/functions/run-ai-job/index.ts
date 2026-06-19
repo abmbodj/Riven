@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createJobReporter, ensureInternalJobAuth } from '../_shared/aiJobs.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { processAiJob } from '../_shared/aiJobProcessors.ts';
+import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 serve(async (request) => {
@@ -17,11 +18,14 @@ serve(async (request) => {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
+  let jobId = '';
+  let jobKind = '';
+
   try {
     ensureInternalJobAuth(request);
 
     const body = await request.json().catch(() => ({}));
-    const jobId = typeof body.jobId === 'string' ? body.jobId : '';
+    jobId = typeof body.jobId === 'string' ? body.jobId : '';
     if (!jobId) {
       return jsonResponse({ error: 'jobId is required.' }, { status: 400 }, request);
     }
@@ -37,6 +41,7 @@ serve(async (request) => {
     if (!job) {
       return jsonResponse({ error: 'AI job not found.' }, { status: 404 }, request);
     }
+    jobKind = typeof job.kind === 'string' ? job.kind : '';
 
     if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
       return jsonResponse({ ok: true, skipped: true }, { status: 200 }, request);
@@ -53,6 +58,14 @@ serve(async (request) => {
   } catch (error) {
     const requestError = normalizeRequestError(error);
     console.error('[run-ai-job] failed', requestError);
+    await reportEdgeException(requestError, {
+      request,
+      functionName: 'run-ai-job',
+      tags: {
+        job_id: jobId || undefined,
+        job_kind: jobKind || undefined,
+      },
+    });
     return jsonResponse({
       error: requestError.message || 'Failed to run AI job.',
     }, { status: requestError.status || 500 }, request);

@@ -13,12 +13,21 @@ import {
   buildNoteDraftPrompt,
   buildNoteEnrichPrompt,
   buildSectionNotePrompt,
+  buildSinglePassNoteGeneratePrompt,
   buildYoutubeSourcePrompt,
 } from './notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
 import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer, buildKnowledgeContext, mergeMaxTokens } from './noteKnowledge.mjs';
 import { getOrFetchYoutubeTranscript } from './youtubeTranscriptCache.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
+import {
+  DEFAULT_YOUTUBE_NOTES_MODEL,
+  buildYoutubeNotesRetryTokenPlan,
+  buildYoutubeNotesTokenPlan,
+  createSanitizedProviderTokenLimitError,
+  isProviderTokenLimitError,
+} from './youtubeNotesBudget.ts';
+import { reportEdgeException } from './sentry.ts';
 import {
   createArrayStreamTracker,
   createDocFromSections,
@@ -168,6 +177,8 @@ const buildTranscriptionBiasPrompt = (
 };
 
 const NOTE_FIDELITY_RETRY_SEVERITY = 4;
+const YOUTUBE_NOTES_MODEL = Deno.env.get('AI_YOUTUBE_NOTES_MODEL') || DEFAULT_YOUTUBE_NOTES_MODEL;
+const YOUTUBE_DIRECT_TRANSCRIPT_LIMIT = 60_000;
 
 // One corrective pass if the generated note drifts from what was actually said (or breaks the
 // content contract). Runs after the preview is already shown, so it never adds perceived latency.
@@ -598,6 +609,160 @@ const createNote = async ({
   return data.id;
 };
 
+const consumeUserAiQuota = async ({
+  admin,
+  userId,
+}: {
+  admin: any;
+  userId: number;
+}) => {
+  const { data: quotaUser, error: quotaUserError } = await admin
+    .from('users')
+    .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier, subscription_expires_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (quotaUserError) throw quotaUserError;
+  if (!quotaUser) throw createHttpError('User not found', 401);
+
+  await consumeAiQuota({
+    user: quotaUser,
+    persistUsage: async ({ count, lastReset }: { count: number; lastReset: Date }) => {
+      const { error: updateError } = await admin
+        .from('users')
+        .update({
+          ai_generations_count: count,
+          last_ai_generation_reset: lastReset.toISOString(),
+        })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+    },
+  });
+};
+
+const createYoutubeNote = async ({
+  admin,
+  userId,
+  title,
+  classId,
+  doc,
+  transcript,
+  knowledgeLayer,
+}: {
+  admin: any;
+  userId: number;
+  title: string;
+  classId: string | null | undefined;
+  doc: unknown;
+  transcript: string;
+  knowledgeLayer?: unknown;
+}) => {
+  const { data: noteData, error: noteError } = await admin
+    .from('notes')
+    .insert({
+      user_id: userId,
+      title,
+      content: doc,
+      enhanced_content: doc,
+      transcript,
+      polish_status: 'polished',
+      class_id: classId || null,
+      source_type: 'youtube',
+      knowledge_layer: knowledgeLayer ?? null,
+    })
+    .select('id')
+    .single();
+
+  if (noteError) throw noteError;
+  return noteData.id;
+};
+
+const getCachedYoutubeNotesSource = async ({
+  admin,
+  userId,
+  sourceKey,
+  currentJobId,
+}: {
+  admin: any;
+  userId: number;
+  sourceKey: string;
+  currentJobId: string;
+}) => {
+  const { data: sourceJob, error: sourceError } = await admin
+    .from('ai_jobs')
+    .select('id, kind, result_payload, completed_at, created_at')
+    .eq('user_id', userId)
+    .eq('kind', 'youtube_source')
+    .eq('source_key', sourceKey)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (sourceError) throw sourceError;
+
+  const sourcePayload = (sourceJob?.result_payload || {}) as Record<string, unknown>;
+  if (sourcePayload.source_doc) {
+    return {
+      cacheKind: 'youtube_source',
+      doc: sourcePayload.source_doc,
+      title: typeof sourcePayload.title === 'string' ? sourcePayload.title : null,
+      sourceText: typeof sourcePayload.source_text === 'string'
+        ? sourcePayload.source_text
+        : extractTextFromTiptapDoc(sourcePayload.source_doc),
+      rawTranscript: typeof sourcePayload.raw_transcript === 'string'
+        ? sourcePayload.raw_transcript
+        : '',
+      knowledgeLayer: sourcePayload.knowledge_layer ?? null,
+    };
+  }
+
+  const { data: notesJob, error: notesError } = await admin
+    .from('ai_jobs')
+    .select('id, kind, result_payload, completed_at, created_at')
+    .eq('user_id', userId)
+    .eq('kind', 'youtube_notes')
+    .eq('source_key', sourceKey)
+    .eq('status', 'completed')
+    .neq('id', currentJobId)
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (notesError) throw notesError;
+
+  const notesPayload = (notesJob?.result_payload || {}) as Record<string, unknown>;
+  if (notesPayload.final_doc) {
+    return {
+      cacheKind: 'youtube_notes',
+      doc: notesPayload.final_doc,
+      title: typeof notesPayload.title === 'string' ? notesPayload.title : null,
+      sourceText: typeof notesPayload.source_text === 'string'
+        ? notesPayload.source_text
+        : extractTextFromTiptapDoc(notesPayload.final_doc),
+      rawTranscript: typeof notesPayload.raw_transcript === 'string'
+        ? notesPayload.raw_transcript
+        : '',
+      knowledgeLayer: notesPayload.knowledge_layer ?? null,
+    };
+  }
+
+  return null;
+};
+
+const scheduleBackgroundTask = (task: () => Promise<void>) => {
+  const promise = task().catch((error) => {
+    console.warn('[ai-job] background task failed', error);
+  });
+  const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(promise);
+  }
+};
+
 const getApiKeyAndClient = () => {
   const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
   if (!apiKey) {
@@ -1000,6 +1165,419 @@ const processNoteEnhancementJob = async ({
   });
 };
 
+const processDirectYoutubeNotesJob = async ({
+  admin,
+  job,
+}: JobProcessorArgs) => {
+  const reporter = createJobReporter(admin, job);
+  const input = (job.input_payload || {}) as Record<string, unknown>;
+  const youtubeUrl = String(input.youtubeUrl || '');
+  const titleSnapshot = typeof input.titleSnapshot === 'string' ? input.titleSnapshot : 'YouTube Notes';
+  const classId = input.classId == null ? null : String(input.classId);
+  const className = typeof input.className === 'string' ? input.className : null;
+  const subject = typeof input.subject === 'string' ? input.subject : null;
+  const sourceKey = typeof job.source_key === 'string' ? job.source_key : String(input.sourceKey || '');
+
+  if (!youtubeUrl || !sourceKey) {
+    throw createHttpError('Direct YouTube notes job is missing video context.', 400);
+  }
+
+  const ai = getApiKeyAndClient();
+  const baseModelMap = getAiModelMap();
+  const notesModelMap = {
+    ...baseModelMap,
+    final: YOUTUBE_NOTES_MODEL,
+  };
+  const jobStartedAt = Date.now();
+  const metrics: Record<string, unknown> = {
+    transcript_fetch_ms: null,
+    transcript_chars: null,
+    prep_ms: 0,
+    generation_ms: 0,
+    validation_ms: 0,
+    save_ms: 0,
+    model: YOUTUBE_NOTES_MODEL,
+    path: 'direct',
+  };
+
+  await reporter.markRunning('processing_media', 8, 'Checking for reusable video notes', {
+    source_key: sourceKey,
+  });
+
+  const cachedSource = await getCachedYoutubeNotesSource({
+    admin,
+    userId: job.user_id,
+    sourceKey,
+    currentJobId: job.id,
+  });
+
+  if (cachedSource?.doc) {
+    metrics.path = 'cached';
+    metrics.model = 'cache';
+    metrics.transcript_chars = cachedSource.rawTranscript.length || null;
+
+    await consumeUserAiQuota({ admin, userId: job.user_id });
+    await reporter.markSaving('Saving imported notes', {
+      preview_text: cachedSource.sourceText,
+      preview_doc: cachedSource.doc,
+      preview_sections: (cachedSource.doc as Record<string, unknown> | undefined)?.content || [],
+    });
+
+    const saveStartedAt = Date.now();
+    const noteId = await createYoutubeNote({
+      admin,
+      userId: job.user_id,
+      title: titleSnapshot || cachedSource.title || 'YouTube Notes',
+      classId,
+      doc: cachedSource.doc,
+      transcript: cachedSource.rawTranscript || cachedSource.sourceText,
+      knowledgeLayer: cachedSource.knowledgeLayer,
+    });
+    metrics.save_ms = Date.now() - saveStartedAt;
+    metrics.server_total_ms = Date.now() - jobStartedAt;
+
+    await reporter.complete({
+      message: 'Notes generated successfully',
+      targetType: 'note',
+      targetId: noteId,
+      resultPatch: {
+        note_id: noteId,
+        title: titleSnapshot || cachedSource.title || 'YouTube Notes',
+        final_doc: cachedSource.doc,
+        source_text: cachedSource.sourceText,
+        raw_transcript: cachedSource.rawTranscript || cachedSource.sourceText,
+        knowledge_layer: cachedSource.knowledgeLayer,
+        source_key: sourceKey,
+        metrics,
+      },
+    });
+    return;
+  }
+
+  await reporter.update('processing_media', 12, 'Fetching YouTube transcript', {
+    source_key: sourceKey,
+  });
+
+  const transcriptStartedAt = Date.now();
+  const transcript = await getOrFetchYoutubeTranscript({ admin, youtubeUrl });
+  metrics.transcript_fetch_ms = Date.now() - transcriptStartedAt;
+  metrics.transcript_chars = transcript.length;
+
+  // Consume quota only after transcript access succeeds.
+  await consumeUserAiQuota({ admin, userId: job.user_id });
+
+  await reporter.update('processing_media', 22, 'Preparing transcript', {
+    source_key: sourceKey,
+    transcript_chars: transcript.length,
+  });
+
+  const prepStartedAt = Date.now();
+  const initialTokenPlan = buildYoutubeNotesTokenPlan({
+    model: YOUTUBE_NOTES_MODEL,
+    sourceChars: transcript.length,
+  });
+  const directTranscriptLimit = Math.min(
+    YOUTUBE_DIRECT_TRANSCRIPT_LIMIT,
+    initialTokenPlan.shouldCompact ? initialTokenPlan.directCharLimit : YOUTUBE_DIRECT_TRANSCRIPT_LIMIT,
+  );
+
+  metrics.token_budget = {
+    safe_request_tokens: initialTokenPlan.safeRequestTokens,
+    estimated_prompt_tokens: initialTokenPlan.estimatedPromptTokens,
+    max_completion_tokens: initialTokenPlan.maxCompletionTokens,
+    estimated_request_tokens: initialTokenPlan.estimatedRequestTokens,
+    direct_char_limit: directTranscriptLimit,
+  };
+
+  if (transcript.length > directTranscriptLimit) {
+    await reporter.update('processing_media', 24, 'Large transcript, optimizing notes...', {
+      source_key: sourceKey,
+      transcript_chars: transcript.length,
+      transcript_compacted: true,
+    });
+  }
+
+  let preparedSource = await prepareYoutubeTranscriptSource({
+    transcript,
+    className,
+    directCharLimit: directTranscriptLimit,
+    chunkConcurrency: initialTokenPlan.compactionConcurrency,
+    generateText: (prompt, maxTokens) =>
+      generateWithFallback({
+        ai,
+        primaryModel: baseModelMap.draft,
+        fallbackModel: baseModelMap.final,
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens,
+      }),
+    onProgress: async ({ chunkCount, chunkIndex, message, step }) => {
+      const percentByStep = (
+        step === 'summarizing'
+          ? 24 + Math.round((((chunkIndex ?? 1) / Math.max(chunkCount, 1)) * 10))
+          : step === 'merging'
+            ? 36
+            : 38
+      );
+
+      await reporter.update('processing_media', percentByStep, message, {
+        source_key: sourceKey,
+        transcript_chunk_count: chunkCount,
+        transcript_compacted: true,
+      });
+    },
+  });
+  metrics.prep_ms = Date.now() - prepStartedAt;
+  metrics.path = preparedSource.wasCompacted ? 'long_compacted' : 'direct';
+
+  const buildGenerationMessages = (sourceText: string): AiMessage[] => [{
+    role: 'user',
+    content: `${buildSinglePassNoteGeneratePrompt(className, subject, sourceText, { sourceKind: 'video' })}\n\nVideo Source Material:\n${sourceText}`,
+  }];
+
+  const streamYoutubeNotes = async ({
+    sourceText,
+    maxCompletionTokens,
+    retry,
+  }: {
+    sourceText: string;
+    maxCompletionTokens: number;
+    retry: boolean;
+  }) => streamDocPreview({
+    ai,
+    model: YOUTUBE_NOTES_MODEL,
+    fallbackModel: baseModelMap.draft,
+    messages: buildGenerationMessages(sourceText),
+    reporter,
+    phase: 'drafting',
+    startPercent: retry ? 48 : 42,
+    endPercent: 82,
+    message: retry ? 'Generating notes from optimized transcript' : 'Generating notes',
+    maxTokens: maxCompletionTokens,
+  });
+
+  const generationStartedAt = Date.now();
+  let generationPlan = buildYoutubeNotesTokenPlan({
+    model: YOUTUBE_NOTES_MODEL,
+    sourceChars: preparedSource.sourceText.length,
+  });
+  metrics.token_budget = {
+    ...(metrics.token_budget as Record<string, unknown>),
+    prepared_prompt_tokens: generationPlan.estimatedPromptTokens,
+    prepared_request_tokens: generationPlan.estimatedRequestTokens,
+    max_completion_tokens: generationPlan.maxCompletionTokens,
+  };
+
+  let streamResult: Awaited<ReturnType<typeof streamDocPreview>>;
+  try {
+    streamResult = await streamYoutubeNotes({
+      sourceText: preparedSource.sourceText,
+      maxCompletionTokens: generationPlan.maxCompletionTokens,
+      retry: false,
+    });
+  } catch (error) {
+    if (!isProviderTokenLimitError(error)) throw error;
+
+    const retryTokenPlan = buildYoutubeNotesRetryTokenPlan({
+      model: YOUTUBE_NOTES_MODEL,
+      sourceChars: transcript.length,
+    });
+
+    await reporter.update('processing_media', 40, 'AI provider token limit hit; optimizing source...', {
+      source_key: sourceKey,
+      token_limit_retry: true,
+    });
+
+    preparedSource = await prepareYoutubeTranscriptSource({
+      transcript,
+      className,
+      directCharLimit: Math.min(YOUTUBE_DIRECT_TRANSCRIPT_LIMIT, retryTokenPlan.directCharLimit),
+      chunkConcurrency: retryTokenPlan.compactionConcurrency,
+      generateText: (prompt, maxTokens) =>
+        generateWithFallback({
+          ai,
+          primaryModel: baseModelMap.draft,
+          fallbackModel: baseModelMap.final,
+          messages: [{ role: 'user', content: prompt }],
+          maxTokens,
+        }),
+      onProgress: async ({ chunkCount, chunkIndex, message, step }) => {
+        const percentByStep = (
+          step === 'summarizing'
+            ? 40 + Math.round((((chunkIndex ?? 1) / Math.max(chunkCount, 1)) * 4))
+            : step === 'merging'
+              ? 45
+              : 46
+        );
+
+        await reporter.update('processing_media', percentByStep, message, {
+          source_key: sourceKey,
+          transcript_chunk_count: chunkCount,
+          transcript_compacted: true,
+          token_limit_retry: true,
+        });
+      },
+    });
+
+    generationPlan = buildYoutubeNotesTokenPlan({
+      model: YOUTUBE_NOTES_MODEL,
+      sourceChars: preparedSource.sourceText.length,
+    });
+    metrics.path = 'long_compacted';
+    metrics.token_limit_retry = true;
+    metrics.token_budget = {
+      ...(metrics.token_budget as Record<string, unknown>),
+      retry_prompt_tokens: generationPlan.estimatedPromptTokens,
+      retry_request_tokens: generationPlan.estimatedRequestTokens,
+      retry_max_completion_tokens: Math.min(generationPlan.maxCompletionTokens, retryTokenPlan.maxCompletionTokens),
+      retry_direct_char_limit: retryTokenPlan.directCharLimit,
+    };
+
+    try {
+      streamResult = await streamYoutubeNotes({
+        sourceText: preparedSource.sourceText,
+        maxCompletionTokens: Math.min(generationPlan.maxCompletionTokens, retryTokenPlan.maxCompletionTokens),
+        retry: true,
+      });
+    } catch (retryError) {
+      if (isProviderTokenLimitError(retryError)) {
+        throw createSanitizedProviderTokenLimitError(retryError);
+      }
+      throw retryError;
+    }
+  }
+  metrics.generation_ms = Date.now() - generationStartedAt;
+
+  let finalDoc: unknown = streamResult.doc;
+
+  await reporter.update('enriching', 86, 'Validating notes', {
+    preview_doc: finalDoc,
+    preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
+      ? (finalDoc as Record<string, unknown>).content
+      : [],
+    preview_text: extractTextFromTiptapDoc(finalDoc),
+  });
+
+  const validationStartedAt = Date.now();
+  finalDoc = await ensureNoteFidelity({
+    ai,
+    finalDoc,
+    transcription: preparedSource.sourceText,
+    userNotesSnapshot: null,
+    className,
+    subject,
+    modelMap: notesModelMap,
+    sourceKind: 'video',
+  });
+  metrics.validation_ms = Date.now() - validationStartedAt;
+
+  const sourceText = extractTextFromTiptapDoc(finalDoc);
+
+  await reporter.markSaving('Saving imported notes', {
+    final_doc: finalDoc,
+    preview_doc: finalDoc,
+    preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
+      ? (finalDoc as Record<string, unknown>).content
+      : [],
+    preview_text: sourceText,
+  });
+
+  const saveStartedAt = Date.now();
+  const noteId = await createYoutubeNote({
+    admin,
+    userId: job.user_id,
+    title: titleSnapshot || 'YouTube Notes',
+    classId,
+    doc: finalDoc,
+    transcript,
+    knowledgeLayer: null,
+  });
+  metrics.save_ms = Date.now() - saveStartedAt;
+  metrics.server_total_ms = Date.now() - jobStartedAt;
+
+  await reporter.complete({
+    message: 'Notes generated successfully',
+    targetType: 'note',
+    targetId: noteId,
+    resultPatch: {
+      note_id: noteId,
+      title: titleSnapshot || 'YouTube Notes',
+      final_doc: finalDoc,
+      source_doc: finalDoc,
+      source_text: sourceText,
+      raw_transcript: transcript,
+      source_key: sourceKey,
+      preview_doc: finalDoc,
+      preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
+        ? (finalDoc as Record<string, unknown>).content
+        : [],
+      metrics,
+    },
+  });
+
+  scheduleBackgroundTask(async () => {
+    const backgroundStartedAt = Date.now();
+    try {
+      const knowledgeLayer = await extractKnowledgeLayer({
+        ai,
+        finalDoc,
+        transcription: preparedSource.sourceText,
+        className,
+        subject,
+        modelMap: baseModelMap,
+      });
+
+      if (!knowledgeLayer) return;
+
+      const { error: updateError } = await admin
+        .from('notes')
+        .update({ knowledge_layer: knowledgeLayer })
+        .eq('id', noteId)
+        .eq('user_id', job.user_id);
+
+      if (updateError) throw updateError;
+
+      await admin
+        .from('ai_jobs')
+        .update({
+          result_payload: {
+            note_id: noteId,
+            title: titleSnapshot || 'YouTube Notes',
+            final_doc: finalDoc,
+            source_doc: finalDoc,
+            source_text: sourceText,
+            raw_transcript: transcript,
+            knowledge_layer: knowledgeLayer,
+            source_key: sourceKey,
+            preview_doc: finalDoc,
+            preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
+              ? (finalDoc as Record<string, unknown>).content
+              : [],
+            metrics: {
+              ...metrics,
+              knowledge_background_ms: Date.now() - backgroundStartedAt,
+            },
+          },
+        })
+        .eq('id', job.id)
+        .eq('user_id', job.user_id);
+    } catch (error) {
+      console.warn('[youtube_notes] background knowledge-layer extraction failed', error);
+      await reportEdgeException(error, {
+        functionName: 'run-ai-job',
+        tags: {
+          job_kind: 'youtube_notes',
+          background_task: 'knowledge_layer',
+        },
+        extras: {
+          jobId: job.id,
+          noteId,
+          sourceKey,
+        },
+      });
+    }
+  });
+};
+
 const processYoutubeSourceJob = async ({
   admin,
   job,
@@ -1187,29 +1765,8 @@ const processYoutubeDerivedJob = async ({
     userId: job.user_id,
   });
 
-  // Consume AI quota only after confirming source job succeeded
-  const { data: quotaUser, error: quotaUserError } = await admin
-    .from('users')
-    .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
-    .eq('id', job.user_id)
-    .maybeSingle();
-
-  if (quotaUserError) throw quotaUserError;
-  if (!quotaUser) throw createHttpError('User not found', 401);
-
-  await consumeAiQuota({
-    user: quotaUser,
-    persistUsage: async ({ count, lastReset }: { count: number; lastReset: Date }) => {
-      const { error: updateError } = await admin
-        .from('users')
-        .update({
-          ai_generations_count: count,
-          last_ai_generation_reset: lastReset.toISOString(),
-        })
-        .eq('id', job.user_id);
-      if (updateError) throw updateError;
-    },
-  });
+  // Consume AI quota only after confirming source job succeeded.
+  await consumeUserAiQuota({ admin, userId: job.user_id });
 
   await waitForYoutubeSlot({
     admin,
@@ -1252,24 +1809,15 @@ const processYoutubeDerivedJob = async ({
       ? sourcePayload.raw_transcript
       : sourceText;
 
-    const { data: noteData, error: noteError } = await admin
-      .from('notes')
-      .insert({
-        user_id: job.user_id,
-        title: effectiveTitle || 'YouTube Notes',
-        content: sourcePayload.source_doc,
-        enhanced_content: sourcePayload.source_doc,
-        transcript: rawTranscript,
-        polish_status: 'polished',
-        class_id: classId || null,
-        source_type: 'youtube',
-        knowledge_layer: sourcePayload.knowledge_layer ?? null,
-      })
-      .select('id')
-      .single();
-
-    if (noteError) throw noteError;
-    const noteId = noteData.id;
+    const noteId = await createYoutubeNote({
+      admin,
+      userId: job.user_id,
+      title: effectiveTitle || 'YouTube Notes',
+      classId,
+      doc: sourcePayload.source_doc,
+      transcript: rawTranscript,
+      knowledgeLayer: sourcePayload.knowledge_layer ?? null,
+    });
 
     await reporter.complete({
       message: 'Notes generated successfully',
@@ -1517,11 +2065,18 @@ export const processAiJob = async ({
     return processYoutubeSourceJob({ admin, job });
   }
 
+  if (job.kind === 'youtube_notes') {
+    const input = (job.input_payload || {}) as Record<string, unknown>;
+    if (typeof input.youtubeUrl === 'string' && input.youtubeUrl && !input.sourceJobId) {
+      return processDirectYoutubeNotesJob({ admin, job });
+    }
+    return processYoutubeDerivedJob({ admin, job });
+  }
+
   if (
     job.kind === 'youtube_deck'
     || job.kind === 'youtube_guide'
     || job.kind === 'youtube_exam'
-    || job.kind === 'youtube_notes'
   ) {
     return processYoutubeDerivedJob({ admin, job });
   }

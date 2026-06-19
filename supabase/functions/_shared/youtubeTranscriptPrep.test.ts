@@ -50,6 +50,23 @@ Deno.test('prepareYoutubeTranscriptSource skips AI compaction when the transcrip
   assertEquals(result.sourceText, 'Short transcript with only a few words.', 'Expected the original transcript to pass through');
 });
 
+Deno.test('prepareYoutubeTranscriptSource skips AI compaction under the default 60k direct limit', async () => {
+  let callCount = 0;
+  const transcript = 'x'.repeat(59_500);
+
+  const result = await prepareYoutubeTranscriptSource({
+    transcript,
+    generateText: async () => {
+      callCount += 1;
+      return 'unused';
+    },
+  });
+
+  assertEquals(callCount, 0, 'Expected transcripts under 60k chars to bypass AI compaction by default');
+  assertEquals(result.wasCompacted, false, 'Expected the helper to report no compaction');
+  assertEquals(result.sourceText.length, transcript.length, 'Expected the full transcript to pass through');
+});
+
 Deno.test('prepareYoutubeTranscriptSource summarizes oversized transcripts chunk-by-chunk before merging', async () => {
   const transcript = [
     'Segment one has enough detail to force chunking and includes several factual statements.',
@@ -119,4 +136,39 @@ Deno.test('prepareYoutubeTranscriptSource tightens the merged summary when it st
   );
   assertEquals(result.sourceText, 'tight summary', 'Expected the tightened summary to win when needed');
   assertEquals(result.wasCompacted, true, 'Expected the helper to report compaction after tightening');
+});
+
+Deno.test('prepareYoutubeTranscriptSource summarizes long transcripts with bounded concurrency', async () => {
+  const transcript = Array.from(
+    { length: 9 },
+    (_, index) => `Segment ${index + 1} has enough content to become its own compacted transcript chunk.`,
+  ).join('\n\n');
+  let activeCalls = 0;
+  let maxActiveCalls = 0;
+
+  const result = await prepareYoutubeTranscriptSource({
+    transcript,
+    chunkCharLimit: 45,
+    directCharLimit: 100,
+    chunkConcurrency: 3,
+    generateText: async (prompt) => {
+      if (prompt.includes('Transcript segment')) {
+        activeCalls += 1;
+        maxActiveCalls = Math.max(maxActiveCalls, activeCalls);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        activeCalls -= 1;
+        const match = prompt.match(/Transcript segment (\d+) of/u);
+        return `summary-${match?.[1] || 'x'}`;
+      }
+      if (prompt.includes('Condensed transcript briefs')) {
+        return 'merged-summary';
+      }
+      throw new Error(`Unexpected prompt: ${prompt}`);
+    },
+  });
+
+  assertEquals(result.wasCompacted, true, 'Expected long transcripts to compact');
+  assert(maxActiveCalls > 1, 'Expected more than one chunk summary to run at a time');
+  assert(maxActiveCalls <= 3, 'Expected chunk summary concurrency to be bounded at 3');
+  assertEquals(result.sourceText, 'merged-summary', 'Expected the merged summary to be returned');
 });

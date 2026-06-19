@@ -10,6 +10,16 @@ import { getSubjectStrategy, resolveNoteStrategy } from './subjectStrategies.mjs
 import { isPremiumActive } from './premiumAccess.mjs';
 
 const FREE_LIMIT = 10;
+
+/**
+ * Central model map. Change `guide` here (or via env) to A/B a stronger model
+ * for guide generation without touching deck/exam paths.
+ */
+export const aiModelMap = {
+  default: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  guide: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  grading: 'meta-llama/llama-4-scout-17b-16e-instruct',
+};
 const PREMIUM_LIMIT = 50;
 const PREMIUM_RESET_MS = 12 * 60 * 60 * 1000;
 
@@ -567,17 +577,21 @@ Required structure:
       },
       "teaching": {
         "learning_objective": "specific skill the student should be able to do after this card",
-        "explain": "3-5 short paragraphs that teach the concept progressively: what it is, how it works, why it behaves that way, and how to use it. Never summarize in one paragraph.",
+        "explain": "3-5 short paragraphs that teach the concept progressively: what it is, how it works, why it behaves that way, and how to use it. Never summarize in one paragraph. For STEM topics embed fenced code/diagram/graph blocks directly inside this text where they add the most value — they will each become their own reveal beat.",
         "intuition": "A mental model or analogy that is meaningfully different from the explanation. Use imagine, think of it like, or the reason this works is.",
+        "predicts": [
+          { "prompt": "Optional: one predict-then-reveal prompt that surfaces a likely misconception. Omit this array (or leave it empty) when not useful.", "answer": "The answer River reveals.", "after_beat": 2 }
+        ],
         "worked_examples": [
           {
             "title": "Example 1: Basic application",
-            "problem": "Clear problem statement",
+            "problem": "Clear problem statement. For STEM, make this a concrete calculation or code task.",
             "steps": [
-              { "step": "What to do in this step", "detail": "Why this step works and how to think about it" }
+              { "step": "What to do in this step (for math/code use fenced notation inline)", "detail": "Why this step works and how to think about it — never omit this field" }
             ],
             "result": "The final answer with units or context",
-            "takeaway": "The one thing this example teaches"
+            "takeaway": "The one thing this example teaches",
+            "figure": { "type": "mermaid|plot|chart|code", "spec": "For STEM: a Mermaid diagram, a plot spec JSON like {\"fn\":\"x^2\",\"domain\":[-5,5]}, a chart spec JSON like {\"type\":\"bar\",\"data\":[{\"x\":1,\"y\":2}],\"xKey\":\"x\",\"series\":[\"y\"]}, or a fenced code string. Omit this field for non-visual examples." }
           }
         ],
         "common_mistakes": ["mistake 1: what students get wrong and why it is wrong", "mistake 2: another common error with correction"],
@@ -666,13 +680,15 @@ Build a tutor session in the style of The Organic Chemistry Tutor: teach thoroug
 Structure the experience like a deep lecture: intro -> thorough explanation -> worked examples -> common mistakes -> check understanding -> feedback -> complete.
 Create a 2-4 card, one-card-at-a-time training flow. Each card must teach a distinct concept and feel like a 5-8 minute mini lecture: objective -> explanation -> mental model -> 2-3 worked examples -> common mistakes -> concise recall prompt.
 The "teaching.learning_objective" field MUST be specific and action-oriented. Bad: "understand architecture". Good: "Trace how a profile update moves from UI to API to database while naming the tradeoffs."
-The "teaching.explain" field MUST be 3-5 short paragraphs. Build understanding layer by layer and make every paragraph add a new idea. Do not repeat the same sentence with different wording.
-The "teaching.worked_examples" array MUST contain 2-3 complete worked examples. Each example must show every step with detailed reasoning in the "detail" field, and the examples must progress from straightforward to more challenging.
+The "teaching.explain" field MUST be 3-5 short paragraphs (≥150 words total). Build understanding layer by layer and make every paragraph add a new idea. Do not repeat the same sentence with different wording. Adapt depth to session_meta.student_level: beginners get more analogy and scaffolding; advanced students get first-principles derivation and edge cases. Use knowledge_map concept dependencies to build on what the student already knows.
+The "teaching.worked_examples" array MUST contain 2-3 complete worked examples. Each example must show every step with detailed reasoning in the "detail" field (never omit "detail"). Examples must progress from straightforward to more challenging. FOR STEM SUBJECTS (math, CS, physics, chemistry, economics, biology): include a "figure" field on every worked example — use a \`\`\`mermaid diagram for CS/biology/chemistry flow, a plot spec {\"fn\":\"...\",\"domain\":[-5,5]} for math/physics function graphs, or a chart spec {\"type\":\"bar\",\"data\":[...],\"xKey\":\"...\",\"series\":[...]} for data/stats.
+VALID FIGURE EXAMPLES: Mermaid: flowchart LR\\n  A[Input] --> B[Process] --> C[Output] — Plot: {\"fn\":\"Math.sin(x)\",\"domain\":[-6.28,6.28],\"title\":\"Sine wave\"} — Chart: {\"type\":\"line\",\"data\":[{\"x\":0,\"y\":0},{\"x\":1,\"y\":1},{\"x\":2,\"y\":4}],\"xKey\":\"x\",\"series\":[\"y\"],\"title\":\"x squared\"}
 The "teaching.intuition" field MUST provide a mental model, analogy, or intuitive explanation that makes the concept click. It must not simply restate "components interact with each other."
 The "teaching.common_mistakes" array MUST list 2-3 mistakes students commonly make, and each item must include the correction or why the mistake is wrong.
-For software architecture or system design, teach concrete choices and tradeoffs. A simple web app example should include frontend, auth, API, database, profile image storage, and update flow. An enterprise example should add services, queues, observability, permissions, failure modes, and scaling tradeoffs.
+Optionally add a "predicts" array with at most ONE entry per card: a short predict-then-reveal question that surfaces the most likely misconception. Use a question the student can reflect on mentally before the reveal. Omit if no clear misconception applies.
+For software architecture or system design, teach concrete choices and tradeoffs. A simple web app example should include frontend, auth, API, database, profile image storage, and update flow. An enterprise example should add services, queues, observability, permissions, failure modes, and scaling tradeoffs. Embed \`\`\`mermaid sequence or flowchart diagrams to show data flow.
 Avoid generic filler such as "user interface, business logic, and data storage" unless you immediately explain the responsibility, boundary, data flow, or tradeoff.
-For mathematics, do not yap around the topic. The teaching must be mostly solved steps, method choice, legal transformations, checks, and similar practice.
+For mathematics, do not yap around the topic. The teaching must be mostly solved steps, method choice, legal transformations, checks, and similar practice. Embed LaTeX equations using $$...$$ for block equations. Every worked example must have a plot figure showing the relevant function or relationship.
 Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, teaching content, presentation cues, and feedback variants.
 River must stay central, warm, slightly playful, and distinct. Use the green knit beanie as a signature trait.
 Partial answers should usually count as good enough progress when the learner shows real understanding; reserve hard stops for clear misconceptions.
@@ -848,7 +864,7 @@ export const generateStudyGuideFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: aiModelMap.guide,
     contents: buildGuideContents({
       processedNotes,
       hasProcessedNotes,

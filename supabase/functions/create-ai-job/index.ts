@@ -143,7 +143,35 @@ serve(async (request) => {
       }
     }
 
-    if (kind.startsWith('youtube_') && kind !== 'youtube_source') {
+    if (kind === 'youtube_notes' && payload.youtubeUrl && !payload.sourceJobId) {
+      sourceKey = getYoutubeSourceKey(String(payload.youtubeUrl));
+      targetType = 'note';
+
+      const { data: existingNotesJob } = await admin
+        .from('ai_jobs')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .eq('kind', 'youtube_notes')
+        .eq('source_key', sourceKey)
+        .eq('target_type', 'note')
+        .in('status', ['queued', 'running', 'streaming', 'saving'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingNotesJob) {
+        if (existingNotesJob.status === 'queued') {
+          triggerRunAiJob(existingNotesJob.id);
+        }
+        return jsonResponse({
+          jobId: existingNotesJob.id,
+          status: existingNotesJob.status,
+          phase: existingNotesJob.phase,
+          sourceKey,
+          reused: true,
+        }, { status: 200 }, request);
+      }
+    } else if (kind.startsWith('youtube_') && kind !== 'youtube_source') {
       if (!payload.sourceJobId || !payload.sourceKey) {
         return jsonResponse({ error: 'sourceJobId and sourceKey are required for YouTube derived jobs.' }, { status: 400 }, request);
       }

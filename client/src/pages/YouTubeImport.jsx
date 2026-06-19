@@ -55,7 +55,9 @@ const SOURCE_PHASE_LABELS = {
 
 const DERIVED_PHASE_LABELS = {
     accepted: 'Queued behind source analysis',
+    processing_media: 'Fetching transcript',
     drafting: 'Generating tutor session',
+    enriching: 'Validating notes',
     saving: 'Saving generated result',
     done: 'Ready to open',
     error: 'Generation failed',
@@ -162,10 +164,22 @@ const getProgressStatus = (job) => {
 
 const isSourceJobFailure = (job) => job?.status === 'failed' || job?.status === 'cancelled';
 
+const AI_PROVIDER_TOKEN_LIMIT_MESSAGE = 'Riven hit the AI provider\'s token limit for this video. Try again in a moment or use a shorter video.';
+
+const sanitizeAiJobErrorMessage = (message) => {
+    if (!message || typeof message !== 'string') return message;
+    if (/rate_limit_exceeded|tokens per minute|request too large for model|please reduce your message size|console\.groq\.com\/settings\/billing/i.test(message)) {
+        return AI_PROVIDER_TOKEN_LIMIT_MESSAGE;
+    }
+    return message;
+};
+
 const getJobErrorMessage = (job, fallback = 'Failed') => (
-    job?.error_payload?.message
-    || job?.progress_message
-    || fallback
+    sanitizeAiJobErrorMessage(
+        job?.error_payload?.message
+        || job?.progress_message
+        || fallback,
+    )
 );
 
 const extractNodeText = (node) => {
@@ -312,7 +326,7 @@ export default function YouTubeImport() {
                     previewSummary: buildDerivedPreviewSummary({ resultPayload }),
                     result: result || item.result,
                     error: status === 'error'
-                        ? (errorPayload.message || job?.progress_message || item.error || 'Failed')
+                        ? sanitizeAiJobErrorMessage(errorPayload.message || job?.progress_message || item.error || 'Failed')
                         : null,
                 }
         )));
@@ -355,6 +369,7 @@ export default function YouTubeImport() {
         const selectedClassData = classes.find((item) => item.id === selectedClass);
         const effectiveTitle = customTitle.trim() || videoTitle || undefined;
         const sourceTitle = effectiveTitle || 'YouTube Source';
+        const isNotesOnly = selectedTypes.length === 1 && selectedTypes[0] === 'notes';
         const initialProgress = selectedTypes.map((type) => ({
             type,
             label: CONTENT_TYPES.find((contentType) => contentType.id === type)?.label,
@@ -371,7 +386,7 @@ export default function YouTubeImport() {
 
         setPhase('generating');
         setProgress(initialProgress);
-        setSourceJob({
+        setSourceJob(isNotesOnly ? null : {
             id: 'pending-source-job',
             status: 'queued',
             phase: 'accepted',
@@ -380,6 +395,29 @@ export default function YouTubeImport() {
         });
 
         try {
+            if (isNotesOnly) {
+                const jobResponse = await api.createAiJob('youtube_notes', {
+                    youtubeUrl,
+                    titleSnapshot: effectiveTitle || videoTitle || 'YouTube Notes',
+                    classId: selectedClass || undefined,
+                    className: selectedClassData?.name || null,
+                    subject: selectedClassData?.subject || null,
+                });
+
+                const jobSnapshot = await api.getAiJob(jobResponse.jobId).catch(() => ({
+                    id: jobResponse.jobId,
+                    status: jobResponse.status,
+                    phase: jobResponse.phase,
+                    progress_percent: 0,
+                    progress_message: DERIVED_PHASE_LABELS[jobResponse.phase] || 'Queued',
+                    result_payload: {},
+                }));
+
+                handleDerivedJobUpdate('notes', jobSnapshot);
+                subscribeToJob(jobResponse.jobId, (job) => handleDerivedJobUpdate('notes', job));
+                return;
+            }
+
             const sourceResponse = await api.createAiJob('youtube_source', {
                 youtubeUrl,
                 titleSnapshot: sourceTitle,
@@ -418,6 +456,7 @@ export default function YouTubeImport() {
                         titleSnapshot: effectiveTitle || undefined,
                         classId: selectedClass || undefined,
                         className: selectedClassData?.name || null,
+                        subject: selectedClassData?.subject || null,
                     });
 
                     const jobSnapshot = await api.getAiJob(jobResponse.jobId).catch(() => ({
@@ -688,7 +727,9 @@ export default function YouTubeImport() {
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                                     <div className="absolute bottom-4 left-5 right-5">
                                         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/70">
-                                            {sourceJob?.progress_message || SOURCE_PHASE_LABELS[sourceJob?.phase] || 'Analyzing video content...'}
+                                            {sourceJob
+                                                ? (sourceJob.progress_message || SOURCE_PHASE_LABELS[sourceJob.phase] || 'Analyzing video content...')
+                                                : (progress[0]?.progressMessage || DERIVED_PHASE_LABELS[progress[0]?.phase] || 'Generating notes...')}
                                         </p>
                                     </div>
                                 </div>

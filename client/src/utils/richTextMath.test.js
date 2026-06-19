@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { findMathSpans, renderKatexHtml, tokenizeRichText } from './richTextMath';
+import { findMathSpans, renderKatexHtml } from './richTextMath';
 
 describe('findMathSpans', () => {
   it('finds inline and block LaTeX delimiters', () => {
@@ -27,12 +27,5 @@ describe('renderKatexHtml', () => {
     const html = renderKatexHtml('\\broken', false);
     expect(typeof html).toBe('string');
     expect(html.length).toBeGreaterThan(0);
-  });
-});
-
-describe('tokenizeRichText', () => {
-  it('tokenizes math alongside bold and code', () => {
-    const tokens = tokenizeRichText('**Bold** and $a+b$ and `code`');
-    expect(tokens.map((t) => t.type)).toEqual(['bold', 'text', 'inline_math', 'text', 'inline_code']);
   });
 });

@@ -8,6 +8,7 @@ import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget.js';
 import SubjectRenderer from '../components/ui/SubjectRenderer';
 import RiverMascot from '../components/study/RiverMascot.jsx';
 import LevelUpModal from '../components/study/LevelUpModal.jsx';
+import PredictBeat from '../components/study/PredictBeat.jsx';
 import { UIContext } from '../context/UIContext.jsx';
 import {
     ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
@@ -18,6 +19,7 @@ import {
     STUDY_SESSION_STATUSES,
 } from '../utils/studyGuides.js';
 import { xpProgress as getXpProgress } from '../utils/leveling';
+import { buildTeachBeats } from '../utils/teachBeats.js';
 
 const PANEL_EASE = [0.22, 1, 0.36, 1];
 
@@ -59,40 +61,6 @@ const UNSUPPORTED_TRAY_STYLE = {
     background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.05) 80%, transparent)',
 };
 
-// Explain chunking: keep paragraphs whole when short; otherwise reveal one digestible board beat at a time.
-const CHUNK_MIN_CHARS = 150;
-const CHUNK_TARGET_CHARS = 240;
-const CHUNK_MAX_CHARS = 320;
-
-const chunkExplain = (raw) => {
-    if (!raw || typeof raw !== 'string') return [];
-    const paragraphs = raw.split('\n\n').map((p) => p.trim()).filter(Boolean);
-    const out = [];
-    for (const para of paragraphs) {
-        if (para.length <= CHUNK_MAX_CHARS) {
-            out.push(para);
-            continue;
-        }
-        const sentences = (para.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [para])
-            .map((s) => s.trim())
-            .filter(Boolean);
-        let buf = '';
-        for (const s of sentences) {
-            if (!buf) {
-                buf = s;
-                continue;
-            }
-            if ((`${buf} ${s}`).length > CHUNK_TARGET_CHARS && buf.length >= CHUNK_MIN_CHARS) {
-                out.push(buf);
-                buf = s;
-            } else {
-                buf = `${buf} ${s}`;
-            }
-        }
-        if (buf) out.push(buf);
-    }
-    return out;
-};
 
 const hasMathSyntax = (value) => (
     typeof value === 'string'
@@ -901,13 +869,13 @@ export default function GuideView() {
         return sections;
     }, [currentCard, currentCardState?.intuition_previewed]);
 
-    const explainParagraphs = useMemo(
-        () => chunkExplain(currentCard?.teaching?.explain),
+    const explainBeats = useMemo(
+        () => buildTeachBeats(currentCard),
         [currentCard],
     );
 
     const onExplainSection = teachSections[teachSection]?.type === 'explain';
-    const explainTotal = explainParagraphs.length;
+    const explainTotal = explainBeats.length;
     const explainFullyRevealed = !onExplainSection || explainRevealed >= explainTotal;
     const teachRevealCaption = (!hasSeenRevealHint.current && onExplainSection && explainRevealed === 1)
         ? "I'll walk through this one part at a time. Press space or ↓ to keep going."
@@ -1685,9 +1653,9 @@ export default function GuideView() {
         navigate('/guides');
     }, [navigate, pauseSession, sessionStage]);
 
-    const visibleParagraphs = useMemo(
-        () => explainParagraphs.slice(0, explainRevealed),
-        [explainParagraphs, explainRevealed],
+    const visibleBeats = useMemo(
+        () => explainBeats.slice(0, explainRevealed),
+        [explainBeats, explainRevealed],
     );
 
     // Hooks must be called before any conditional returns (Rules of Hooks)
@@ -2219,11 +2187,28 @@ export default function GuideView() {
 
                                         {currentTeachSectionMeta?.type === 'explain' ? (
                                             <div className="mt-3 space-y-3">
-                                                {visibleParagraphs.map((paragraph, index) => (
-                                                    <p key={`${currentCard.id}-mobile-explain-${index}`} className="text-base leading-8" style={{ color: '#efe4d1' }}>
-                                                        <SubjectRenderer content={paragraph} />
-                                                    </p>
-                                                ))}
+                                                {visibleBeats.map((beat, index) => {
+                                                    const isCurrent = index === explainRevealed - 1;
+                                                    if (beat.kind === 'block') {
+                                                        return <SubjectRenderer key={beat.id || `${currentCard.id}-mobile-block-${index}`} content={beat.raw} />;
+                                                    }
+                                                    if (beat.kind === 'predict') {
+                                                        return (
+                                                            <PredictBeat
+                                                                key={beat.id || `${currentCard.id}-mobile-predict-${index}`}
+                                                                prompt={beat.prompt}
+                                                                answer={beat.answer}
+                                                                isCurrent={isCurrent}
+                                                                onReveal={handleRevealNext}
+                                                            />
+                                                        );
+                                                    }
+                                                    return (
+                                                        <p key={beat.id || `${currentCard.id}-mobile-explain-${index}`} className="text-base leading-8" style={{ color: '#efe4d1' }}>
+                                                            <SubjectRenderer content={beat.text} />
+                                                        </p>
+                                                    );
+                                                })}
                                                 {showFuzzyPrompt && !fuzzyPeek ? (
                                                     <div className="rounded-[1.15rem] border px-4 py-3" style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
                                                         <p className="text-sm leading-6" style={{ color: 'rgba(228,219,201,0.82)' }}>
@@ -2292,9 +2277,9 @@ export default function GuideView() {
                                                                     <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
                                                                         <SubjectRenderer content={step.step || step} inline />
                                                                     </p>
-                                                                    {expandedSteps[`${currentTeachSectionMeta.data?.index || 0}-${index}`] && step.explanation ? (
+                                                                    {expandedSteps[`${currentTeachSectionMeta.data?.index || 0}-${index}`] && (step.detail || step.explanation) ? (
                                                                         <p className="mt-2 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.76)' }}>
-                                                                            <SubjectRenderer content={step.explanation} inline />
+                                                                            <SubjectRenderer content={step.detail || step.explanation} inline />
                                                                         </p>
                                                                     ) : null}
                                                                 </div>
@@ -2536,11 +2521,43 @@ export default function GuideView() {
                                                 {/* ── Explain section (progressive reveal) ── */}
                                                 {section.type === 'explain' && (
                                                     <div className="space-y-3">
-                                                        {visibleParagraphs.map((paragraph, pi) => {
+                                                        {visibleBeats.map((beat, pi) => {
                                                             const isCurrent = sectionIndex === teachSection && pi === explainRevealed - 1;
+                                                            if (beat.kind === 'block') {
+                                                                return (
+                                                                    <motion.div
+                                                                        key={beat.id || pi}
+                                                                        ref={(el) => { if (isCurrent) activeTeachTargetRef.current = el; }}
+                                                                        data-current-teach-target={isCurrent ? 'true' : undefined}
+                                                                        initial={{ opacity: 0, y: 8 }}
+                                                                        animate={{ opacity: 1, y: 0 }}
+                                                                        transition={{ duration: 0.45, ease: PANEL_EASE }}
+                                                                    >
+                                                                        <SubjectRenderer content={beat.raw} />
+                                                                    </motion.div>
+                                                                );
+                                                            }
+                                                            if (beat.kind === 'predict') {
+                                                                return (
+                                                                    <motion.div
+                                                                        key={beat.id || pi}
+                                                                        ref={(el) => { if (isCurrent) activeTeachTargetRef.current = el; }}
+                                                                        initial={{ opacity: 0, y: 8 }}
+                                                                        animate={{ opacity: 1, y: 0 }}
+                                                                        transition={{ duration: 0.45, ease: PANEL_EASE }}
+                                                                    >
+                                                                        <PredictBeat
+                                                                            prompt={beat.prompt}
+                                                                            answer={beat.answer}
+                                                                            isCurrent={isCurrent}
+                                                                            onReveal={handleRevealNext}
+                                                                        />
+                                                                    </motion.div>
+                                                                );
+                                                            }
                                                             return (
                                                                 <motion.p
-                                                                    key={pi}
+                                                                    key={beat.id || pi}
                                                                     ref={(el) => {
                                                                         if (isCurrent) activeTeachTargetRef.current = el;
                                                                     }}
@@ -2555,7 +2572,7 @@ export default function GuideView() {
                                                                             : 'color-mix(in oklab, #d4ccb8 55%, transparent)',
                                                                     }}
                                                                 >
-                                                                    <SubjectRenderer content={paragraph} inline />
+                                                                    <SubjectRenderer content={beat.text} inline />
                                                                 </motion.p>
                                                             );
                                                         })}

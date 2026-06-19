@@ -1,5 +1,6 @@
 import {
   fetchTranscriptViaCaptionExtractor,
+  fetchTranscriptViaTranscriptApi,
   fetchTranscriptViaCustomStrategy,
   fetchYoutubeTranscriptWithDeps,
   parseJson3Transcript,
@@ -237,7 +238,7 @@ Deno.test('fetchYoutubeTranscriptWithDeps uses TranscriptAPI only after free tra
 
       if (url.includes('transcriptapi.com')) {
         transcriptApiCalls += 1;
-        return jsonResponse({ segments: [{ text: 'TranscriptAPI fallback ' }, { text: 'transcript' }] });
+        return jsonResponse({ transcript: [{ text: 'TranscriptAPI fallback ' }, { text: 'transcript' }] });
       }
 
       fetchCallCount += 1;
@@ -264,7 +265,63 @@ Deno.test('fetchYoutubeTranscriptWithDeps uses TranscriptAPI only after free tra
   });
 });
 
-Deno.test('fetchYoutubeTranscriptWithDeps throws a generic error when all transcript strategies fail', async () => {
+Deno.test('fetchTranscriptViaTranscriptApi supports documented transcript segment arrays', async () => {
+  await withTranscriptApiKey(async () => {
+    const transcript = await fetchTranscriptViaTranscriptApi('demo123', 'en', async (input) => {
+      const url = String(input);
+      assert(url.includes('video_url=demo123'), 'Expected the video ID to be sent to TranscriptAPI');
+      return jsonResponse({
+        transcript: [
+          { text: 'Documented ' },
+          { text: 'transcript shape' },
+        ],
+      });
+    });
+
+    assertEquals(
+      transcript,
+      'Documented transcript shape',
+      'Expected TranscriptAPI transcript arrays to be parsed',
+    );
+  });
+});
+
+Deno.test('fetchTranscriptViaTranscriptApi supports plain text transcript responses', async () => {
+  await withTranscriptApiKey(async () => {
+    const transcript = await fetchTranscriptViaTranscriptApi('demo123', 'en', async () =>
+      jsonResponse({ transcript: 'Plain text transcript response' }));
+
+    assertEquals(
+      transcript,
+      'Plain text transcript response',
+      'Expected TranscriptAPI string transcripts to be parsed',
+    );
+  });
+});
+
+Deno.test('fetchTranscriptViaTranscriptApi keeps legacy segments fallback', async () => {
+  await withTranscriptApiKey(async () => {
+    const transcript = await fetchTranscriptViaTranscriptApi('demo123', 'en', async () =>
+      jsonResponse({ segments: [{ text: 'Legacy ' }, { text: 'segments' }] }));
+
+    assertEquals(
+      transcript,
+      'Legacy segments',
+      'Expected legacy TranscriptAPI segment arrays to continue working',
+    );
+  });
+});
+
+Deno.test('fetchTranscriptViaTranscriptApi fails on empty provider responses', async () => {
+  await withTranscriptApiKey(async () => {
+    await expectReject(
+      () => fetchTranscriptViaTranscriptApi('demo123', 'en', async () => jsonResponse({ transcript: [] })),
+      'TranscriptAPI returned empty transcript',
+    );
+  });
+});
+
+Deno.test('fetchYoutubeTranscriptWithDeps throws a transcript access error with strategy diagnostics', async () => {
   const loggerCalls: unknown[] = [];
   let fetchCallCount = 0;
   const fetchImpl: typeof fetch = async (input) => {
@@ -289,7 +346,7 @@ Deno.test('fetchYoutubeTranscriptWithDeps throws a generic error when all transc
       getSubtitlesImpl: async () => [],
       logger: { warn: (...args: unknown[]) => loggerCalls.push(args) },
     }),
-    'Failed to fetch YouTube transcript. The video may not have captions available.',
+    'Riven could not access a transcript for this video.',
   );
 
   assert(loggerCalls.length === 1, 'Expected transcript strategy failures to be logged once');

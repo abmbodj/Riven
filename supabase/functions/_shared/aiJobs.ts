@@ -65,6 +65,61 @@ const compactRecord = (value: unknown): JsonRecord => Object.fromEntries(
   Object.entries(toRecord(value)).filter(([, entry]) => entry !== undefined),
 );
 
+const getStringField = (value: unknown): string | undefined => (
+  typeof value === 'string' && value.trim() ? value : undefined
+);
+
+const getNumberField = (value: unknown): number | undefined => (
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
+);
+
+const getStringArrayField = (value: unknown): string[] | undefined => (
+  Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    : undefined
+);
+
+export const normalizeAiJobError = (error: unknown): JsonRecord => {
+  if (error instanceof Error) {
+    const record = error as Error & {
+      status?: unknown;
+      statusCode?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      provider_status?: unknown;
+      providerStatus?: unknown;
+      strategy_errors?: unknown;
+      strategyErrors?: unknown;
+    };
+
+    return compactRecord({
+      message: error.message || 'Unknown AI job error',
+      status: getNumberField(record.status) ?? getNumberField(record.statusCode) ?? 500,
+      code: getStringField(record.code),
+      details: getStringField(record.details),
+      hint: getStringField(record.hint),
+      provider_status: getNumberField(record.provider_status) ?? getNumberField(record.providerStatus),
+      strategy_errors: getStringArrayField(record.strategy_errors) ?? getStringArrayField(record.strategyErrors),
+    });
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return { message: error, status: 500 };
+  }
+
+  const record = toRecord(error);
+  return compactRecord({
+    message: getStringField(record.message) ?? 'Unknown AI job error',
+    status: getNumberField(record.status) ?? getNumberField(record.statusCode) ?? 500,
+    code: getStringField(record.code),
+    details: getStringField(record.details),
+    hint: getStringField(record.hint),
+    provider_status: getNumberField(record.provider_status) ?? getNumberField(record.providerStatus),
+    strategy_errors: getStringArrayField(record.strategy_errors) ?? getStringArrayField(record.strategyErrors),
+  });
+};
+
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const isAiJobKind = (value: unknown): value is typeof AI_JOB_KINDS[number] =>
@@ -409,15 +464,17 @@ export const createJobReporter = (admin: any, initialRow: AiJobRow) => {
       resultPatch,
     }),
     fail: (error: unknown, phase = 'error') => {
-      const normalized = error instanceof Error ? error : new Error('Unknown AI job error');
-      const status = (normalized as Error & { status?: number }).status ?? 500;
+      const normalized = normalizeAiJobError(error);
+      const message = typeof normalized.message === 'string'
+        ? normalized.message
+        : 'Unknown AI job error';
       return persist({
         status: 'failed',
         phase,
         progress_percent: currentRow.progress_percent ?? 0,
-        progress_message: normalized.message,
+        progress_message: message,
         completed_at: new Date().toISOString(),
-        errorPatch: { message: normalized.message, status },
+        errorPatch: normalized,
       });
     },
   };
