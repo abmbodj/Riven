@@ -22,6 +22,8 @@ import { scheduleMeetupNotifications } from '../utils/notifications.js';
 import { cache } from '../utils/cache';
 import { groupKeys } from '../utils/groupCacheKeys';
 import { useGroupSchedule } from '../hooks/useGroupSchedule.js';
+import { prefetchGroupMessages } from '../utils/groupChatCache';
+import useMediaQuery from '../hooks/useMediaQuery';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -49,6 +51,9 @@ export default function GroupDetails() {
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
+    // Tailwind `md` breakpoint. Used to mount the chat panel for exactly one
+    // layout so we don't double-fetch / double-subscribe to realtime.
+    const isDesktop = useMediaQuery('(min-width: 768px)');
 
     const schedule = useGroupSchedule({ groupId: id, currentUserId, toast, haptics });
 
@@ -94,6 +99,8 @@ export default function GroupDetails() {
         api.getGroupMembers(id).then(res => setMembers(res || [])).catch(err => console.error('Failed to load group members', err));
         api.getGroupDecks(id).then(res => setSharedDecks(res || [])).catch(err => console.error('Failed to load group decks', err));
         api.getGroupFolders(id).then(res => setFolders(res || [])).catch(err => console.error('Failed to load group folders', err));
+        // Warm the chat cache in the background so the first Chat tap is instant.
+        prefetchGroupMessages(currentUserId, id);
 
         try {
             const groupRes = await api.getGroupInfo(id);
@@ -106,7 +113,7 @@ export default function GroupDetails() {
             setLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, navigate]);
+    }, [id, navigate, currentUserId]);
 
 
     const syncNativeMeetupNotifications = useCallback(async () => {
@@ -837,7 +844,7 @@ export default function GroupDetails() {
                         </div>
                     </div>
                 <div className={`flex-1 min-h-0 flex flex-col ${activeTab !== 'chat' ? 'hidden' : ''}`}>
-                    <GroupChatPanel groupId={id} members={members} currentUserId={currentUserId} />
+                    {isDesktop && <GroupChatPanel groupId={id} members={members} currentUserId={currentUserId} />}
                 </div>
             </div>
 
@@ -1043,7 +1050,7 @@ export default function GroupDetails() {
                         </>
                     </div>
                 </div>
-                {activeTab === 'chat' && (
+                {!isDesktop && activeTab === 'chat' && (
                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                         <GroupChatPanel groupId={id} members={members} currentUserId={currentUserId} />
                     </div>

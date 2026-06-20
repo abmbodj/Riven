@@ -6,19 +6,9 @@ import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
 import Avatar from '../Avatar';
 import * as authApi from '../../api/authApi';
+import { groupChatCache, sortMessagesChronologically } from '../../utils/groupChatCache';
 
 const RUN_GAP_MS = 5 * 60 * 1000; // 5 minutes
-const GROUP_CHAT_CACHE_KEY = 'riven_group_chat_cache';
-const MAX_CACHED_GROUP_THREADS = 30;
-
-function sortMessagesChronologically(messages = []) {
-    return [...messages].sort((left, right) => {
-        const leftTime = new Date(left.createdAt).getTime();
-        const rightTime = new Date(right.createdAt).getTime();
-        if (leftTime !== rightTime) return leftTime - rightTime;
-        return String(left.id).localeCompare(String(right.id));
-    });
-}
 
 function mergeMessages(existing = [], incoming = []) {
     const byId = new Map();
@@ -37,64 +27,6 @@ function reconcileLatestPage(existing = [], fetched = []) {
     const olderCachedMessages = existing.filter((message) => new Date(message.createdAt).getTime() < oldestFetchedTime);
     return mergeMessages(olderCachedMessages, fetched);
 }
-
-const groupChatCache = {
-    _loaded: false,
-    messages: {},
-    times: {},
-    _hydrate() {
-        if (this._loaded || typeof sessionStorage === 'undefined') return;
-        this._loaded = true;
-        try {
-            const raw = sessionStorage.getItem(GROUP_CHAT_CACHE_KEY);
-            if (!raw) return;
-            const parsed = JSON.parse(raw);
-            this.messages = parsed.messages || {};
-            this.times = parsed.times || {};
-        } catch {
-            this.messages = {};
-            this.times = {};
-        }
-    },
-    _persist() {
-        if (typeof sessionStorage === 'undefined') return;
-        try {
-            sessionStorage.setItem(GROUP_CHAT_CACHE_KEY, JSON.stringify({
-                messages: this.messages,
-                times: this.times,
-            }));
-        } catch {
-            // Cache is an optimization only.
-        }
-    },
-    _key(currentUserId, groupId) {
-        if (!currentUserId || !groupId) return null;
-        return `${currentUserId}:${groupId}`;
-    },
-    get(currentUserId, groupId) {
-        this._hydrate();
-        const key = this._key(currentUserId, groupId);
-        return key ? this.messages[key] || [] : [];
-    },
-    set(currentUserId, groupId, messages) {
-        this._hydrate();
-        const key = this._key(currentUserId, groupId);
-        if (!key) return;
-        this.messages[key] = sortMessagesChronologically(messages);
-        this.times[key] = Date.now();
-
-        const keys = Object.keys(this.messages);
-        if (keys.length > MAX_CACHED_GROUP_THREADS) {
-            const sortedKeys = keys.sort((left, right) => (this.times[left] || 0) - (this.times[right] || 0));
-            for (const staleKey of sortedKeys.slice(0, keys.length - MAX_CACHED_GROUP_THREADS)) {
-                delete this.messages[staleKey];
-                delete this.times[staleKey];
-            }
-        }
-
-        this._persist();
-    },
-};
 
 function formatDateDivider(dateStr) {
     const date = new Date(dateStr);
@@ -510,9 +442,7 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
     if (loading) {
         return (
             <div className="flex-1 min-h-0 flex flex-col">
-                <div className="flex-1 flex items-center justify-center">
-                    <div className="w-5 h-5 rounded-full border-2 border-claude-secondary/30 border-t-claude-secondary animate-spin" />
-                </div>
+                <ChatSkeleton />
                 <TypingIndicator names={typingNames} />
                 <ChatInput
                     inputRef={inputRef}
@@ -639,6 +569,37 @@ function DateDivider({ label }) {
             <div className="flex-1 h-px bg-claude-border/30" />
             <span className="text-xs text-claude-secondary/60 font-medium shrink-0">{label}</span>
             <div className="flex-1 h-px bg-claude-border/30" />
+        </div>
+    );
+}
+
+function ChatSkeleton() {
+    // Placeholder bubble rows alternating sides so a cold load reads as
+    // "chat is loading" rather than a blank spinner.
+    const rows = [
+        { mine: false, w: '62%' },
+        { mine: false, w: '44%' },
+        { mine: true, w: '52%' },
+        { mine: false, w: '70%' },
+        { mine: true, w: '38%' },
+        { mine: false, w: '48%' },
+    ];
+    return (
+        <div className="flex-1 min-h-0 overflow-hidden px-3 pt-4 pb-2" aria-hidden="true">
+            <div className="flex flex-col gap-3">
+                {rows.map((row, i) => (
+                    <div
+                        key={i}
+                        className={`flex items-end gap-2 ${row.mine ? 'flex-row-reverse' : ''}`}
+                    >
+                        <div className="w-7 h-7 shrink-0 rounded-full bg-claude-surface/60 animate-pulse" />
+                        <div
+                            className={`h-9 rounded-2xl bg-claude-surface/50 animate-pulse ${row.mine ? 'rounded-br-[6px]' : 'rounded-bl-[6px]'}`}
+                            style={{ width: row.w, animationDelay: `${i * 80}ms` }}
+                        />
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }

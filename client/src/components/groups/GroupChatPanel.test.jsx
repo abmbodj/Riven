@@ -128,6 +128,22 @@ describe('GroupChatPanel', () => {
     expect(screen.getAllByText(secondTime)).toHaveLength(1);
   });
 
+  it('shows a skeleton (not a blank spinner) during a cold load', async () => {
+    authApi.getGroupMessages.mockReturnValue(new Promise(() => {})); // never resolves
+
+    const { container } = render(
+      <GroupChatPanel
+        groupId="group-skeleton"
+        currentUserId={42}
+        members={[{ id: 9, username: 'ab', display_name: 'ab', avatar: 'avatar-a' }]}
+      />
+    );
+
+    // Skeleton placeholder rows render while loading; composer stays usable.
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(1);
+    expect(screen.getByPlaceholderText(/message the group/i)).toBeInTheDocument();
+  });
+
   it('renders newest-first API results chronologically', async () => {
     render(
       <GroupChatPanel

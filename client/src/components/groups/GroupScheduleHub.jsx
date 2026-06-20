@@ -258,10 +258,15 @@ export default function GroupScheduleHub({
         ? formatDateLabel(anchorDate, { month: 'long', year: 'numeric' })
         : `${formatDateLabel(weekDays[0], { month: 'short', day: 'numeric' })} – ${formatDateLabel(weekDays[6], isSameLocalMonth(weekDays[0], weekDays[6]) ? { day: 'numeric' } : { month: 'short', day: 'numeric' })}`;
 
+    // Once the current user has shared or painted their own availability, keep the
+    // group view sticky — a slow or racing refetch must never bounce the UI back
+    // to the "Find a time to meet" first-run empty state.
+    const hasMyData = isShared || myAvailability.length > 0;
     const showFirstRun = mode === 'group'
         && view === 'week'
         && heatmap.denominator === 0
-        && meetups.filter((meetup) => meetup.status !== 'cancelled').length === 0;
+        && meetups.filter((meetup) => meetup.status !== 'cancelled').length === 0
+        && !hasMyData;
 
     if (loading) {
         return (

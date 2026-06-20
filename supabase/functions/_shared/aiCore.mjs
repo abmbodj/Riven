@@ -17,7 +17,11 @@ const FREE_LIMIT = 10;
  */
 export const aiModelMap = {
   default: 'meta-llama/llama-4-scout-17b-16e-instruct',
-  guide: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  // Guide generation runs on a stronger free-tier Groq model: depth and JSON
+  // adherence matter most here, and the two-phase generator keeps each call small
+  // enough to stay within free-tier rate limits. Grading stays on the small/fast
+  // model since it fires on every answer and depth matters less.
+  guide: 'openai/gpt-oss-120b',
   grading: 'meta-llama/llama-4-scout-17b-16e-instruct',
 };
 const PREMIUM_LIMIT = 50;
