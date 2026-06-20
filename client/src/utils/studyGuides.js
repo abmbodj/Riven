@@ -1511,3 +1511,32 @@ export const getSessionDelta = (guideData, stateBefore, stateAfter) => {
         reviewedSections,
     };
 };
+
+// Return a zeroed study state so the student can re-run the session from scratch.
+// guide_data is immutable — only study_state is reset.
+export const resetGuideStudyState = (guideData) => {
+    const normalized = normalizeGuideData(guideData);
+    if (!normalized) return null;
+
+    const cardStates = Object.fromEntries(
+        normalized.cards.map((card) => [card.id, buildDefaultCardState()]),
+    );
+    const conceptMastery = Object.fromEntries(
+        (normalized.knowledge_map?.concepts || []).map((c) => [c.id, buildDefaultConceptState()]),
+    );
+
+    return {
+        current_card_id: normalized.cards[0]?.id ?? null,
+        session_phase: normalized.cards[0]?.phase ?? null,
+        session_status: STUDY_SESSION_STATUSES.NOT_STARTED,
+        active_stage: 'intro',
+        teach_section_index: 0,
+        explain_revealed_count: 1,
+        card_states: cardStates,
+        concept_mastery: conceptMastery,
+        last_interaction_at: null,
+        paused_at: null,
+        completed_at: null,
+        last_reviewed_at: null,
+    };
+};

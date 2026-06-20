@@ -735,7 +735,8 @@ export const buildGuideRepairPrompt = (quality) => {
     'Return ONLY the updated JSON for those cards as an array: [{...card...}, ...].',
     'Every card MUST have: teaching.explain ≥2 paragraphs ≥100 words, teaching.intuition ≥12 words,',
     'teaching.worked_examples with ≥2 examples each having ≥2 steps with non-empty detail fields,',
-    'teaching.common_mistakes with ≥2 items each naming the error and correction.',
+    'teaching.common_mistakes with ≥2 items each naming the error and correction,',
+    'teaching.predicts with ≥1 predict-then-reveal entry that surfaces the most likely misconception.',
     'Do not include any other cards or any wrapper object — just the array of repaired cards.',
   ].join('\n');
   return { failingCardLabels, repairPrompt };
@@ -870,6 +871,296 @@ If no source material is provided, create a first-pass River tutor session from 
   return contents;
 };
 
+// ─────────────────────────────────────────────────────
+// Two-phase guide generation helpers
+// ─────────────────────────────────────────────────────
+
+// Phase 1: produces the full session skeleton WITHOUT teaching prose.
+// The model can focus entirely on concept selection, card structure, grading
+// rules, and River persona without spending tokens on lecture content.
+const buildGuideSkeletonPrompt = (className, subject) => {
+  const resolved = resolveSubject(className, subject);
+  const strategy = getSubjectStrategy(resolved);
+  const guideHint = strategy.guideStyle ? `\n${strategy.guideStyle}` : '';
+
+  return `You are an expert tutor building the structural skeleton of a River-led AI tutor session${className ? ` for ${className}` : ''}.
+${className ? `Tailor concept selection, terminology, and misconceptions specifically to ${className}.` : ''}
+
+${buildSubjectContext(className, subject)}${guideHint}
+
+Output ONLY valid JSON. No markdown, no backticks, no text outside the object.
+IMPORTANT: Do NOT include a "teaching" field on any card — that will be generated separately.
+
+Required structure:
+{
+  "session_meta": {
+    "subject": "subject name",
+    "student_goal": "what the student must master",
+    "student_level": "beginner|intermediate|advanced",
+    "exam_context": { "label": "exam name", "date": "YYYY-MM-DD or empty string" },
+    "source_mode": "setup|source|hybrid",
+    "estimated_minutes": 25,
+    "lecture_style": "storybook seminar",
+    "preferred_tutor_tone": "calm, precise, encouraging",
+    "river_role": "friendly lecture cat"
+  },
+  "lecture": {
+    "opening": "short opening that frames the lesson",
+    "agenda": ["agenda beat 1", "agenda beat 2"],
+    "closing": "short confidence-building closing"
+  },
+  "river": {
+    "name": "River", "species": "grey cat", "style": "storybook lecture mascot",
+    "tone": "friendly, witty, encouraging teacher",
+    "default_expression": "blink_soft", "default_animation": "tail_sway_idle",
+    "cue_map": {
+      "idle": { "expression": "blink_soft", "animation": "tail_sway_idle" },
+      "focus": { "expression": "focus_lean_in", "animation": "ear_tilt_curious" },
+      "recover": { "expression": "soft_concern_mistake", "animation": "paw_point_hint" },
+      "mastery": { "expression": "whisker_pride", "animation": "sparkle_mastery" },
+      "teach": { "expression": "focus_lean_in", "animation": "beanie_bob_teach" },
+      "point": { "expression": "focus_lean_in", "animation": "paw_point_stage" },
+      "encourage": { "expression": "blink_soft", "animation": "soft_nod_glow" },
+      "thinking": { "expression": "ear_tilt_curious", "animation": "tail_think_loop" },
+      "gentle-correct": { "expression": "soft_concern_mistake", "animation": "paw_point_hint" },
+      "celebrate": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
+    },
+    "dialogue_variants": {
+      "opening": ["short opening line"],
+      "encouragement": ["short encouragement line"],
+      "recovery": ["short recovery line"],
+      "mastery": ["short mastery line"]
+    }
+  },
+  "knowledge_map": {
+    "concepts": [
+      {
+        "id": "concept-slug",
+        "title": "concept title",
+        "summary": "1 sentence summary",
+        "depends_on": ["optional-prereq-id"],
+        "weak_points": ["likely weak point"],
+        "misconception_tags": ["misconception-id"]
+      }
+    ]
+  },
+  "cards": [
+    {
+      "id": "card-slug",
+      "concept_id": "concept-slug",
+      "phase": "diagnostic|recovery|apply|reinforce|mastery",
+      "difficulty": "low|support|medium|high",
+      "card_type": "short_answer",
+      "prompt": "single clear recall prompt (≤36 words)",
+      "target_answer": "concise model answer",
+      "required_idea_tags": ["core-idea-tag"],
+      "optional_idea_tags": ["optional-idea-tag"],
+      "misconception_tags": ["misconception-id"],
+      "hints": [
+        { "level": 1, "text": "guiding hint that narrows thinking without revealing", "cue": { "expression": "ear_tilt_curious", "animation": "paw_point_hint" } }
+      ],
+      "feedback": {
+        "correct": ["warm feedback for correct answer"],
+        "partial": ["encouraging feedback for partial answer"],
+        "incorrect": ["corrective feedback for incorrect answer"],
+        "empty": ["inviting feedback for empty answer"],
+        "misconception": [{ "misconception_id": "misconception-id", "responses": ["specific correction"] }]
+      },
+      "river": {
+        "intro": "River's line before the student answers",
+        "success": "River's line after success",
+        "struggle": "River's line when the student struggles"
+      },
+      "presentation": {
+        "pose": "teach|point|encourage|thinking|gentle-correct|celebrate",
+        "emphasis_target": "core phrase River spotlights",
+        "reaction_cue": { "expression": "focus_lean_in", "animation": "ear_tilt_curious" }
+      },
+      "transitions": { "on_correct": "next-card-id or null", "on_partial": "retry", "on_incorrect": "hint", "on_struggle": "retry" },
+      "mastery_weight": 1
+    }
+  ],
+  "evaluation_rules": {
+    "score_bands": { "correct": 0.85, "partial": 0.4 },
+    "pass_threshold": 0.5,
+    "partial_advances": true,
+    "empty_patterns": ["idk", "i do not know", "blank"],
+    "tag_synonyms": { "core-idea-tag": ["synonym phrase"] },
+    "misconception_rules": [
+      { "id": "misconception-id", "concept_id": "concept-slug", "trigger_phrases": ["wrong phrase"], "correction": "brief correction" }
+    ]
+  },
+  "adaptation_rules": {
+    "max_attempts_before_recovery": 2,
+    "max_hints_per_card": 2,
+    "performance_bands": {
+      "struggling": { "mastery_below": 45, "river_expression": "soft_concern_mistake", "river_animation": "paw_point_hint" },
+      "steady": { "mastery_below": 80, "river_expression": "focus_lean_in", "river_animation": "ear_tilt_curious" },
+      "mastery": { "mastery_below": 101, "river_expression": "whisker_pride", "river_animation": "sparkle_mastery" }
+    }
+  },
+  "completion": {
+    "title": "Session complete",
+    "mastery_message": "what the student now understands",
+    "confidence_close": "confidence-building close",
+    "next_review_message": "when and how to review next",
+    "river_cue": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
+  }
+}
+Create 2-4 cards, each teaching a distinct concept. Focus on:
+- Precise recall prompts (≤36 words). For math: include a LaTeX practice problem.
+- Rich required_idea_tags that enable deterministic grading.
+- Specific hints that guide without revealing.
+- Warm, River-branded feedback for every outcome.
+- Realistic misconception_rules with trigger phrases.
+River must stay warm, slightly playful, and wear a green knit beanie as a signature trait.`;
+};
+
+// Phase 2: expand the teaching for one card. Runs as a focused call so the
+// model can produce lecture-quality depth without competing with structural JSON.
+export const buildCardTeachingPrompt = (card, className, subject) => {
+  const resolved = resolveSubject(className, subject);
+  const mathHint = buildMathTutorInstructions(resolved);
+  const conceptLabel = (card.concept_id || 'this concept').replace(/-/g, ' ');
+  const tagList = Array.isArray(card.required_idea_tags) && card.required_idea_tags.length
+    ? card.required_idea_tags.join(', ')
+    : '(derive from the source material)';
+
+  return `You are River, an expert tutor writing a deep teaching section for ONE card in a study session${className ? ` for ${className}` : ''}.
+${mathHint}
+
+CARD TO TEACH:
+- Concept: ${conceptLabel}
+- Recall prompt the student will answer after teaching: ${card.prompt || ''}
+- Model answer: ${card.target_answer || ''}
+- Core ideas the student must grasp: ${tagList}
+
+Generate ONLY the "teaching" object as valid JSON. No wrapper, no markdown — just the plain JSON object.
+
+{
+  "learning_objective": "specific action-oriented skill the student can do after this card (≥5 words, no vague verbs like 'understand')",
+  "explain": "3-5 paragraphs building understanding layer by layer: what it is → how it works → why it behaves this way → how to use it. ≥150 words total. Every paragraph adds a new idea.",
+  "intuition": "A mental model, analogy, or physical intuition that makes this click. Must be meaningfully different from the explanation. Start with 'Think of it like', 'Imagine', or 'The reason this works is'. ≥15 words.",
+  "predicts": [
+    { "prompt": "One short question the student can mentally guess before River reveals — targets the most likely misconception. Omit this array or leave it empty when not applicable.", "answer": "River's concise reveal — the answer students most often get wrong.", "after_beat": 2 }
+  ],
+  "worked_examples": [
+    {
+      "title": "Example 1: descriptive title showing what it demonstrates",
+      "problem": "Clear problem statement. For STEM: a concrete calculation or code task.",
+      "steps": [
+        { "step": "What to do (for math/code include notation inline)", "detail": "Why this step works — never omit (≥6 words)" }
+      ],
+      "result": "Final answer with units or context",
+      "takeaway": "The one thing this example teaches (≥5 words)",
+      "figure": { "type": "mermaid|plot|chart|code", "spec": "Mermaid diagram, plot spec, chart spec, or code string. For STEM only — omit for non-visual subjects." }
+    }
+  ],
+  "common_mistakes": [
+    "Mistake 1: name the error and explain why it is wrong and how to fix it (≥8 words)",
+    "Mistake 2: another error with its correction (≥8 words)"
+  ],
+  "example": "One short contextual example (simpler/shorter than worked_examples)",
+  "steps": ["step 1", "step 2", "step 3"],
+  "why_it_matters": "Why this concept matters beyond the exam",
+  "assist_options": [
+    { "id": "explain-simply", "label": "Explain simply", "text": "A simpler, more casual explanation of the core idea using a new angle", "pose": "encourage" },
+    { "id": "show-example", "label": "Show another example", "text": "A fresh, different example that illustrates the same idea a new way", "pose": "point" },
+    { "id": "break-it-down", "label": "Break it down", "text": "A clear step-by-step walkthrough of the key technique", "pose": "teach" },
+    { "id": "why-it-matters", "label": "Why this matters", "text": "Why understanding this concept matters in real practice", "pose": "thinking" }
+  ]
+}
+
+NON-NEGOTIABLE:
+- "explain" MUST be ≥3 distinct paragraphs and ≥150 words total.
+- "intuition" MUST be a real analogy or mental model — not a restatement of "explain".
+- "worked_examples" MUST contain ≥2 examples; each must have ≥2 steps, each step with a non-empty "detail".
+- "common_mistakes" MUST have ≥2 items, each naming the error and the correction.
+- For STEM subjects: all formulas in LaTeX ($$...$$); include a "figure" on every worked example.`;
+};
+
+// Build source-only contents (no prompt) to thread into Phase 2 teaching calls.
+export const buildGuideSourceContents = ({ processedNotes, hasProcessedNotes, keepFile, file, knowledgeContext = '' }) => {
+  const contents = [];
+  if (knowledgeContext) contents.push({ text: knowledgeContext });
+  if (hasProcessedNotes) contents.push({ text: `Source Material:\n${processedNotes}` });
+  if (keepFile) contents.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
+  return contents;
+};
+
+// Contents builder for Phase 1 skeleton call.
+export const buildGuideSkeletonContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, coachConfig, knowledgeContext = '' }) => {
+  const hasSourceMaterial = hasProcessedNotes || keepFile;
+  const coachMeta = normalizeCoachConfig(coachConfig, { hasSourceMaterial });
+  const setupText = buildCoachSetupText(coachMeta);
+  const contents = [{
+    text: `${buildGuideSkeletonPrompt(className, subject)}
+
+If Student Setup is provided, preserve it in "session_meta" and let it shape concept selection, tone, and pacing.
+If no source material is provided, create a first-pass River skeleton from Student Setup alone.`,
+  }];
+  if (knowledgeContext) contents.push({ text: `\n\n${knowledgeContext}` });
+  if (setupText) contents.push({ text: `\n\n${setupText}` });
+  if (hasProcessedNotes) contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
+  if (keepFile) contents.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
+  return contents;
+};
+
+// Expand teaching for every card in a skeleton payload.
+// Each card gets its own focused generateContent call; failures fall back to the
+// stub teaching already present (or empty object) so a parse error on one card
+// never breaks the whole session.
+export const expandGuideTeaching = async ({
+  guidePayload,
+  sourceContents,
+  className,
+  subject,
+  generateContent,
+  onProgress,
+}) => {
+  const cards = Array.isArray(guidePayload?.cards) ? guidePayload.cards : [];
+  let result = guidePayload;
+
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    if (typeof onProgress === 'function') {
+      onProgress(i + 1, cards.length);
+    }
+
+    try {
+      const teachingPromptText = buildCardTeachingPrompt(card, className, subject);
+      const rawTeaching = await generateContent({
+        model: aiModelMap.guide,
+        contents: [
+          ...sourceContents,
+          { text: teachingPromptText },
+        ],
+      });
+
+      let teaching;
+      try {
+        teaching = JSON.parse(cleanAiResponseText(rawTeaching));
+      } catch {
+        console.warn(`[two-phase] teaching parse failed for card ${card.id} — keeping stub`);
+        continue;
+      }
+
+      if (teaching && typeof teaching === 'object' && !Array.isArray(teaching)) {
+        result = {
+          ...result,
+          cards: result.cards.map((c) =>
+            c.id === card.id ? { ...c, teaching: { ...c.teaching, ...teaching } } : c,
+          ),
+        };
+      }
+    } catch (err) {
+      console.warn(`[two-phase] teaching expansion error for card ${card.id}:`, err?.message ?? err);
+    }
+  }
+
+  return result;
+};
+
 export const generateStudyGuideFromAi = async ({
   userId,
   notes,
@@ -912,7 +1203,8 @@ export const generateStudyGuideFromAi = async ({
     );
   }
 
-  const guideContents = buildGuideContents({
+  // ── Phase 1: skeleton (structure, cards, grading rules, River persona) ──────
+  const skeletonContents = buildGuideSkeletonContents({
     processedNotes,
     hasProcessedNotes,
     keepFile,
@@ -923,29 +1215,32 @@ export const generateStudyGuideFromAi = async ({
     knowledgeContext,
   });
 
-  const rawResponse = await generateContent({
+  const skeletonRaw = await generateContent({
     model: aiModelMap.guide,
-    contents: guideContents,
+    contents: skeletonContents,
   });
 
   let guidePayload = mergeGuidePayloadMeta(
-    parseAiJsonResponse(
-    rawResponse,
-    'AI generated invalid tutor session format. Please try again.',
-    ),
+    parseAiJsonResponse(skeletonRaw, 'AI generated invalid tutor session format. Please try again.'),
     coachMeta,
   );
+
+  // ── Phase 2: teaching expansion (focused call per card) ──────────────────
+  const sourceContents = buildGuideSourceContents({ processedNotes, hasProcessedNotes, keepFile, file, knowledgeContext });
+  guidePayload = await expandGuideTeaching({
+    guidePayload,
+    sourceContents,
+    className,
+    subject,
+    generateContent,
+  });
 
   let guideData = normalizeStudyGuideData(guidePayload);
   if (!guideData) {
     throw createHttpError('AI failed to generate a valid tutor session.', 500);
   }
 
-  // Quality repair pass: if any cards are too shallow, ask the model once to
-  // deepen only the failing cards (with the original source + its prior draft in
-  // context), then re-normalize. We never hard-fail on depth — a structurally
-  // valid session is always accepted (assertTutorSessionQuality only throws on
-  // broken structure).
+  // Quality repair pass: run only on still-thin cards after Phase 2.
   const quality = validateTutorSessionQuality(guideData);
   if (!quality.ok && !quality.fatal) {
     const { failingCardLabels, repairPrompt } = buildGuideRepairPrompt(quality);
@@ -956,7 +1251,7 @@ export const generateStudyGuideFromAi = async ({
       const repairRaw = await generateContent({
         model: aiModelMap.guide,
         contents: [
-          ...guideContents,
+          ...sourceContents,
           { text: `\n\nHere is the draft you produced for the cards that need work:\n${JSON.stringify(failingCards)}` },
           { text: `\n\n${repairPrompt}` },
         ],
@@ -969,7 +1264,6 @@ export const generateStudyGuideFromAi = async ({
         guideData = repairedData;
       }
     } catch (repairError) {
-      // Repair is best-effort; keep the original session if repair fails to parse.
       console.warn('[tutor session quality] repair pass failed, keeping original:', repairError);
     }
   }

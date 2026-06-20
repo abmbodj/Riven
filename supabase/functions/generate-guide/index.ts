@@ -6,7 +6,9 @@ import {
   consumeAiQuota,
   generateStudyGuideFromAi,
   prepareAiSource,
-  buildGuideContents,
+  buildGuideSkeletonContents,
+  buildGuideSourceContents,
+  expandGuideTeaching,
   normalizeCoachConfig,
   mergeGuidePayloadMeta,
   ensureApiKey,
@@ -155,7 +157,9 @@ serve(async (request) => {
       await reporter.markStreaming('drafting', 30, 'Generating tutor session');
 
       const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
-      const contents = buildGuideContents({
+
+      // Phase 1 skeleton contents
+      const skeletonContents = buildGuideSkeletonContents({
         processedNotes,
         hasProcessedNotes,
         keepFile,
@@ -165,82 +169,104 @@ serve(async (request) => {
         coachConfig: body.coachConfig,
         knowledgeContext,
       });
-      const messages = contentsToMessages(contents);
+      const skeletonMessages = contentsToMessages(skeletonContents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
         try {
           const ai = createAiClient(apiKey);
+
+          // ── Phase 1: stream skeleton (perceived progress for the user) ──────
           const streamResponse = ai.streamContent({
             model: aiModelMap.guide,
-            messages,
-            maxTokens: 12000,
+            messages: skeletonMessages,
+            maxTokens: 6000,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
           const deadline = Date.now() + STREAM_DEADLINE_MS;
-          let fullText = '';
+          let skeletonText = '';
           for await (const chunk of streamResponse) {
             if (Date.now() > deadline) {
               throw createHttpError('Generation timed out. Please try again with shorter content.', 504);
             }
             const text = chunk.text ?? '';
             if (text) {
-              fullText += text;
+              skeletonText += text;
               sendChunk(text);
             }
           }
 
-          const guidePayload = mergeGuidePayloadMeta(
-            parseAiJsonResponse(
-              fullText,
-              'AI generated invalid tutor session format. Please try again.',
-            ),
+          let guidePayload = mergeGuidePayloadMeta(
+            parseAiJsonResponse(skeletonText, 'AI generated invalid tutor session format. Please try again.'),
             coachMeta,
           );
+
+          // ── Phase 2: expand teaching per card (batch calls, silent to client) ─
+          const sourceContents = buildGuideSourceContents({
+            processedNotes,
+            hasProcessedNotes,
+            keepFile,
+            file: body.file,
+            knowledgeContext,
+          });
+
+          guidePayload = await expandGuideTeaching({
+            guidePayload,
+            sourceContents,
+            className: body.className,
+            subject: body.subject,
+            generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+              const aiInner = createAiClient(apiKey);
+              return aiInner.generateContent({
+                model,
+                messages: contentsToMessages(contents),
+                responseFormat: 'json_object',
+              });
+            },
+            onProgress: (done: number, total: number) => {
+              // Keep the SSE connection alive and give the user a sense of progress.
+              sendChunk(`\n`);
+              reporter.markStreaming('teaching', Math.round(30 + (done / total) * 60), `Writing lesson ${done} of ${total}`).catch(() => {});
+            },
+          });
 
           let guideData = normalizeStudyGuideData(guidePayload);
           if (!guideData) {
             throw createHttpError('AI failed to generate a valid tutor session.', 500);
           }
 
-          // Quality repair pass: if any cards are too shallow, ask the model to
-          // deepen only the failing cards, then re-validate. Hard-fail only if
-          // they're still short after one repair attempt.
+          // Quality repair pass on still-thin cards after Phase 2.
           const initialQuality = validateTutorSessionQuality(guideData);
           if (!initialQuality.ok && !initialQuality.fatal) {
             const { repairPrompt } = buildGuideRepairPrompt(initialQuality);
-
-            // Give the repair model the original source + its own prior draft so it
-            // can actually deepen the failing cards instead of working blind.
-            const ai = createAiClient(apiKey);
+            const failingCards = (guidePayload.cards || []).filter(
+              (card: { id?: string }) => card?.id && initialQuality.issues.some((i: string) => i.startsWith(card.id!)),
+            );
             const repairMessages = [
-              ...messages,
-              { role: 'assistant' as const, content: fullText },
+              ...contentsToMessages(sourceContents as Array<Record<string, unknown>>),
+              { role: 'assistant' as const, content: JSON.stringify(failingCards) },
               { role: 'user' as const, content: repairPrompt },
             ];
             let repairText = '';
             const repairStream = ai.streamContent({
               model: aiModelMap.guide,
               messages: repairMessages,
-              maxTokens: 8000,
+              maxTokens: 6000,
             });
             for await (const chunk of repairStream) {
               repairText += chunk.text ?? '';
             }
-
             try {
               const repairedCards = parseAiJsonResponse(repairText, 'Repair failed.');
               const mergedPayload = mergeRepairedCards(guidePayload, repairedCards);
               const repaired = normalizeStudyGuideData(mergedPayload);
               if (repaired) guideData = repaired;
             } catch {
-              // Repair parse failed — keep the original (structurally valid) session.
+              // keep the original if repair parse fails
             }
           }
 
-          // Final gate: accept any structurally-valid session; only throws on
-          // broken/unparseable structure.
           assertTutorSessionQuality(guideData);
 
           const guideContent = buildStudyGuideSummaryDoc(guideData);

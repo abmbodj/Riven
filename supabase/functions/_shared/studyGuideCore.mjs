@@ -996,6 +996,13 @@ export const validateTutorSessionQuality = (guideData) => {
     }
     seenConceptIds.add(card.concept_id);
 
+    // Soft check: predicts add active-recall beats mid-lecture. Non-fatal so a
+    // repair pass can backfill them without blocking an otherwise valid session.
+    const predicts = Array.isArray(teaching.predicts) ? teaching.predicts : [];
+    if (predicts.length === 0) {
+      issues.push(`${label}: add at least one predict-then-reveal beat to make the lecture active.`);
+    }
+
     if (isMathSession) {
       validateMathTutorCardQuality({
         card,

@@ -204,6 +204,9 @@ export const api = {
     gradeTutorAnswer: (payload) => isLoggedIn()
         ? serverApi.gradeTutorAnswer(payload)
         : Promise.reject(new Error('Must be logged in to grade answers')),
+    tutorChat: (payload) => isLoggedIn()
+        ? serverApi.tutorChat(payload)
+        : Promise.reject(new Error('Must be logged in to use Ask River')),
     generateFromYoutube: (youtubeUrl, type, options) => isLoggedIn()
         ? serverApi.generateFromYoutube(youtubeUrl, type, options)
         : Promise.reject(new Error('Must be logged in to generate from YouTube')),

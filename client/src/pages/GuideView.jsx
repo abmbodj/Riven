@@ -16,6 +16,7 @@ import {
     getGuideMasterySnapshot,
     normalizeGuideData,
     normalizeGuideStudyState,
+    resetGuideStudyState,
     STUDY_SESSION_STATUSES,
 } from '../utils/studyGuides.js';
 import { xpProgress as getXpProgress } from '../utils/leveling';
@@ -738,7 +739,13 @@ export default function GuideView() {
     const [submitting, setSubmitting] = useState(false);
     const [riverState, setRiverState] = useState('idle');
     const [riverCaption, setRiverCaption] = useState('River is ready to teach.');
-    const [activeAssistOption, setActiveAssistOption] = useState(null);
+    const [_activeAssistOption, setActiveAssistOption] = useState(null);
+    // Live Ask River chat state
+    const [chatHistory, setChatHistory] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [chatLoading, setChatLoading] = useState(false);
+    const [chatTurnCount, setChatTurnCount] = useState(0);
+    const CHAT_SOFT_CAP = 8;
     const [refinedAnswer, setRefinedAnswer] = useState('');
     const [teachSection, setTeachSection] = useState(0);
     const [expandedSteps, setExpandedSteps] = useState({});
@@ -800,6 +807,9 @@ export default function GuideView() {
             setRefinedAnswer('');
             setTeachSection(normalizedStudyState.teach_section_index || 0);
             setExpandedSteps({});
+            setChatHistory([]);
+            setChatInput('');
+            setChatTurnCount(0);
             setExplainRevealed(normalizedStudyState.explain_revealed_count || 1);
             setFuzzyPeek(shouldRestoreFuzzyPeek);
             setRiverState(restoredStage === 'complete'
@@ -1044,11 +1054,39 @@ export default function GuideView() {
         setRiverCaption(getTeachCaption(currentCard));
     }, [currentCard, guideData]);
 
+    const sendChatMessage = useCallback(async ({ message, chipId, chipPose }) => {
+        if (chatLoading) return;
+        const userText = message || chipId;
+        if (!userText) return;
+
+        const newHistory = [...chatHistory, { role: 'user', content: userText }];
+        setChatHistory(newHistory);
+        if (message) setChatInput('');
+        setChatLoading(true);
+
+        try {
+            const res = await api.tutorChat({
+                card: currentCard,
+                history: chatHistory,
+                message: chipId ? undefined : message,
+                chipId,
+            });
+            const reply = res?.reply || '';
+            const pose = res?.pose || chipPose || 'teach';
+            setChatHistory((prev) => [...prev, { role: 'assistant', content: reply }]);
+            setChatTurnCount((n) => n + 1);
+            setRiverState(pose);
+            setRiverCaption(reply);
+        } catch {
+            setChatHistory((prev) => [...prev, { role: 'assistant', content: 'River had trouble with that. Try again?' }]);
+        } finally {
+            setChatLoading(false);
+        }
+    }, [chatHistory, chatLoading, currentCard]);
+
     const handleSelectAssist = useCallback((option) => {
-        setActiveAssistOption(option);
-        setRiverState(option.pose || 'point');
-        setRiverCaption(option.text);
-    }, []);
+        sendChatMessage({ chipId: option.id, chipPose: option.pose || 'point' });
+    }, [sendChatMessage]);
 
     const handleBeginCheck = useCallback(() => {
         setActiveAssistOption(null);
@@ -1476,6 +1514,9 @@ export default function GuideView() {
             setActiveAssistOption(null);
             setTeachSection(0);
             setExpandedSteps({});
+            setChatHistory([]);
+            setChatInput('');
+            setChatTurnCount(0);
             setExplainRevealed(1);
             setFuzzyPeek(false);
             setRiverState('encourage');
@@ -1637,6 +1678,9 @@ export default function GuideView() {
             setRefinedAnswer('');
             setTeachSection(0);
             setExpandedSteps({});
+            setChatHistory([]);
+            setChatInput('');
+            setChatTurnCount(0);
             setExplainRevealed(1);
             setFuzzyPeek(false);
             setSessionStage('teach');
@@ -1648,6 +1692,36 @@ export default function GuideView() {
             toastRef.current.error('Failed to start review pass');
         }
     }, [currentCard, guideData, persistStudyState, studyState, submitting]);
+
+    const handleStudyAgain = useCallback(async () => {
+        if (!guideData || submitting) return;
+        const resetState = resetGuideStudyState(guideData);
+        if (!resetState) return;
+        try {
+            sessionStartStateRef.current = studyState;
+            await persistStudyState(resetState);
+            setStudyState(resetState);
+            setAnswer('');
+            setResult(null);
+            setCompletionPayload(null);
+            setActiveAssistOption(null);
+            setChatHistory([]);
+            setChatInput('');
+            setChatTurnCount(0);
+            setRefinedAnswer('');
+            setTeachSection(0);
+            setExpandedSteps({});
+            setExplainRevealed(1);
+            setFuzzyPeek(false);
+            setSessionStage('teach');
+            finalizingRef.current = false;
+            const firstCard = guideData.cards[0];
+            setRiverState(firstCard?.presentation?.pose || 'teach');
+            setRiverCaption(getTeachCaption(firstCard));
+        } catch {
+            toastRef.current.error('Failed to reset session');
+        }
+    }, [guideData, persistStudyState, studyState, submitting]);
 
     const handleBackToGuides = useCallback(() => {
         if (['teach', 'check', 'feedback'].includes(sessionStage)) {
@@ -2344,31 +2418,49 @@ export default function GuideView() {
                                         ) : null}
                                     </div>
 
-                                    {assistOptions.length > 0 ? (
-                                        <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.66)' }}>Ask River</p>
-                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                {assistOptions.slice(0, 3).map((option) => (
-                                                    <button
-                                                        key={option.id}
-                                                        type="button"
-                                                        onClick={() => handleSelectAssist(option)}
-                                                        className="inline-flex min-h-[42px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors"
-                                                        style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: '#efe4d1' }}
-                                                    >
-                                                        {option.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            {activeAssistOption ? (
-                                                <div className="mt-3 rounded-[1rem] border px-3 py-3" style={{ borderColor: 'rgba(143,178,124,0.26)', backgroundColor: 'rgba(143,178,124,0.08)' }}>
-                                                    <p className="text-sm leading-6" style={{ color: '#efe4d1' }}>
-                                                        <SubjectRenderer content={activeAssistOption.text} />
-                                                    </p>
-                                                </div>
-                                            ) : null}
+                                    <div className="rounded-[1.35rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.14)' }}>
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.66)' }}>Ask River</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {assistOptions.slice(0, 3).map((option) => (
+                                                <button
+                                                    key={option.id}
+                                                    type="button"
+                                                    disabled={chatLoading || chatTurnCount >= CHAT_SOFT_CAP}
+                                                    onClick={() => handleSelectAssist(option)}
+                                                    className="inline-flex min-h-[42px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors disabled:opacity-40"
+                                                    style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: '#efe4d1' }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
                                         </div>
-                                    ) : null}
+                                        {chatHistory.length > 0 && (
+                                            <div className="mt-3 flex flex-col gap-2 max-h-60 overflow-y-auto">
+                                                {chatHistory.map((msg, i) => (
+                                                    <div key={i} className={`rounded-[1rem] px-3 py-2.5 text-sm leading-6 ${msg.role === 'assistant' ? 'border' : 'bg-white/5'}`} style={msg.role === 'assistant' ? { borderColor: 'rgba(143,178,124,0.26)', backgroundColor: 'rgba(143,178,124,0.08)', color: '#efe4d1' } : { color: 'rgba(239,228,209,0.6)' }}>
+                                                        {msg.role === 'assistant' ? <SubjectRenderer content={msg.content} /> : msg.content}
+                                                    </div>
+                                                ))}
+                                                {chatLoading && <div className="px-3 py-2 text-sm" style={{ color: 'rgba(239,228,209,0.4)' }}>River is thinking…</div>}
+                                            </div>
+                                        )}
+                                        {chatTurnCount >= CHAT_SOFT_CAP ? (
+                                            <p className="mt-2 text-xs" style={{ color: 'rgba(222,185,106,0.6)' }}>Ready to try answering?</p>
+                                        ) : (
+                                            <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (chatInput.trim()) sendChatMessage({ message: chatInput.trim() }); }}>
+                                                <input
+                                                    type="text"
+                                                    value={chatInput}
+                                                    onChange={(e) => setChatInput(e.target.value)}
+                                                    placeholder="Ask River…"
+                                                    disabled={chatLoading}
+                                                    className="min-w-0 flex-1 rounded-full border bg-transparent px-4 py-2 text-sm outline-none disabled:opacity-40"
+                                                    style={{ borderColor: 'rgba(255,255,255,0.18)', color: '#efe4d1' }}
+                                                />
+                                                <button type="submit" disabled={chatLoading || !chatInput.trim()} className="rounded-full border px-3 py-2 text-sm disabled:opacity-40" style={{ borderColor: 'rgba(222,185,106,0.4)', color: '#deb96a' }}>Ask</button>
+                                            </form>
+                                        )}
+                                    </div>
 
                                     <MobileSessionActionTray>
                                         <button
@@ -2862,30 +2954,66 @@ export default function GuideView() {
                                     })}
                                 </div>
 
-                                {/* ── Ask River (assist options) ── */}
-                                {assistOptions.length > 0 && (
-                                    <div className="mt-6 rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Ask River</p>
-                                        <div className="mt-3 flex flex-wrap gap-2.5">
-                                            {assistOptions.map((option) => (
-                                                <button
-                                                    key={option.id}
-                                                    type="button"
-                                                    onClick={() => handleSelectAssist(option)}
-                                                    className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10"
-                                                    style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(228,219,201,0.9)' }}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        {activeAssistOption ? (
-                                            <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.92)' }}>
-                                                <SubjectRenderer content={activeAssistOption.text} />
-                                            </div>
-                                        ) : null}
+                                {/* ── Ask River (live chat) ── */}
+                                <div className="mt-6 rounded-[1.4rem] border p-4" style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(0,0,0,0.16)' }}>
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(222,185,106,0.62)' }}>Ask River</p>
+                                    <div className="mt-3 flex flex-wrap gap-2.5">
+                                        {assistOptions.map((option) => (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                disabled={chatLoading || chatTurnCount >= CHAT_SOFT_CAP}
+                                                onClick={() => handleSelectAssist(option)}
+                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10 disabled:opacity-40"
+                                                style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(228,219,201,0.9)' }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
                                     </div>
-                                )}
+
+                                    {chatHistory.length > 0 && (
+                                        <div className="mt-4 flex flex-col gap-3 max-h-72 overflow-y-auto">
+                                            {chatHistory.map((msg, i) => (
+                                                <div key={i} className={`rounded-[1rem] px-3 py-2.5 text-sm leading-6 ${msg.role === 'assistant' ? 'border border-claude-accent/20 bg-claude-accent/8' : 'bg-white/5'}`} style={{ color: 'rgba(228,219,201,0.92)' }}>
+                                                    {msg.role === 'assistant' ? <SubjectRenderer content={msg.content} /> : <span className="opacity-70">{msg.content}</span>}
+                                                </div>
+                                            ))}
+                                            {chatLoading && (
+                                                <div className="rounded-[1rem] border border-claude-accent/20 bg-claude-accent/8 px-3 py-2.5 text-sm" style={{ color: 'rgba(228,219,201,0.5)' }}>
+                                                    River is thinking…
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {chatTurnCount >= CHAT_SOFT_CAP ? (
+                                        <p className="mt-3 text-xs" style={{ color: 'rgba(222,185,106,0.6)' }}>Ready to try answering the question?</p>
+                                    ) : (
+                                        <form
+                                            className="mt-3 flex gap-2"
+                                            onSubmit={(e) => { e.preventDefault(); if (chatInput.trim()) sendChatMessage({ message: chatInput.trim() }); }}
+                                        >
+                                            <input
+                                                type="text"
+                                                value={chatInput}
+                                                onChange={(e) => setChatInput(e.target.value)}
+                                                placeholder="Ask River anything…"
+                                                disabled={chatLoading}
+                                                className="min-w-0 flex-1 rounded-full border bg-transparent px-4 py-2 text-sm outline-none disabled:opacity-40"
+                                                style={{ borderColor: 'rgba(255,255,255,0.18)', color: '#efe4d1' }}
+                                            />
+                                            <button
+                                                type="submit"
+                                                disabled={chatLoading || !chatInput.trim()}
+                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors disabled:opacity-40"
+                                                style={{ borderColor: 'rgba(222,185,106,0.4)', color: '#deb96a' }}
+                                            >
+                                                Ask
+                                            </button>
+                                        </form>
+                                    )}
+                                </div>
 
                                 {/* ── Bottom actions ── */}
                                 <div
@@ -3039,19 +3167,55 @@ export default function GuideView() {
                                             <button
                                                 key={option.id}
                                                 type="button"
+                                                disabled={chatLoading || chatTurnCount >= CHAT_SOFT_CAP}
                                                 onClick={() => handleSelectAssist(option)}
-                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10"
+                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10 disabled:opacity-40"
                                                 style={{ borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(228,219,201,0.9)' }}
                                             >
                                                 {option.label}
                                             </button>
                                         ))}
                                     </div>
-                                    {activeAssistOption ? (
-                                        <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6" style={{ color: 'rgba(228,219,201,0.92)' }}>
-                                            <SubjectRenderer content={activeAssistOption.text} />
+                                    {chatHistory.length > 0 && (
+                                        <div className="mt-4 flex flex-col gap-3 max-h-72 overflow-y-auto">
+                                            {chatHistory.map((msg, i) => (
+                                                <div key={i} className={`rounded-[1rem] px-3 py-2.5 text-sm leading-6 ${msg.role === 'assistant' ? 'border border-claude-accent/20 bg-claude-accent/8' : 'bg-white/5'}`} style={{ color: 'rgba(228,219,201,0.92)' }}>
+                                                    {msg.role === 'assistant' ? <SubjectRenderer content={msg.content} /> : <span className="opacity-70">{msg.content}</span>}
+                                                </div>
+                                            ))}
+                                            {chatLoading && (
+                                                <div className="rounded-[1rem] border border-claude-accent/20 bg-claude-accent/8 px-3 py-2.5 text-sm" style={{ color: 'rgba(228,219,201,0.5)' }}>
+                                                    River is thinking…
+                                                </div>
+                                            )}
                                         </div>
-                                    ) : null}
+                                    )}
+                                    {chatTurnCount >= CHAT_SOFT_CAP ? (
+                                        <p className="mt-3 text-xs" style={{ color: 'rgba(222,185,106,0.6)' }}>Ready to try answering the question?</p>
+                                    ) : (
+                                        <form
+                                            className="mt-3 flex gap-2"
+                                            onSubmit={(e) => { e.preventDefault(); if (chatInput.trim()) sendChatMessage({ message: chatInput.trim() }); }}
+                                        >
+                                            <input
+                                                type="text"
+                                                value={chatInput}
+                                                onChange={(e) => setChatInput(e.target.value)}
+                                                placeholder="Ask River anything…"
+                                                disabled={chatLoading}
+                                                className="min-w-0 flex-1 rounded-full border bg-transparent px-4 py-2 text-sm outline-none disabled:opacity-40"
+                                                style={{ borderColor: 'rgba(255,255,255,0.18)', color: '#efe4d1' }}
+                                            />
+                                            <button
+                                                type="submit"
+                                                disabled={chatLoading || !chatInput.trim()}
+                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border px-4 py-2 text-sm transition-colors disabled:opacity-40"
+                                                style={{ borderColor: 'rgba(222,185,106,0.4)', color: '#deb96a' }}
+                                            >
+                                                Ask
+                                            </button>
+                                        </form>
+                                    )}
                                 </div>
                                 </motion.div>
 
@@ -3882,6 +4046,14 @@ export default function GuideView() {
                                             )}
                                             <button
                                                 type="button"
+                                                onClick={handleStudyAgain}
+                                                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
+                                            >
+                                                Study again
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={handleBackToGuides}
                                                 className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
                                                 style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
@@ -3955,6 +4127,14 @@ export default function GuideView() {
                                                         {reviewPassLabel}
                                                     </button>
                                                 )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleStudyAgain}
+                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-medium transition-colors"
+                                                    style={{ borderColor: 'rgba(255,255,255,0.22)', color: 'rgba(228,219,201,0.9)' }}
+                                                >
+                                                    Study again
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={handleBackToGuides}

@@ -15,6 +15,7 @@ vi.mock('../api', () => ({
     deleteStudyGuide: vi.fn(),
     completeStudyCoachSession: vi.fn(),
     assistStudyCoach: vi.fn(),
+    tutorChat: vi.fn(),
     warmupAiFunctions: vi.fn(),
   },
 }));
@@ -732,8 +733,9 @@ describe('GuideView', () => {
     expect(teach.querySelectorAll('.katex').length).toBeGreaterThan(1);
   });
 
-  it('reveals smart teaching chips without calling live assist', async () => {
+  it('calls tutorChat when a teaching chip is clicked and shows the reply', async () => {
     api.getStudyGuide.mockResolvedValue(makeGuide());
+    api.tutorChat.mockResolvedValue({ reply: 'Here is a step-by-step breakdown from River.', pose: 'teach' });
 
     render(
       <MemoryRouter initialEntries={['/guide/guide-river-1']}>
@@ -749,10 +751,11 @@ describe('GuideView', () => {
     fireEvent.click(within(teach).getByRole('button', { name: /Break it down/i }));
 
     await waitFor(() => {
-      expect(within(teach).getAllByText(/One cell copies its DNA/i).length).toBeGreaterThan(0);
+      expect(api.tutorChat).toHaveBeenCalledWith(expect.objectContaining({ chipId: 'break-it-down' }));
     });
-    expect(api.assistStudyCoach).not.toHaveBeenCalled();
-    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
+    await waitFor(() => {
+      expect(within(teach).getByText(/Here is a step-by-step breakdown from River\./i)).toBeInTheDocument();
+    });
   });
 
   it('uses gentle correction for misconception answers and still lets the learner continue', async () => {

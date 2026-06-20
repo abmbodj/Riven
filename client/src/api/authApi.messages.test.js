@@ -34,6 +34,8 @@ const buildJsonResponse = (body) => ({
 const emptySharedFields = {
   sharedResource: null,
   deckData: null,
+  replyToId: null,
+  replyTo: null,
 };
 
 describe('authApi direct messages via Supabase', () => {
@@ -297,6 +299,7 @@ describe('authApi direct messages via Supabase', () => {
       message_type: 'deck',
       deck_data: JSON.stringify({ kind: 'deck', sourceId: 5, id: 5, title: 'Biology', cardCount: 24 }),
       image_url: null,
+      reply_to_id: null,
     });
     expect(message).toEqual({
       id: 77,
@@ -327,6 +330,8 @@ describe('authApi direct messages via Supabase', () => {
       isRead: false,
       createdAt: '2026-03-13T12:12:00.000Z',
       isMine: true,
+      replyToId: null,
+      replyTo: null,
     });
   });
 
@@ -450,6 +455,7 @@ describe('authApi direct messages via Supabase', () => {
       message_type: 'text',
       deck_data: null,
       image_url: null,
+      reply_to_id: null,
     });
     expect(message.senderUsername).toBe('avery');
   });

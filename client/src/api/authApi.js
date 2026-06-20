@@ -1715,6 +1715,9 @@ export const gradeShortAnswer = (question, studentAnswer, correctAnswer, grading
 export const gradeTutorAnswer = (payload) =>
     edgeFunctionFetch('grade-tutor-answer', { body: payload });
 
+export const tutorChat = (payload) =>
+    edgeFunctionFetch('tutor-chat', { body: payload });
+
 export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName, className, subject } = {}) =>
     edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className, subject } });
 
@@ -4024,6 +4027,16 @@ export const reportContent = async (reportData) => {
 const mapMessageRow = (row, currentUser) => {
     const sharedResource = normalizeSharedPayload(parseJsonish(row.deck_data), row.message_type || 'text');
 
+    // Denormalized reply-to snippet from FK join (reply_to:reply_to_id(...))
+    const replyToRaw = row.reply_to || null;
+    const replyTo = replyToRaw ? {
+        id: replyToRaw.id,
+        content: replyToRaw.content || null,
+        imageUrl: replyToRaw.image_url || null,
+        messageType: replyToRaw.message_type || 'text',
+        isMine: replyToRaw.sender_id === currentUser.id,
+    } : null;
+
     return {
         id: row.id,
         senderId: row.sender_id,
@@ -4037,6 +4050,8 @@ const mapMessageRow = (row, currentUser) => {
         imageUrl: row.image_url || null,
         isEdited: Boolean(row.is_edited),
         isRead: Boolean(row.is_read),
+        replyToId: row.reply_to_id || null,
+        replyTo,
         createdAt: row.created_at,
         isMine: row.sender_id === currentUser.id,
     };
@@ -4096,7 +4111,7 @@ export const getMessages = async (userId, limit = 50, before, currentUserOverrid
     const currentUser = await resolveCurrentUser(currentUserOverride);
     let query = supabase
         .from('messages')
-        .select('*')
+        .select('*, reply_to:reply_to_id(id, content, sender_id, message_type, image_url)')
         .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${Number(userId)}),and(sender_id.eq.${Number(userId)},receiver_id.eq.${currentUser.id})`);
 
     if (before) {
@@ -4127,7 +4142,8 @@ export const sendMessage = async (
     messageType = 'text',
     sharedData = null,
     imageUrl = null,
-    currentUserOverride = null
+    currentUserOverride = null,
+    replyToId = null
 ) => {
     if (!receiverId) {
         const error = new Error('Receiver ID is required');
@@ -4174,8 +4190,9 @@ export const sendMessage = async (
             message_type: messageType || 'text',
             deck_data: normalizedSharedData ? JSON.stringify(normalizedSharedData) : null,
             image_url: imageUrl || null,
+            reply_to_id: replyToId ? Number(replyToId) : null,
         })
-        .select()
+        .select('*, reply_to:reply_to_id(id, content, sender_id, message_type, image_url)')
         .single();
     if (error) _sbThrow(error);
     return mapMessageRow(data, currentUser);
