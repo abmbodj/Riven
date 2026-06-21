@@ -129,7 +129,7 @@ const MessageComposer = forwardRef(function MessageComposer(
                 )}
 
                 {/* Input row */}
-                <div className="flex items-end gap-2">
+                <div className="flex items-center gap-2">
                     {/* Attach button (hidden when editing) */}
                     {!editingMessageId && (
                         <>
@@ -146,7 +146,7 @@ const MessageComposer = forwardRef(function MessageComposer(
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={sending}
                                 aria-label="Attach image"
-                                className="mb-[2px] flex shrink-0 items-center gap-2 rounded-full border border-claude-border px-3 py-2 text-claude-secondary transition-colors hover:text-claude-accent hover:border-claude-accent/30 active:scale-95 disabled:opacity-40"
+                                className="flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full border border-claude-border text-claude-secondary transition-colors hover:text-claude-accent hover:border-claude-accent/30 active:scale-95 disabled:opacity-40 lg:w-auto lg:px-3"
                             >
                                 <Image className="w-5 h-5" aria-hidden="true" />
                                 <span className="hidden lg:inline text-[11px] font-mono uppercase tracking-[0.18em]">
@@ -158,7 +158,7 @@ const MessageComposer = forwardRef(function MessageComposer(
 
                     {/* Text input + send */}
                     <div
-                        className="flex flex-1 items-end min-h-[52px] rounded-[22px] pl-4 pr-1.5 py-1 mb-1"
+                        className="flex flex-1 items-center min-h-[46px] rounded-[20px] pl-4 pr-1 py-1 sm:min-h-[52px] sm:rounded-[22px] sm:pr-1.5"
                         style={{
                             background: 'oklch(27% 0.04 211)',
                             border: '1px solid oklch(35% 0.04 211)',
@@ -178,7 +178,7 @@ const MessageComposer = forwardRef(function MessageComposer(
                             }}
                             placeholder={editingMessageId ? 'Refine your message...' : 'Write a message...'}
                             disabled={sending}
-                            className="flex-1 w-full bg-transparent border-none outline-none text-claude-text placeholder:text-claude-secondary/50 font-sans text-[15px]"
+                            className="flex-1 w-full bg-transparent border-none outline-none text-claude-text placeholder:text-claude-secondary/50 font-sans text-[15px] leading-5"
                             aria-label="Message input"
                         />
 
@@ -186,7 +186,7 @@ const MessageComposer = forwardRef(function MessageComposer(
                             type="submit"
                             disabled={!canSend}
                             whileTap={{ scale: 0.88 }}
-                            className="ml-2 h-9 w-9 shrink-0 flex items-center justify-center rounded-full text-white shadow-md disabled:opacity-30 disabled:cursor-not-allowed transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent"
+                            className="ml-2 h-10 w-10 shrink-0 flex items-center justify-center rounded-full text-white shadow-md disabled:opacity-30 disabled:cursor-not-allowed transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent sm:h-9 sm:w-9"
                             style={{ background: 'oklch(51% 0.10 143)' }}
                             aria-label={sending ? 'Sending' : editingMessageId ? 'Save edit' : 'Send message'}
                         >
