@@ -75,6 +75,7 @@ export type RequestError = Error & {
   status?: number;
   statusCode?: number;
   canWatchAd?: boolean;
+  code?: string;
 };
 
 export const normalizeRequestError = (error: unknown): RequestError => {
@@ -95,6 +96,7 @@ export const normalizeRequestError = (error: unknown): RequestError => {
       status?: unknown;
       statusCode?: unknown;
       canWatchAd?: unknown;
+      code?: unknown;
     };
 
     if (typeof maybeError.message === 'string' && maybeError.message.trim()) {
@@ -111,6 +113,10 @@ export const normalizeRequestError = (error: unknown): RequestError => {
 
     if (typeof maybeError.canWatchAd === 'boolean') {
       normalized.canWatchAd = maybeError.canWatchAd;
+    }
+
+    if (typeof maybeError.code === 'string') {
+      normalized.code = maybeError.code;
     }
   }
 

@@ -10,13 +10,18 @@
 export default function MobileChatShell({ hasThread, listPane, threadPane }) {
     const duration = '280ms';
     const easing = 'cubic-bezier(0.25, 0, 0.1, 1)';
+    const mobileTopBarHeight = 'calc(env(safe-area-inset-top, 0px) + 2.5rem)';
 
     return (
         <>
             {/* Mobile — two stacked panes with transform-based slide */}
             <div
                 className="lg:hidden relative overflow-hidden"
-                style={{ height: 'var(--app-height, 100dvh)' }}
+                data-testid="mobile-chat-shell"
+                style={{
+                    '--messages-mobile-top-bar-height': mobileTopBarHeight,
+                    height: 'calc(var(--app-height, 100dvh) - var(--messages-mobile-top-bar-height))',
+                }}
                 aria-live="polite"
             >
                 {/* List pane */}

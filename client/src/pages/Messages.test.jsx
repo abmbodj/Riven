@@ -137,6 +137,10 @@ describe('Messages desktop workspace', () => {
       expect(screen.getAllByText('Conversations').length).toBeGreaterThan(0);
     });
 
+    const mobileShell = screen.getByTestId('mobile-chat-shell');
+    expect(mobileShell.style.getPropertyValue('--messages-mobile-top-bar-height')).toBe('calc(env(safe-area-inset-top, 0px) + 2.5rem)');
+    expect(mobileShell.style.height).toBe('calc(var(--app-height, 100dvh) - var(--messages-mobile-top-bar-height))');
+
     const activeThreadShell = screen.getAllByTestId('messages-thread-shell').at(-1);
     expect(activeThreadShell).not.toBeNull();
     expect(activeThreadShell.className).not.toContain('safe-area-top-owned');
