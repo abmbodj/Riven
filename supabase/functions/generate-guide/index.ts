@@ -20,6 +20,7 @@ import {
   aiModelMap,
 } from '../_shared/aiCore.mjs';
 import { fetchKnowledgeContext } from '../_shared/noteKnowledge.mjs';
+import { isProviderTokenLimitError } from '../_shared/youtubeNotesBudget.ts';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
@@ -296,13 +297,26 @@ serve(async (request) => {
           });
           sendDone({ guide_id: guide.id, title: finalTitle });
         } catch (err: unknown) {
-          const reqErr = normalizeRequestError(err);
-          await reporter.fail(reqErr);
-          sendError(
-            reqErr.message || 'An unexpected error occurred during AI generation.',
-            typeof reqErr.status === 'number' ? reqErr.status : 500,
-            typeof reqErr.canWatchAd === 'boolean' ? { canWatchAd: reqErr.canWatchAd } : {},
-          );
+          // Provider throttling → 503 + clear code so the client doesn't show the pricing modal.
+          if (isProviderTokenLimitError(err)) {
+            await reporter.fail(normalizeRequestError(err));
+            sendError(
+              "Riven's AI is busy right now. Please try again in a moment.",
+              503,
+              { code: 'rate_limit_exceeded' },
+            );
+          } else {
+            const reqErr = normalizeRequestError(err);
+            await reporter.fail(reqErr);
+            sendError(
+              reqErr.message || 'An unexpected error occurred during AI generation.',
+              typeof reqErr.status === 'number' ? reqErr.status : 500,
+              {
+                ...(typeof reqErr.canWatchAd === 'boolean' ? { canWatchAd: reqErr.canWatchAd } : {}),
+                ...(typeof reqErr.code === 'string' ? { code: reqErr.code } : {}),
+              },
+            );
+          }
         } finally {
           close();
         }
@@ -451,6 +465,20 @@ serve(async (request) => {
       throw requestError;
     }
   } catch (error: unknown) {
+    // Provider throttling (Groq TPM/rate limit) must NOT look like an entitlement 429,
+    // or the client shows the pricing modal to paying users. Remap to 503 + a clear code.
+    if (isProviderTokenLimitError(error)) {
+      console.error('[generate-guide edge function] provider rate limit', error);
+      return jsonResponse(
+        {
+          error: "Riven's AI is busy right now. Please try again in a moment.",
+          code: 'rate_limit_exceeded',
+        },
+        { status: 503 },
+        request,
+      );
+    }
+
     const requestError = normalizeRequestError(error);
 
     console.error('[generate-guide edge function] error', requestError);
@@ -463,6 +491,10 @@ serve(async (request) => {
 
     if (typeof requestError.canWatchAd === 'boolean') {
       body.canWatchAd = requestError.canWatchAd;
+    }
+
+    if (typeof requestError.code === 'string') {
+      body.code = requestError.code;
     }
 
     return jsonResponse(body, { status }, request);

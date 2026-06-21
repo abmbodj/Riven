@@ -312,7 +312,7 @@ export const consumeAiQuota = async ({ user, persistUsage, now = new Date() }) =
         ? 'AI generation limit reached. Please try again later.'
         : 'AI generation limit reached. Watch an ad or upgrade to Premium for more.',
       429,
-      { canWatchAd: !status.isPremium },
+      { canWatchAd: !status.isPremium, code: 'QUOTA_EXCEEDED' },
     );
   }
 
@@ -1088,10 +1088,19 @@ NON-NEGOTIABLE:
 };
 
 // Build source-only contents (no prompt) to thread into Phase 2 teaching calls.
-export const buildGuideSourceContents = ({ processedNotes, hasProcessedNotes, keepFile, file, knowledgeContext = '' }) => {
+// maxChars caps the source excerpt sent per card. The skeleton (Phase 1) already saw the
+// full source and distilled it into each card's concept/answer/idea-tags, so a bounded
+// excerpt keeps teaching grounded while staying well under provider TPM limits — critical
+// because this payload is re-sent for every card, in parallel.
+export const buildGuideSourceContents = ({ processedNotes, hasProcessedNotes, keepFile, file, knowledgeContext = '', maxChars = 8000 }) => {
   const contents = [];
   if (knowledgeContext) contents.push({ text: knowledgeContext });
-  if (hasProcessedNotes) contents.push({ text: `Source Material:\n${processedNotes}` });
+  if (hasProcessedNotes) {
+    const source = maxChars && processedNotes.length > maxChars
+      ? `${processedNotes.slice(0, maxChars)}\n\n[Source truncated — the session skeleton already captured the full material.]`
+      : processedNotes;
+    contents.push({ text: `Source Material:\n${source}` });
+  }
   if (keepFile) contents.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
   return contents;
 };
@@ -1144,7 +1153,7 @@ export const expandGuideTeaching = async ({
   subject,
   generateContent,
   onProgress,
-  concurrency = 4,
+  concurrency = 3,
   cardTimeoutMs = 30_000,
 }) => {
   const cards = Array.isArray(guidePayload?.cards) ? guidePayload.cards : [];

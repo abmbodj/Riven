@@ -536,7 +536,9 @@ export default function CreateSessionSheet({
       await onGenerate(buildParams());
       onClose();
     } catch (err) {
-      if (err?.status === 429) {
+      // Only a genuine entitlement exhaustion should surface the pricing modal — not a
+      // provider throttle (503/rate_limit_exceeded) or our own rate limiter, which also 429.
+      if (err?.code === 'QUOTA_EXCEEDED') {
         onClose();
         onPricingRequired?.();
       } else {

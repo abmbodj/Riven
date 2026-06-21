@@ -9,7 +9,11 @@ import {
   validateTutorSessionQuality,
 } from '../../supabase/functions/_shared/studyGuideCore.mjs';
 
-import { expandGuideTeaching } from '../../supabase/functions/_shared/aiCore.mjs';
+import {
+  expandGuideTeaching,
+  consumeAiQuota,
+  buildGuideSourceContents,
+} from '../../supabase/functions/_shared/aiCore.mjs';
 
 const makeStrongTeaching = (topic = 'mitosis') => ({
   learning_objective: `Explain ${topic} by tracing the mechanism, outcome, examples, and likely mistakes.`,
@@ -830,5 +834,70 @@ describe('expandGuideTeaching', () => {
     });
     expect(result).toStrictEqual(payload);
     expect(generateContent).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// consumeAiQuota — entitlement error must be distinguishable from provider 429
+// ---------------------------------------------------------------------------
+
+describe('consumeAiQuota', () => {
+  it('throws a 429 tagged with code QUOTA_EXCEEDED when the limit is reached', async () => {
+    const user = {
+      subscription_tier: 'free',
+      ai_generations_count: 10, // FREE_LIMIT
+      last_ai_generation_reset: new Date().toISOString(),
+    };
+
+    await expect(
+      consumeAiQuota({ user, persistUsage: async () => {} }),
+    ).rejects.toMatchObject({ status: 429, code: 'QUOTA_EXCEEDED', canWatchAd: true });
+  });
+
+  it('does not throw and persists usage when under the limit', async () => {
+    const user = {
+      subscription_tier: 'free',
+      ai_generations_count: 2,
+      last_ai_generation_reset: new Date().toISOString(),
+    };
+    const persistUsage = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      consumeAiQuota({ user, persistUsage }),
+    ).resolves.toMatchObject({ isPremium: false });
+    expect(persistUsage).toHaveBeenCalledWith(expect.objectContaining({ count: 3 }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildGuideSourceContents — bounded source excerpt per teaching call
+// ---------------------------------------------------------------------------
+
+describe('buildGuideSourceContents', () => {
+  it('truncates processedNotes to maxChars for teaching calls', () => {
+    const longNotes = 'x'.repeat(20000);
+    const contents = buildGuideSourceContents({
+      processedNotes: longNotes,
+      hasProcessedNotes: true,
+      keepFile: false,
+      maxChars: 8000,
+    });
+    const sourcePart = contents.find((c) => typeof c.text === 'string' && c.text.startsWith('Source Material:'));
+    expect(sourcePart).toBeTruthy();
+    // 8000 chars of source + the "Source Material:\n" prefix + truncation notice
+    expect(sourcePart.text).toContain('Source truncated');
+    expect(sourcePart.text.length).toBeLessThan(20000);
+    expect(sourcePart.text).toContain('x'.repeat(8000));
+  });
+
+  it('leaves short notes intact and adds no truncation notice', () => {
+    const contents = buildGuideSourceContents({
+      processedNotes: 'short note',
+      hasProcessedNotes: true,
+      keepFile: false,
+      maxChars: 8000,
+    });
+    const sourcePart = contents.find((c) => typeof c.text === 'string' && c.text.startsWith('Source Material:'));
+    expect(sourcePart.text).toBe('Source Material:\nshort note');
   });
 });

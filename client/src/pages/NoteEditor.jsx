@@ -1273,6 +1273,7 @@ export default function NoteEditor() {
                     const error = new Error(event.data.message);
                     error.status = event.data.status;
                     error.canWatchAd = event.data.canWatchAd;
+                    error.code = event.data.code;
                     throw error;
                 } else if (event.type === 'done') {
                     toast.success('Tutor session generated!');
@@ -1281,7 +1282,9 @@ export default function NoteEditor() {
                 }
             }
         } catch (err) {
-            if (err.status === 429) setShowPricingModal(true);
+            // Pricing modal only for genuine entitlement exhaustion — provider throttling
+            // (503/rate_limit_exceeded) and our rate limiter just show a retry toast.
+            if (err.code === 'QUOTA_EXCEEDED') setShowPricingModal(true);
             else toast.error(err.message || 'Failed to generate tutor session');
         } finally {
             setGenerating(null);
