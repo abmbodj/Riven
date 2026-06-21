@@ -15,6 +15,7 @@ const MessageComposer = forwardRef(function MessageComposer(
         onCancelReply,
         imagePreview,
         onClearImage,
+        onPreviewImage,
         chatUser,
     },
     inputRef
@@ -111,11 +112,18 @@ const MessageComposer = forwardRef(function MessageComposer(
                         <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary mb-2">
                             Attachment
                         </p>
-                        <img
-                            src={imagePreview}
-                            alt="Attachment preview"
-                            className="h-20 rounded-xl object-cover border border-claude-border"
-                        />
+                        <button
+                            type="button"
+                            onClick={onPreviewImage}
+                            className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent"
+                            aria-label="Preview attached image"
+                        >
+                            <img
+                                src={imagePreview}
+                                alt="Attachment preview"
+                                className="h-20 rounded-xl object-cover border border-claude-border transition-opacity hover:opacity-90"
+                            />
+                        </button>
                         <button
                             type="button"
                             onClick={onClearImage}

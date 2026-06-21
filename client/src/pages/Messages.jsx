@@ -78,6 +78,8 @@ export default function Messages() {
         sendMessage,
         editMessage,
         deleteMessage,
+        retryMessage,
+        refreshMessageImageUrl,
         markSharedResourceAccepted,
         loadOlderMessages,
         startEditing,
@@ -109,15 +111,15 @@ export default function Messages() {
         }
 
         if (!composerText.trim() && !imageFile) return;
-        if (sending) return;
 
+        const contentToSend = composerText;
+        setComposerText('');
         haptics.light();
         try {
             await sendMessage({
-                content: composerText,
+                content: contentToSend,
                 onScrollToBottom: () => {},
             });
-            setComposerText('');
             invalidateConversations();
             inputRef.current?.focus();
         } catch (err) {
@@ -203,11 +205,26 @@ export default function Messages() {
         }
     }, [markSharedResourceAccepted, toast, haptics]);
 
-    const handleViewFile = useCallback((url, name) => {
+    const handleViewFile = useCallback((url, name, messageOrFile = null) => {
+        if (!url) return;
         const ext = url.split('?')[0].split('.').pop().toLowerCase();
-        setSelectedFile({ name: name || 'Attached Image', url, extension: ext });
+        setSelectedFile({
+            name: name || 'Attached Image',
+            url,
+            extension: messageOrFile?.extension || ext,
+            mimeType: messageOrFile?.mimeType || 'image/*',
+            messageId: messageOrFile?.id || null,
+        });
         setFileViewerOpen(true);
     }, []);
+
+    const handlePreviewComposerImage = useCallback(() => {
+        if (!imagePreview) return;
+        handleViewFile(imagePreview, imageFile?.name || 'Attachment preview', {
+            extension: imageFile?.name?.split('.').pop()?.toLowerCase() || '',
+            mimeType: imageFile?.type || 'image/*',
+        });
+    }, [handleViewFile, imageFile, imagePreview]);
 
     const sharedItemCount = useMemo(
         () => messages.filter((m) => isSharedMessageType(m.messageType) && m.sharedResource).length,
@@ -260,9 +277,11 @@ export default function Messages() {
                 onAcceptSharedResource={handleAcceptSharedResource}
                 onStartEdit={handleStartEdit}
                 onDelete={handleDelete}
+                onRetryMessage={retryMessage}
                 onStartReply={handleStartReply}
                 onReport={handleReport}
                 onViewFile={handleViewFile}
+                onRefreshImageUrl={refreshMessageImageUrl}
                 onLoadOlderMessages={loadOlderMessages}
             />
 
@@ -279,6 +298,7 @@ export default function Messages() {
                 onCancelReply={cancelReply}
                 imagePreview={imagePreview}
                 onClearImage={clearImageAttachment}
+                onPreviewImage={handlePreviewComposerImage}
                 chatUser={chatUser}
             />
         </div>

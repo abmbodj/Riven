@@ -116,7 +116,13 @@ export function useConversations(currentUser, threadHandlerRef) {
             setConversations((prev) =>
                 prev.map((c) =>
                     String(c.userId) === String(otherUserId) && c.lastMessageAt === msg.createdAt
-                        ? { ...c, lastMessage: msg.content }
+                        ? {
+                            ...c,
+                            lastMessage: msg.content,
+                            unreadCount: String(otherUserId) === String(threadHandlerRef?.current?.activePartnerId)
+                                ? 0
+                                : c.unreadCount,
+                        }
                         : c
                 )
             );
@@ -140,6 +146,7 @@ export function useConversations(currentUser, threadHandlerRef) {
 
     // Mark conversations as read when entering a thread
     const markThreadRead = useCallback((partnerId) => {
+        authApi.markMessagesRead(partnerId).catch(() => {});
         setConversations((prev) => {
             const updated = prev.map((c) =>
                 String(c.userId) === String(partnerId) ? { ...c, unreadCount: 0 } : c

@@ -1814,6 +1814,16 @@
   pointer-events: none;
 }
 
+@keyframes msgFailed {
+  0%   { transform: translateX(0); }
+  35%  { transform: translateX(-3px); }
+  70%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+.animate-msg-failed {
+  animation: msgFailed 0.18s cubic-bezier(0.25, 0, 0.1, 1) both;
+}
+
 /* Shared resource card inside messages */
 .dm-resource-card {
   position: relative;

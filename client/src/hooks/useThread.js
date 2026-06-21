@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { dmCache } from '../utils/dmCache';
+import { buildOptimisticMessage, createClientMessageId, reduceDmMessages } from '../utils/dmMessageEngine';
 import * as authApi from '../api/authApi';
 
 function hydrateWithProfile(messages, profile) {
@@ -47,9 +48,21 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
     const typingPresenceRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const imagePreviewRef = useRef(null);
+    const pendingSendPayloadsRef = useRef(new Map());
 
-    const clearImageAttachment = useCallback(() => {
-        if (imagePreviewRef.current?.startsWith?.('blob:')) {
+    const applyMessageAction = useCallback((action, targetPartnerId = partnerId) => {
+        setMessages((prev) => {
+            const updated = reduceDmMessages(prev, action);
+            if (userId && targetPartnerId) {
+                dmCache.setThread(userId, targetPartnerId, updated);
+            }
+            return updated;
+        });
+    }, [partnerId, userId]);
+
+    const clearImageAttachment = useCallback((options = {}) => {
+        const shouldRevoke = options.revoke !== false;
+        if (shouldRevoke && imagePreviewRef.current?.startsWith?.('blob:')) {
             URL.revokeObjectURL(imagePreviewRef.current);
         }
         imagePreviewRef.current = null;
@@ -84,9 +97,10 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
         const cachedUser = dmCache.getUser(partnerId);
 
         if (cached.length > 0 && cachedUser) {
-            setMessages(cached);
+            const hydratedCache = reduceDmMessages([], { type: 'hydrate', messages: cached });
+            setMessages(hydratedCache);
             setChatUser(cachedUser);
-            loadedIdsRef.current = new Set(cached.map((m) => m.id));
+            loadedIdsRef.current = new Set(hydratedCache.map((m) => m.id).filter(Boolean));
             setLoading(false);
         } else {
             setLoading(true);
@@ -118,9 +132,10 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
 
             if (msgsResult.status === 'fulfilled') {
                 const hydrated = hydrateWithProfile(msgsResult.value, resolvedUser);
-                loadedIdsRef.current = new Set(hydrated.map((m) => m.id));
-                dmCache.setThread(userId, partnerId, hydrated);
-                setMessages(hydrated);
+                const reduced = reduceDmMessages([], { type: 'hydrate', messages: hydrated });
+                loadedIdsRef.current = new Set(reduced.map((m) => m.id).filter(Boolean));
+                dmCache.setThread(userId, partnerId, reduced);
+                setMessages(reduced);
             }
 
             setLoading(false);
@@ -152,9 +167,9 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
 
         setMessages((prev) => {
             const hydrated = hydrateWithProfile(prev, fallbackUser);
-            if (hydrated === prev) return prev;
-            dmCache.setThread(userId, partnerId, hydrated);
-            return hydrated;
+            const reduced = reduceDmMessages([], { type: 'hydrate', messages: hydrated });
+            dmCache.setThread(userId, partnerId, reduced);
+            return reduced;
         });
     }, [partnerId, userId, conversations]);
 
@@ -172,19 +187,18 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
                     String(msg.senderId) === pid || String(msg.receiverId) === pid;
                 if (!isForThisThread) return;
 
-                setMessages((prev) => {
-                    if (prev.find((m) => m.id === msg.id)) return prev;
-                    const hydrated = msg.isMine ? msg : {
-                        ...msg,
-                        senderAvatar: msg.senderAvatar ?? dmCache.getUser(pid)?.avatar ?? null,
-                        senderUsername: msg.senderUsername ?? dmCache.getUser(pid)?.username ?? null,
-                    };
-                    const updated = [...prev, hydrated];
-                    dmCache.setThread(userId, pid, updated);
-                    return updated;
-                });
+                const hydrated = msg.isMine ? msg : {
+                    ...msg,
+                    senderAvatar: msg.senderAvatar ?? dmCache.getUser(pid)?.avatar ?? null,
+                    senderUsername: msg.senderUsername ?? dmCache.getUser(pid)?.username ?? null,
+                };
+                if (hydrated.id) loadedIdsRef.current.add(hydrated.id);
+                applyMessageAction({ type: 'realtime_insert', message: hydrated }, pid);
 
-                if (String(msg.senderId) === pid) setIsTyping(false);
+                if (String(msg.senderId) === pid) {
+                    setIsTyping(false);
+                    authApi.markMessagesRead(pid).catch(() => {});
+                }
             },
 
             onUpdate(msg) {
@@ -194,24 +208,16 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
                     String(msg.senderId) === pid || String(msg.receiverId) === pid;
                 if (!isForThisThread) return;
 
-                setMessages((prev) => {
-                    const updated = prev.map((m) => m.id === msg.id ? { ...m, ...msg } : m);
-                    dmCache.setThread(userId, pid, updated);
-                    return updated;
-                });
+                applyMessageAction({ type: 'realtime_update', message: msg }, pid);
             },
 
             onDelete(msg) {
                 if (!partnerId) return;
                 const pid = String(partnerId);
-                setMessages((prev) => {
-                    const updated = prev.filter((m) => m.id !== msg.id);
-                    dmCache.setThread(userId, pid, updated);
-                    return updated;
-                });
+                applyMessageAction({ type: 'delete', message: msg }, pid);
             },
         };
-    }, [partnerId, userId, threadHandlerRef]);
+    }, [partnerId, threadHandlerRef, applyMessageAction]);
 
     // Typing presence
     useEffect(() => {
@@ -233,11 +239,18 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
     }, [userId, partnerId]);
 
     useEffect(() => {
+        const pendingSendPayloads = pendingSendPayloadsRef.current;
         return () => {
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             if (imagePreviewRef.current?.startsWith?.('blob:')) {
                 URL.revokeObjectURL(imagePreviewRef.current);
             }
+            pendingSendPayloads.forEach((payload) => {
+                if (payload?.imagePreview?.startsWith?.('blob:')) {
+                    URL.revokeObjectURL(payload.imagePreview);
+                }
+            });
+            pendingSendPayloads.clear();
         };
     }, []);
 
@@ -257,48 +270,92 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
         typingPresenceRef.current?.stopTyping?.();
     }, []);
 
-    const sendMessage = useCallback(async ({ content, onScrollToBottom }) => {
-        if (!partnerId || sending) return;
-        setSending(true);
+    const deliverPendingMessage = useCallback(async (payload) => {
+        const uploadedImage = payload.imageFile
+            ? await authApi.uploadMessageImage(partnerId, payload.imageFile, currentUser)
+            : null;
 
+        const msg = await authApi.sendMessage(
+            partnerId,
+            payload.content?.trim() || '',
+            'text',
+            null,
+            null,
+            currentUser,
+            payload.replyTarget?.id || null,
+            uploadedImage?.path || payload.imagePath || null,
+            { clientMessageId: payload.clientMessageId }
+        );
+
+        const acknowledged = {
+            ...msg,
+            clientMessageId: msg.clientMessageId || payload.clientMessageId,
+        };
+        if (acknowledged.id) loadedIdsRef.current.add(acknowledged.id);
+        applyMessageAction({ type: 'server_ack', message: acknowledged });
+        pendingSendPayloadsRef.current.delete(payload.clientMessageId);
+
+        if (payload.imagePreview?.startsWith?.('blob:')) {
+            URL.revokeObjectURL(payload.imagePreview);
+        }
+
+        requestAnimationFrame(() => {
+            animateSentRef.current.add(acknowledged.id || acknowledged.clientMessageId);
+            setMessages((prev) => [...prev]);
+            setTimeout(() => animateSentRef.current.delete(acknowledged.id || acknowledged.clientMessageId), 250);
+        });
+
+        return acknowledged;
+    }, [partnerId, currentUser, applyMessageAction]);
+
+    const sendMessage = useCallback(async ({ content, onScrollToBottom }) => {
+        if (!partnerId) return;
+        const clientMessageId = createClientMessageId();
+        const payload = {
+            clientMessageId,
+            content: content?.trim() || '',
+            imageFile,
+            imagePreview,
+            imagePath: null,
+            replyTarget,
+        };
+        const optimistic = buildOptimisticMessage({
+            clientMessageId,
+            currentUser,
+            partnerId,
+            content: payload.content,
+            imagePreview: payload.imagePreview,
+            replyTarget: payload.replyTarget,
+        });
+
+        pendingSendPayloadsRef.current.set(clientMessageId, payload);
+        applyMessageAction({ type: 'optimistic_send', message: optimistic });
+        setReplyTarget(null);
+        clearImageAttachment({ revoke: false });
+        onScrollToBottom?.();
         stopTyping();
 
         try {
-            const uploadedImage = imageFile
-                ? await authApi.uploadMessageImage(partnerId, imageFile, currentUser)
-                : null;
-
-            const msg = await authApi.sendMessage(
-                partnerId,
-                content?.trim() || '',
-                'text',
-                null,
-                null,
-                currentUser,
-                replyTarget?.id || null,
-                uploadedImage?.path || null
-            );
-
-            loadedIdsRef.current.add(msg.id);
-            setMessages((prev) => {
-                const updated = [...prev, msg];
-                dmCache.setThread(userId, partnerId, updated);
-                return updated;
-            });
-            setReplyTarget(null);
-            clearImageAttachment();
-
-            // Scroll + animate sent bubble
-            onScrollToBottom?.();
-            requestAnimationFrame(() => {
-                animateSentRef.current.add(msg.id);
-                setMessages((prev) => [...prev]);
-                setTimeout(() => animateSentRef.current.delete(msg.id), 250);
-            });
-        } finally {
-            setSending(false);
+            return await deliverPendingMessage(payload);
+        } catch (err) {
+            applyMessageAction({ type: 'send_failed', clientMessageId, error: err });
+            throw err;
         }
-    }, [partnerId, sending, stopTyping, imageFile, currentUser, replyTarget, userId, clearImageAttachment]);
+    }, [partnerId, imageFile, imagePreview, replyTarget, currentUser, applyMessageAction, clearImageAttachment, stopTyping, deliverPendingMessage]);
+
+    const retryMessage = useCallback(async (msg) => {
+        const clientMessageId = msg?.clientMessageId;
+        if (!clientMessageId) return;
+        const payload = pendingSendPayloadsRef.current.get(clientMessageId);
+        if (!payload) return;
+
+        applyMessageAction({ type: 'retry', clientMessageId });
+        try {
+            await deliverPendingMessage(payload);
+        } catch (err) {
+            applyMessageAction({ type: 'send_failed', clientMessageId, error: err });
+        }
+    }, [applyMessageAction, deliverPendingMessage]);
 
     const editMessage = useCallback(async (id, content) => {
         setSending(true);
@@ -353,6 +410,20 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
         });
     }, [userId, partnerId]);
 
+    const refreshMessageImageUrl = useCallback(async (msg) => {
+        if (!msg?.imagePath) return msg?.imageUrl || null;
+        const imageUrl = await authApi.refreshMessageImageUrl(msg.imagePath);
+        applyMessageAction({
+            type: 'realtime_update',
+            message: {
+                ...msg,
+                imageUrl,
+                imageLoadError: !imageUrl,
+            },
+        });
+        return imageUrl;
+    }, [applyMessageAction]);
+
     const loadOlderMessages = useCallback(async () => {
         if (!hasMore || loadingMore || messages.length === 0 || !partnerId) return;
         setLoadingMore(true);
@@ -363,7 +434,7 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
             if (older.length > 0) {
                 older.forEach((m) => loadedIdsRef.current.add(m.id));
                 setMessages((prev) => {
-                    const combined = [...older, ...prev];
+                    const combined = reduceDmMessages([], { type: 'hydrate', messages: [...older, ...prev] });
                     dmCache.setThread(userId, partnerId, combined);
                     return combined;
                 });
@@ -413,6 +484,8 @@ export function useThread(partnerId, currentUser, conversations, threadHandlerRe
         sendMessage,
         editMessage,
         deleteMessage,
+        retryMessage,
+        refreshMessageImageUrl,
         markSharedResourceAccepted,
         loadOlderMessages,
         startEditing,

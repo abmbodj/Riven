@@ -1263,6 +1263,23 @@ const _sbThrow = (error) => {
     throw err;
 };
 
+const isMissingClientMessageIdSchemaError = (error) => {
+    if (!error) return false;
+    const normalized = [
+        error.code,
+        error.message,
+        error.details,
+        error.hint,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return normalized.includes('client_message_id')
+        && (
+            error.code === 'PGRST204'
+            || normalized.includes('schema cache')
+            || normalized.includes('could not find')
+        );
+};
+
 const DEFAULT_PET_CUSTOMIZATION = {
     gardenTheme: 'cottage',
     decorations: [],
@@ -4127,11 +4144,23 @@ async function createMessageImageSignedUrl(imagePath) {
     return data?.signedUrl || null;
 }
 
+export const refreshMessageImageUrl = async (imagePath) => createMessageImageSignedUrl(imagePath);
+
+function deriveMessageDeliveryStatus(row, currentUser, isRead) {
+    const isMine = row.sender_id === currentUser.id;
+    if (!isMine) return 'received';
+    if (isRead) return 'read';
+    if (row.delivered_at) return 'delivered';
+    return 'sent';
+}
+
 const mapMessageRowBase = (row, currentUser) => {
     const sharedResource = normalizeSharedPayload(parseJsonish(row.deck_data), row.message_type || 'text');
+    const isRead = Boolean(row.is_read) || Boolean(row.read_at);
 
     return {
         id: row.id,
+        clientMessageId: row.client_message_id || null,
         senderId: row.sender_id,
         receiverId: row.receiver_id,
         senderUsername: row.sender_id === currentUser.id ? currentUser.username || null : null,
@@ -4144,7 +4173,10 @@ const mapMessageRowBase = (row, currentUser) => {
         imagePath: row.image_path || null,
         imageLoadError: false,
         isEdited: Boolean(row.is_edited),
-        isRead: Boolean(row.is_read),
+        isRead,
+        deliveredAt: row.delivered_at || null,
+        readAt: row.read_at || null,
+        deliveryStatus: deriveMessageDeliveryStatus(row, currentUser, isRead),
         replyToId: row.reply_to_id || null,
         replyTo: null,
         createdAt: row.created_at,
@@ -4185,8 +4217,32 @@ export const uploadMessageImage = async (receiverId, file, currentUserOverride =
     return { path };
 };
 
+function mapConversationRow(row) {
+    return {
+        userId: row.user_id ?? row.userId,
+        username: row.username || 'Unknown',
+        avatar: row.avatar || null,
+        lastMessage: row.last_message ?? row.lastMessage ?? '',
+        lastMessageType: row.last_message_type ?? row.lastMessageType ?? 'text',
+        lastMessageAt: row.last_message_at ?? row.lastMessageAt,
+        isOwnMessage: Boolean(row.is_own_message ?? row.isOwnMessage),
+        unreadCount: Number(row.unread_count ?? row.unreadCount ?? 0),
+    };
+}
+
 export const getConversations = async (currentUserOverride = null) => {
     const currentUser = await resolveCurrentUser(currentUserOverride);
+
+    let rpcResult = null;
+    try {
+        rpcResult = await supabase.rpc('list_dm_conversations');
+    } catch {
+        rpcResult = null;
+    }
+    if (rpcResult && !rpcResult.error && Array.isArray(rpcResult.data)) {
+        return rpcResult.data.map(mapConversationRow);
+    }
+
     const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -4235,6 +4291,22 @@ export const getConversations = async (currentUserOverride = null) => {
         .sort((left, right) => new Date(right.lastMessageAt) - new Date(left.lastMessageAt));
 };
 
+export const markMessagesDelivered = async (otherUserId) => {
+    const { error } = await supabase.rpc('mark_messages_delivered', {
+        other_user_id: Number(otherUserId),
+    });
+    if (error) _sbThrow(error);
+    return { success: true };
+};
+
+export const markMessagesRead = async (otherUserId) => {
+    const { error } = await supabase.rpc('mark_messages_read', {
+        other_user_id: Number(otherUserId),
+    });
+    if (error) _sbThrow(error);
+    return { success: true };
+};
+
 export const getMessages = async (userId, limit = 50, before, currentUserOverride = null) => {
     const currentUser = await resolveCurrentUser(currentUserOverride);
     let query = supabase
@@ -4251,11 +4323,17 @@ export const getMessages = async (userId, limit = 50, before, currentUserOverrid
         .limit(limit || 50);
     if (error) _sbThrow(error);
 
-    const { error: readError } = await supabase.rpc('mark_messages_read', {
-        other_user_id: Number(userId),
-    });
-    if (readError) {
-        console.warn('[authApi] Failed to mark messages as read:', readError.message || readError);
+    if (!before) {
+        try {
+            await markMessagesDelivered(userId);
+        } catch { /* non-critical compatibility path */ }
+
+        const { error: readError } = await supabase.rpc('mark_messages_read', {
+            other_user_id: Number(userId),
+        });
+        if (readError) {
+            console.warn('[authApi] Failed to mark messages as read:', readError.message || readError);
+        }
     }
 
     const sortedRows = (data || [])
@@ -4273,7 +4351,8 @@ export const sendMessage = async (
     imageUrl = null,
     currentUserOverride = null,
     replyToId = null,
-    imagePath = null
+    imagePath = null,
+    options = {}
 ) => {
     if (!receiverId) {
         const error = new Error('Receiver ID is required');
@@ -4311,6 +4390,9 @@ export const sendMessage = async (
     }
 
     const currentUser = await resolveCurrentUser(currentUserOverride);
+    const clientMessageId = typeof options === 'string'
+        ? options
+        : (options?.clientMessageId || null);
     const insertPayload = {
         sender_id: currentUser.id,
         receiver_id: Number(receiverId),
@@ -4320,15 +4402,26 @@ export const sendMessage = async (
         image_url: imageUrl || null,
         reply_to_id: replyToId ? Number(replyToId) : null,
     };
+    if (clientMessageId) {
+        insertPayload.client_message_id = clientMessageId;
+    }
     if (imagePath) {
         insertPayload.image_path = imagePath;
     }
 
-    const { data, error } = await supabase
+    const insertMessageRow = (payload) => supabase
         .from('messages')
-        .insert(insertPayload)
+        .insert(payload)
         .select('*')
         .single();
+
+    let { data, error } = await insertMessageRow(insertPayload);
+    if (error && clientMessageId && isMissingClientMessageIdSchemaError(error)) {
+        const fallbackPayload = { ...insertPayload };
+        delete fallbackPayload.client_message_id;
+        ({ data, error } = await insertMessageRow(fallbackPayload));
+    }
+
     if (error) _sbThrow(error);
     return mapMessageRow(data, currentUser);
 };

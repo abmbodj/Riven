@@ -37,10 +37,13 @@ const buildJsonResponse = (body) => ({
 const emptySharedFields = {
   sharedResource: null,
   deckData: null,
+  clientMessageId: null,
   replyToId: null,
   replyTo: null,
   imagePath: null,
   imageLoadError: false,
+  deliveredAt: null,
+  readAt: null,
 };
 
 describe('authApi direct messages via Supabase', () => {
@@ -119,6 +122,48 @@ describe('authApi direct messages via Supabase', () => {
     ]);
   });
 
+  it('uses list_dm_conversations when the RPC is available', async () => {
+    globalThis.fetch = vi.fn((url) => {
+      if (url.endsWith('/auth/me')) {
+        return Promise.resolve(buildJsonResponse({ id: 42, username: 'avery', avatar: '/me.png' }));
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    supabase.rpc.mockResolvedValueOnce({
+      data: [
+        {
+          user_id: 12,
+          username: 'bianca',
+          avatar: '/bianca.png',
+          last_message: 'See you in lab',
+          last_message_type: 'text',
+          last_message_at: '2026-03-13T12:09:00.000Z',
+          is_own_message: false,
+          unread_count: 2,
+        },
+      ],
+      error: null,
+    });
+
+    const conversations = await authApi.getConversations();
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_dm_conversations');
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(conversations).toEqual([
+      {
+        userId: 12,
+        username: 'bianca',
+        avatar: '/bianca.png',
+        lastMessage: 'See you in lab',
+        lastMessageType: 'text',
+        lastMessageAt: '2026-03-13T12:09:00.000Z',
+        isOwnMessage: false,
+        unreadCount: 2,
+      },
+    ]);
+  });
+
   it('loads a conversation chronologically and marks incoming unread rows as read', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, username: 'avery', avatar: '/me.png' }));
 
@@ -153,6 +198,7 @@ describe('authApi direct messages via Supabase', () => {
         imageUrl: null,
         isEdited: false,
         isRead: true,
+        deliveryStatus: 'received',
         createdAt: '2026-03-13T12:05:00.000Z',
         isMine: false,
       },
@@ -168,6 +214,7 @@ describe('authApi direct messages via Supabase', () => {
         imageUrl: null,
         isEdited: false,
         isRead: true,
+        deliveryStatus: 'read',
         createdAt: '2026-03-13T12:10:00.000Z',
         isMine: true,
       },
@@ -406,8 +453,12 @@ describe('authApi direct messages via Supabase', () => {
       imageLoadError: false,
       isEdited: false,
       isRead: false,
+      deliveredAt: null,
+      readAt: null,
+      deliveryStatus: 'sent',
       createdAt: '2026-03-13T12:12:00.000Z',
       isMine: true,
+      clientMessageId: null,
       replyToId: null,
       replyTo: null,
     });
@@ -538,6 +589,149 @@ describe('authApi direct messages via Supabase', () => {
     expect(message.senderUsername).toBe('avery');
   });
 
+  it('stores client_message_id when sending an optimistic message', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 90,
+        client_message_id: 'client-123',
+        sender_id: 42,
+        receiver_id: 12,
+        content: 'optimistic hello',
+        message_type: 'text',
+        deck_data: null,
+        image_url: null,
+        is_edited: 0,
+        is_read: 0,
+        delivered_at: null,
+        read_at: null,
+        created_at: '2026-03-13T12:17:00.000Z',
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    supabase.from.mockReturnValue({ insert });
+
+    const message = await authApi.sendMessage(
+      12,
+      'optimistic hello',
+      'text',
+      null,
+      null,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+      null,
+      null,
+      { clientMessageId: 'client-123' },
+    );
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      client_message_id: 'client-123',
+    }));
+    expect(message.clientMessageId).toBe('client-123');
+    expect(message.deliveryStatus).toBe('sent');
+  });
+
+  it('retries optimistic sends without client_message_id when the schema cache is stale', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const single = vi.fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: 'PGRST204',
+          message: "Could not find the 'client_message_id' column of 'messages' in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: 91,
+          sender_id: 42,
+          receiver_id: 12,
+          content: 'fallback hello',
+          message_type: 'text',
+          deck_data: null,
+          image_url: null,
+          is_edited: 0,
+          is_read: 0,
+          delivered_at: null,
+          read_at: null,
+          created_at: '2026-03-13T12:18:00.000Z',
+        },
+        error: null,
+      });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    supabase.from.mockReturnValue({ insert });
+
+    const message = await authApi.sendMessage(
+      12,
+      'fallback hello',
+      'text',
+      null,
+      null,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+      null,
+      null,
+      { clientMessageId: 'client-stale-schema' },
+    );
+
+    expect(insert).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      client_message_id: 'client-stale-schema',
+    }));
+    expect(insert).toHaveBeenNthCalledWith(2, {
+      sender_id: 42,
+      receiver_id: 12,
+      content: 'fallback hello',
+      message_type: 'text',
+      deck_data: null,
+      image_url: null,
+      reply_to_id: null,
+    });
+    expect(message.id).toBe(91);
+    expect(message.clientMessageId).toBeNull();
+    expect(message.deliveryStatus).toBe('sent');
+  });
+
+  it('does not retry optimistic sends for unsupported insert errors', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: '42501',
+        message: 'new row violates row-level security policy',
+      },
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    supabase.from.mockReturnValue({ insert });
+
+    await expect(authApi.sendMessage(
+      12,
+      'blocked hello',
+      'text',
+      null,
+      null,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+      null,
+      null,
+      { clientMessageId: 'client-rls-error' },
+    )).rejects.toMatchObject({
+      code: '42501',
+      status: 403,
+    });
+
+    expect(insert).toHaveBeenCalledTimes(1);
+  });
+
   it('uploads direct-message images into private message storage', async () => {
     const upload = vi.fn().mockResolvedValue({ error: null });
     supabase.storage.from.mockReturnValue({ upload });
@@ -613,6 +807,20 @@ describe('authApi direct messages via Supabase', () => {
     expect(createSignedUrl).toHaveBeenCalledWith('42/12/photo.png', 3600);
     expect(message.imagePath).toBe('42/12/photo.png');
     expect(message.imageUrl).toBe('https://signed.example/photo.png');
+  });
+
+  it('refreshes signed URLs for private direct-message images', async () => {
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://signed.example/refreshed.png' },
+      error: null,
+    });
+    supabase.storage.from.mockReturnValue({ createSignedUrl });
+
+    const url = await authApi.refreshMessageImageUrl('42/12/photo.png');
+
+    expect(supabase.storage.from).toHaveBeenCalledWith('message-images');
+    expect(createSignedUrl).toHaveBeenCalledWith('42/12/photo.png', 3600);
+    expect(url).toBe('https://signed.example/refreshed.png');
   });
 
   it('subscribes to Supabase Realtime and maps row payloads into message events', async () => {

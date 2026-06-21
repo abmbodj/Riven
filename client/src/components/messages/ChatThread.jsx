@@ -3,75 +3,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Leaf } from 'lucide-react';
 import { isSharedMessageType } from '../../utils/sharedResources';
+import { getMessageIdentity } from '../../utils/dmMessageEngine';
+import { buildEstimatedRows, buildVirtualItems, estimateVirtualItemSize } from '../../utils/dmThreadVirtualItems';
 import MessageBubble from './MessageBubble';
 import DateDivider from './DateDivider';
 import { EmptyThreadState } from './MessagesEmptyState';
 import Avatar from '../Avatar';
-
-function isSameDay(a, b) {
-    const da = new Date(a);
-    const db = new Date(b);
-    return (
-        da.getFullYear() === db.getFullYear() &&
-        da.getMonth() === db.getMonth() &&
-        da.getDate() === db.getDate()
-    );
-}
-
-// Build a flat list of virtual items — either date-dividers or message indices.
-// Also computes grouping metadata (isFirst/isLast within same-sender runs).
-function buildVirtualItems(messages) {
-    const items = [];
-    const GROUP_GAP_MS = 5 * 60 * 1000; // 5 min gap breaks grouping
-
-    for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i];
-        const prev = messages[i - 1];
-
-        // Insert date divider when day changes
-        if (!prev || !isSameDay(prev.createdAt, msg.createdAt)) {
-            items.push({ type: 'divider', date: msg.createdAt });
-        }
-
-        const nextMsg = messages[i + 1];
-
-        // Grouping: same sender + within GROUP_GAP_MS = grouped run
-        const sameSenderAsPrev =
-            prev &&
-            prev.isMine === msg.isMine &&
-            !isSameDay(prev.createdAt, msg.createdAt) === false &&
-            new Date(msg.createdAt) - new Date(prev.createdAt) < GROUP_GAP_MS;
-
-        const sameSenderAsNext =
-            nextMsg &&
-            nextMsg.isMine === msg.isMine &&
-            new Date(nextMsg.createdAt) - new Date(msg.createdAt) < GROUP_GAP_MS;
-
-        // If message has a reply target, always treat as first (breaks run visually)
-        const hasReply = Boolean(msg.replyToId);
-
-        const isFirst = !sameSenderAsPrev || hasReply;
-        const isLast = !sameSenderAsNext;
-
-        items.push({ type: 'message', index: i, isFirst, isLast });
-    }
-
-    return items;
-}
-
-function estimateVirtualItemSize(item) {
-    return item?.type === 'divider' ? 52 : 72;
-}
-
-function buildEstimatedRows(items) {
-    let start = 0;
-    return items.map((item, index) => {
-        const size = estimateVirtualItemSize(item);
-        const row = { index, start, size };
-        start += size;
-        return row;
-    });
-}
 
 export default function ChatThread({
     messages,
@@ -89,14 +26,18 @@ export default function ChatThread({
     onAcceptSharedResource,
     onStartEdit,
     onDelete,
+    onRetryMessage,
     onStartReply,
     onReport,
     onViewFile,
+    onRefreshImageUrl,
     onLoadOlderMessages,
 }) {
     const scrollParentRef = useRef(null);
     const isNearBottomRef = useRef(true);
     const initialScrollDoneRef = useRef(false);
+    const loadingMoreRef = useRef(false);
+    const restoreScrollRef = useRef(null);
     const [showNewPill, setShowNewPill] = useState(false);
     const prevMsgCountRef = useRef(messages.length);
 
@@ -131,6 +72,17 @@ export default function ChatThread({
         setShowNewPill(false);
     }, []);
 
+    const requestOlderMessages = useCallback(() => {
+        const el = scrollParentRef.current;
+        if (el) {
+            restoreScrollRef.current = {
+                scrollHeight: el.scrollHeight,
+                scrollTop: el.scrollTop,
+            };
+        }
+        onLoadOlderMessages();
+    }, [onLoadOlderMessages]);
+
     // Auto-scroll on new messages
     useEffect(() => {
         if (messages.length > prevMsgCountRef.current) {
@@ -159,6 +111,20 @@ export default function ChatThread({
         prevMsgCountRef.current = messages.length;
     }, [loading, messages.length]);
 
+    useLayoutEffect(() => {
+        const wasLoadingMore = loadingMoreRef.current;
+        loadingMoreRef.current = loadingMore;
+        if (!wasLoadingMore || loadingMore || !restoreScrollRef.current) return;
+
+        const el = scrollParentRef.current;
+        if (!el) return;
+
+        const { scrollHeight, scrollTop } = restoreScrollRef.current;
+        const delta = el.scrollHeight - scrollHeight;
+        el.scrollTop = scrollTop + delta;
+        restoreScrollRef.current = null;
+    }, [loadingMore, messages.length]);
+
     // Scroll to bottom when typing indicator appears
     useEffect(() => {
         if (isTyping && isNearBottomRef.current) {
@@ -172,13 +138,13 @@ export default function ChatThread({
         if (!el) return;
         const handleScroll = () => {
             checkNearBottom();
-            if (el.scrollTop < 100 && hasMore) {
-                onLoadOlderMessages();
+            if (el.scrollTop < 100 && hasMore && !loadingMore) {
+                requestOlderMessages();
             }
         };
         el.addEventListener('scroll', handleScroll, { passive: true });
         return () => el.removeEventListener('scroll', handleScroll);
-    }, [checkNearBottom, onLoadOlderMessages, hasMore]);
+    }, [checkNearBottom, requestOlderMessages, hasMore, loadingMore]);
 
     // Dismiss menu on outside click
     useEffect(() => {
@@ -201,9 +167,12 @@ export default function ChatThread({
 
     const handleAttachmentSettled = useCallback(() => {
         virtualizer.measure();
-        if (isNearBottomRef.current) {
-            requestAnimationFrame(() => scrollToBottom('auto'));
-        }
+        requestAnimationFrame(() => {
+            virtualizer.measure();
+            if (isNearBottomRef.current) {
+                scrollToBottom('auto');
+            }
+        });
     }, [virtualizer, scrollToBottom]);
 
     // Find the last sent (mine + not shared) message for read receipt
@@ -263,10 +232,14 @@ export default function ChatThread({
 
                     {virtualItems.map((vRow) => {
                         const item = items[vRow.index];
+                        const msg = item.type === 'message' ? messages[item.index] : null;
+                        const rowKey = item.type === 'message'
+                            ? `message-${getMessageIdentity(msg)}`
+                            : `divider-${item.date}`;
 
                         return (
                             <div
-                                key={vRow.index}
+                                key={rowKey}
                                 ref={virtualizer.measureElement}
                                 data-index={vRow.index}
                                 style={{
@@ -282,9 +255,8 @@ export default function ChatThread({
                                     <DateDivider date={item.date} />
                                 ) : (
                                     (() => {
-                                        const msg = messages[item.index];
-                                        const isNew = !loadedIdsRef.current.has(msg.id);
-                                        const isAnimatingIn = isNew || animateSentRef.current.has(msg.id);
+                                        const isNew = !msg.id || !loadedIdsRef.current.has(msg.id);
+                                        const isAnimatingIn = isNew || animateSentRef.current.has(msg.id) || animateSentRef.current.has(msg.clientMessageId);
                                         const isDeleting = deletingIdsRef.current.has(msg.id);
                                         const showAvatar = item.isFirst && !msg.isMine;
                                         const replyTo = msg.replyToId
@@ -308,9 +280,11 @@ export default function ChatThread({
                                                 onAcceptSharedResource={onAcceptSharedResource}
                                                 onStartEdit={onStartEdit}
                                                 onDelete={onDelete}
+                                                onRetry={onRetryMessage}
                                                 onStartReply={onStartReply}
                                                 onReport={onReport}
                                                 onViewFile={onViewFile}
+                                                onRefreshImageUrl={onRefreshImageUrl}
                                                 onAttachmentLoad={handleAttachmentSettled}
                                                 scrollToMessage={scrollToMessage}
                                             />

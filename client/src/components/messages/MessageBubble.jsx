@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { MoreVertical, Edit2, Trash2, ShieldAlert, CornerUpLeft, ImageOff } from 'lucide-react';
 import { isSharedMessageType } from '../../utils/sharedResources';
 import SharedResourceCard from './SharedResourceCard';
@@ -56,15 +56,16 @@ export default function MessageBubble({
     onAcceptSharedResource,
     onStartEdit,
     onDelete,
+    onRetry,
     onStartReply,
     onReport,
     onViewFile,
+    onRefreshImageUrl,
     onAttachmentLoad,
     scrollToMessage,
 }) {
     const [swipeDelta, setSwipeDelta] = useState(0);
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [imageFailed, setImageFailed] = useState(Boolean(msg.imageLoadError));
+    const [imageState, setImageState] = useState({ key: '', loaded: false, failed: false });
     const swipeStartX = useRef(null);
     const swipeTriggered = useRef(false);
     const bubbleRef = useRef(null);
@@ -72,11 +73,18 @@ export default function MessageBubble({
     const radius = bubbleRadius(msg.isMine, isFirst, isLast);
     const isShared = isSharedMessageType(msg.messageType) && msg.sharedResource;
     const hasAttachment = Boolean(msg.imageUrl || msg.imagePath);
-
-    useEffect(() => {
-        setImageLoaded(false);
-        setImageFailed(Boolean(msg.imageLoadError || (msg.imagePath && !msg.imageUrl)));
-    }, [msg.imageUrl, msg.imagePath, msg.imageLoadError]);
+    const hasText = Boolean(msg.content);
+    const deliveryStatus = msg.deliveryStatus || (msg.isRead ? 'read' : msg.deliveredAt ? 'delivered' : msg.id ? 'sent' : 'sending');
+    const isSending = deliveryStatus === 'sending' || deliveryStatus === 'pending';
+    const isFailed = deliveryStatus === 'failed';
+    const bubblePadding = hasAttachment ? 'p-2' : 'px-4 py-2.5';
+    const textPadding = hasAttachment ? 'px-1.5 pt-1' : '';
+    const footerPadding = hasAttachment ? 'px-1.5' : '';
+    const imageStateKey = `${msg.imageUrl || ''}|${msg.imagePath || ''}|${msg.imageLoadError ? 'error' : 'ok'}`;
+    const imageLoaded = imageState.key === imageStateKey ? imageState.loaded : false;
+    const imageFailed = imageState.key === imageStateKey
+        ? imageState.failed
+        : Boolean(msg.imageLoadError || (msg.imagePath && !msg.imageUrl));
 
     // Swipe-to-reply gesture
     const onPointerDown = useCallback((e) => {
@@ -112,6 +120,37 @@ export default function MessageBubble({
         setSwipeDelta(0);
     }, []);
 
+    const handleOpenImage = useCallback(async () => {
+        let nextUrl = msg.imageUrl;
+        if (msg.imagePath && onRefreshImageUrl) {
+            try {
+                nextUrl = await onRefreshImageUrl(msg) || nextUrl;
+            } catch {
+                // Fall back to the currently signed URL if refresh fails.
+            }
+        }
+        if (nextUrl) {
+            onViewFile(nextUrl, 'Attached Image', { ...msg, imageUrl: nextUrl });
+        }
+    }, [msg, onRefreshImageUrl, onViewFile]);
+
+    const handleImageError = useCallback(async () => {
+        if (msg.imagePath && onRefreshImageUrl) {
+            try {
+                const nextUrl = await onRefreshImageUrl(msg);
+                if (nextUrl) {
+                    setImageState({ key: imageStateKey, loaded: false, failed: false });
+                    onAttachmentLoad?.();
+                    return;
+                }
+            } catch {
+                // Mark unavailable below.
+            }
+        }
+        setImageState({ key: imageStateKey, loaded: false, failed: true });
+        onAttachmentLoad?.();
+    }, [imageStateKey, msg, onAttachmentLoad, onRefreshImageUrl]);
+
     const swipeStyle = swipeDelta > 0
         ? { transform: `translateX(${swipeDelta}px)`, transition: 'none' }
         : { transform: 'translateX(0)', transition: 'transform 200ms cubic-bezier(0.25, 0, 0.1, 1)' };
@@ -120,7 +159,7 @@ export default function MessageBubble({
 
     return (
         <div
-            className={`message-row pb-1 ${isDeleting ? 'animate-msg-out' : isAnimatingIn ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
+            className={`message-row pb-1 ${isDeleting ? 'animate-msg-out' : isAnimatingIn ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''} ${isFailed ? 'animate-msg-failed' : ''}`}
         >
             {/* Outer alignment row */}
             <div className={`flex ${msg.isMine ? 'justify-end pl-10' : 'justify-start pr-10'} relative`}>
@@ -135,9 +174,9 @@ export default function MessageBubble({
                     </div>
                 )}
 
-                <div
-                    className={`flex items-end gap-2 max-w-[min(80%,26rem)] ${msg.isMine ? 'flex-row-reverse' : ''}`}
-                >
+                    <div
+                        className={`flex items-end gap-2 ${hasAttachment ? 'max-w-[min(88%,24rem)]' : 'max-w-[min(80%,26rem)]'} ${msg.isMine ? 'flex-row-reverse' : ''}`}
+                    >
                     {/* Avatar (received only, first in group) */}
                     {!msg.isMine && (
                         <div className="w-7 shrink-0 mb-0.5">
@@ -159,7 +198,7 @@ export default function MessageBubble({
                     ) : (
                         <div
                             ref={bubbleRef}
-                            className={`relative group ${radius} px-4 py-2.5 cursor-default select-text touch-pan-y`}
+                            className={`relative group ${radius} ${bubblePadding} cursor-default select-text touch-pan-y`}
                             style={msg.isMine
                                 ? {
                                     background: 'oklch(51% 0.10 143)',
@@ -265,12 +304,15 @@ export default function MessageBubble({
 
                             {/* Attached image */}
                             {hasAttachment && (
-                                <div className="mb-2 min-h-[148px] min-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-black/10">
+                                <div
+                                    className={`${hasText ? 'mb-2' : ''} aspect-[4/3] w-[min(70vw,21rem)] max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/10`}
+                                    data-testid="message-attachment-frame"
+                                >
                                     {msg.imageUrl && !imageFailed ? (
                                         <button
                                             type="button"
-                                            className="relative block h-full min-h-[148px] w-full cursor-pointer"
-                                            onClick={() => onViewFile(msg.imageUrl, 'Attached Image')}
+                                            className="relative block h-full w-full cursor-pointer"
+                                            onClick={handleOpenImage}
                                             aria-label="View attached image"
                                         >
                                             {!imageLoaded && (
@@ -281,20 +323,17 @@ export default function MessageBubble({
                                             <img
                                                 src={msg.imageUrl}
                                                 alt="Attached"
-                                                className={`max-h-[240px] min-h-[148px] w-full object-cover transition-opacity ${imageLoaded ? 'opacity-100 hover:opacity-90' : 'opacity-0'}`}
+                                                className={`h-full w-full object-cover transition-opacity ${imageLoaded ? 'opacity-100 hover:opacity-90' : 'opacity-0'}`}
                                                 loading="lazy"
                                                 onLoad={() => {
-                                                    setImageLoaded(true);
+                                                    setImageState({ key: imageStateKey, loaded: true, failed: false });
                                                     onAttachmentLoad?.();
                                                 }}
-                                                onError={() => {
-                                                    setImageFailed(true);
-                                                    onAttachmentLoad?.();
-                                                }}
+                                                onError={handleImageError}
                                             />
                                         </button>
                                     ) : (
-                                        <div className="flex min-h-[148px] min-w-[220px] flex-col items-center justify-center gap-2 px-4 text-center text-claude-secondary">
+                                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center text-claude-secondary">
                                             <ImageOff className="h-5 w-5" aria-hidden="true" />
                                             <p className="text-[10px] font-mono uppercase tracking-[0.18em]">
                                                 Image unavailable
@@ -306,13 +345,13 @@ export default function MessageBubble({
 
                             {/* Message text */}
                             {msg.content && (
-                                <p className="break-words font-sans text-[15px] leading-relaxed">
+                                <p className={`break-words font-sans text-[15px] leading-relaxed ${textPadding}`}>
                                     {msg.content}
                                 </p>
                             )}
 
                             {/* Footer: edited + timestamp */}
-                            <p className={`text-[10px] tabular-nums mt-1.5 select-none ${msg.isMine ? 'text-right opacity-70' : 'text-left text-claude-secondary'}`}>
+                            <p className={`text-[10px] tabular-nums mt-1.5 select-none ${footerPadding} ${msg.isMine ? 'text-right opacity-70' : 'text-left text-claude-secondary'}`}>
                                 {msg.isEdited && <span className="italic mr-1.5">(edited)</span>}
                                 {formatTimestamp(msg.createdAt)}
                             </p>
@@ -322,21 +361,40 @@ export default function MessageBubble({
             </div>
 
             {/* Read receipt — only under the last sent message */}
-            {msg.isMine && isLastSentMessage && !isShared && (
-                <div className="flex justify-end pr-2 mt-0.5">
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-claude-secondary/50">
-                        {msg.isRead ? (
-                            <>
-                                <span className="text-claude-accent/70">✓✓</span>
-                                Read
-                            </>
-                        ) : (
-                            <>
-                                <span>✓</span>
-                                Sent
-                            </>
-                        )}
-                    </span>
+            {msg.isMine && !isShared && (isLastSentMessage || isSending || isFailed) && (
+                <div className="flex justify-end pr-2 mt-0.5 text-[10px] font-mono text-claude-secondary/50">
+                    {isFailed ? (
+                        <div className="flex items-center gap-2 text-red-300/80">
+                            <span>Failed</span>
+                            <button
+                                type="button"
+                                onClick={() => onRetry?.(msg)}
+                                className="rounded-full border border-red-300/25 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-red-200 transition-colors hover:border-red-200/50 hover:text-white"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    ) : isSending ? (
+                        <span className="flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-claude-secondary/50 animate-pulse" />
+                            Sending
+                        </span>
+                    ) : msg.isRead || deliveryStatus === 'read' ? (
+                        <span className="flex items-center gap-1">
+                            <span className="text-claude-accent/70">✓✓</span>
+                            Read
+                        </span>
+                    ) : deliveryStatus === 'delivered' ? (
+                        <span className="flex items-center gap-1">
+                            <span>✓✓</span>
+                            Delivered
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-1">
+                            <span>✓</span>
+                            Sent
+                        </span>
+                    )}
                 </div>
             )}
         </div>

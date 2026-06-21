@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Messages from './Messages.jsx';
+import { buildVirtualItems, estimateVirtualItemSize } from '../utils/dmThreadVirtualItems.js';
 
 const toast = {
   error: vi.fn(),
@@ -32,7 +33,12 @@ vi.mock('../components/ui/ReportModal', () => ({
 }));
 
 vi.mock('../components/FileViewer', () => ({
-  default: () => null,
+  default: ({ file, isOpen }) => isOpen ? (
+    <div role="dialog" aria-label="File viewer">
+      <span>{file?.name}</span>
+      <img src={file?.url} alt="Large preview" />
+    </div>
+  ) : null,
 }));
 
 vi.mock('../utils/dmCache', () => ({
@@ -57,6 +63,8 @@ vi.mock('../api/authApi', async (importOriginal) => ({
   sendMessage: vi.fn(),
   editMessage: vi.fn(),
   deleteMessage: vi.fn(),
+  markMessagesRead: vi.fn().mockResolvedValue({ success: true }),
+  refreshMessageImageUrl: vi.fn(),
   subscribeToMessages: vi.fn((_userId, callbacks) => {
     callbacks?.onSubscribed?.();
     return () => {};
@@ -361,8 +369,48 @@ describe('Messages desktop workspace', () => {
         { id: 99, username: 'Avery' },
         null,
         '99/21/photo.png',
+        expect.objectContaining({ clientMessageId: expect.any(String) }),
       );
     });
+  });
+
+  it('paints outgoing messages immediately while the send request is still pending', async () => {
+    authApi.getConversations.mockResolvedValue([
+      {
+        userId: 21,
+        username: 'Bianca',
+        avatar: null,
+        unreadCount: 0,
+        lastMessage: '',
+        lastMessageAt: new Date().toISOString(),
+        lastMessageType: 'text',
+        isOwnMessage: false,
+      },
+    ]);
+    authApi.getMessages.mockResolvedValue([]);
+    authApi.getUserProfile.mockResolvedValue({ id: 21, username: 'Bianca', avatar: null });
+    authApi.sendMessage.mockReturnValue(new Promise(() => {}));
+
+    render(
+      <MemoryRouter initialEntries={['/messages/21']}>
+        <Routes>
+          <Route path="/messages/:userId" element={<Messages />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Bianca').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(screen.getAllByLabelText('Message input').at(-1), {
+      target: { value: 'instant hello' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /send message/i }).at(-1));
+
+    expect((await screen.findAllByText('instant hello')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/sending/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Message input').at(-1)).toHaveValue('');
   });
 
   it('shows the specific send error returned by the message API', async () => {
@@ -401,6 +449,9 @@ describe('Messages desktop workspace', () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('You cannot message this user.');
     });
+    expect(screen.getAllByText('hello').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/failed/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /retry/i }).length).toBeGreaterThan(0);
   });
 
   it('renders image-only messages with a visible attachment frame', async () => {
@@ -430,6 +481,7 @@ describe('Messages desktop workspace', () => {
       },
     ]);
     authApi.getUserProfile.mockResolvedValue({ id: 21, username: 'Bianca', avatar: null });
+    authApi.refreshMessageImageUrl.mockResolvedValue('https://signed.example/photo.png');
 
     render(
       <MemoryRouter initialEntries={['/messages/21']}>
@@ -441,6 +493,71 @@ describe('Messages desktop workspace', () => {
 
     expect((await screen.findAllByRole('button', { name: /view attached image/i })).length).toBeGreaterThan(0);
     expect(screen.getAllByAltText('Attached').at(-1)).toHaveAttribute('src', 'https://signed.example/photo.png');
+    fireEvent.click(screen.getAllByRole('button', { name: /view attached image/i }).at(-1));
+    expect(await screen.findByRole('dialog', { name: /file viewer/i })).toBeInTheDocument();
+    expect(screen.getByAltText('Large preview')).toHaveAttribute('src', 'https://signed.example/photo.png');
     expect(screen.queryAllByText(/image unavailable/i)).toHaveLength(0);
+  });
+
+  it('renders image captions inside the attachment bubble and opens the viewer', async () => {
+    authApi.getConversations.mockResolvedValue([
+      {
+        userId: 21,
+        username: 'Bianca',
+        avatar: null,
+        unreadCount: 0,
+        lastMessage: 'Look at this',
+        lastMessageAt: new Date().toISOString(),
+        lastMessageType: 'text',
+        isOwnMessage: false,
+      },
+    ]);
+    authApi.getMessages.mockResolvedValue([
+      {
+        id: 10,
+        isMine: false,
+        senderAvatar: null,
+        senderUsername: 'Bianca',
+        content: 'Look at this',
+        messageType: 'text',
+        imagePath: '21/99/captioned.png',
+        imageUrl: 'https://signed.example/captioned.png',
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    authApi.getUserProfile.mockResolvedValue({ id: 21, username: 'Bianca', avatar: null });
+    authApi.refreshMessageImageUrl.mockResolvedValue('https://signed.example/captioned.png');
+
+    render(
+      <MemoryRouter initialEntries={['/messages/21']}>
+        <Routes>
+          <Route path="/messages/:userId" element={<Messages />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect((await screen.findAllByTestId('message-attachment-frame')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Look at this').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /view attached image/i }).at(-1));
+
+    expect(await screen.findByRole('dialog', { name: /file viewer/i })).toBeInTheDocument();
+    expect(screen.getByAltText('Large preview')).toHaveAttribute('src', 'https://signed.example/captioned.png');
+  });
+
+  it('reserves larger virtualized rows for media messages before image load completes', () => {
+    const items = buildVirtualItems([
+      {
+        id: 10,
+        isMine: false,
+        content: 'Look at this',
+        messageType: 'text',
+        imageUrl: 'https://signed.example/captioned.png',
+        createdAt: '2026-03-13T12:18:00.000Z',
+      },
+    ]);
+    const mediaItem = items.find((item) => item.type === 'message');
+
+    expect(estimateVirtualItemSize(mediaItem)).toBeGreaterThan(300);
   });
 });
