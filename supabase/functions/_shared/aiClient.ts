@@ -1,10 +1,10 @@
 import Groq from 'npm:groq-sdk@0.24.0';
 
-import { buildGroqGenerateContentParams, type AiResponseFormat } from './aiClientRequest.ts';
+import { buildGroqGenerateContentParams, type AiResponseFormat, type AiContentPart } from './aiClientRequest.ts';
 
 export type AiMessage = {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | AiContentPart[];
 };
 
 export type AiStreamChunk = {
@@ -19,10 +19,10 @@ export type TranscribeOptions = {
   temperature?: number;
 };
 
-export type { AiResponseFormat };
+export type { AiResponseFormat, AiContentPart };
 
 export const createAiClient = (apiKey: string) => {
-  const groq = new Groq({ apiKey });
+  const groq = new Groq({ apiKey, timeout: 45_000, maxRetries: 1 });
 
   return {
     async *streamContent({
@@ -38,7 +38,8 @@ export const createAiClient = (apiKey: string) => {
     }): AsyncGenerator<AiStreamChunk> {
       const stream = await groq.chat.completions.create({
         model,
-        messages,
+        // Cast covers multimodal (image) content parts, which the SDK accepts for vision models.
+        messages: messages as unknown as Groq.Chat.Completions.ChatCompletionMessageParam[],
         max_tokens: maxTokens,
         temperature,
         stream: true,
@@ -63,13 +64,18 @@ export const createAiClient = (apiKey: string) => {
       temperature?: number;
       responseFormat?: AiResponseFormat;
     }): Promise<string> {
-      const response = await groq.chat.completions.create(buildGroqGenerateContentParams({
+      const params = buildGroqGenerateContentParams({
         model,
         messages,
         maxTokens,
         temperature,
         responseFormat,
-      }));
+      });
+      const response = await groq.chat.completions.create({
+        ...params,
+        // Cast covers multimodal (image) content parts, which the SDK accepts for vision models.
+        messages: params.messages as unknown as Groq.Chat.Completions.ChatCompletionMessageParam[],
+      });
 
       return response.choices?.[0]?.message?.content ?? '';
     },
@@ -128,16 +134,35 @@ export const createAiClient = (apiKey: string) => {
 
 export type AiClient = ReturnType<typeof createAiClient>;
 
-/** Convert Gemini-style content parts array to Groq chat messages */
+const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+
+/**
+ * Convert Gemini-style content parts array to a Groq chat message. Text parts are joined;
+ * inline IMAGE data becomes an image_url part so vision models (Llama 4) can read an
+ * uploaded photo/scan. Non-image binary (e.g. PDF) is dropped here — extract its text first.
+ */
 export const contentsToMessages = (
   contents: Array<Record<string, unknown>>,
 ): AiMessage[] => {
   const textParts: string[] = [];
+  const imageParts: AiContentPart[] = [];
   for (const part of contents) {
     if (typeof part.text === 'string') {
       textParts.push(part.text);
+    } else if (part.inlineData && typeof part.inlineData === 'object') {
+      const inline = part.inlineData as { data?: string; mimeType?: string };
+      if (inline.data && inline.mimeType && IMAGE_MIME_TYPES.has(inline.mimeType)) {
+        imageParts.push({
+          type: 'image_url',
+          image_url: { url: `data:${inline.mimeType};base64,${inline.data}` },
+        });
+      }
     }
   }
 
-  return [{ role: 'user', content: textParts.join('\n\n') }];
+  const text = textParts.join('\n\n');
+  if (imageParts.length === 0) {
+    return [{ role: 'user', content: text }];
+  }
+  return [{ role: 'user', content: [{ type: 'text', text }, ...imageParts] }];
 };

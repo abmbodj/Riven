@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildCoverageMap,
@@ -8,6 +8,8 @@ import {
   studyGuideDataToPlainText,
   validateTutorSessionQuality,
 } from '../../supabase/functions/_shared/studyGuideCore.mjs';
+
+import { expandGuideTeaching } from '../../supabase/functions/_shared/aiCore.mjs';
 
 const makeStrongTeaching = (topic = 'mitosis') => ({
   learning_objective: `Explain ${topic} by tracing the mechanism, outcome, examples, and likely mistakes.`,
@@ -708,5 +710,125 @@ describe('buildCoverageMap', () => {
     const mitosis = coverage.topics.find((topic) => topic.title === 'Mitosis');
     expect(mitosis.status).toBe('mastered');
     expect(mitosis.masteryScore).toBe(95);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// expandGuideTeaching — parallelism, per-card timeout, and progress reporting
+// ---------------------------------------------------------------------------
+
+const makeCard = (id, topic = 'test-topic') => ({
+  id,
+  prompt: `What is ${topic}?`,
+  model_answer: `${topic} is a process.`,
+  teaching: {},
+});
+
+const makeGuidePayload = (cards) => ({
+  session_meta: { title: 'Test Session', subject: 'biology' },
+  cards,
+});
+
+const makeTeachingResponse = (id) =>
+  JSON.stringify({
+    learning_objective: `Explain card ${id} fully.`,
+    explain: `This is the full explanation for card ${id}. `.repeat(12),
+    intuition: `Think of card ${id} like a simple example.`,
+    worked_examples: [
+      { title: 'Ex 1', problem: 'Solve it.', steps: [{ step: 'Step A', detail: 'Do A.' }, { step: 'Step B', detail: 'Do B.' }], result: 'Done.', takeaway: 'Remember this.' },
+      { title: 'Ex 2', problem: 'Apply it.', steps: [{ step: 'Step A', detail: 'Do A.' }, { step: 'Step B', detail: 'Do B.' }], result: 'Done.', takeaway: 'Remember that.' },
+    ],
+    common_mistakes: [`Not doing it correctly is wrong because the fix requires doing it right.`, `Skipping a step is wrong because each step matters.`],
+  });
+
+describe('expandGuideTeaching', () => {
+  it('merges teaching for all cards regardless of resolution order', async () => {
+    const cards = [makeCard('c1'), makeCard('c2'), makeCard('c3')];
+    const payload = makeGuidePayload(cards);
+
+    // Simulate out-of-order resolution: c2 resolves first, c1 last
+    const generateContent = vi.fn().mockImplementation(({ contents }) => {
+      const last = contents[contents.length - 1]?.text ?? '';
+      if (last.includes('c1')) return new Promise((r) => setTimeout(() => r(makeTeachingResponse('c1')), 20));
+      if (last.includes('c2')) return Promise.resolve(makeTeachingResponse('c2'));
+      return Promise.resolve(makeTeachingResponse('c3'));
+    });
+
+    const result = await expandGuideTeaching({
+      guidePayload: payload,
+      sourceContents: [],
+      className: 'Bio 101',
+      subject: 'biology',
+      generateContent,
+    });
+
+    expect(result.cards).toHaveLength(3);
+    for (const card of result.cards) {
+      expect(card.teaching).toHaveProperty('learning_objective');
+      expect(card.teaching).toHaveProperty('worked_examples');
+    }
+  });
+
+  it('keeps the skeleton stub for a card whose call times out', async () => {
+    const cards = [makeCard('c1'), makeCard('c2-slow')];
+    const payload = makeGuidePayload(cards);
+
+    // First call (c1) resolves immediately; second call (c2-slow) never resolves.
+    const generateContent = vi.fn()
+      .mockImplementationOnce(() => Promise.resolve(makeTeachingResponse('c1')))
+      .mockImplementation(() => new Promise(() => {}));
+
+    const result = await expandGuideTeaching({
+      guidePayload: payload,
+      sourceContents: [],
+      className: 'Bio 101',
+      subject: 'biology',
+      generateContent,
+      cardTimeoutMs: 50, // very short for test
+    });
+
+    const c1 = result.cards.find((c) => c.id === 'c1');
+    const c2 = result.cards.find((c) => c.id === 'c2-slow');
+
+    expect(c1.teaching).toHaveProperty('learning_objective');
+    // c2-slow timed out — teaching stays as the stub (empty object)
+    expect(c2.teaching).toEqual({});
+  });
+
+  it('calls onProgress once per card and always passes the total', async () => {
+    const cards = [makeCard('c1'), makeCard('c2'), makeCard('c3')];
+    const payload = makeGuidePayload(cards);
+    const generateContent = vi.fn().mockResolvedValue(makeTeachingResponse('generic'));
+
+    const progressCalls = [];
+    await expandGuideTeaching({
+      guidePayload: payload,
+      sourceContents: [],
+      className: 'Bio 101',
+      subject: 'biology',
+      generateContent,
+      onProgress: (done, total) => progressCalls.push({ done, total }),
+    });
+
+    expect(progressCalls).toHaveLength(3);
+    for (const call of progressCalls) {
+      expect(call.total).toBe(3);
+    }
+    // Each done value should appear exactly once (order may vary due to parallelism)
+    expect(progressCalls.map((c) => c.done).sort()).toEqual([1, 2, 3]);
+  });
+
+  it('returns original payload when cards array is empty', async () => {
+    const payload = makeGuidePayload([]);
+    const generateContent = vi.fn();
+    const result = await expandGuideTeaching({
+      guidePayload: payload,
+      sourceContents: [],
+      className: 'Bio 101',
+      subject: 'biology',
+      generateContent,
+    });
+    expect(result).toStrictEqual(payload);
+    expect(generateContent).not.toHaveBeenCalled();
   });
 });

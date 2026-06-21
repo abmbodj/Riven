@@ -14,6 +14,9 @@ vi.mock('../lib/supabaseClient', () => ({
     rpc: vi.fn(),
     channel: vi.fn(),
     removeChannel: vi.fn(),
+    storage: {
+      from: vi.fn(),
+    },
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
     },
@@ -36,6 +39,8 @@ const emptySharedFields = {
   deckData: null,
   replyToId: null,
   replyTo: null,
+  imagePath: null,
+  imageLoadError: false,
 };
 
 describe('authApi direct messages via Supabase', () => {
@@ -45,6 +50,7 @@ describe('authApi direct messages via Supabase', () => {
     supabase.rpc.mockReset();
     supabase.channel.mockReset();
     supabase.removeChannel.mockReset();
+    supabase.storage.from.mockReset();
     localStorage.clear();
     authApi.setToken('supabase-token');
   });
@@ -202,6 +208,76 @@ describe('authApi direct messages via Supabase', () => {
     warnSpy.mockRestore();
   });
 
+  it('maps storage-backed image paths to signed URLs while preserving legacy image_url rows', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const limit = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 14,
+          sender_id: 12,
+          receiver_id: 42,
+          content: '',
+          message_type: 'text',
+          deck_data: null,
+          image_url: null,
+          image_path: '12/42/stored.webp',
+          is_edited: 0,
+          is_read: 1,
+          created_at: '2026-03-13T12:06:00.000Z',
+        },
+        {
+          id: 15,
+          sender_id: 42,
+          receiver_id: 12,
+          content: '',
+          message_type: 'text',
+          deck_data: null,
+          image_url: 'data:image/png;base64,legacy',
+          image_path: null,
+          is_edited: 0,
+          is_read: 1,
+          created_at: '2026-03-13T12:07:00.000Z',
+        },
+      ],
+      error: null,
+    });
+    const order = vi.fn().mockReturnValue({ limit });
+    const or = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ or });
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://signed.example/stored.webp' },
+      error: null,
+    });
+
+    supabase.from.mockReturnValue({ select });
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+    supabase.storage.from.mockReturnValue({ createSignedUrl });
+
+    const messages = await authApi.getMessages(
+      12,
+      50,
+      undefined,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+    );
+
+    expect(createSignedUrl).toHaveBeenCalledWith('12/42/stored.webp', 3600);
+    expect(messages[0]).toMatchObject({
+      id: 14,
+      imagePath: '12/42/stored.webp',
+      imageUrl: 'https://signed.example/stored.webp',
+      imageLoadError: false,
+    });
+    expect(messages[1]).toMatchObject({
+      id: 15,
+      imagePath: null,
+      imageUrl: 'data:image/png;base64,legacy',
+      imageLoadError: false,
+    });
+  });
+
   it('normalizes legacy deck payloads and new guide payloads into sharedResource data', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, username: 'avery', avatar: '/me.png' }));
 
@@ -326,6 +402,8 @@ describe('authApi direct messages via Supabase', () => {
         acceptedId: null,
       },
       imageUrl: null,
+      imagePath: null,
+      imageLoadError: false,
       isEdited: false,
       isRead: false,
       createdAt: '2026-03-13T12:12:00.000Z',
@@ -460,7 +538,84 @@ describe('authApi direct messages via Supabase', () => {
     expect(message.senderUsername).toBe('avery');
   });
 
-  it('subscribes to Supabase Realtime and maps row payloads into message events', () => {
+  it('uploads direct-message images into private message storage', async () => {
+    const upload = vi.fn().mockResolvedValue({ error: null });
+    supabase.storage.from.mockReturnValue({ upload });
+
+    const image = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
+    const result = await authApi.uploadMessageImage(
+      12,
+      image,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+    );
+
+    expect(supabase.storage.from).toHaveBeenCalledWith('message-images');
+    expect(result.path).toMatch(/^42\/12\/.+\.png$/);
+    expect(upload).toHaveBeenCalledWith(
+      result.path,
+      image,
+      { contentType: 'image/png', upsert: false },
+    );
+  });
+
+  it('stores image_path and signs it for storage-backed image messages', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 89,
+        sender_id: 42,
+        receiver_id: 12,
+        content: '',
+        message_type: 'text',
+        deck_data: null,
+        image_url: null,
+        image_path: '42/12/photo.png',
+        is_edited: 0,
+        is_read: 0,
+        created_at: '2026-03-13T12:16:00.000Z',
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://signed.example/photo.png' },
+      error: null,
+    });
+
+    supabase.from.mockReturnValue({ insert });
+    supabase.storage.from.mockReturnValue({ createSignedUrl });
+
+    const message = await authApi.sendMessage(
+      12,
+      '',
+      'text',
+      null,
+      null,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+      null,
+      '42/12/photo.png',
+    );
+
+    expect(insert).toHaveBeenCalledWith({
+      sender_id: 42,
+      receiver_id: 12,
+      content: '',
+      message_type: 'text',
+      deck_data: null,
+      image_url: null,
+      reply_to_id: null,
+      image_path: '42/12/photo.png',
+    });
+    expect(createSignedUrl).toHaveBeenCalledWith('42/12/photo.png', 3600);
+    expect(message.imagePath).toBe('42/12/photo.png');
+    expect(message.imageUrl).toBe('https://signed.example/photo.png');
+  });
+
+  it('subscribes to Supabase Realtime and maps row payloads into message events', async () => {
     const insertHandler = vi.fn();
     const updateHandler = vi.fn();
     const deleteHandler = vi.fn();
@@ -487,10 +642,15 @@ describe('authApi direct messages via Supabase', () => {
       onUpdate: vi.fn(),
       onDelete: vi.fn(),
     };
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://signed.example/realtime.png' },
+      error: null,
+    });
+    supabase.storage.from.mockReturnValue({ createSignedUrl });
 
     const unsubscribe = authApi.subscribeToMessages(42, handlers);
 
-    insertHandler({
+    await insertHandler({
       new: {
         id: 88,
         sender_id: 12,
@@ -499,13 +659,14 @@ describe('authApi direct messages via Supabase', () => {
         message_type: 'text',
         deck_data: null,
         image_url: null,
+        image_path: '12/42/realtime.png',
         is_edited: 0,
         is_read: 0,
         created_at: '2026-03-13T12:15:00.000Z',
       },
     });
 
-    updateHandler({
+    await updateHandler({
       new: {
         id: 88,
         sender_id: 12,
@@ -520,7 +681,7 @@ describe('authApi direct messages via Supabase', () => {
       },
     });
 
-    deleteHandler({
+    await deleteHandler({
       old: {
         id: 88,
         sender_id: 12,
@@ -541,6 +702,8 @@ describe('authApi direct messages via Supabase', () => {
       senderId: 12,
       receiverId: 42,
       content: 'Incoming',
+      imagePath: '12/42/realtime.png',
+      imageUrl: 'https://signed.example/realtime.png',
       isMine: false,
     }));
     expect(handlers.onUpdate).toHaveBeenCalledWith(expect.objectContaining({

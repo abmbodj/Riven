@@ -24,12 +24,9 @@ const MessageComposer = forwardRef(function MessageComposer(
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            onChange(undefined, reader.result); // pass imagePreview via second arg
-            inputRef.current?.focus();
-        };
-        reader.readAsDataURL(file);
+        const previewUrl = URL.createObjectURL(file);
+        onChange(undefined, previewUrl, file);
+        inputRef.current?.focus();
         e.target.value = '';
     };
 
@@ -37,7 +34,8 @@ const MessageComposer = forwardRef(function MessageComposer(
 
     return (
         <div
-            className="messages-composer-dock mobile-bottom-nav-shell sticky bottom-0 left-0 right-0 z-20 shrink-0 lg:absolute lg:bottom-0 lg:left-0 lg:right-0"
+            className="messages-composer-dock shrink-0 z-20"
+            data-testid="messages-composer-dock"
             style={{
                 paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
                 paddingTop: '8px',

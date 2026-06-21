@@ -63,6 +63,8 @@ describe('WeeklySummary', () => {
 
     expect(screen.getByTestId('weekly-summary-line-chart')).toBeInTheDocument();
     expect(screen.getAllByTestId('weekly-summary-line-point')).toHaveLength(7);
+    expect(screen.getAllByTestId('weekly-summary-line-label')).toHaveLength(7);
+    expect(screen.getByText('Sat: 0 cards studied')).toBeInTheDocument();
     expect(screen.getByText('Due This Week')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
   });

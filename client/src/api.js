@@ -328,6 +328,17 @@ export const api = {
         return Promise.all(ids.map(id => serverApi.deleteMockExam(id)));
     },
 
+    // ============ EXAM BLUEPRINTS ============
+    extractExamBlueprint: (payload) => isLoggedIn()
+        ? serverApi.extractExamBlueprint(payload)
+        : Promise.reject(new Error('Must be logged in to build a blueprint')),
+    getExamBlueprints: (classId) => isLoggedIn()
+        ? serverApi.getExamBlueprints(classId)
+        : Promise.resolve([]),
+    deleteExamBlueprint: (id) => isLoggedIn()
+        ? serverApi.deleteExamBlueprint(id)
+        : Promise.reject(new Error('Must be logged in to delete a blueprint')),
+
     // ============ EXAM ATTEMPTS ============
     createExamAttempt: (examId, score, total, answers, opts) => isLoggedIn()
         ? serverApi.createExamAttempt(examId, score, total, answers, opts)
@@ -630,8 +641,8 @@ export const api = {
     acceptSharedResource: (messageId) => isLoggedIn()
         ? serverApi.acceptSharedResource(messageId)
         : Promise.reject(new Error('Must be logged in to accept shared items')),
-    sendMessage: (toUserId, content, messageType, sharedData, imageUrl) => isLoggedIn()
-        ? serverApi.sendMessage(toUserId, content, messageType, sharedData, imageUrl)
+    sendMessage: (toUserId, content, messageType, sharedData, imageUrl, currentUserOverride, replyToId, imagePath) => isLoggedIn()
+        ? serverApi.sendMessage(toUserId, content, messageType, sharedData, imageUrl, currentUserOverride, replyToId, imagePath)
         : Promise.reject(new Error('Must be logged in to send messages')),
 
     // Hearts API

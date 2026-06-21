@@ -234,7 +234,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
+        expect(model).toBe('openai/gpt-oss-120b');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Output ONLY a valid JSON array.') }),
           expect.objectContaining({ text: expect.stringContaining('Source Material:') }),

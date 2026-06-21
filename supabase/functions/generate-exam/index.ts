@@ -12,7 +12,9 @@ import {
   createHttpError,
   buildAdaptiveExamPrompt,
   buildFocusedExamPrompt,
+  aiModelMap,
 } from '../_shared/aiCore.mjs';
+import { normalizeExamQuestions } from '../_shared/examQuestions.mjs';
 import { fetchKnowledgeContext } from '../_shared/noteKnowledge.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
@@ -35,6 +37,7 @@ type CreateExamPayload = {
   sourceId: string | null;
   classId: number | string | null;
   questions: Array<Record<string, unknown>>;
+  blueprintId: string | null;
 };
 
 serve(async (request) => {
@@ -152,6 +155,18 @@ serve(async (request) => {
 
       const masteryData = masteryResult.data;
 
+      // When generating from a saved blueprint, load its style profile to shape the exam.
+      let blueprintProfile = null;
+      if (body.blueprintId) {
+        const { data: bp } = await admin
+          .from('exam_blueprints')
+          .select('profile')
+          .eq('id', body.blueprintId)
+          .eq('user_id', authUser.id)
+          .maybeSingle();
+        blueprintProfile = bp?.profile ?? null;
+      }
+
       const knowledgeContext = body.sourceType === 'notes'
         ? await fetchKnowledgeContext(admin, body.sourceId, authUser.id)
         : '';
@@ -166,6 +181,7 @@ serve(async (request) => {
         weakTopics: body.weakTopics,
         examMode,
         knowledgeContext,
+        blueprintProfile,
       });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
@@ -174,9 +190,9 @@ serve(async (request) => {
         try {
           const ai = createAiClient(apiKey);
           const streamResponse = ai.streamContent({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: aiModelMap.exam,
             messages,
-            maxTokens: 4096,
+            maxTokens: 6000,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -202,22 +218,9 @@ serve(async (request) => {
             throw createHttpError('AI failed to generate any exam questions.', 500);
           }
 
-          const validQuestions = questions.filter(
-            (q: { type?: string; question: string; options?: string[]; correct_answer: string; topic?: string; difficulty?: string; grading_rubric?: string }) => {
-              if (!q.question || !q.correct_answer) return false;
-
-              // Normalize: default to mcq if no type
-              if (!q.type) q.type = 'mcq';
-
-              if (q.type === 'short_answer') {
-                return Boolean(q.grading_rubric);
-              }
-
-              // MCQ validation
-              return Array.isArray(q.options) && q.options.length === 4
-                && q.options.includes(q.correct_answer);
-            },
-          );
+          // Coerce → validate → shuffle options (fixes the "answer B is always right"
+          // bias). Supports mcq / multi_select / true_false / numeric / short_answer.
+          const validQuestions = normalizeExamQuestions(questions);
 
           if (validQuestions.length === 0) {
             throw createHttpError('AI generated questions in an invalid format. Please try again.', 500);
@@ -233,6 +236,7 @@ serve(async (request) => {
               class_id: body.classId || null,
               questions: validQuestions,
               exam_mode: examMode,
+              blueprint_id: body.blueprintId || null,
             })
             .select('id')
             .single();
@@ -342,6 +346,18 @@ serve(async (request) => {
       ? await fetchKnowledgeContext(admin, body.sourceId, authUser.id)
       : '';
 
+    // When generating from a saved blueprint, load its style profile to shape the exam.
+    let blueprintProfile = null;
+    if (body.blueprintId) {
+      const { data: bp } = await admin
+        .from('exam_blueprints')
+        .select('profile')
+        .eq('id', body.blueprintId)
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      blueprintProfile = bp?.profile ?? null;
+    }
+
     try {
       const result = await generateExamFromAi({
         userId: authUser.id,
@@ -354,6 +370,8 @@ serve(async (request) => {
         className: body.className,
         subject: body.subject,
         knowledgeContext,
+        blueprintProfile,
+        blueprintId: body.blueprintId || null,
         aiLimitsContext,
         apiKey,
         parseDocx: async (buffer: Buffer) => {
@@ -367,7 +385,7 @@ serve(async (request) => {
             messages: contentsToMessages(contents),
           });
         },
-        createExam: async ({ userId, title, sourceType, sourceId, classId, questions }: CreateExamPayload) => {
+        createExam: async ({ userId, title, sourceType, sourceId, classId, questions, blueprintId }: CreateExamPayload) => {
           const { data, error: createError } = await admin
             .from('mock_exams')
             .insert({
@@ -377,6 +395,7 @@ serve(async (request) => {
               source_id: sourceId,
               class_id: classId,
               questions,
+              blueprint_id: blueprintId || null,
             })
             .select('id')
             .single();

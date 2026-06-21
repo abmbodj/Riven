@@ -42,6 +42,9 @@ vi.mock('../api', () => ({
     bulkDeleteMockExams: vi.fn(),
     deleteMockExam: vi.fn(),
     generateAiExam: vi.fn(),
+    getExamBlueprints: vi.fn(),
+    extractExamBlueprint: vi.fn(),
+    deleteExamBlueprint: vi.fn(),
   },
 }));
 
@@ -212,6 +215,7 @@ describe('ExamsLibrary insights hub', () => {
       { id: 'class-chem', name: 'Chemistry', color: '#cf8f43', subject: 'Chemistry' },
     ]);
     api.getExamInsights.mockResolvedValue(baseInsights);
+    api.getExamBlueprints.mockResolvedValue([]);
   });
 
   it('defaults to the Insights tab on /exams', async () => {

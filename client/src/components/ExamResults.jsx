@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import StudyPath from './StudyPath';
 import SubjectRenderer from './ui/SubjectRenderer';
+import { correctAnswerText } from './exam/answerTypes';
 
 const DIFFICULTY_COLORS = {
     easy: 'text-green-400 bg-green-500/10 border-green-500/20',
@@ -50,6 +51,7 @@ export default function ExamResults({
     flaggedIndices,
     onRetake,
     attemptSaved,
+    totalMarks,
 }) {
     const navigate = useNavigate();
     const [expandedIndex, setExpandedIndex] = useState(null);
@@ -58,8 +60,11 @@ export default function ExamResults({
 
     // Percentage reflects partial credit (creditScore) when available; score remains the
     // integer count of fully-correct answers used for the "X of Y correct" label.
+    // Percentage is marks-weighted when totalMarks is provided (each question can be worth
+    // multiple marks); otherwise it falls back to one-point-per-question.
     const earned = typeof creditScore === 'number' ? creditScore : score;
-    const percentage = Math.round((earned / exam.questions.length) * 100);
+    const total = totalMarks || exam.questions.length;
+    const percentage = Math.round((earned / total) * 100);
     const band = gradeBand(percentage);
 
     // Show subtle "Saved" badge once saved
@@ -392,7 +397,7 @@ export default function ExamResults({
                                                             {!isCorrect && (
                                                                 <div className="p-3 rounded-xl border border-green-500/30 text-sm font-body text-green-400">
                                                                     <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1">Correct Answer</span>
-                                                                    <SubjectRenderer content={item.correct_answer} />
+                                                                    <SubjectRenderer content={correctAnswerText(item)} />
                                                                 </div>
                                                             )}
                                                         </div>
@@ -404,7 +409,7 @@ export default function ExamResults({
                                                             </div>
                                                             <div className="p-3 rounded-xl border border-claude-accent/30 text-sm font-body text-claude-text">
                                                                 <span className="font-mono text-[9px] uppercase tracking-widest font-bold block mb-1 text-claude-accent">Model Answer</span>
-                                                                <SubjectRenderer content={item.correct_answer} />
+                                                                <SubjectRenderer content={correctAnswerText(item)} />
                                                             </div>
                                                             {ans?.feedback && (
                                                                 <div className="p-3 rounded-xl border border-claude-border text-sm font-body text-claude-text">

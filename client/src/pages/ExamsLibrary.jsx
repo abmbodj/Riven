@@ -12,6 +12,7 @@ import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
 import PricingModal from '../components/ui/PricingModal';
 import ExamAnalytics from '../components/ExamAnalytics';
+import BlueprintPicker from '../components/exam/BlueprintPicker';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -30,8 +31,7 @@ const ExamCard = memo(({ exam, classes, index, onDelete, isSelectMode = false, i
           }
         : { to: `/exam/${exam.id}` };
     const questionCount = Array.isArray(exam.questions) ? exam.questions.length : 0;
-    const mcqCount = Array.isArray(exam.questions) ? exam.questions.filter(q => q.type !== 'short_answer').length : 0;
-    const saCount = questionCount - mcqCount;
+    const saCount = Array.isArray(exam.questions) ? exam.questions.filter(q => q.type === 'short_answer').length : 0;
 
     return (
         <motion.div
@@ -72,7 +72,7 @@ const ExamCard = memo(({ exam, classes, index, onDelete, isSelectMode = false, i
                     <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-claude-bg rounded-sm border border-claude-border shadow-sm">
                             <span className="font-mono text-[8px] sm:text-[9px] font-bold text-claude-secondary uppercase tracking-wider">
-                                {mcqCount} MCQ{saCount > 0 ? ` + ${saCount} SA` : ''}
+                                {questionCount} {questionCount === 1 ? 'question' : 'questions'}{saCount > 0 ? ` · ${saCount} written` : ''}
                             </span>
                         </div>
 
@@ -132,6 +132,7 @@ export default function ExamsLibrary() {
     const [notes, setNotes] = useState([]);
     const [guides, setGuides] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [blueprints, setBlueprints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -150,19 +151,23 @@ export default function ExamsLibrary() {
     const [genFile, setGenFile] = useState(null);
     const [genTitle, setGenTitle] = useState('');
     const [genClassOverrideId, setGenClassOverrideId] = useState(null);
+    const [selectedBlueprintId, setSelectedBlueprintId] = useState(null);
+    const [creatingBlueprint, setCreatingBlueprint] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
-            const [examsData, notesData, guidesData, classesData] = await Promise.all([
+            const [examsData, notesData, guidesData, classesData, blueprintsData] = await Promise.all([
                 api.getMockExams().catch(() => []),
                 api.getNotes().catch(() => []),
                 api.getStudyGuides().catch(() => []),
                 api.getClasses().catch(() => []),
+                api.getExamBlueprints().catch(() => []),
             ]);
             setExams(examsData);
             setNotes(notesData);
             setGuides(guidesData);
             setClasses(classesData);
+            setBlueprints(blueprintsData);
             setError(null);
         } catch (err) {
             setError(err?.message || 'Failed to load');
@@ -224,6 +229,7 @@ export default function ExamsLibrary() {
         setGenFile(null);
         setGenTitle(preset.title || '');
         setGenClassOverrideId(preset.classId || null);
+        setSelectedBlueprintId(null);
     }, []);
 
     const handleFileChange = (e) => {
@@ -267,6 +273,46 @@ export default function ExamsLibrary() {
         const matching = guides.filter((guide) => guide.class_id === genClassOverrideId);
         return matching.length > 0 ? matching : guides;
     }, [guides, genClassOverrideId]);
+
+    const visibleBlueprints = useMemo(() => {
+        if (!genClassOverrideId) return blueprints;
+        const matching = blueprints.filter((bp) => bp.class_id === genClassOverrideId);
+        // Fall back to all blueprints so a style can be reused across classes.
+        return matching.length > 0 ? matching : blueprints;
+    }, [blueprints, genClassOverrideId]);
+
+    const handleCreateBlueprint = async ({ file, name }) => {
+        setCreatingBlueprint(true);
+        try {
+            const { blueprint } = await api.extractExamBlueprint({
+                file,
+                name,
+                classId: genClassOverrideId || null,
+                sourceExamTitle: name,
+            });
+            setBlueprints((prev) => [blueprint, ...prev]);
+            setSelectedBlueprintId(blueprint.id);
+            toast.success('Blueprint ready');
+            return true;
+        } catch (err) {
+            if (err.status === 429) { setShowGenerateModal(false); setShowPricingModal(true); }
+            else toast.error(err.message || 'Could not read that exam');
+            return false;
+        } finally {
+            setCreatingBlueprint(false);
+        }
+    };
+
+    const handleDeleteBlueprint = async (id) => {
+        setBlueprints((prev) => prev.filter((bp) => bp.id !== id));
+        if (selectedBlueprintId === id) setSelectedBlueprintId(null);
+        try {
+            await api.deleteExamBlueprint(id);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to delete blueprint');
+            loadData();
+        }
+    };
 
     const handleGenerate = async () => {
         let noteText = '';
@@ -314,6 +360,7 @@ export default function ExamsLibrary() {
                 {
                     examMode: 'standard',
                     subject,
+                    blueprintId: selectedBlueprintId,
                 }
             );
             toast.success(`Generated ${result.question_count} questions!`);
@@ -475,6 +522,16 @@ export default function ExamsLibrary() {
                                         )}
                                     </div>
                                 )}
+
+                                <BlueprintPicker
+                                    blueprints={visibleBlueprints}
+                                    selectedId={selectedBlueprintId}
+                                    onSelect={setSelectedBlueprintId}
+                                    onCreate={handleCreateBlueprint}
+                                    onDelete={handleDeleteBlueprint}
+                                    creating={creatingBlueprint}
+                                    onError={(msg) => toast.error(msg)}
+                                />
 
                                 <button onClick={handleGenerate} disabled={generating} className="claude-button-primary w-full py-5 text-lg flex items-center justify-center gap-2 disabled:opacity-50">
                                     {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}

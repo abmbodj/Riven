@@ -5,10 +5,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ExamView from './ExamView.jsx';
 
 vi.mock('motion/react', () => {
-  const createMotionComponent = (tag) =>
-    React.forwardRef(
-      ({ children, ...props }, ref) => React.createElement(tag, { ...props, ref }, children)
-    );
+  // Memoize per tag so motion.button keeps a stable component identity across renders
+  // (real framer-motion does). Without this, the Proxy minted a new component every render,
+  // remounting buttons and detaching nodes that tests had already queried.
+  const cache = {};
+  const createMotionComponent = (tag) => {
+    if (!cache[tag]) {
+      cache[tag] = React.forwardRef(
+        ({ children, ...props }, ref) => React.createElement(tag, { ...props, ref }, children)
+      );
+    }
+    return cache[tag];
+  };
 
   return {
     AnimatePresence: ({ children }) => <>{children}</>,
@@ -92,12 +100,16 @@ describe('ExamView results layout', () => {
       </MemoryRouter>
     );
 
+    // Pick Exam-simulation mode from the mode picker, then take the exam.
+    fireEvent.click(await screen.findByRole('button', { name: /exam simulation/i }));
+
     expect(await screen.findByText('Which organelle produces ATP?')).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole('button', { name: /mitochondria/i }));
-    expect(await screen.findByText('Which phase comes right after metaphase?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+    expect(await screen.findByText('Which phase comes right after metaphase?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /anaphase/i }));
+    fireEvent.click(screen.getByRole('button', { name: /submit exam/i }));
 
     expect(await screen.findByText('Topic Breakdown')).toBeInTheDocument();
 
@@ -118,11 +130,14 @@ describe('ExamView results layout', () => {
       </StrictMode>
     );
 
-    expect(await screen.findByText('Which organelle produces ATP?')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /exam simulation/i }));
 
+    expect(await screen.findByText('Which organelle produces ATP?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /mitochondria/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
     expect(await screen.findByText('Which phase comes right after metaphase?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /anaphase/i }));
+    fireEvent.click(screen.getByRole('button', { name: /submit exam/i }));
 
     await waitFor(() => {
       expect(api.createExamAttempt).toHaveBeenCalledTimes(1);

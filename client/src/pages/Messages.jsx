@@ -68,7 +68,9 @@ export default function Messages() {
         replyTarget,
         editingMessageId,
         imagePreview,
-        setImagePreview,
+        imageFile,
+        setImageAttachment,
+        clearImageAttachment,
         loadedIdsRef,
         deletingIdsRef,
         animateSentRef,
@@ -76,6 +78,7 @@ export default function Messages() {
         sendMessage,
         editMessage,
         deleteMessage,
+        markSharedResourceAccepted,
         loadOlderMessages,
         startEditing,
         cancelEditing,
@@ -105,29 +108,28 @@ export default function Messages() {
             return;
         }
 
-        if (!composerText.trim() && !imagePreview) return;
+        if (!composerText.trim() && !imageFile) return;
         if (sending) return;
 
         haptics.light();
         try {
             await sendMessage({
                 content: composerText,
-                imageUrl: imagePreview,
                 onScrollToBottom: () => {},
             });
             setComposerText('');
             invalidateConversations();
             inputRef.current?.focus();
-        } catch {
+        } catch (err) {
             haptics.error();
-            toast.error('Failed to send message');
+            toast.error(err?.message || 'Failed to send message');
         }
-    }, [userId, editingMessageId, composerText, sending, imagePreview, editMessage, sendMessage, invalidateConversations, haptics, toast]);
+    }, [userId, editingMessageId, composerText, sending, imageFile, editMessage, sendMessage, invalidateConversations, haptics, toast]);
 
-    const handleComposerChange = useCallback((text, img) => {
+    const handleComposerChange = useCallback((text, img, file) => {
         if (text !== undefined) setComposerText(text);
-        if (img !== undefined) setImagePreview(img);
-    }, [setImagePreview]);
+        if (img !== undefined) setImageAttachment(file || null, img);
+    }, [setImageAttachment]);
 
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Delete this message?')) return;
@@ -188,6 +190,9 @@ export default function Messages() {
         try {
             const result = await authApi.acceptSharedResource(messageId);
             const imported = result.resource || result.newDeck || result.newNote || result.newGuide;
+            if (imported?.id) {
+                markSharedResourceAccepted(messageId, imported.id);
+            }
             toast.success(`"${imported?.title || 'Item'}" added to your library!`);
             haptics.light();
         } catch (err) {
@@ -196,7 +201,7 @@ export default function Messages() {
         } finally {
             setAcceptingSharedResource(null);
         }
-    }, [toast, haptics]);
+    }, [markSharedResourceAccepted, toast, haptics]);
 
     const handleViewFile = useCallback((url, name) => {
         const ext = url.split('?')[0].split('.').pop().toLowerCase();
@@ -225,7 +230,7 @@ export default function Messages() {
     const threadPane = userId ? (
         <div
             data-testid="messages-thread-shell"
-            className="messages-thread-shell flex flex-col h-full overflow-hidden"
+            className="messages-thread-shell relative flex flex-col h-full overflow-hidden"
             style={{
                 background: 'var(--bg-color)',
                 backgroundImage:
@@ -239,6 +244,7 @@ export default function Messages() {
             />
 
             <ChatThread
+                key={userId}
                 messages={messages}
                 chatUser={chatUser}
                 loading={threadLoading}
@@ -258,7 +264,6 @@ export default function Messages() {
                 onReport={handleReport}
                 onViewFile={handleViewFile}
                 onLoadOlderMessages={loadOlderMessages}
-                composerHeight={120}
             />
 
             <MessageComposer
@@ -273,7 +278,7 @@ export default function Messages() {
                 replyTarget={replyTarget}
                 onCancelReply={cancelReply}
                 imagePreview={imagePreview}
-                onClearImage={() => setImagePreview(null)}
+                onClearImage={clearImageAttachment}
                 chatUser={chatUser}
             />
         </div>

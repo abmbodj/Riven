@@ -133,7 +133,6 @@ export default function WeeklySummary({
     const metricRefs = useRef({});
     const gradientBaseId = useId().replace(/:/g, '');
     const areaGradientId = `${gradientBaseId}-area`;
-    const strokeGradientId = `${gradientBaseId}-stroke`;
 
     const metrics = useMemo(() => {
         if (!summary) return [];
@@ -272,57 +271,58 @@ export default function WeeklySummary({
                 <svg
                     viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
                     className="h-[92px] w-full overflow-visible"
+                    preserveAspectRatio="none"
+                    role="img"
                     aria-label="Study activity this week"
                     data-testid="weekly-summary-line-chart"
                 >
                     <defs>
-                        <linearGradient id={areaGradientId} x1="0%" x2="0%" y1="0%" y2="100%">
-                            <stop offset="0%" stopColor="rgba(222, 185, 106, 0.28)" />
-                            <stop offset="100%" stopColor="rgba(222, 185, 106, 0.02)" />
-                        </linearGradient>
-                        <linearGradient id={strokeGradientId} x1="0%" x2="100%" y1="0%" y2="0%">
-                            <stop offset="0%" stopColor="rgba(222, 185, 106, 0.55)" />
-                            <stop offset="100%" stopColor="rgba(222, 185, 106, 1)" />
+                        <linearGradient id={areaGradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
                         </linearGradient>
                     </defs>
 
-                    <path
-                        d={`M ${CHART_PADDING_X} ${chartModel.baselineY} L ${CHART_WIDTH - CHART_PADDING_X} ${chartModel.baselineY}`}
-                        fill="none"
-                        stroke="rgba(229, 219, 197, 0.4)"
-                        strokeDasharray="3 4"
-                    />
+                    <line x1="0" y1="24" x2={CHART_WIDTH} y2="24" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.2" />
+                    <line x1="0" y1="50" x2={CHART_WIDTH} y2="50" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.2" />
+                    <line x1="0" y1="76" x2={CHART_WIDTH} y2="76" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.2" />
 
                     {chartModel.areaPath ? (
-                        <path
-                            d={chartModel.areaPath}
-                            fill={`url(#${areaGradientId})`}
-                            opacity={chartModel.peakCards > 0 ? 1 : 0.85}
-                        />
+                        <path d={chartModel.areaPath} fill={`url(#${areaGradientId})`} />
                     ) : null}
 
                     {chartModel.linePath ? (
                         <path
                             d={chartModel.linePath}
                             fill="none"
-                            stroke={`url(#${strokeGradientId})`}
+                            stroke="var(--accent-color)"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth="3"
+                            strokeWidth="2.5"
                         />
                     ) : null}
 
                     {chartModel.points.map((point) => (
-                        <circle
-                            key={point.date}
-                            cx={point.x}
-                            cy={point.y}
-                            r={point.is_today ? 4.5 : 3.5}
-                            fill={point.is_today ? 'rgba(222, 185, 106, 1)' : 'rgba(250, 244, 230, 1)'}
-                            stroke={point.is_today ? 'rgba(255, 248, 234, 0.9)' : 'rgba(222, 185, 106, 0.7)'}
-                            strokeWidth={point.is_today ? 2 : 1.5}
-                            data-testid="weekly-summary-line-point"
-                        />
+                        <g key={point.date}>
+                            <circle
+                                cx={point.x}
+                                cy={point.y}
+                                r="4"
+                                fill="var(--accent-color)"
+                                data-testid="weekly-summary-line-point"
+                            />
+                            <text
+                                x={point.x}
+                                y={Math.max(8, point.y - 8)}
+                                textAnchor="middle"
+                                fill="var(--secondary-text-color)"
+                                fontSize="8"
+                                fontFamily="ui-monospace, monospace"
+                                data-testid="weekly-summary-line-label"
+                            >
+                                {Math.round(point.cards || 0)}
+                            </text>
+                        </g>
                     ))}
                 </svg>
 

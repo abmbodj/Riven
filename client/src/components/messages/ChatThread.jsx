@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Leaf } from 'lucide-react';
@@ -48,7 +48,7 @@ function buildVirtualItems(messages) {
             new Date(nextMsg.createdAt) - new Date(msg.createdAt) < GROUP_GAP_MS;
 
         // If message has a reply target, always treat as first (breaks run visually)
-        const hasReply = Boolean(msg.replyTo);
+        const hasReply = Boolean(msg.replyToId);
 
         const isFirst = !sameSenderAsPrev || hasReply;
         const isLast = !sameSenderAsNext;
@@ -57,6 +57,20 @@ function buildVirtualItems(messages) {
     }
 
     return items;
+}
+
+function estimateVirtualItemSize(item) {
+    return item?.type === 'divider' ? 52 : 72;
+}
+
+function buildEstimatedRows(items) {
+    let start = 0;
+    return items.map((item, index) => {
+        const size = estimateVirtualItemSize(item);
+        const row = { index, start, size };
+        start += size;
+        return row;
+    });
 }
 
 export default function ChatThread({
@@ -79,19 +93,25 @@ export default function ChatThread({
     onReport,
     onViewFile,
     onLoadOlderMessages,
-    composerHeight,
 }) {
     const scrollParentRef = useRef(null);
     const isNearBottomRef = useRef(true);
+    const initialScrollDoneRef = useRef(false);
     const [showNewPill, setShowNewPill] = useState(false);
     const prevMsgCountRef = useRef(messages.length);
 
     const items = useMemo(() => buildVirtualItems(messages), [messages]);
 
+    // Client-side reply-to resolution: look up quoted message from the loaded thread
+    const messagesById = useMemo(
+        () => new Map(messages.map((m) => [m.id, m])),
+        [messages]
+    );
+
     const virtualizer = useVirtualizer({
         count: items.length,
         getScrollElement: () => scrollParentRef.current,
-        estimateSize: (i) => items[i]?.type === 'divider' ? 52 : 72,
+        estimateSize: (i) => estimateVirtualItemSize(items[i]),
         overscan: 12,
         initialRect: { width: 0, height: 720 },
     });
@@ -105,11 +125,11 @@ export default function ChatThread({
     }, []);
 
     const scrollToBottom = useCallback((behavior = 'auto') => {
-        if (items.length > 0) {
-            virtualizer.scrollToIndex(items.length - 1, { align: 'end', behavior });
-        }
+        const el = scrollParentRef.current;
+        if (!el) return;
+        el.scrollTo({ top: el.scrollHeight, behavior });
         setShowNewPill(false);
-    }, [items.length, virtualizer]);
+    }, []);
 
     // Auto-scroll on new messages
     useEffect(() => {
@@ -125,13 +145,19 @@ export default function ChatThread({
         prevMsgCountRef.current = messages.length;
     }, [messages.length, scrollToBottom]);
 
-    // Scroll to bottom on initial load
-    useEffect(() => {
-        if (!loading && messages.length > 0) {
-            requestAnimationFrame(() => scrollToBottom('auto'));
+    // Jump to bottom before the browser paints — no visible scroll animation
+    useLayoutEffect(() => {
+        if (loading) {
+            initialScrollDoneRef.current = false;
+            return;
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loading]);
+        if (initialScrollDoneRef.current || messages.length === 0) return;
+        const el = scrollParentRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+        initialScrollDoneRef.current = true;
+        prevMsgCountRef.current = messages.length;
+    }, [loading, messages.length]);
 
     // Scroll to bottom when typing indicator appears
     useEffect(() => {
@@ -173,6 +199,13 @@ export default function ChatThread({
         virtualizer.scrollToIndex(itemIdx, { align: 'center', behavior: 'smooth' });
     }, [messages, items, virtualizer]);
 
+    const handleAttachmentSettled = useCallback(() => {
+        virtualizer.measure();
+        if (isNearBottomRef.current) {
+            requestAnimationFrame(() => scrollToBottom('auto'));
+        }
+    }, [virtualizer, scrollToBottom]);
+
     // Find the last sent (mine + not shared) message for read receipt
     const lastSentMessageId = useMemo(() => {
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -182,7 +215,7 @@ export default function ChatThread({
         return null;
     }, [messages]);
 
-    const paddingBottom = Math.max(composerHeight + 12, 120);
+    const paddingBottom = 16;
 
     if (loading) {
         return (
@@ -203,8 +236,14 @@ export default function ChatThread({
         );
     }
 
-    const virtualItems = virtualizer.getVirtualItems();
-    const totalSize = virtualizer.getTotalSize();
+    const measuredVirtualItems = virtualizer.getVirtualItems();
+    const virtualItems = measuredVirtualItems.length > 0
+        ? measuredVirtualItems
+        : buildEstimatedRows(items);
+    const estimatedTotalSize = virtualItems.length > 0
+        ? virtualItems[virtualItems.length - 1].start + virtualItems[virtualItems.length - 1].size
+        : 0;
+    const totalSize = Math.max(virtualizer.getTotalSize(), estimatedTotalSize);
 
     return (
         <div className="relative flex-1 overflow-hidden">
@@ -248,10 +287,14 @@ export default function ChatThread({
                                         const isAnimatingIn = isNew || animateSentRef.current.has(msg.id);
                                         const isDeleting = deletingIdsRef.current.has(msg.id);
                                         const showAvatar = item.isFirst && !msg.isMine;
+                                        const replyTo = msg.replyToId
+                                            ? (messagesById.get(msg.replyToId) || null)
+                                            : null;
 
                                         return (
                                             <MessageBubble
                                                 message={msg}
+                                                replyTo={replyTo}
                                                 isFirst={item.isFirst}
                                                 isLast={item.isLast}
                                                 showAvatar={showAvatar}
@@ -268,6 +311,7 @@ export default function ChatThread({
                                                 onStartReply={onStartReply}
                                                 onReport={onReport}
                                                 onViewFile={onViewFile}
+                                                onAttachmentLoad={handleAttachmentSettled}
                                                 scrollToMessage={scrollToMessage}
                                             />
                                         );

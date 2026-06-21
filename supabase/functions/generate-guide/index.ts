@@ -254,7 +254,10 @@ serve(async (request) => {
               messages: repairMessages,
               maxTokens: 6000,
             });
+            const REPAIR_DEADLINE_MS = 60_000;
+            const repairDeadline = Date.now() + REPAIR_DEADLINE_MS;
             for await (const chunk of repairStream) {
+              if (Date.now() > repairDeadline) break;
               repairText += chunk.text ?? '';
             }
             try {

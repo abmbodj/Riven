@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { MoreVertical, Edit2, Trash2, ShieldAlert, CornerUpLeft } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { MoreVertical, Edit2, Trash2, ShieldAlert, CornerUpLeft, ImageOff } from 'lucide-react';
 import { isSharedMessageType } from '../../utils/sharedResources';
 import SharedResourceCard from './SharedResourceCard';
 import Avatar from '../Avatar';
@@ -42,6 +42,7 @@ const SWIPE_MAX = 64;
 
 export default function MessageBubble({
     message: msg,
+    replyTo,
     isFirst,
     isLast,
     showAvatar,
@@ -58,15 +59,24 @@ export default function MessageBubble({
     onStartReply,
     onReport,
     onViewFile,
+    onAttachmentLoad,
     scrollToMessage,
 }) {
     const [swipeDelta, setSwipeDelta] = useState(0);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [imageFailed, setImageFailed] = useState(Boolean(msg.imageLoadError));
     const swipeStartX = useRef(null);
     const swipeTriggered = useRef(false);
     const bubbleRef = useRef(null);
 
     const radius = bubbleRadius(msg.isMine, isFirst, isLast);
     const isShared = isSharedMessageType(msg.messageType) && msg.sharedResource;
+    const hasAttachment = Boolean(msg.imageUrl || msg.imagePath);
+
+    useEffect(() => {
+        setImageLoaded(false);
+        setImageFailed(Boolean(msg.imageLoadError || (msg.imagePath && !msg.imageUrl)));
+    }, [msg.imageUrl, msg.imagePath, msg.imageLoadError]);
 
     // Swipe-to-reply gesture
     const onPointerDown = useCallback((e) => {
@@ -235,9 +245,9 @@ export default function MessageBubble({
                             </div>
 
                             {/* Quoted reply snippet */}
-                            {msg.replyTo && (
+                            {replyTo && (
                                 <button
-                                    onClick={() => scrollToMessage?.(msg.replyTo.id)}
+                                    onClick={() => scrollToMessage?.(replyTo.id)}
                                     className="mb-2 w-full rounded-lg px-3 py-2 text-left cursor-pointer hover:brightness-110 transition-all"
                                     style={{
                                         background: msg.isMine ? 'oklch(45% 0.09 143 / 0.5)' : 'oklch(22% 0.035 211 / 0.7)',
@@ -245,29 +255,53 @@ export default function MessageBubble({
                                     aria-label="Go to original message"
                                 >
                                     <p className="text-[10px] font-mono mb-0.5" style={{ color: 'oklch(77% 0.12 84)' }}>
-                                        {msg.replyTo.isMine ? 'You' : chatUser?.username}
+                                        {replyTo.isMine ? 'You' : chatUser?.username}
                                     </p>
                                     <p className="text-xs line-clamp-2 opacity-75">
-                                        {msg.replyTo.content || (msg.replyTo.imageUrl ? '[Image]' : '[Message]')}
+                                        {replyTo.content || (replyTo.imageUrl ? '[Image]' : '[Message]')}
                                     </p>
                                 </button>
                             )}
 
                             {/* Attached image */}
-                            {msg.imageUrl && (
-                                <button
-                                    type="button"
-                                    className="block mb-2 cursor-pointer"
-                                    onClick={() => onViewFile(msg.imageUrl, 'Attached Image')}
-                                    aria-label="View attached image"
-                                >
-                                    <img
-                                        src={msg.imageUrl}
-                                        alt="Attached"
-                                        className="rounded-lg max-h-[240px] object-cover hover:opacity-90 transition-opacity"
-                                        loading="lazy"
-                                    />
-                                </button>
+                            {hasAttachment && (
+                                <div className="mb-2 min-h-[148px] min-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-black/10">
+                                    {msg.imageUrl && !imageFailed ? (
+                                        <button
+                                            type="button"
+                                            className="relative block h-full min-h-[148px] w-full cursor-pointer"
+                                            onClick={() => onViewFile(msg.imageUrl, 'Attached Image')}
+                                            aria-label="View attached image"
+                                        >
+                                            {!imageLoaded && (
+                                                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                                    Loading image
+                                                </div>
+                                            )}
+                                            <img
+                                                src={msg.imageUrl}
+                                                alt="Attached"
+                                                className={`max-h-[240px] min-h-[148px] w-full object-cover transition-opacity ${imageLoaded ? 'opacity-100 hover:opacity-90' : 'opacity-0'}`}
+                                                loading="lazy"
+                                                onLoad={() => {
+                                                    setImageLoaded(true);
+                                                    onAttachmentLoad?.();
+                                                }}
+                                                onError={() => {
+                                                    setImageFailed(true);
+                                                    onAttachmentLoad?.();
+                                                }}
+                                            />
+                                        </button>
+                                    ) : (
+                                        <div className="flex min-h-[148px] min-w-[220px] flex-col items-center justify-center gap-2 px-4 text-center text-claude-secondary">
+                                            <ImageOff className="h-5 w-5" aria-hidden="true" />
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em]">
+                                                Image unavailable
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             )}
 
                             {/* Message text */}

@@ -1706,8 +1706,8 @@ export const generateAiClass = (notes, file) =>
 export const generateAiGuide = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null, subject = null) =>
     edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig, subject } });
 
-export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics, subject } = {}) =>
-    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics, subject } });
+export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics, subject, blueprintId } = {}) =>
+    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics, subject, blueprintId } });
 
 export const gradeShortAnswer = (question, studentAnswer, correctAnswer, gradingRubric) =>
     edgeFunctionFetch('grade-answer', { body: { question, studentAnswer, correctAnswer, gradingRubric } });
@@ -1785,11 +1785,35 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
+    // If no SSE bytes arrive within this window, cancel the reader and surface a retriable error.
+    // Per-card keep-alive newlines arrive every ~10s on a healthy run, so this only fires when
+    // the server is genuinely stuck or the edge function was killed.
+    const STREAM_IDLE_TIMEOUT_MS = 60_000;
+
+    const makeIdleRace = () => {
+        let timerId;
+        const promise = new Promise((_, reject) => {
+            timerId = setTimeout(() => {
+                reader.cancel();
+                const err = new Error('Generation timed out. Please try again.');
+                err.status = 504;
+                reject(err);
+            }, STREAM_IDLE_TIMEOUT_MS);
+        });
+        return { promise, cancel: () => clearTimeout(timerId) };
+    };
+
     return {
         async *chunks() {
             let buffer = '';
             while (true) {
-                const { done, value } = await reader.read();
+                const idle = makeIdleRace();
+                let done, value;
+                try {
+                    ({ done, value } = await Promise.race([reader.read(), idle.promise]));
+                } finally {
+                    idle.cancel();
+                }
                 if (done) break;
                 buffer += decoder.decode(value, { stream: true });
 
@@ -1827,8 +1851,8 @@ export const generateAiDeckStream = (notes, file, deckName, classId, className, 
 export const generateAiGuideStream = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null, subject = null) =>
     edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig, subject } });
 
-export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics, subject } = {}) =>
-    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics, subject } });
+export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics, subject, blueprintId } = {}) =>
+    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics, subject, blueprintId } });
 
 export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, deckName, className, subject } = {}) =>
     edgeFunctionStreamFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className, subject } });
@@ -2136,6 +2160,25 @@ export const deleteMockExam = async (id) => {
     const { error } = await supabase.from('mock_exams').delete().eq('id', id);
     if (error) _sbThrow(error);
     return { message: 'Mock exam deleted' };
+};
+
+// --- Exam Blueprints: reusable "style profiles" extracted from an uploaded past exam ---
+
+export const extractExamBlueprint = ({ notes, file, name, classId, sourceExamTitle } = {}) =>
+    edgeFunctionFetch('extract-exam-blueprint', { body: { notes, file, name, classId, sourceExamTitle } });
+
+export const getExamBlueprints = async (classId) => {
+    let query = supabase.from('exam_blueprints').select('*').order('created_at', { ascending: false });
+    if (classId) query = query.eq('class_id', classId);
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const deleteExamBlueprint = async (id) => {
+    const { error } = await supabase.from('exam_blueprints').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Blueprint deleted' };
 };
 
 // --- Exam Attempts (PostgREST) ---
@@ -4024,18 +4067,68 @@ export const reportContent = async (reportData) => {
 
 // ============ DIRECT MESSAGES ============
 
-const mapMessageRow = (row, currentUser) => {
-    const sharedResource = normalizeSharedPayload(parseJsonish(row.deck_data), row.message_type || 'text');
+const MESSAGE_IMAGE_BUCKET = 'message-images';
+const MESSAGE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const MESSAGE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']);
 
-    // Denormalized reply-to snippet from FK join (reply_to:reply_to_id(...))
-    const replyToRaw = row.reply_to || null;
-    const replyTo = replyToRaw ? {
-        id: replyToRaw.id,
-        content: replyToRaw.content || null,
-        imageUrl: replyToRaw.image_url || null,
-        messageType: replyToRaw.message_type || 'text',
-        isMine: replyToRaw.sender_id === currentUser.id,
-    } : null;
+const MESSAGE_IMAGE_EXTENSIONS = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/avif': 'avif',
+};
+
+function createMessageImageError(message, status = 400) {
+    const error = new Error(message);
+    error.status = status;
+    return error;
+}
+
+function getMessageImageExtension(file) {
+    const fromType = MESSAGE_IMAGE_EXTENSIONS[file?.type];
+    if (fromType) return fromType;
+
+    const nameExt = String(file?.name || '').split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'].includes(nameExt)) {
+        return nameExt === 'jpeg' ? 'jpg' : nameExt;
+    }
+
+    return 'jpg';
+}
+
+function createMessageImageId() {
+    return globalThis.crypto?.randomUUID?.()
+        || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function validateMessageImageFile(file) {
+    if (!file) {
+        throw createMessageImageError('Choose an image to send.');
+    }
+
+    if (!MESSAGE_IMAGE_TYPES.has(file.type)) {
+        throw createMessageImageError('Images must be JPG, PNG, GIF, WebP, or AVIF.');
+    }
+
+    if (file.size > MESSAGE_IMAGE_MAX_BYTES) {
+        throw createMessageImageError('Images must be 5 MB or smaller.');
+    }
+}
+
+async function createMessageImageSignedUrl(imagePath) {
+    const normalizedPath = String(imagePath || '').trim();
+    if (!normalizedPath) return null;
+
+    const { data, error } = await supabase.storage
+        .from(MESSAGE_IMAGE_BUCKET)
+        .createSignedUrl(normalizedPath, 60 * 60);
+    if (error) _sbThrow(error);
+    return data?.signedUrl || null;
+}
+
+const mapMessageRowBase = (row, currentUser) => {
+    const sharedResource = normalizeSharedPayload(parseJsonish(row.deck_data), row.message_type || 'text');
 
     return {
         id: row.id,
@@ -4048,13 +4141,48 @@ const mapMessageRow = (row, currentUser) => {
         sharedResource,
         deckData: sharedResource,
         imageUrl: row.image_url || null,
+        imagePath: row.image_path || null,
+        imageLoadError: false,
         isEdited: Boolean(row.is_edited),
         isRead: Boolean(row.is_read),
         replyToId: row.reply_to_id || null,
-        replyTo,
+        replyTo: null,
         createdAt: row.created_at,
         isMine: row.sender_id === currentUser.id,
     };
+};
+
+const mapMessageRow = async (row, currentUser) => {
+    const message = mapMessageRowBase(row, currentUser);
+    if (!message.imageUrl && message.imagePath) {
+        try {
+            message.imageUrl = await createMessageImageSignedUrl(message.imagePath);
+        } catch {
+            message.imageLoadError = true;
+        }
+    }
+    return message;
+};
+
+export const uploadMessageImage = async (receiverId, file, currentUserOverride = null) => {
+    if (!receiverId) {
+        throw createMessageImageError('Receiver ID is required.');
+    }
+
+    validateMessageImageFile(file);
+
+    const currentUser = await resolveCurrentUser(currentUserOverride);
+    const path = `${currentUser.id}/${Number(receiverId)}/${createMessageImageId()}.${getMessageImageExtension(file)}`;
+
+    const { error } = await supabase.storage
+        .from(MESSAGE_IMAGE_BUCKET)
+        .upload(path, file, {
+            contentType: file.type,
+            upsert: false,
+        });
+    if (error) _sbThrow(error);
+
+    return { path };
 };
 
 export const getConversations = async (currentUserOverride = null) => {
@@ -4111,7 +4239,7 @@ export const getMessages = async (userId, limit = 50, before, currentUserOverrid
     const currentUser = await resolveCurrentUser(currentUserOverride);
     let query = supabase
         .from('messages')
-        .select('*, reply_to:reply_to_id(id, content, sender_id, message_type, image_url)')
+        .select('*')
         .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${Number(userId)}),and(sender_id.eq.${Number(userId)},receiver_id.eq.${currentUser.id})`);
 
     if (before) {
@@ -4130,10 +4258,11 @@ export const getMessages = async (userId, limit = 50, before, currentUserOverrid
         console.warn('[authApi] Failed to mark messages as read:', readError.message || readError);
     }
 
-    return (data || [])
+    const sortedRows = (data || [])
         .slice()
-        .sort((left, right) => new Date(left.created_at) - new Date(right.created_at))
-        .map((row) => mapMessageRow(row, currentUser));
+        .sort((left, right) => new Date(left.created_at) - new Date(right.created_at));
+
+    return Promise.all(sortedRows.map((row) => mapMessageRow(row, currentUser)));
 };
 
 export const sendMessage = async (
@@ -4143,19 +4272,20 @@ export const sendMessage = async (
     sharedData = null,
     imageUrl = null,
     currentUserOverride = null,
-    replyToId = null
+    replyToId = null,
+    imagePath = null
 ) => {
     if (!receiverId) {
         const error = new Error('Receiver ID is required');
         error.status = 400;
         throw error;
     }
-    if (!content && !imageUrl && !sharedData) {
+    if (!content && !imageUrl && !imagePath && !sharedData) {
         const error = new Error('Message content, image or shared resource is required');
         error.status = 400;
         throw error;
     }
-    if (content && typeof content === 'string' && content.trim().length === 0 && !imageUrl && !sharedData) {
+    if (content && typeof content === 'string' && content.trim().length === 0 && !imageUrl && !imagePath && !sharedData) {
         const error = new Error('Message content cannot be empty');
         error.status = 400;
         throw error;
@@ -4181,18 +4311,23 @@ export const sendMessage = async (
     }
 
     const currentUser = await resolveCurrentUser(currentUserOverride);
+    const insertPayload = {
+        sender_id: currentUser.id,
+        receiver_id: Number(receiverId),
+        content: content || '',
+        message_type: messageType || 'text',
+        deck_data: normalizedSharedData ? JSON.stringify(normalizedSharedData) : null,
+        image_url: imageUrl || null,
+        reply_to_id: replyToId ? Number(replyToId) : null,
+    };
+    if (imagePath) {
+        insertPayload.image_path = imagePath;
+    }
+
     const { data, error } = await supabase
         .from('messages')
-        .insert({
-            sender_id: currentUser.id,
-            receiver_id: Number(receiverId),
-            content: content || '',
-            message_type: messageType || 'text',
-            deck_data: normalizedSharedData ? JSON.stringify(normalizedSharedData) : null,
-            image_url: imageUrl || null,
-            reply_to_id: replyToId ? Number(replyToId) : null,
-        })
-        .select('*, reply_to:reply_to_id(id, content, sender_id, message_type, image_url)')
+        .insert(insertPayload)
+        .select('*')
         .single();
     if (error) _sbThrow(error);
     return mapMessageRow(data, currentUser);
@@ -4242,14 +4377,14 @@ export const getUnreadCount = async (currentUserOverride = null) => {
 export const subscribeToMessages = (currentUserId, handlers = {}) => {
     const channel = supabase
         .channel(`messages_${currentUserId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-            handlers.onInsert?.(mapMessageRow(payload.new, { id: currentUserId }));
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+            handlers.onInsert?.(await mapMessageRow(payload.new, { id: currentUserId }));
         })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
-            handlers.onUpdate?.(mapMessageRow(payload.new, { id: currentUserId }));
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, async (payload) => {
+            handlers.onUpdate?.(await mapMessageRow(payload.new, { id: currentUserId }));
         })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
-            handlers.onDelete?.(mapMessageRow(payload.old, { id: currentUserId }));
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, async (payload) => {
+            handlers.onDelete?.(await mapMessageRow(payload.old, { id: currentUserId }));
         });
 
     channel.subscribe((status) => {

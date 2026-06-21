@@ -8,6 +8,7 @@ import {
 } from './studyGuideCore.mjs';
 import { getSubjectStrategy, resolveNoteStrategy } from './subjectStrategies.mjs';
 import { isPremiumActive } from './premiumAccess.mjs';
+import { normalizeExamQuestions } from './examQuestions.mjs';
 
 const FREE_LIMIT = 10;
 
@@ -23,6 +24,13 @@ export const aiModelMap = {
   // model since it fires on every answer and depth matters less.
   guide: 'openai/gpt-oss-120b',
   grading: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  // Exam generation: stronger model for answer correctness (esp. math) and JSON
+  // adherence across the expanded question-type set. gpt-oss-120b reasons noticeably
+  // better than llama-4-scout while staying on the free-tier Groq stack.
+  exam: 'openai/gpt-oss-120b',
+  // Blueprint extraction reads an uploaded photo/scan of a past exam, so it needs a
+  // VISION-capable model (gpt-oss is text-only). Llama 4 Scout is multimodal.
+  blueprint: 'meta-llama/llama-4-scout-17b-16e-instruct',
 };
 const PREMIUM_LIMIT = 50;
 const PREMIUM_RESET_MS = 12 * 60 * 60 * 1000;
@@ -1106,10 +1114,29 @@ If no source material is provided, create a first-pass River skeleton from Stude
   return contents;
 };
 
+// Race a promise against a timeout; resolves to undefined on timeout.
+const withTimeout = (promise, ms) =>
+  Promise.race([promise, new Promise((resolve) => setTimeout(resolve, ms))]);
+
+// Run fn over items in waves of `concurrency`, always using Promise.allSettled so
+// one rejection never blocks others. Returns an array of settled results in original order.
+const mapWithConcurrency = async (items, concurrency, fn) => {
+  const results = new Array(items.length);
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const settled = await Promise.allSettled(batch.map((item, bi) => fn(item, i + bi)));
+    for (let j = 0; j < settled.length; j++) {
+      results[i + j] = settled[j];
+    }
+  }
+  return results;
+};
+
 // Expand teaching for every card in a skeleton payload.
-// Each card gets its own focused generateContent call; failures fall back to the
-// stub teaching already present (or empty object) so a parse error on one card
-// never breaks the whole session.
+// Cards are processed in parallel waves (concurrency = 4) so a 10-card session takes
+// ~2-3 waves instead of 10 sequential calls. Each card call has a 30s timeout; on
+// timeout or error the skeleton stub is kept so the session always completes. The
+// existing quality-repair pass then rewrites any thin cards.
 export const expandGuideTeaching = async ({
   guidePayload,
   sourceContents,
@@ -1117,48 +1144,59 @@ export const expandGuideTeaching = async ({
   subject,
   generateContent,
   onProgress,
+  concurrency = 4,
+  cardTimeoutMs = 30_000,
 }) => {
   const cards = Array.isArray(guidePayload?.cards) ? guidePayload.cards : [];
-  let result = guidePayload;
 
-  for (let i = 0; i < cards.length; i++) {
-    const card = cards[i];
-    if (typeof onProgress === 'function') {
-      onProgress(i + 1, cards.length);
-    }
+  let completed = 0;
+  // Map card index → teaching object (undefined = keep stub)
+  const teachingByIndex = new Array(cards.length);
 
+  await mapWithConcurrency(cards, concurrency, async (card, i) => {
     try {
       const teachingPromptText = buildCardTeachingPrompt(card, className, subject);
-      const rawTeaching = await generateContent({
-        model: aiModelMap.guide,
-        contents: [
-          ...sourceContents,
-          { text: teachingPromptText },
-        ],
-      });
+      const rawTeaching = await withTimeout(
+        generateContent({
+          model: aiModelMap.guide,
+          contents: [...sourceContents, { text: teachingPromptText }],
+        }),
+        cardTimeoutMs,
+      );
+
+      if (rawTeaching == null) {
+        console.warn(`[two-phase] teaching timed out for card ${card.id} — keeping stub`);
+        return;
+      }
 
       let teaching;
       try {
         teaching = JSON.parse(cleanAiResponseText(rawTeaching));
       } catch {
         console.warn(`[two-phase] teaching parse failed for card ${card.id} — keeping stub`);
-        continue;
+        return;
       }
 
       if (teaching && typeof teaching === 'object' && !Array.isArray(teaching)) {
-        result = {
-          ...result,
-          cards: result.cards.map((c) =>
-            c.id === card.id ? { ...c, teaching: { ...c.teaching, ...teaching } } : c,
-          ),
-        };
+        teachingByIndex[i] = teaching;
       }
     } catch (err) {
       console.warn(`[two-phase] teaching expansion error for card ${card.id}:`, err?.message ?? err);
+    } finally {
+      completed += 1;
+      if (typeof onProgress === 'function') {
+        onProgress(completed, cards.length);
+      }
     }
-  }
+  });
 
-  return result;
+  // Merge teaching results back in one pass (order-independent since we keyed by index).
+  const mergedCards = cards.map((card, i) => {
+    const teaching = teachingByIndex[i];
+    return teaching ? { ...card, teaching: { ...card.teaching, ...teaching } } : card;
+  });
+
+  return { ...guidePayload, cards: mergedCards };
 };
 
 export const generateStudyGuideFromAi = async ({
@@ -1314,17 +1352,25 @@ const buildExamPrompt = (className, subject) => {
   const strategy = getSubjectStrategy(resolved);
   const examHint = strategy.examTypes ? `\n${strategy.examTypes}` : '';
   return `You are an expert tutor creating a practice exam that mirrors real university exams.
-Produce a mix of MCQ and short-answer questions from the provided material.
+Produce a realistic, varied mix of question types from the provided material.
 
 ${buildSubjectContext(className, subject)}
 
 Output ONLY a valid JSON array. No markdown, backticks, or text outside the array.
-Generate 12-18 MCQ + 2-4 short_answer questions. Mix: 30% easy, 50% medium, 20% hard.
+Generate 14-20 questions total. Difficulty mix: 30% easy, 50% medium, 20% hard.
+Use a realistic spread of types: mostly "mcq", plus some "true_false", "multi_select", "numeric", and 2-4 "short_answer".
 
-Every question MUST have: "type" ("mcq"/"short_answer"), "question", "topic" (specific concept), "difficulty" ("easy"/"medium"/"hard"), "correct_answer", "explanation".
-MCQ also needs: "options" (exactly 4 strings, one matching correct_answer). Distractors plausible but clearly wrong.
-short_answer also needs: "grading_rubric" (key points list), "correct_answer" (2-4 sentence model answer).
-Vary types: recall, compare, apply, analyze. Cover wide range of topics.${examHint}`;
+Every question MUST have: "type", "question", "topic" (specific concept), "difficulty" ("easy"/"medium"/"hard"), "explanation", and "marks" (integer weight: 1 for simple recall, up to 5 for multi-step work).
+Per-type required fields:
+- "mcq": "options" (exactly 4 distinct strings) + "correct_answer" (must equal EXACTLY one of the options). Distractors plausible but clearly wrong.
+- "true_false": "correct_answer" is "true" or "false".
+- "multi_select": "options" (4-6 strings) + "correct_answers" (array of 2+ option strings that are ALL correct). Phrase as "select all that apply".
+- "numeric": "correct_answer" (the number as a string) + "tolerance" (allowed +/- error as a number, 0 if exact) + optional "unit".
+- "short_answer": "correct_answer" (2-4 sentence model answer) + "grading_rubric" (array of key points).
+
+Math formatting: write ALL math, symbols, fractions and equations in LaTeX wrapped in $...$ — e.g. $\\frac{\\sqrt{3}}{2}$, $\\theta = \\frac{2\\pi}{3}$, $x \\ge 4$. Never write math as plain ASCII like sqrt(3)/2 or pi/6.
+Correctness: solve each problem yourself and DOUBLE-CHECK the answer before writing it. For "mcq" ensure exactly one option equals correct_answer; for "multi_select" every entry of correct_answers must appear in options; for "numeric" correct_answer must be a valid number. Do NOT bias the correct option toward any position — vary which option is correct.
+Vary cognitive demand: recall, compare, apply, analyze. Cover a wide range of topics.${examHint}`;
 };
 
 const buildAdaptiveExamPrompt = (className, masteryData, subject) => {
@@ -1382,7 +1428,61 @@ This is a targeted practice exam focusing ONLY on the student's weak areas.
 
 export { buildAdaptiveExamPrompt, buildFocusedExamPrompt };
 
-export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, masteryData, weakTopics, examMode, knowledgeContext = '' }) => {
+// ── Exam blueprints (extract a past exam's "style", reuse it to shape new exams) ──
+
+const buildBlueprintExtractionPrompt = () => `You are analyzing a past exam paper to capture its STYLE so future practice exams can be generated in the same shape (NOT to copy its questions).
+
+Output ONLY a valid JSON object (no markdown, backticks, or text outside the object) with EXACTLY this schema:
+{
+  "questionCount": <integer total number of questions on the paper>,
+  "typeMix": { "mcq": <int>, "true_false": <int>, "multi_select": <int>, "numeric": <int>, "short_answer": <int> },
+  "difficultyMix": { "easy": <int percent>, "medium": <int percent>, "hard": <int percent> },
+  "topics": [<string>, ...],
+  "tone": "<short description of how questions are phrased>",
+  "markScheme": "<how marks are allocated, e.g. '1 mark per MCQ, 5-10 marks per written question'>",
+  "durationMinutes": <integer exam length in minutes if stated/inferable, else 0>,
+  "notes": "<distinctive format features: sections, multi-part questions, formula sheets, etc.>"
+}
+
+typeMix values are COUNTS per type (0 if a type is absent). difficultyMix percentages should sum to ~100. Infer from the actual paper; if a field is unknown use a sensible default (0, [], or "").`;
+
+export const buildBlueprintContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
+  const contents = [{ text: buildBlueprintExtractionPrompt() }];
+  if (hasProcessedNotes) {
+    contents.push({ text: `\n\nPast exam (extracted text):\n${processedNotes}` });
+  }
+  if (keepFile) {
+    contents.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
+  }
+  return contents;
+};
+
+/** Turn a stored blueprint profile into prompt instructions that shape generation. */
+export const describeBlueprint = (profile) => {
+  if (!profile || typeof profile !== 'object') return '';
+  const parts = ['\n\nMATCH THIS EXAM STYLE (mirror its shape using the student\'s material):'];
+  if (profile.questionCount) parts.push(`- Aim for about ${profile.questionCount} questions total.`);
+  if (profile.typeMix && typeof profile.typeMix === 'object') {
+    const mix = Object.entries(profile.typeMix)
+      .filter(([, n]) => Number(n) > 0)
+      .map(([t, n]) => `${n} ${t}`)
+      .join(', ');
+    if (mix) parts.push(`- Question-type mix to approximate: ${mix}.`);
+  }
+  if (profile.difficultyMix && typeof profile.difficultyMix === 'object') {
+    const { easy = 0, medium = 0, hard = 0 } = profile.difficultyMix;
+    parts.push(`- Difficulty spread ~ ${easy}% easy / ${medium}% medium / ${hard}% hard.`);
+  }
+  if (Array.isArray(profile.topics) && profile.topics.length) {
+    parts.push(`- Weight topics like the original where the material allows: ${profile.topics.slice(0, 12).join(', ')}.`);
+  }
+  if (profile.tone) parts.push(`- Match the question phrasing/tone: ${profile.tone}.`);
+  if (profile.markScheme) parts.push(`- Follow the mark scheme: ${profile.markScheme} (set each question's "marks" accordingly).`);
+  if (profile.notes) parts.push(`- Honor these format features: ${profile.notes}.`);
+  return parts.join('\n');
+};
+
+export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, masteryData, weakTopics, examMode, knowledgeContext = '', blueprintProfile = null }) => {
   let prompt;
   if (examMode === 'focused' && weakTopics) {
     prompt = buildFocusedExamPrompt(className, weakTopics, subject);
@@ -1393,6 +1493,10 @@ export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile,
   }
 
   const contents = [{ text: prompt }];
+
+  if (blueprintProfile) {
+    contents.push({ text: describeBlueprint(blueprintProfile) });
+  }
 
   if (knowledgeContext) {
     contents.push({ text: `\n\n${knowledgeContext}` });
@@ -1425,6 +1529,8 @@ export const generateExamFromAi = async ({
   className,
   subject,
   knowledgeContext,
+  blueprintProfile = null,
+  blueprintId = null,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -1455,8 +1561,8 @@ export const generateExamFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, knowledgeContext }),
+    model: aiModelMap.exam,
+    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, knowledgeContext, blueprintProfile }),
   });
 
   const questions = parseAiJsonResponse(
@@ -1468,14 +1574,9 @@ export const generateExamFromAi = async ({
     throw createHttpError('AI failed to generate any exam questions.', 500);
   }
 
-  // Validate question structure (MCQ + short_answer)
-  const validQuestions = questions.filter(q => {
-    if (!q.question || !q.correct_answer) return false;
-    if (!q.type) q.type = 'mcq';
-    if (q.type === 'short_answer') return Boolean(q.grading_rubric);
-    return Array.isArray(q.options) && q.options.length === 4
-      && q.options.includes(q.correct_answer);
-  });
+  // Coerce → validate → shuffle options (fixes the "answer B is always right" bias).
+  // Supports mcq / multi_select / true_false / numeric / short_answer.
+  const validQuestions = normalizeExamQuestions(questions);
 
   if (validQuestions.length === 0) {
     throw createHttpError('AI generated questions in an invalid format. Please try again.', 500);
@@ -1492,6 +1593,7 @@ export const generateExamFromAi = async ({
       sourceId: sourceId || null,
       classId: classId || null,
       questions: validQuestions,
+      blueprintId: blueprintId || null,
     });
   } catch (error) {
     if (createdExam?.id && typeof deleteExam === 'function') {
