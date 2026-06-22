@@ -10,8 +10,8 @@ describe('Garden', () => {
     it('renders the correct accessible stage art and visible label for the streak tier', () => {
         render(<Garden streak={500} status="active" size="md" showInfo={true} />);
 
-        expect(screen.getByRole('img', { name: /Astral Gardens garden/i })).toBeInTheDocument();
-        expect(screen.getByText('Astral Gardens')).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: /Cosmic Nexus garden/i })).toBeInTheDocument();
+        expect(screen.getByText('Cosmic Nexus')).toBeInTheDocument();
         expect(screen.getByText('500 day streak')).toBeInTheDocument();
     });
 
