@@ -34,7 +34,7 @@ export class Cache {
     }
 
     set(key, value, ttl = 60000) { // Default 60s TTL
-        this.store.set(key, { value, expiresAt: Date.now() + ttl });
+        this.store.set(key, { value, expiresAt: Date.now() + ttl, fetchedAt: Date.now() });
     }
 
     get(key) {
@@ -61,6 +61,19 @@ export class Cache {
         if (!item) return null;
         if (Date.now() > item.expiresAt) return null;
         return item.value;
+    }
+
+    /**
+     * True when a cached entry exists, is within its retention window, and was last
+     * fetched within `maxAgeMs`. Lets stale-while-revalidate reads skip the network
+     * entirely while recent enough — the primary egress guard — while the persisted
+     * snapshot is still served to `peek` for instant first paint.
+     */
+    isFresh(key, maxAgeMs) {
+        const item = this.store.get(key) || this._persist.get(key);
+        if (!item) return false;
+        if (Date.now() > item.expiresAt) return false;
+        return (Date.now() - (item.fetchedAt || 0)) < maxAgeMs;
     }
 
     delete(key) {
@@ -149,7 +162,7 @@ export class Cache {
     }
 
     setPersistent(key, value, ttl = PERSIST_RETENTION) {
-        const entry = { value, expiresAt: Date.now() + ttl };
+        const entry = { value, expiresAt: Date.now() + ttl, fetchedAt: Date.now() };
         this.store.set(key, entry);
         this._persist.set(key, entry);
         this._flush();

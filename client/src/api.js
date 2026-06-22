@@ -15,9 +15,16 @@ const CACHE_TTL = {
     long: 300000    // 5m - for rarely changing data
 };
 
-// Persisted stale-while-revalidate read: callers still receive a Promise of fresh
-// data, while group pages seed their first paint instantly from cache.peek(key).
-const swrRead = (key, fn) => cache.swr(key, fn, { ttl: CACHE_TTL.medium, persist: true }).revalidate();
+// Persisted stale-while-revalidate read. Serves the cached snapshot WITHOUT a network
+// round-trip while it is still fresh (within the medium TTL) — this is the primary
+// egress guard — and only revalidates once the snapshot is stale or missing. Group
+// pages still seed first paint synchronously from cache.peek(key). Writes call the
+// matching invalidate* helper, which deletes the key so the next read refetches.
+const swrRead = (key, fn) => {
+    const { value, revalidate } = cache.swr(key, fn, { ttl: CACHE_TTL.medium, persist: true });
+    if (value !== null && cache.isFresh(key, CACHE_TTL.medium)) return Promise.resolve(value);
+    return revalidate();
+};
 
 // Run a mutation, then drop the affected cache seeds so the next read/seed is correct.
 const mutate = (fn, invalidate) => { invalidate(); return fn(); };
@@ -47,6 +54,15 @@ const invalidateMeetups = () => {
 const invalidateAssignments = () => cache.deletePrefix(calendarKeys.assignmentsPrefix());
 const invalidateSchedule = () => cache.delete(calendarKeys.schedule());
 const invalidateCalendarSources = () => cache.delete(calendarKeys.calendarSources());
+
+// Study-dashboard reads (notes / guides / exams / insights) are cached per-class via
+// cache.wrap, so a write must drop every per-class variant by prefix. These keys live
+// under their own namespaces ('notes', 'study-guides', 'mock-exams', 'exam-insights')
+// and don't collide with folders/tags/classes/decks or the group/calendar keyspaces.
+const invalidateNotes = () => cache.deletePrefix('notes');
+const invalidateStudyGuides = () => cache.deletePrefix('study-guides');
+const invalidateExamInsights = () => cache.deletePrefix('exam-insights');
+const invalidateExams = () => { cache.deletePrefix('mock-exams'); invalidateExamInsights(); };
 
 // Hybrid API - uses server when logged in, IndexedDB otherwise
 export const api = {
@@ -192,12 +208,18 @@ export const api = {
     generateAiClass: (notes, file) => isLoggedIn()
         ? serverApi.generateAiClass(notes, file)
         : Promise.reject(new Error('Must be logged in to generate AI class')),
-    generateAiGuide: (notes, file, title, noteId, classId, className, replaceGuideId, coachConfig) => isLoggedIn()
-        ? serverApi.generateAiGuide(notes, file, title, noteId, classId, className, replaceGuideId, coachConfig)
-        : Promise.reject(new Error('Must be logged in to generate a tutor session')),
-    generateAiExam: (notes, file, title, sourceType, sourceId, classId, className, opts) => isLoggedIn()
-        ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId, className, opts)
-        : Promise.reject(new Error('Must be logged in to generate AI exam')),
+    generateAiGuide: async (notes, file, title, noteId, classId, className, replaceGuideId, coachConfig) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to generate a tutor session'));
+        const result = await serverApi.generateAiGuide(notes, file, title, noteId, classId, className, replaceGuideId, coachConfig);
+        invalidateStudyGuides();
+        return result;
+    },
+    generateAiExam: async (notes, file, title, sourceType, sourceId, classId, className, opts) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to generate AI exam'));
+        const result = await serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId, className, opts);
+        invalidateExams();
+        return result;
+    },
     gradeShortAnswer: (question, studentAnswer, correctAnswer, gradingRubric) => isLoggedIn()
         ? serverApi.gradeShortAnswer(question, studentAnswer, correctAnswer, gradingRubric)
         : Promise.reject(new Error('Must be logged in to grade answers')),
@@ -249,22 +271,26 @@ export const api = {
 
     // ============ NOTES ============
     getNotes: (classId) => isLoggedIn()
-        ? serverApi.getNotes(classId)
+        ? cache.wrap(cacheKey('notes', classId), () => serverApi.getNotes(classId), CACHE_TTL.medium)
         : Promise.resolve([]),
     getNote: (id) => isLoggedIn()
         ? serverApi.getNote(id)
         : Promise.reject(new Error('Must be logged in to view notes')),
-    createNote: (title, content, classId) => isLoggedIn()
-        ? serverApi.createNote(title, content, classId)
-        : Promise.reject(new Error('Must be logged in to create notes')),
-    updateNote: (id, updates) => isLoggedIn()
-        ? serverApi.updateNote(id, updates)
-        : Promise.reject(new Error('Must be logged in to update notes')),
-    deleteNote: (id) => isLoggedIn()
-        ? serverApi.deleteNote(id)
-        : Promise.reject(new Error('Must be logged in to delete notes')),
+    createNote: (title, content, classId) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to create notes'));
+        return mutate(() => serverApi.createNote(title, content, classId), invalidateNotes);
+    },
+    updateNote: (id, updates) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to update notes'));
+        return mutate(() => serverApi.updateNote(id, updates), invalidateNotes);
+    },
+    deleteNote: (id) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete notes'));
+        return mutate(() => serverApi.deleteNote(id), invalidateNotes);
+    },
     bulkDeleteNotes: async (ids) => {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete notes'));
+        invalidateNotes();
         return Promise.all(ids.map(id => serverApi.deleteNote(id)));
     },
     uploadNoteAudio: (noteId, audioBlob) => isLoggedIn()
@@ -276,13 +302,14 @@ export const api = {
     deleteNoteAudio: (audioPath) => isLoggedIn()
         ? serverApi.deleteNoteAudio(audioPath)
         : Promise.reject(new Error('Must be logged in to delete note audio')),
-    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className, subject) => isLoggedIn()
-        ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className, subject)
-        : Promise.reject(new Error('Must be logged in to enhance notes')),
+    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className, subject) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to enhance notes'));
+        return mutate(() => serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className, subject), invalidateNotes);
+    },
 
     // ============ STUDY GUIDES ============
     getStudyGuides: (classId) => isLoggedIn()
-        ? serverApi.getStudyGuides(classId)
+        ? cache.wrap(cacheKey('study-guides', classId), () => serverApi.getStudyGuides(classId), CACHE_TTL.medium)
         : Promise.resolve([]),
     getStudyGuide: (id) => isLoggedIn()
         ? serverApi.getStudyGuide(id)
@@ -293,38 +320,44 @@ export const api = {
     getStudyCoverageMap: (classId = null) => isLoggedIn()
         ? serverApi.getStudyCoverageMap(classId)
         : Promise.resolve(null),
-    completeExamAttempt: (attemptId) => isLoggedIn()
-        ? serverApi.completeExamAttempt(attemptId)
-        : Promise.resolve(null),
-    updateStudyGuide: (id, updates) => isLoggedIn()
-        ? serverApi.updateStudyGuide(id, updates)
-        : Promise.reject(new Error('Must be logged in to update tutor sessions')),
+    completeExamAttempt: (attemptId) => {
+        if (!isLoggedIn()) return Promise.resolve(null);
+        return mutate(() => serverApi.completeExamAttempt(attemptId), invalidateExamInsights);
+    },
+    updateStudyGuide: (id, updates) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to update tutor sessions'));
+        return mutate(() => serverApi.updateStudyGuide(id, updates), invalidateStudyGuides);
+    },
     completeStudyCoachSession: (payload) => isLoggedIn()
         ? serverApi.completeStudyCoachSession(payload)
         : Promise.reject(new Error('Must be logged in to save tutor session progress')),
     assistStudyCoach: (payload) => isLoggedIn()
         ? serverApi.assistStudyCoach(payload)
         : Promise.reject(new Error('Must be logged in to use tutor session assist')),
-    deleteStudyGuide: (id) => isLoggedIn()
-        ? serverApi.deleteStudyGuide(id)
-        : Promise.reject(new Error('Must be logged in to delete tutor sessions')),
+    deleteStudyGuide: (id) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete tutor sessions'));
+        return mutate(() => serverApi.deleteStudyGuide(id), invalidateStudyGuides);
+    },
     bulkDeleteStudyGuides: async (ids) => {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete tutor sessions'));
+        invalidateStudyGuides();
         return Promise.all(ids.map(id => serverApi.deleteStudyGuide(id)));
     },
 
     // ============ MOCK EXAMS ============
     getMockExams: (classId) => isLoggedIn()
-        ? serverApi.getMockExams(classId)
+        ? cache.wrap(cacheKey('mock-exams', classId), () => serverApi.getMockExams(classId), CACHE_TTL.medium)
         : Promise.resolve([]),
     getMockExam: (id) => isLoggedIn()
         ? serverApi.getMockExam(id)
         : Promise.reject(new Error('Must be logged in to view mock exams')),
-    deleteMockExam: (id) => isLoggedIn()
-        ? serverApi.deleteMockExam(id)
-        : Promise.reject(new Error('Must be logged in to delete mock exams')),
+    deleteMockExam: (id) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete mock exams'));
+        return mutate(() => serverApi.deleteMockExam(id), invalidateExams);
+    },
     bulkDeleteMockExams: async (ids) => {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to delete mock exams'));
+        invalidateExams();
         return Promise.all(ids.map(id => serverApi.deleteMockExam(id)));
     },
 
@@ -340,9 +373,10 @@ export const api = {
         : Promise.reject(new Error('Must be logged in to delete a blueprint')),
 
     // ============ EXAM ATTEMPTS ============
-    createExamAttempt: (examId, score, total, answers, opts) => isLoggedIn()
-        ? serverApi.createExamAttempt(examId, score, total, answers, opts)
-        : Promise.reject(new Error('Must be logged in to save exam attempts')),
+    createExamAttempt: (examId, score, total, answers, opts) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to save exam attempts'));
+        return mutate(() => serverApi.createExamAttempt(examId, score, total, answers, opts), invalidateExamInsights);
+    },
     getExamAttempts: (examId) => isLoggedIn()
         ? serverApi.getExamAttempts(examId)
         : Promise.resolve([]),
@@ -350,7 +384,7 @@ export const api = {
         ? serverApi.getAllExamAttempts(classId)
         : Promise.resolve([]),
     getExamInsights: ({ classId = null } = {}) => isLoggedIn()
-        ? serverApi.getExamInsights({ classId })
+        ? cache.wrap(cacheKey('exam-insights', classId), () => serverApi.getExamInsights({ classId }), CACHE_TTL.medium)
         : Promise.resolve({
             hubReady: false,
             minAttemptsRequired: 3,

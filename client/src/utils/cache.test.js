@@ -176,4 +176,38 @@ describe('Cache', () => {
             expect(sessionStorage.getItem(PERSIST_KEY)).toBeNull();
         });
     });
+
+    // The freshness gate is what lets swrRead skip the network (the egress fix): a
+    // recently-fetched entry is served from cache, a stale one triggers a refetch,
+    // while the snapshot itself is retained for instant first paint until its TTL.
+    describe('isFresh (egress freshness gate)', () => {
+        it('is false for a missing key', () => {
+            expect(new Cache().isFresh('missing', 1000)).toBe(false);
+        });
+
+        it('is true within maxAge of the last write and false after', () => {
+            vi.useFakeTimers();
+            const cache = new Cache();
+            cache.set('k', 'v', 60000);
+            expect(cache.isFresh('k', 1000)).toBe(true);
+            vi.advanceTimersByTime(1001);
+            expect(cache.isFresh('k', 1000)).toBe(false); // stale -> swrRead revalidates
+            expect(cache.get('k')).toBe('v');              // value retained for instant paint
+        });
+
+        it('is false once the entry is past its retention expiry', () => {
+            vi.useFakeTimers();
+            const cache = new Cache();
+            cache.set('k', 'v', 1000);
+            vi.advanceTimersByTime(1001);
+            expect(cache.isFresh('k', 60000)).toBe(false);
+        });
+
+        it('marks a freshly revalidated swr entry as fresh', async () => {
+            const cache = new Cache();
+            cache.ensureUser('user-1');
+            await cache.swr('groups', () => Promise.resolve(['g']), { persist: true }).revalidate();
+            expect(cache.isFresh('groups', 60000)).toBe(true);
+        });
+    });
 });

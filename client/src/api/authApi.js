@@ -1989,7 +1989,10 @@ export const warmupAiFunctions = (...functionNames) => {
 // --- Notes (PostgREST) ---
 
 export const getNotes = async (classId) => {
-    let query = supabase.from('notes').select('*').order('updated_at', { ascending: false });
+    // List projection: exclude the heavy `content` JSONB (the note body) — the notes
+    // list only renders title / class / source / date. getNote() fetches full content
+    // for the editor/detail view.
+    let query = supabase.from('notes').select('id, user_id, title, class_id, audio_url, source_type, created_at, updated_at').order('updated_at', { ascending: false });
     if (classId) query = query.eq('class_id', classId);
     const { data, error } = await query;
     if (error) _sbThrow(error);
@@ -2644,9 +2647,13 @@ const createEmptyExamInsights = () => ({
 });
 
 export const getAllExamAttempts = async (classId) => {
+    // Project explicit columns and EXCLUDE the heavy `answers` JSONB — exam insights
+    // aggregate from score/total/duration/topic_breakdown only, never `answers`, so
+    // shipping the full answer arrays here was pure egress waste. Detail/grading reads
+    // (getExamAttempts / getMockExam) still fetch what they need.
     let query = supabase
         .from('exam_attempts')
-        .select('*, mock_exams(id, class_id, title, exam_mode)')
+        .select('id, exam_id, exam_source_id, score, total, completed_at, exam_title, class_id, exam_mode, duration_seconds, topic_breakdown, mock_exams(id, class_id, title, exam_mode)')
         .order('completed_at', { ascending: false });
     const { data, error } = await query;
     if (error) _sbThrow(error);
