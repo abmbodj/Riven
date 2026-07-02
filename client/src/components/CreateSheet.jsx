@@ -7,6 +7,7 @@ import Mic from 'lucide-react/dist/esm/icons/mic';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { getOnboardingMaterial } from '../utils/onboardingGate';
+import { EMPTY_RICH_TEXT_DOC } from '../utils/sharedResources';
 
 const CREATE_ITEMS = [
     {
@@ -64,7 +65,7 @@ export default function CreateSheet({ open, onClose }) {
             // Create a fresh note and open it; the user taps the mic themselves so we never
             // request microphone permission before it's actually needed.
             try {
-                const note = await api.createNote('Untitled', {}, null);
+                const note = await api.createNote('Untitled', EMPTY_RICH_TEXT_DOC, null);
                 navigate(`/note/${note.id}`);
             } catch (err) {
                 toast.error(err?.message || 'Failed to start a recording');

@@ -15,6 +15,7 @@ import {
 import { normalizeGradientRecipe } from '../utils/themeGradientRecipe.js';
 import {
     isSharedMessageType,
+    normalizeRichTextDoc,
     normalizeSharedPayload,
     serializeSharedPayload,
 } from '../utils/sharedResources.js';
@@ -2016,7 +2017,7 @@ export const createNote = async (title, content, classId) => {
         .insert({
             user_id: userId,
             title: title || 'Untitled',
-            content: content || {},
+            content: normalizeRichTextDoc(content),
             class_id: classId || null,
         })
         .select()

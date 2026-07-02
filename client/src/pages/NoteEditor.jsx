@@ -21,7 +21,9 @@ import {
     buildShareMessageContent,
     buildSharedPreviewText,
     cloneRichTextDoc,
+    EMPTY_RICH_TEXT_DOC,
     extractTextFromDoc,
+    normalizeRichTextDoc,
     serializeSharedPayload,
 } from '../utils/sharedResources';
 
@@ -42,17 +44,19 @@ const ENHANCEMENT_PHASE_LABELS = {
     error: 'Enhancement failed',
 };
 
-const createDocFromSections = (sections) => ({
+const createDocFromSections = (sections) => normalizeRichTextDoc({
     type: 'doc',
     content: Array.isArray(sections) ? sections : [],
 });
+
+const normalizeOptionalDoc = (doc) => (doc ? normalizeRichTextDoc(doc) : null);
 
 const isEnhancementJobActive = (job) => ACTIVE_AI_JOB_STATUSES.includes(job?.status);
 
 const getJobPreviewDoc = (job) => {
     const payload = job?.result_payload || {};
-    if (payload.preview_doc) return payload.preview_doc;
-    if (payload.final_doc) return payload.final_doc;
+    if (payload.preview_doc) return normalizeRichTextDoc(payload.preview_doc);
+    if (payload.final_doc) return normalizeRichTextDoc(payload.final_doc);
     if (Array.isArray(payload.preview_sections) && payload.preview_sections.length > 0) {
         return createDocFromSections(payload.preview_sections);
     }
@@ -61,7 +65,7 @@ const getJobPreviewDoc = (job) => {
 
 const getJobFinalDoc = (job) => {
     const payload = job?.result_payload || {};
-    if (payload.final_doc) return payload.final_doc;
+    if (payload.final_doc) return normalizeRichTextDoc(payload.final_doc);
     return null;
 };
 
@@ -212,7 +216,7 @@ export default function NoteEditor() {
     }, [clearEnhancementPoll, clearEnhancementSubscription]);
 
     const extractText = useCallback((doc) => {
-        return extractTextFromDoc(doc).replace(/\s+/g, ' ').trim();
+        return extractTextFromDoc(normalizeRichTextDoc(doc)).replace(/\s+/g, ' ').trim();
     }, []);
 
     // Create a short-lived signed URL whenever the retained audio path changes so the
@@ -242,9 +246,10 @@ export default function NoteEditor() {
             return;
         }
 
-        const nextSignature = JSON.stringify(nextDoc);
+        const normalizedDoc = normalizeRichTextDoc(nextDoc);
+        const nextSignature = JSON.stringify(normalizedDoc);
 
-        setStreamedEnhancementDoc(nextDoc);
+        setStreamedEnhancementDoc(normalizedDoc);
 
         if (streamedEnhancementSignatureRef.current !== nextSignature) {
             streamedEnhancementSignatureRef.current = nextSignature;
@@ -258,7 +263,7 @@ export default function NoteEditor() {
         if (!leftDoc || !rightDoc) return false;
 
         try {
-            return JSON.stringify(leftDoc) === JSON.stringify(rightDoc);
+            return JSON.stringify(normalizeRichTextDoc(leftDoc)) === JSON.stringify(normalizeRichTextDoc(rightDoc));
         } catch {
             return false;
         }
@@ -296,7 +301,7 @@ export default function NoteEditor() {
 
         try {
             const note = await api.getNote(persistedNoteId);
-            return note?.enhanced_content || null;
+            return normalizeOptionalDoc(note?.enhanced_content);
         } catch (error) {
             console.warn('[NoteEditor] Failed to refresh enhanced note content', error?.message || error);
             return null;
@@ -353,7 +358,7 @@ export default function NoteEditor() {
             return false;
         }
 
-        const resolvedDoc = cloneRichTextDoc(finalDoc || getJobPreviewDoc(job) || {});
+        const resolvedDoc = cloneRichTextDoc(finalDoc || getJobPreviewDoc(job) || EMPTY_RICH_TEXT_DOC);
         if (!resolvedDoc || typeof resolvedDoc !== 'object') {
             return false;
         }
@@ -400,7 +405,7 @@ export default function NoteEditor() {
                     return;
                 }
 
-                const persistedDoc = persistedNote?.enhanced_content || persistedNote?.content || null;
+                const persistedDoc = normalizeOptionalDoc(persistedNote?.enhanced_content || persistedNote?.content);
                 if (!persistedNote?.enhanced_content && !docsMatch(persistedDoc, resolvedDoc)) {
                     return;
                 }
@@ -452,7 +457,7 @@ export default function NoteEditor() {
         if (persistedNoteId && allowNoteRead) {
             try {
                 const savedNote = await api.getNote(persistedNoteId);
-                const persistedDoc = savedNote?.enhanced_content || savedNote?.content || null;
+                const persistedDoc = normalizeOptionalDoc(savedNote?.enhanced_content || savedNote?.content);
 
                 if (savedNote?.enhanced_content && persistedDoc) {
                     return resolveEnhancementLocally(job, persistedDoc, persistedNoteId, {
@@ -505,7 +510,7 @@ export default function NoteEditor() {
         setEnhancementPreviewDoc(previewDoc);
         const payload = job?.result_payload || {};
         if (Array.isArray(payload.preview_sections) && typeof payload.sections_total === 'number') {
-            setEnhancementSections(payload.preview_sections.filter(Boolean));
+            setEnhancementSections(payload.preview_sections.filter(Boolean).map(normalizeRichTextDoc));
             setEnhancementSectionsTotal(payload.sections_total);
         }
 
@@ -562,9 +567,10 @@ export default function NoteEditor() {
             }
 
             if (finalDoc) {
+                const normalizedFinalDoc = normalizeRichTextDoc(finalDoc);
                 enhancementContentAppliedRef.current = true;
-                setContent(finalDoc);
-                contentRef.current = finalDoc;
+                setContent(normalizedFinalDoc);
+                contentRef.current = normalizedFinalDoc;
             }
             originalContentRef.current = null;
             originalSavedRef.current = true;
@@ -591,7 +597,7 @@ export default function NoteEditor() {
             if (pathToClean) {
                 api.deleteNoteAudio(pathToClean).catch(() => {});
             }
-            const restoredContent = cloneRichTextDoc(originalContentRef.current || contentRef.current || {});
+                const restoredContent = cloneRichTextDoc(originalContentRef.current || contentRef.current || EMPTY_RICH_TEXT_DOC);
             if (restoredContent) {
                 enhancementContentAppliedRef.current = false;
                 setContent(restoredContent);
@@ -725,7 +731,7 @@ export default function NoteEditor() {
 
                 if (!isNew) {
                     const note = await api.getNote(id);
-                    const initialContent = note.enhanced_content || note.content || {};
+                    const initialContent = normalizeRichTextDoc(note.enhanced_content || note.content || EMPTY_RICH_TEXT_DOC);
                     const preserveEnhancedContent = enhancementContentAppliedRef.current && contentRef.current;
 
                     setTitle(note.title || '');
@@ -843,7 +849,7 @@ export default function NoteEditor() {
         setSaving(true);
         try {
             if (!noteId) {
-                const contentSnapshot = cloneRichTextDoc(contentRef.current || {});
+                const contentSnapshot = cloneRichTextDoc(contentRef.current || EMPTY_RICH_TEXT_DOC);
                 const newNote = await api.createNote(
                     titleRef.current || 'Untitled',
                     contentSnapshot,
@@ -894,8 +900,9 @@ export default function NoteEditor() {
     };
 
     const handleContentUpdate = useCallback((json) => {
-        setContent(json);
-        contentRef.current = json;
+        const normalizedDoc = normalizeRichTextDoc(json);
+        setContent(normalizedDoc);
+        contentRef.current = normalizedDoc;
         debounceSave();
     }, [debounceSave]);
 
@@ -991,7 +998,7 @@ export default function NoteEditor() {
             try {
                 const newNote = await api.createNote(
                     titleRef.current || 'Untitled',
-                    contentRef.current || {},
+                    cloneRichTextDoc(contentRef.current || EMPTY_RICH_TEXT_DOC),
                     classId,
                 );
                 resolvedNoteId = newNote.id;
@@ -1029,7 +1036,7 @@ export default function NoteEditor() {
         enhancementContentAppliedRef.current = false;
         clearEnhancementCompletionRailTimer();
         setEnhancementCompletionRail(null);
-        originalContentRef.current = cloneRichTextDoc(contentRef.current || {});
+        originalContentRef.current = cloneRichTextDoc(contentRef.current || EMPTY_RICH_TEXT_DOC);
         originalSavedRef.current = saved;
         resetStreamedEnhancementDoc();
         setEnhancing(true);
@@ -1132,7 +1139,7 @@ export default function NoteEditor() {
         enhancementContentAppliedRef.current = false;
         clearEnhancementCompletionRailTimer();
         setEnhancementCompletionRail(null);
-        originalContentRef.current = cloneRichTextDoc(contentRef.current || {});
+        originalContentRef.current = cloneRichTextDoc(contentRef.current || EMPTY_RICH_TEXT_DOC);
         originalSavedRef.current = saved;
         resetStreamedEnhancementDoc();
         setEnhancing(true);

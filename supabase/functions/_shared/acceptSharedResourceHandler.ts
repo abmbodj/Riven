@@ -54,6 +54,44 @@ type NewGuidePayload = {
   class_id: null;
 };
 
+const EMPTY_RICH_TEXT_DOC = { type: 'doc', content: [] };
+
+const extractRichText = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.text === 'string') return record.text;
+  if (typeof record.content === 'string') return record.content;
+  if (!Array.isArray(record.content)) return '';
+
+  return record.content.map(extractRichText).filter(Boolean).join(' ');
+};
+
+const normalizeRichTextDoc = (value: unknown): Record<string, unknown> => {
+  if (
+    value
+    && typeof value === 'object'
+    && (value as Record<string, unknown>).type === 'doc'
+    && Array.isArray((value as Record<string, unknown>).content)
+  ) {
+    return value as Record<string, unknown>;
+  }
+
+  const text = extractRichText(value).replace(/\s+/g, ' ').trim();
+  if (!text) return { ...EMPTY_RICH_TEXT_DOC, content: [] };
+
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text }],
+      },
+    ],
+  };
+};
+
 const parseMessageId = (value: unknown) => {
   const messageId = Number(value);
 
@@ -180,7 +218,7 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
           .insert({
             user_id: userId,
             title: note.title,
-            content: note.content || {},
+            content: normalizeRichTextDoc(note.content),
             enhanced_content: null,
             class_id: null,
             audio_url: null,

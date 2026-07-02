@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -13,6 +13,7 @@ import Suggestion from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import SlashCommandMenu, { COMMANDS } from './SlashCommandMenu';
 import { LatexMath } from './LatexMathExtension';
+import { EMPTY_RICH_TEXT_DOC, extractTextFromDoc, normalizeRichTextDoc } from '../../utils/sharedResources';
 import 'katex/dist/katex.min.css';
 import './editorStyles.css';
 
@@ -92,7 +93,47 @@ const SlashCommand = Extension.create({
     },
 });
 
-export default function TiptapEditor({ content, onUpdate, editable = true, placeholder = 'Start writing, or type / for commands...' }) {
+class TiptapEditorErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+            this.setState({ hasError: false });
+        }
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return <EditorFallback content={this.props.fallbackContent} />;
+        }
+
+        return this.props.children;
+    }
+}
+
+function EditorFallback({ content }) {
+    const text = extractTextFromDoc(normalizeRichTextDoc(content)).trim();
+
+    return (
+        <div className="riven-editor">
+            <div className="whitespace-pre-wrap text-claude-text">
+                {text}
+            </div>
+        </div>
+    );
+}
+
+function TiptapEditorInner({ content, onUpdate, editable = true, placeholder = 'Start writing, or type / for commands...' }) {
+    const normalizedContent = useMemo(() => normalizeRichTextDoc(content), [content]);
+    const [fallbackContent, setFallbackContent] = useState(null);
+
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -108,7 +149,7 @@ export default function TiptapEditor({ content, onUpdate, editable = true, place
             LatexMath,
             ...(editable ? [SlashCommand] : []),
         ],
-        content: content || undefined,
+        content: normalizedContent,
         editable,
         editorProps: {
             attributes: {
@@ -121,14 +162,24 @@ export default function TiptapEditor({ content, onUpdate, editable = true, place
     });
 
     useEffect(() => {
-        if (editor && content && !editor.isFocused) {
+        if (editor && normalizedContent && !editor.isFocused) {
             const currentJson = JSON.stringify(editor.getJSON());
-            const newJson = JSON.stringify(content);
+            const newJson = JSON.stringify(normalizedContent);
             if (currentJson !== newJson) {
-                editor.commands.setContent(content, { emitUpdate: false });
+                try {
+                    editor.commands.setContent(normalizedContent, { emitUpdate: false });
+                    setFallbackContent(null);
+                } catch {
+                    setFallbackContent(normalizedContent);
+                    try {
+                        editor.commands.setContent(EMPTY_RICH_TEXT_DOC, { emitUpdate: false });
+                    } catch {
+                        // The local fallback below keeps the note page usable.
+                    }
+                }
             }
         }
-    }, [content, editor]);
+    }, [normalizedContent, editor]);
 
     useEffect(() => {
         if (editor) {
@@ -136,9 +187,24 @@ export default function TiptapEditor({ content, onUpdate, editable = true, place
         }
     }, [editable, editor]);
 
+    if (fallbackContent) {
+        return <EditorFallback content={fallbackContent} />;
+    }
+
     return (
         <div className="riven-editor">
             <EditorContent editor={editor} />
         </div>
+    );
+}
+
+export default function TiptapEditor(props) {
+    const fallbackContent = normalizeRichTextDoc(props.content);
+    const resetKey = JSON.stringify(fallbackContent);
+
+    return (
+        <TiptapEditorErrorBoundary resetKey={resetKey} fallbackContent={fallbackContent}>
+            <TiptapEditorInner {...props} />
+        </TiptapEditorErrorBoundary>
     );
 }

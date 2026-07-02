@@ -5,6 +5,7 @@ import {
 } from './studyGuideCore.mjs';
 
 const SHARED_RESOURCE_TYPES = new Set(['deck', 'note', 'guide']);
+const EMPTY_RICH_TEXT_DOC = { type: 'doc', content: [] };
 
 // N2: legacy (v2) study guides use a `sections` array that the current normalizer
 // rejects. Build a fresh, progress-free study_state for them so the clone keeps its
@@ -35,6 +36,36 @@ const normalizeId = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) return value;
   return null;
+};
+
+const extractRichText = (value) => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+  if (typeof value.text === 'string') return value.text;
+  if (typeof value.content === 'string') return value.content;
+  if (!Array.isArray(value.content)) return '';
+  return value.content.map(extractRichText).filter(Boolean).join(' ');
+};
+
+const normalizeRichTextDoc = (value) => {
+  if (value?.type === 'doc' && Array.isArray(value.content)) {
+    return value;
+  }
+
+  const text = extractRichText(value).replace(/\s+/g, ' ').trim();
+  if (!text) {
+    return { ...EMPTY_RICH_TEXT_DOC, content: [] };
+  }
+
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text }],
+      },
+    ],
+  };
 };
 
 const normalizeSharedData = (rawSharedData, messageType) => {
@@ -175,7 +206,7 @@ const acceptNoteResource = async ({
     throw createHttpError('Original note no longer exists', 404);
   }
 
-  const visibleContent = originalNote.enhanced_content ?? originalNote.content ?? {};
+  const visibleContent = normalizeRichTextDoc(originalNote.enhanced_content ?? originalNote.content);
   const newNote = await createNote(receiverId, {
     title: originalNote.title,
     content: visibleContent,

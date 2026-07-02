@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import { useSelection } from '../hooks/useSelection';
 import BulkActionBar from '../components/BulkActionBar';
+import { EMPTY_RICH_TEXT_DOC } from '../utils/sharedResources';
 
 const NoteCard = memo(({ note, classes, index, isSelectMode = false, isSelected = false, onToggle }) => {
     const cls = note.class_id ? classes.find(c => c.id === note.class_id) : null;
@@ -167,7 +168,7 @@ export default function NotesLibrary() {
 
     const handleCreateNote = async () => {
         try {
-            const newNote = await api.createNote('Untitled', {}, null);
+            const newNote = await api.createNote('Untitled', EMPTY_RICH_TEXT_DOC, null);
             navigate(`/note/${newNote.id}`);
         } catch (err) {
             toast.error(err?.message || 'Failed to create note');
