@@ -99,7 +99,10 @@ vi.mock('../components/editor/TiptapEditor', () => ({
     return (
       <div>
         <div data-testid={editable ? 'note-editor' : 'note-editor-readonly'}>{placeholder}</div>
-        <div data-testid={editable ? 'note-editor-content' : 'note-editor-content-readonly'}>
+        <div
+          data-testid={editable ? 'note-editor-content' : 'note-editor-content-readonly'}
+          data-content-type={content?.type || ''}
+        >
           {extractMockText(content)}
         </div>
         {onUpdate ? (
@@ -167,6 +170,11 @@ const note = {
   },
   enhanced_content: null,
   audio_url: null,
+};
+
+const emptyDoc = {
+  type: 'doc',
+  content: [],
 };
 
 const renderNoteEditor = () =>
@@ -298,12 +306,46 @@ describe('NoteEditor', () => {
     });
   });
 
+  it('normalizes an empty persisted note body before rendering the editor', async () => {
+    api.getNote.mockResolvedValueOnce({
+      ...note,
+      content: {},
+      enhanced_content: null,
+    });
+
+    renderNoteEditor();
+
+    expect(await screen.findByDisplayValue('Cell Respiration Notes')).toBeInTheDocument();
+    expect(screen.getByTestId('note-editor-content')).toHaveAttribute('data-content-type', 'doc');
+    expect(toast.error).not.toHaveBeenCalledWith('Failed to load note');
+  });
+
+  it('recovers text from malformed enhanced note content', async () => {
+    api.getNote.mockResolvedValueOnce({
+      ...note,
+      enhanced_content: {
+        content: [
+          {
+            content: [
+              { text: 'Recovered enhanced text.' },
+            ],
+          },
+        ],
+      },
+    });
+
+    renderNoteEditor();
+
+    expect(await screen.findByText('Recovered enhanced text.')).toBeInTheDocument();
+    expect(screen.getByTestId('note-editor-content')).toHaveAttribute('data-content-type', 'doc');
+  });
+
   it('creates a note before starting a recording from a new draft', async () => {
     api.createNote.mockResolvedValue({
       id: 'note-new',
       title: 'Untitled',
       class_id: null,
-      content: {},
+      content: emptyDoc,
     });
 
     render(
@@ -319,7 +361,7 @@ describe('NoteEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: /record lecture/i }));
 
     await waitFor(() => {
-      expect(api.createNote).toHaveBeenCalledWith('Untitled', {}, null);
+      expect(api.createNote).toHaveBeenCalledWith('Untitled', emptyDoc, null);
       expect(recorderMock.start).toHaveBeenCalledWith('note-new', 'Untitled');
     });
   });

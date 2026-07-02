@@ -259,7 +259,16 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         if (!user?.id) return undefined;
 
+        // Throttle foreground refreshes: focus + visibilitychange both fire on a single
+        // mobile resume, and rapid tab/app switching would otherwise refetch the user
+        // record every time. One refresh per minute is plenty.
+        let lastRefreshAt = 0;
+        const FOREGROUND_REFRESH_THROTTLE_MS = 60000;
+
         const refreshEntitlements = () => {
+            const now = Date.now();
+            if (now - lastRefreshAt < FOREGROUND_REFRESH_THROTTLE_MS) return;
+            lastRefreshAt = now;
             refreshUser().catch((error) => {
                 console.warn('[AuthContext] Foreground refresh failed:', error);
             });

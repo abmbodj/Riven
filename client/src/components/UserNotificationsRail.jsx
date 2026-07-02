@@ -62,12 +62,23 @@ export default function UserNotificationsRail() {
     useEffect(() => {
         if (!isLoggedIn) return undefined;
 
-        const handleWindowFocus = () => {
+        // Throttle foreground reloads: focus + visibilitychange both fire on a single
+        // mobile resume. Cap to one reload per minute on foreground churn.
+        let lastLoadAt = 0;
+        const FOREGROUND_RELOAD_THROTTLE_MS = 60000;
+        const reloadThrottled = () => {
+            const now = Date.now();
+            if (now - lastLoadAt < FOREGROUND_RELOAD_THROTTLE_MS) return;
+            lastLoadAt = now;
             loadNotifications();
+        };
+
+        const handleWindowFocus = () => {
+            reloadThrottled();
         };
         const handleVisibilityChange = () => {
             if (!document.hidden) {
-                loadNotifications();
+                reloadThrottled();
             }
         };
 
