@@ -7,11 +7,14 @@ export const VISUAL_BUDGET_CONSTRAINED = 'constrained';
 const MOBILE_MQ = '(max-width: 767px)';
 const COARSE_MQ = '(pointer: coarse)';
 const REDUCED_MOTION_MQ = '(prefers-reduced-motion: reduce)';
-const LOW_FPS_THRESHOLD = 50;
-const LOW_FPS_SAMPLE_COUNT = 4;
+const LOW_FPS_THRESHOLD = 50;      // enter constrained below this
+const RECOVER_FPS_THRESHOLD = 55;  // exit constrained only above this — gap avoids boundary flicker
+const TRIP_SAMPLE_COUNT = 4;       // ~2s sustained low fps to enter
+const RECOVER_SAMPLE_COUNT = 6;    // ~3s sustained good fps to exit
 
 const subscribers = new Set();
-let lowFpsSamples = 0;
+let consecutiveLow = 0;
+let consecutiveGood = 0;
 let forcedByFps = false;
 
 function emitChange() {
@@ -45,15 +48,29 @@ function handleFpsSample(event) {
     const fps = Number(event?.detail?.fps);
     if (!Number.isFinite(fps)) return;
 
+    // Hysteresis: separate enter/exit thresholds + consecutive-sample counts
+    // that each reset on any sample breaking their own streak. A shared
+    // up/down counter flickers every sample once it sits near the boundary —
+    // this doesn't, because 50-55fps is a dead zone that moves neither counter.
     if (fps < LOW_FPS_THRESHOLD) {
-        lowFpsSamples += 1;
-    } else {
-        lowFpsSamples = Math.max(0, lowFpsSamples - 1);
+        consecutiveLow += 1;
+        consecutiveGood = 0;
+    } else if (fps >= RECOVER_FPS_THRESHOLD) {
+        consecutiveGood += 1;
+        consecutiveLow = 0;
     }
 
-    const nextForcedByFps = lowFpsSamples >= LOW_FPS_SAMPLE_COUNT;
+    let nextForcedByFps = forcedByFps;
+    if (!forcedByFps && consecutiveLow >= TRIP_SAMPLE_COUNT) {
+        nextForcedByFps = true;
+    } else if (forcedByFps && consecutiveGood >= RECOVER_SAMPLE_COUNT) {
+        nextForcedByFps = false;
+    }
+
     if (nextForcedByFps !== forcedByFps) {
         forcedByFps = nextForcedByFps;
+        consecutiveLow = 0;
+        consecutiveGood = 0;
         emitChange();
     }
 }
