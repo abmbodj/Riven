@@ -251,7 +251,17 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
         loadedIdsRef.current.clear();
         cachedMessages.forEach((message) => loadedIdsRef.current.add(message.id));
 
-        authApi.getGroupMessages(groupId).then(data => {
+        // A fresh session (e.g. right after login or a hard refresh) can race
+        // this call ahead of the Supabase client's own auth handshake — the
+        // realtime subscription's catch-up fetch below only succeeds a moment
+        // later because a channel can't reach SUBSCRIBED until that handshake
+        // is done. One short retry bridges the same gap here instead of
+        // flashing an error for something about to self-correct.
+        const fetchInitialMessages = () => authApi.getGroupMessages(groupId).catch(() => (
+            new Promise(resolve => setTimeout(resolve, 800)).then(() => authApi.getGroupMessages(groupId))
+        ));
+
+        fetchInitialMessages().then(data => {
             if (cancelled) return;
             if (data.length < 50) setHasMore(false);
             const hydrated = data.map(m => {

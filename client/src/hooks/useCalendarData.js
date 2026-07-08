@@ -79,6 +79,12 @@ function useSeeded(key, fetcher) {
     }, [key, fetcher]);
 
     const setValue = useCallback((updater) => {
+        // Bump the request id so any fetch already in flight (started before this
+        // optimistic write) gets dropped by the `id === reqRef.current` guard
+        // above instead of silently overwriting it when it resolves later —
+        // without this, an optimistic update could flash correctly then revert
+        // to stale data once an older in-flight request lands.
+        reqRef.current += 1;
         setFetched((prev) => {
             const base = prev && prev.key === key ? prev.value : cache.peek(key);
             return { key, value: typeof updater === 'function' ? updater(base) : updater };

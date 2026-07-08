@@ -19,12 +19,12 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
+const { toastMock } = vi.hoisted(() => ({
+  toastMock: { error: vi.fn(), success: vi.fn(), show: vi.fn() },
+}));
+
 vi.mock('../../hooks/useToast', () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-    show: vi.fn(),
-  }),
+  useToast: () => toastMock,
 }));
 
 vi.mock('../../hooks/useHaptics', () => ({
@@ -387,6 +387,57 @@ describe('GroupChatPanel', () => {
 
     expect(screen.getByText('raced ahead')).toBeInTheDocument();
     expect(screen.getByText('okay?')).toBeInTheDocument();
+  });
+
+  it('retries the initial load once before giving up, without an error toast when the retry succeeds', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      authApi.getGroupMessages
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce([
+          {
+            id: 'm1',
+            senderId: 9,
+            senderUsername: 'ab',
+            senderDisplayName: 'ab',
+            senderAvatar: 'avatar-a',
+            content: 'okay?',
+            createdAt: '2026-06-01T17:00:00',
+            isMine: false,
+            isEdited: false,
+          },
+        ]);
+
+      render(<GroupChatPanel groupId="group-retry" currentUserId={42} members={[]} />);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      expect(screen.getByText('okay?')).toBeInTheDocument();
+      expect(authApi.getGroupMessages).toHaveBeenCalledTimes(2);
+      expect(toastMock.error).not.toHaveBeenCalledWith('Failed to load messages');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the error toast only after both the initial load and the retry fail', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      authApi.getGroupMessages.mockRejectedValue(new Error('down'));
+
+      render(<GroupChatPanel groupId="group-retry-fail" currentUserId={42} members={[]} />);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      expect(authApi.getGroupMessages).toHaveBeenCalledTimes(2);
+      expect(toastMock.error).toHaveBeenCalledWith('Failed to load messages');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens the top message menu beside the bubble instead of above it', async () => {
