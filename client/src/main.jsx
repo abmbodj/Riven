@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import gsap from 'gsap'
 import './index.css'
 import App from './App.jsx'
 import { initPosthog } from './analytics/posthogBootstrap.js'
@@ -31,6 +32,15 @@ afterFirstPaint(() => {
 const disposeFps = initDevFpsMeter()
 if (import.meta.hot) {
     import.meta.hot.dispose(() => disposeFps?.())
+}
+
+// Stop GSAP's ticker (and everything driven by it, incl. ScrollTrigger) while
+// the tab is hidden — tweens resume from the same position on refocus.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) gsap.ticker.sleep()
+    else gsap.ticker.wake() // idempotent even if never slept
+  })
 }
 
 createRoot(document.getElementById('root')).render(

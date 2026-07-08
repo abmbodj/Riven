@@ -1754,10 +1754,12 @@
   50%       { opacity: 0.32; transform: scale(1.1); }
 }
 
-/* Color bloom — soft filter pulse: Sage Temple, Lavender Dusk */
+/* Color bloom — soft opacity pulse: Sage Temple, Lavender Dusk */
+/* ponytail: animating filter:blur radius forces a per-frame filter-region
+   recompute (slow on Gecko); the gradient's own falloff already reads soft. */
 @keyframes themeColorBloom {
-  0%, 100% { opacity: 0.14; filter: blur(22px); }
-  50%       { opacity: 0.26; filter: blur(14px); }
+  0%, 100% { opacity: 0.14; }
+  50%       { opacity: 0.26; }
 }
 
 /* Gradient drift — slow position shift */
