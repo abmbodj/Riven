@@ -30,8 +30,10 @@ const ExamCard = memo(({ exam, classes, index, onDelete, isSelectMode = false, i
             onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle?.(exam.id); } },
           }
         : { to: `/exam/${exam.id}` };
-    const questionCount = Array.isArray(exam.questions) ? exam.questions.length : 0;
-    const saCount = Array.isArray(exam.questions) ? exam.questions.filter(q => q.type === 'short_answer').length : 0;
+    // question_count/short_answer_count are DB-generated columns (mock_exams) so the
+    // list read can skip the heavy `questions` JSONB entirely.
+    const questionCount = exam.question_count ?? (Array.isArray(exam.questions) ? exam.questions.length : 0);
+    const saCount = exam.short_answer_count ?? (Array.isArray(exam.questions) ? exam.questions.filter(q => q.type === 'short_answer').length : 0);
 
     return (
         <motion.div

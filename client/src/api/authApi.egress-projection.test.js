@@ -62,6 +62,17 @@ describe('egress projection guards', () => {
     expect(cols).toContain('mock_exams(');
   });
 
+  it('getMockExams (list) projects explicit columns and excludes the questions JSONB', async () => {
+    await authApi.getMockExams();
+    const cols = selectByTable['mock_exams'];
+    expect(cols).toBeTruthy();
+    expect(cols).not.toContain('*');
+    expect(cols).not.toMatch(/\bquestions\b/);
+    // still selects the generated count columns the list badges read
+    expect(cols).toContain('question_count');
+    expect(cols).toContain('short_answer_count');
+  });
+
   it('getNotes (list) projects explicit columns and excludes the content JSONB', async () => {
     await authApi.getNotes();
     const cols = selectByTable['notes'];
