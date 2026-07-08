@@ -78,6 +78,7 @@ export class Cache {
 
     delete(key) {
         this.store.delete(key);
+        this._inflight.delete(key);
         if (this._persist.delete(key)) this._flush();
     }
 
@@ -194,13 +195,20 @@ export class Cache {
             const promise = Promise.resolve()
                 .then(fn)
                 .then(result => {
-                    if (persist) this.setPersistent(key, result);
-                    else this.set(key, result, ttl);
-                    this._inflight.delete(key);
+                    // Only write if this is still the registered in-flight request for
+                    // the key — if a mutation invalidated the key (delete/deletePrefix)
+                    // while this fetch was in flight, that removes it from _inflight, and
+                    // writing the now-stale result here would re-stamp pre-mutation data
+                    // as fresh.
+                    if (this._inflight.get(key) === promise) {
+                        if (persist) this.setPersistent(key, result);
+                        else this.set(key, result, ttl);
+                        this._inflight.delete(key);
+                    }
                     return result;
                 })
                 .catch(err => {
-                    this._inflight.delete(key);
+                    if (this._inflight.get(key) === promise) this._inflight.delete(key);
                     throw err;
                 });
             this._inflight.set(key, promise);

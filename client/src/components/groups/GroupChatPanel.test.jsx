@@ -320,6 +320,75 @@ describe('GroupChatPanel', () => {
     expect(screen.queryByText('okay?')).not.toBeInTheDocument();
   });
 
+  it('reconciles a catch-up fetch on (re)subscribe without dropping newer realtime messages', async () => {
+    render(
+      <GroupChatPanel
+        groupId="group-resubscribe"
+        currentUserId={42}
+        members={[
+          { id: 9, username: 'ab', display_name: 'ab', avatar: 'avatar-a' },
+          { id: 42, username: 'me', display_name: 'me', avatar: 'avatar-me' },
+        ]}
+      />
+    );
+
+    await screen.findByText('okay?');
+    const handlers = authApi.subscribeToGroupMessages.mock.calls.at(-1)[2];
+
+    // A realtime insert arrives for a message newer than anything the next
+    // catch-up fetch will return (it raced ahead of the server's page).
+    act(() => {
+      handlers.onInsert({
+        id: 'm3',
+        senderId: 42,
+        senderUsername: 'me',
+        senderDisplayName: 'me',
+        senderAvatar: 'avatar-me',
+        content: 'raced ahead',
+        createdAt: '2026-06-01T17:10:00',
+        isMine: true,
+        isEdited: false,
+      });
+    });
+    await screen.findByText('raced ahead');
+
+    // Channel reconnects (e.g. after a drop) and the catch-up fetch resolves
+    // with only the original two messages — must not drop the realtime one.
+    authApi.getGroupMessages.mockResolvedValueOnce([
+      {
+        id: 'm2',
+        senderId: 9,
+        senderUsername: 'ab',
+        senderDisplayName: 'ab',
+        senderAvatar: 'avatar-a',
+        content: 'nvm',
+        createdAt: '2026-06-01T17:01:00',
+        isMine: false,
+        isEdited: false,
+      },
+      {
+        id: 'm1',
+        senderId: 9,
+        senderUsername: 'ab',
+        senderDisplayName: 'ab',
+        senderAvatar: 'avatar-a',
+        content: 'okay?',
+        createdAt: '2026-06-01T17:00:00',
+        isMine: false,
+        isEdited: false,
+      },
+    ]);
+
+    await act(async () => {
+      handlers.onSubscribed();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('raced ahead')).toBeInTheDocument();
+    expect(screen.getByText('okay?')).toBeInTheDocument();
+  });
+
   it('opens the top message menu beside the bubble instead of above it', async () => {
     authApi.getGroupMessages.mockResolvedValue([
       {

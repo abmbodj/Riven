@@ -23,9 +23,17 @@ function mergeMessages(existing = [], incoming = []) {
 
 function reconcileLatestPage(existing = [], fetched = []) {
     if (fetched.length === 0) return sortMessagesChronologically(existing);
-    const oldestFetchedTime = Math.min(...fetched.map((message) => new Date(message.createdAt).getTime()));
-    const olderCachedMessages = existing.filter((message) => new Date(message.createdAt).getTime() < oldestFetchedTime);
-    return mergeMessages(olderCachedMessages, fetched);
+    const times = fetched.map((message) => new Date(message.createdAt).getTime());
+    const oldestFetchedTime = Math.min(...times);
+    const newestFetchedTime = Math.max(...times);
+    // Keep cached/realtime messages outside the fetched window — older ones the
+    // page didn't reach, and newer ones that arrived after the server built the
+    // page (e.g. a realtime insert racing the initial fetch).
+    const outsideWindow = existing.filter((message) => {
+        const t = new Date(message.createdAt).getTime();
+        return t < oldestFetchedTime || t > newestFetchedTime;
+    });
+    return mergeMessages(outsideWindow, fetched);
 }
 
 function formatDateDivider(dateStr) {
@@ -290,6 +298,16 @@ export default function GroupChatPanel({ groupId, members, currentUserId }) {
             },
             onDelete: (id) => {
                 updateMessages(prev => prev.filter(m => m.id !== id));
+            },
+            // Fires on every (re)join — initial subscribe, reconnect after a drop,
+            // or resuming from background/sleep — so any gap between "loaded" and
+            // "subscribed", or during a disconnect, gets closed with a catch-up fetch.
+            onSubscribed: () => {
+                authApi.getGroupMessages(groupId).then((data) => {
+                    if (!data.length) return;
+                    data.forEach((m) => loadedIdsRef.current.add(m.id));
+                    updateMessages(prev => reconcileLatestPage(prev, data.map(hydrateSender)));
+                }).catch(() => {});
             },
         });
         return () => { unsubRef.current?.(); unsubRef.current = null; };

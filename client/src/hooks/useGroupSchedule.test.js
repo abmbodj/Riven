@@ -317,6 +317,32 @@ describe('useGroupSchedule', () => {
         });
     });
 
+    describe('refreshRange', () => {
+        it('debounces bursts and invalidates the schedule cache before refetching', () => {
+            vi.useFakeTimers();
+            stubCalendar({ data: SAMPLE_DATA, loading: false });
+            const { result, rerender } = buildHook();
+            rerender();
+
+            act(() => {
+                result.current.refreshRange();
+                result.current.refreshRange();
+                result.current.refreshRange();
+            });
+
+            // Realtime events arrive in bursts (one per changed row) — must coalesce.
+            expect(cache.deletePrefix).not.toHaveBeenCalled();
+            expect(mockRefresh).not.toHaveBeenCalled();
+
+            act(() => { vi.advanceTimersByTime(250); });
+
+            expect(cache.deletePrefix).toHaveBeenCalledWith(`gs:${GROUP_ID}:`);
+            expect(mockRefresh).toHaveBeenCalledTimes(1);
+
+            vi.useRealTimers();
+        });
+    });
+
     describe('cancelMeetup', () => {
         const meetup = { id: 'm1', group_id: GROUP_ID, status: 'scheduled' };
         const dataWithMeetup = { ...SAMPLE_DATA, meetups: [meetup] };

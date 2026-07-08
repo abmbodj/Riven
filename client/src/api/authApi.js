@@ -5092,7 +5092,9 @@ export const subscribeToGroupMessages = (groupId, currentUserId, handlers = {}) 
             handlers.onDelete?.(payload.old.id);
         });
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') handlers.onSubscribed?.();
+    });
     return () => supabase.removeChannel(channel);
 };
 

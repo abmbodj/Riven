@@ -130,7 +130,6 @@ export function useGroupSchedule({ groupId, currentUserId, toast, haptics }) {
         try {
             await serverApi.setGroupAvailability(groupId, cells); // share flip is atomic in the RPC
             cache.deletePrefix(groupKeys.schedulePrefix(groupId));
-            await Promise.resolve(); // let any in-flight revalidate for this key settle + leave _inflight
             void refreshRef.current(); // background reconcile — don't block the save button
             toast?.success('Availability saved.');
         } catch (err) {
@@ -296,10 +295,21 @@ export function useGroupSchedule({ groupId, currentUserId, toast, haptics }) {
         }
     }, [groupId, toast]);
 
-    /** Silent range refresh — call from realtime onChanged handlers. */
+    /**
+     * Silent range refresh — call from realtime onChanged handlers.
+     * Debounced (per-row realtime events arrive in bursts) and invalidates the
+     * cache key first so the refetch can't be served stale by the SWR freshness
+     * gate — this handler exists specifically because the DB just changed.
+     */
+    const refreshTimerRef = useRef(null);
+    useEffect(() => () => clearTimeout(refreshTimerRef.current), []);
     const refreshRange = useCallback(() => {
-        void refreshRef.current();
-    }, []);
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = setTimeout(() => {
+            cache.deletePrefix(groupKeys.schedulePrefix(groupId));
+            void refreshRef.current();
+        }, 250);
+    }, [groupId]);
 
     return {
         calendarData,

@@ -293,7 +293,8 @@ export default function WeekAvailabilityHeatmap({
                                     <div
                                         key={dayIndex}
                                         aria-label={availabilityLabel}
-                                        className="flex h-9 items-center justify-center rounded-[3px] border border-white/[0.03] bg-white/[0.02] opacity-30 md:h-full md:min-h-[1.35rem]"
+                                        className="flex h-9 items-center justify-center rounded-[3px] border border-white/[0.03] opacity-30 md:h-full md:min-h-[1.35rem]"
+                                        style={style}
                                     />
                                 );
                             }

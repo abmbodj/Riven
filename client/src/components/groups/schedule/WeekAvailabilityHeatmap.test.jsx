@@ -173,4 +173,21 @@ describe('WeekAvailabilityHeatmap — past cells', () => {
         const cell = screen.getByLabelText(/Sun 10a/i);
         expect(cell).toHaveAccessibleName(/unavailable/i);
     });
+
+    it('past cell still shows the availability background instead of a blank placeholder', () => {
+        // A cell with 2 of 4 free must render the same graded green background
+        // whether it's past or future — saved availability shouldn't disappear
+        // just because the slot already passed.
+        renderWithHeatmap(makeFutureHeatmap({ freeMemberIds: ['a', 'b'], denominator: 4, maxFree: 2 }), { nowMs: MID_WEEK_MS });
+
+        const cell = screen.getByLabelText(/Sun 10a/i);
+        expect(cell.style.backgroundColor).toContain('122, 158, 114');
+    });
+
+    it('past cell with no data falls back to the neutral placeholder', () => {
+        renderWithHeatmap(makeFutureHeatmap({ freeMemberIds: [], denominator: 0, maxFree: 0 }), { nowMs: MID_WEEK_MS });
+
+        const cell = screen.getByLabelText(/Sun 10a/i);
+        expect(cell.style.backgroundColor).toBe('rgba(255, 255, 255, 0.03)');
+    });
 });

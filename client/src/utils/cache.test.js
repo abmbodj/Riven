@@ -66,6 +66,27 @@ describe('Cache', () => {
             expect(fn).toHaveBeenCalledTimes(1);
         });
 
+        it('does not restamp a key that was invalidated while the revalidate was in flight', async () => {
+            const cache = new Cache();
+            cache.ensureUser('user-1');
+            let resolveFetch;
+            const fn = vi.fn(() => new Promise((r) => { resolveFetch = r; }));
+
+            const { revalidate } = cache.swr('groups', fn, { persist: true });
+            const pending = revalidate();
+            await Promise.resolve(); // let fn() run so resolveFetch is assigned
+
+            // A mutation invalidates the key mid-flight (e.g. saveAvailability's
+            // deletePrefix racing a pre-save revalidate).
+            cache.deletePrefix('groups');
+
+            resolveFetch(['stale']);
+            await pending;
+
+            // The stale result must not have been written back.
+            expect(cache.peek('groups')).toBeNull();
+        });
+
         it('persists to sessionStorage when persist:true', async () => {
             const cache = new Cache();
             cache.ensureUser('user-1');
@@ -144,6 +165,24 @@ describe('Cache', () => {
     });
 
     describe('delete / clearPersistent', () => {
+        it('delete clears the in-flight entry so a racing revalidate does not restamp stale data', async () => {
+            const cache = new Cache();
+            cache.ensureUser('user-1');
+            let resolveFetch;
+            const fn = vi.fn(() => new Promise((r) => { resolveFetch = r; }));
+
+            const { revalidate } = cache.swr('groups', fn, { persist: true });
+            const pending = revalidate();
+            await Promise.resolve(); // let fn() run so resolveFetch is assigned
+
+            cache.delete('groups');
+
+            resolveFetch(['stale']);
+            await pending;
+
+            expect(cache.peek('groups')).toBeNull();
+        });
+
         it('delete removes a persisted key from storage', () => {
             const cache = new Cache();
             cache.ensureUser('user-1');
