@@ -1,20 +1,18 @@
 -- Egress remediation — Phase B (list summary columns)
 --
 -- Context: PostgREST reads were ~99% of a free-tier egress overage. Phase A (client)
--- caches reads and projects away heavy JSONB. This migration lets the GUIDES and EXAMS
--- *list* reads stop selecting the heavy blobs (study_guides.guide_data/content,
--- mock_exams.questions) while keeping today's list badges, by denormalizing the small
--- derived values the lists render:
---   • mock_exams.question_count / short_answer_count  (exam list badges)
---   • study_guides.list_meta                          (guide list progress/mastery/effort)
+-- caches reads and projects away heavy JSONB. This migration lets the EXAMS list read
+-- stop selecting the heavy mock_exams.questions blob while keeping today's question
+-- count badges, via generated columns.
 --
--- DEPLOY: ship WITH the matching client changes (the getMockExams / getStudyGuides
--- projection in authApi.js, and the writers that populate study_guides.list_meta).
--- It is safe to `db push` this before that client deploy: the new columns are additive
--- and default sensibly. Do NOT deploy the client projection BEFORE this migration is
--- applied, or the lists would read columns that don't exist yet.
--- NOTE: while the project is egress-restricted, `db push` may be blocked until the
--- billing-period reset; this file is prepared so it can be applied the moment it isn't.
+-- ponytail: study_guides.guide_data is NOT trimmed here — its list read is already
+-- 60s-cached by Phase A, and correctly deriving a lightweight summary would require
+-- either re-implementing client/src/utils/studyGuides.js's normalization in SQL, or a
+-- JS-computed field that needs backfilling for every existing guide. Not worth it
+-- unless the post-deploy egress chart shows study_guides still meaningful.
+--
+-- DEPLOY: ship WITH the matching client projection (getMockExams in authApi.js). Safe
+-- to `db push` before that client deploy — the new columns are additive.
 
 -- ========== MOCK EXAMS: cheap badge counts ==========
 
@@ -46,13 +44,3 @@ ALTER TABLE public.mock_exams
 ALTER TABLE public.mock_exams
   ADD COLUMN IF NOT EXISTS short_answer_count integer
     GENERATED ALWAYS AS (public.count_questions_of_type(questions, 'short_answer')) STORED;
-
--- ========== STUDY GUIDES: compact list summary ==========
-
--- Holds exactly what GuidesLibrary renders per card (progress {totalSections,
--- completedCount, completionPercent, nextSectionId}, plus mastery/effort snapshot
--- inputs) so the guides list never has to fetch guide_data/content. Populated by the
--- generate-guide path and updateStudyGuide whenever guide_data/study_state change; a
--- one-time backfill recomputes it for existing guides. Inherits the table's RLS.
-ALTER TABLE public.study_guides
-  ADD COLUMN IF NOT EXISTS list_meta jsonb NOT NULL DEFAULT '{}'::jsonb;

@@ -2160,7 +2160,10 @@ export const assistStudyCoach = async (payload) => authFetch('/study/assist', {
 // --- Mock Exams (PostgREST) ---
 
 export const getMockExams = async (classId) => {
-    let query = supabase.from('mock_exams').select('*').order('created_at', { ascending: false });
+    // List projection: exclude the heavy `questions` JSONB — question_count and
+    // short_answer_count are DB-generated columns the list badges read instead.
+    // getMockExam() (single row) still fetches full `questions` for taking/grading.
+    let query = supabase.from('mock_exams').select('id, title, source_type, class_id, created_at, exam_mode, question_count, short_answer_count').order('created_at', { ascending: false });
     if (classId) query = query.eq('class_id', classId);
     const { data, error } = await query;
     if (error) _sbThrow(error);
