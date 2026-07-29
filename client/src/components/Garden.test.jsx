@@ -7,6 +7,19 @@ vi.mock('../hooks/useGSAP', () => ({
 }));
 
 describe('Garden', () => {
+    it('keeps the pre-rebuild stage art when a stale new-garden flag is enabled', () => {
+        vi.stubEnv('VITE_NEW_GARDEN', '1');
+
+        try {
+            render(<Garden streak={500} status="active" size="md" showInfo={true} />);
+
+            expect(screen.getByRole('img', { name: /Cosmic Nexus garden/i })).toBeInTheDocument();
+            expect(screen.queryByRole('img', { name: /Blossom Crown garden/i })).not.toBeInTheDocument();
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
     it('renders the correct accessible stage art and visible label for the streak tier', () => {
         render(<Garden streak={500} status="active" size="md" showInfo={true} />);
 
