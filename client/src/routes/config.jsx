@@ -29,6 +29,7 @@ const StudyGroups = lazy(() => import('../pages/StudyGroups.jsx'));
 const GroupDetails = lazy(() => import('../pages/GroupDetails.jsx'));
 const GroupCram = lazy(() => import('../pages/GroupCram.jsx'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
+const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
 const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy.jsx'));
 const TermsOfService = lazy(() => import('../pages/TermsOfService.jsx'));
 
@@ -98,6 +99,7 @@ export const routesConfig = [
   { path: '/decks', element: <StudyDashboard /> },
   { path: '/account', element: <Account /> },
   { path: '/reset-password', element: <ResetPassword /> },
+  { path: '/verify-email', element: <VerifyEmail /> },
   { path: '/privacy', element: <PrivacyPolicy /> },
   { path: '/terms', element: <TermsOfService /> },
   // Onboarding doubles as the logged-out mobile signup funnel, so it stays public.

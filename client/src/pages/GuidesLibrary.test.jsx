@@ -14,6 +14,7 @@ vi.mock('../api', () => ({
     getStudyGuides: vi.fn(),
     getNotes: vi.fn(),
     getClasses: vi.fn(),
+    getStudyCoverageMap: vi.fn(),
     generateAiGuide: vi.fn(),
     deleteStudyGuide: vi.fn(),
   },
@@ -194,6 +195,7 @@ describe('GuidesLibrary', () => {
     vi.clearAllMocks();
     api.getNotes.mockResolvedValue([]);
     api.getClasses.mockResolvedValue([]);
+    api.getStudyCoverageMap.mockResolvedValue(null);
   });
 
   it('shows tutor-session progress metadata and a resume CTA for v4 guides', async () => {
@@ -377,22 +379,15 @@ describe('GuidesLibrary', () => {
     fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
 
     const dialog = await screen.findByRole('dialog', { name: /create tutor session/i });
-    expect(dialog).toHaveClass('max-w-5xl');
-    expect(dialog.parentElement).toHaveClass('items-center');
+    expect(dialog).toHaveClass('md:max-w-2xl');
+    expect(dialog.parentElement).toHaveClass('md:items-center');
     expect(dialog.parentElement).toHaveClass('justify-center');
-    expect(screen.getByText(/session composer/i)).toBeInTheDocument();
-    expect(screen.getByText(/quick start/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/what should river help with/i)).toBeInTheDocument();
-    expect(screen.getByText(/required unless you attach notes or a file/i)).toBeInTheDocument();
+    expect(screen.getByText(/what are we studying/i)).toBeInTheDocument();
     expect(screen.getByText(/^source material$/i)).toBeInTheDocument();
-    expect(screen.getByText(/choose this before building if you want river grounded in notes or a file/i)).toBeInTheDocument();
-    expect(screen.getByText(/^tune focus$/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/what topics should we cover/i)).toBeInTheDocument();
-    expect(screen.getByText(/session details/i)).toBeInTheDocument();
-    expect(screen.getByText(/output brief/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/what’s the focus/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: /close create tutor session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: /create tutor session/i })).not.toBeInTheDocument();
@@ -414,17 +409,15 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByRole('dialog', { name: /create tutor session/i })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/what should river help with/i), {
+    fireEvent.change(screen.getByLabelText(/what’s the focus/i), {
       target: { value: 'Biology Midterm' },
     });
-    fireEvent.change(screen.getByLabelText(/what topics should we cover/i), {
-      target: { value: 'Cells, Mitosis' },
-    });
-    fireEvent.change(screen.getByLabelText(/which topics feel weakest right now/i), {
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    fireEvent.change(await screen.findByLabelText(/weak spots/i), {
       target: { value: 'Mitosis' },
     });
     fireEvent.click(screen.getByRole('button', { name: /focused/i }));
-    fireEvent.click(screen.getByRole('button', { name: /build tutor session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /generate session/i }));
 
     await waitFor(() => {
       expect(api.generateAiGuide).toHaveBeenCalledWith(
@@ -438,7 +431,6 @@ describe('GuidesLibrary', () => {
         expect.objectContaining({
           creationMode: 'setup',
           examLabel: 'Biology Midterm',
-          userTopics: ['Cells', 'Mitosis'],
           weakTopics: ['Mitosis'],
           preferredTone: 'focused',
         }),
@@ -474,9 +466,10 @@ describe('GuidesLibrary', () => {
 
     await screen.findByText(/no tutor sessions yet/i);
     fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /notes/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /from notes/i }));
     fireEvent.click(await screen.findByRole('button', { name: /mitosis notes/i }));
-    fireEvent.click(screen.getByRole('button', { name: /build tutor session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /generate session/i }));
 
     await waitFor(() => {
       expect(api.generateAiGuide).toHaveBeenCalled();
@@ -500,9 +493,10 @@ describe('GuidesLibrary', () => {
 
     await screen.findByText(/no tutor sessions yet/i);
     fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /build tutor session/i }));
+    const continueButton = await screen.findByRole('button', { name: /continue/i });
 
+    expect(continueButton).toBeDisabled();
     expect(api.generateAiGuide).not.toHaveBeenCalled();
-    expect(toastMock.error).toHaveBeenCalledWith('Add a topic or attach source material first.');
+    expect(toastMock.error).not.toHaveBeenCalled();
   });
 });

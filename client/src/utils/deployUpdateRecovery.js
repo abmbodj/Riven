@@ -1,4 +1,4 @@
-const DEPLOY_UPDATE_RECOVERY_KEY = 'riven:deploy-update-recovery-attempted';
+export const DEPLOY_UPDATE_RECOVERY_KEY = 'riven:deploy-update-recovery-attempted';
 
 const DEPLOY_UPDATE_ERROR_PATTERNS = [
   /Failed to fetch dynamically imported module/i,
@@ -26,7 +26,7 @@ function canUseStorage(storage) {
   return storage && typeof storage.getItem === 'function' && typeof storage.setItem === 'function';
 }
 
-function isDeployUpdateError(error) {
+export function isDeployUpdateError(error) {
   const text = getErrorText(error);
   return DEPLOY_UPDATE_ERROR_PATTERNS.some((pattern) => pattern.test(text));
 }

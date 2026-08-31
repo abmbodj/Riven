@@ -26,6 +26,7 @@ import {
 } from '../lib/examInsightSignals.js';
 import {
     DEFAULT_PUSH_PREFERENCES,
+    decodeJwtPayload,
     isJwtExpired,
     isSupabaseAccessToken,
     normalizePushPreferences,
@@ -462,6 +463,19 @@ const isLegacyTokenHash = (token) => typeof token === 'string' && /^[a-f0-9]{64}
 // Uses the Supabase client's own session — the same token that PostgREST uses successfully.
 // No client-side JWT validation; the Supabase gateway validates server-side.
 const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false } = {}) => {
+    const cachedToken = getToken();
+    if (isSupabaseAccessToken(cachedToken) && !isJwtExpired(cachedToken)) {
+        return cachedToken;
+    }
+
+    if (cachedToken && decodeJwtPayload(cachedToken) && !isSupabaseAccessToken(cachedToken) && !skipForceReauth) {
+        await forceReauth();
+        const error = new Error('Session expired. Please sign in again.');
+        error.code = AUTH_SESSION_EXPIRED_CODE;
+        error.status = 401;
+        throw error;
+    }
+
     const accessToken = await refreshSupabaseToken().catch(() => null);
     if (accessToken) {
         return accessToken;
@@ -1196,8 +1210,16 @@ export const changePassword = async (_currentPassword, newPassword) => {
     return { message: 'Password changed successfully' };
 };
 
-export const deleteAccount = async () => {
-    await edgeFunctionFetch('account-actions', { method: 'DELETE' });
+export const deleteAccount = async (password) => {
+    try {
+        await edgeFunctionFetch('account-actions', { method: 'DELETE' });
+    } catch (error) {
+        if (error?.status !== 404) throw error;
+        await authFetch('/auth/account', {
+            method: 'DELETE',
+            body: JSON.stringify({ password }),
+        });
+    }
     await logout();
 };
 
@@ -3678,6 +3700,161 @@ export const acceptSharedResource = async (messageId) => {
         throw error;
     }
 };
+
+export const acceptSharedDeck = (messageId) => acceptSharedResource(messageId);
+
+// ============ GUEST DATA MIGRATION ============
+
+export const migrateGuestData = async (guestData) => {
+    const userId = await getAppUserId();
+    const folders = Array.isArray(guestData?.folders) ? guestData.folders : [];
+    const tags = Array.isArray(guestData?.tags) ? guestData.tags : [];
+    const decks = Array.isArray(guestData?.decks) ? guestData.decks : [];
+    const cards = Array.isArray(guestData?.cards) ? guestData.cards : [];
+    const deckTags = Array.isArray(guestData?.deckTags) ? guestData.deckTags : [];
+    const studySessions = Array.isArray(guestData?.studySessions) ? guestData.studySessions : [];
+
+    const folderIdMap = {};
+    const tagIdMap = {};
+    const deckIdMap = {};
+    let importedTagCount = 0;
+
+    for (const folder of folders) {
+        const { data, error } = await supabase
+            .from('folders')
+            .insert({
+                user_id: userId,
+                name: folder.name,
+                color: folder.color || '#6366f1',
+                icon: folder.icon || 'folder',
+                created_at: folder.created_at || new Date().toISOString(),
+            })
+            .select()
+            .single();
+        if (error) _sbThrow(error);
+        folderIdMap[folder.id] = data.id;
+    }
+
+    if (tags.length > 0) {
+        const { data: existingTags, error: existingTagsError } = await supabase
+            .from('tags')
+            .select('id, name')
+            .eq('user_id', userId);
+        if (existingTagsError) _sbThrow(existingTagsError);
+
+        const existingTagIdsByName = new Map((existingTags || []).map((tag) => [tag.name.toLowerCase(), tag.id]));
+
+        for (const tag of tags.filter((entry) => !entry.is_preset)) {
+            const normalizedName = tag.name.toLowerCase();
+            const existingTagId = existingTagIdsByName.get(normalizedName);
+            if (existingTagId) {
+                tagIdMap[tag.id] = existingTagId;
+                continue;
+            }
+
+            const { data, error } = await supabase
+                .from('tags')
+                .insert({
+                    user_id: userId,
+                    name: tag.name,
+                    color: tag.color,
+                    is_preset: false,
+                    created_at: tag.created_at || new Date().toISOString(),
+                })
+                .select()
+                .single();
+            if (error) _sbThrow(error);
+
+            tagIdMap[tag.id] = data.id;
+            existingTagIdsByName.set(normalizedName, data.id);
+            importedTagCount += 1;
+        }
+    }
+
+    for (const deck of decks) {
+        const { data, error } = await supabase
+            .from('decks')
+            .insert({
+                user_id: userId,
+                title: deck.title,
+                description: deck.description || '',
+                folder_id: deck.folder_id ? folderIdMap[deck.folder_id] || null : null,
+                created_at: deck.created_at || new Date().toISOString(),
+                last_studied: deck.last_studied || null,
+            })
+            .select()
+            .single();
+        if (error) _sbThrow(error);
+        deckIdMap[deck.id] = data.id;
+    }
+
+    const cardPayloads = cards
+        .map((card) => {
+            const newDeckId = deckIdMap[card.deck_id];
+            if (!newDeckId) return null;
+            return {
+                deck_id: newDeckId,
+                front: card.front,
+                back: card.back,
+                position: card.position || 0,
+                difficulty: card.difficulty || 0,
+                times_reviewed: card.times_reviewed || 0,
+                times_correct: card.times_correct || 0,
+                last_reviewed: card.last_reviewed || null,
+                next_review: card.next_review || null,
+                created_at: card.created_at || new Date().toISOString(),
+            };
+        })
+        .filter(Boolean);
+
+    if (cardPayloads.length > 0) {
+        const { error } = await supabase.from('cards').insert(cardPayloads);
+        if (error) _sbThrow(error);
+    }
+
+    const deckTagPayloads = deckTags
+        .map((entry) => {
+            const newDeckId = deckIdMap[entry.deck_id];
+            const newTagId = tagIdMap[entry.tag_id];
+            if (!newDeckId || !newTagId) return null;
+            return { deck_id: newDeckId, tag_id: newTagId };
+        })
+        .filter(Boolean);
+
+    if (deckTagPayloads.length > 0) {
+        const { error } = await supabase.from('deck_tags').insert(deckTagPayloads);
+        if (error) _sbThrow(error);
+    }
+
+    const sessionPayloads = studySessions
+        .map((session) => {
+            const newDeckId = deckIdMap[session.deck_id];
+            if (!newDeckId) return null;
+            return {
+                deck_id: newDeckId,
+                cards_studied: session.cards_studied || 0,
+                cards_correct: session.cards_correct || 0,
+                duration_seconds: session.duration_seconds || 0,
+                session_type: session.session_type || 'study',
+                created_at: session.created_at || new Date().toISOString(),
+            };
+        })
+        .filter(Boolean);
+
+    if (sessionPayloads.length > 0) {
+        const { error } = await supabase.from('study_sessions').insert(sessionPayloads);
+        if (error) _sbThrow(error);
+    }
+
+    return {
+        message: 'Guest data migrated successfully',
+        imported: {
+            folders: Object.keys(folderIdMap).length,
+            tags: importedTagCount,
+            decks: Object.keys(deckIdMap).length,
+        },
+    };
+};
 const loadCurrentUserRow = async () => {
     const userId = await getAppUserId();
     const { data, error } = await supabase
@@ -5131,12 +5308,60 @@ export const subscribeToGroupTypingPresence = (groupId, currentUserId, handlers 
 
 // ============ ADMIN ENDPOINTS ============
 
-const callAdminEndpoint = ({ method = 'GET', action, query, body }) =>
-    edgeFunctionFetch('admin-actions', {
-        method,
-        query: method === 'GET' ? { action, ...query } : undefined,
-        body: method === 'GET' ? undefined : { action, ...body },
+const callLegacyAdminEndpoint = ({ method = 'GET', action, body = {} }) => {
+    const routes = {
+        users: ['/admin/users', 'GET'],
+        'user-update': [`/admin/users/${body.userId}`, 'PUT'],
+        'user-delete': [`/admin/users/${body.userId}`, 'DELETE'],
+        stats: ['/admin/stats', 'GET'],
+        'user-role': [`/admin/users/${body.userId}/role`, 'PUT'],
+        reports: ['/admin/reports', 'GET'],
+        'report-resolve': [`/admin/reports/${body.reportId}/resolve`, 'POST'],
+        'report-close': [`/admin/reports/${body.reportId}/close`, 'POST'],
+        'user-ban': [`/admin/users/${body.userId}/ban`, 'POST'],
+        messages: ['/admin/messages', 'GET'],
+        'message-create': ['/admin/messages', 'POST'],
+        'message-update': [`/admin/messages/${body.messageId}`, 'PUT'],
+        'message-delete': [`/admin/messages/${body.messageId}`, 'DELETE'],
+    };
+    const [path, legacyMethod = method] = routes[action] || [];
+    if (!path) {
+        const error = new Error(`No legacy admin route for ${action}`);
+        error.status = 404;
+        throw error;
+    }
+
+    const requestBody = { ...body };
+    delete requestBody.userId;
+    delete requestBody.reportId;
+    delete requestBody.messageId;
+
+    return authFetch(path, {
+        method: legacyMethod,
+        ...(legacyMethod !== 'GET' && legacyMethod !== 'DELETE' && Object.keys(requestBody).length > 0
+            ? { body: JSON.stringify(requestBody) }
+            : {}),
     });
+};
+
+const callAdminEndpoint = async ({ method = 'GET', action, query, body }) => {
+    const request = { method, action, query, body };
+    const token = getToken();
+    if (token && !isSupabaseAccessToken(token)) {
+        return callLegacyAdminEndpoint(request);
+    }
+
+    try {
+        return await edgeFunctionFetch('admin-actions', {
+            method,
+            query: method === 'GET' ? { action, ...query } : undefined,
+            body: method === 'GET' ? undefined : { action, ...body },
+        });
+    } catch (error) {
+        if (error?.status !== 404) throw error;
+        return callLegacyAdminEndpoint(request);
+    }
+};
 
 const normalizeAdminReport = (report) => {
     const reporterUsername = report?.reporter_username || report?.reporter_name || 'Unknown';
@@ -5587,8 +5812,37 @@ export const login2FA = async (challengeOrTempToken, token, options = {}) => {
 
 // ============ PASSWORD RESET ============
 
-export const forgotPassword = (email) =>
-    edgeFunctionFetch('forgot-password', { method: 'POST', body: { email }, skipForceReauth: true });
+export const forgotPassword = async (email) => {
+    try {
+        return await edgeFunctionFetch('forgot-password', {
+            method: 'POST',
+            body: { email },
+            skipForceReauth: true,
+        });
+    } catch (error) {
+        if (error?.status !== 404) throw error;
+        return authFetch('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        });
+    }
+};
+
+export const verifyEmail = async (token) => {
+    try {
+        return await edgeFunctionFetch('verify-email', {
+            method: 'POST',
+            body: { token },
+            skipForceReauth: true,
+        });
+    } catch (error) {
+        if (error?.status !== 404) throw error;
+        return authFetch('/auth/verify-email', {
+            method: 'POST',
+            body: JSON.stringify({ token }),
+        });
+    }
+};
 
 export const resetPassword = async (token, password) => {
     if (!token || !password) {
@@ -5666,6 +5920,9 @@ export const getReferralInfo = () =>
 
 export const applyReferralCode = (code) =>
     edgeFunctionFetch('referrals', { method: 'POST', body: { action: 'apply', code } });
+
+export const checkReferralQualification = () =>
+    edgeFunctionFetch('referrals', { method: 'POST', body: { action: 'check-qualification' } });
 
 // ============ STRIPE API ============
 export const createStripeCheckoutSession = ({ priceId, isSubscription }) =>

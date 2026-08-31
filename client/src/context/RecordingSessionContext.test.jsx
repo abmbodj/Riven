@@ -225,6 +225,7 @@ describe('RecordingSessionProvider', () => {
 
   it('clears stale persisted native session metadata when no recording is active', async () => {
     capacitorState.native = true;
+    voiceRecorderMock.stopRecording.mockResolvedValueOnce({ value: {} });
     localStorage.setItem('riven-active-recording-session', JSON.stringify({
       activeNoteId: 'note-42',
       activeNoteTitle: 'Biology Lecture',

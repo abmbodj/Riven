@@ -232,6 +232,11 @@ describe('NoteEditor', () => {
     toast.success.mockReset();
     toast.show.mockReset();
     recorderMock.reset.mockReset();
+    recorderMock.reset.mockImplementation(() => {
+      recorderMock.state = 'idle';
+      recorderMock.duration = 0;
+      recorderMock.audioPath = null;
+    });
     recorderMock.setProcessingState.mockReset();
     recorderMock.setAudioPath.mockReset();
     recorderMock.start.mockReset();

@@ -118,7 +118,7 @@ describe('authApi referrals edge migration', () => {
 
   it('forces re-login for non-Supabase tokens on referrals', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'test@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
+    globalThis.fetch = vi.fn();
 
     await expect(authApi.getReferralInfo()).rejects.toMatchObject({
       status: 401,
@@ -128,17 +128,7 @@ describe('authApi referrals edge migration', () => {
 
     expect(authApi.getToken()).toBeNull();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/referrals?action=me',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          apikey: 'supabase-anon-key',
-        }),
-      }),
-    );
-
-    const requestOptions = globalThis.fetch.mock.calls[0][1];
-    expect(requestOptions.headers.Authorization).toBeUndefined();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('surfaces edge errors when the referrals function is unavailable', async () => {

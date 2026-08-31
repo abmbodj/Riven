@@ -9,6 +9,7 @@ vi.mock('../api', () => ({
     getClasses: vi.fn(),
     getTags: vi.fn(),
     getAILimits: vi.fn(),
+    warmupAiFunctions: vi.fn(),
   },
 }));
 

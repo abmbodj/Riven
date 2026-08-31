@@ -458,7 +458,7 @@ export default function CreateSessionSheet({
   }, [open, step, onClose]);
 
   // Scroll to top when step changes
-  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); }, [step]);
+  useEffect(() => { scrollRef.current?.scrollTo?.({ top: 0 }); }, [step]);
 
   const filteredNotes = useMemo(() => {
     if (!noteSearch.trim()) return notes;
