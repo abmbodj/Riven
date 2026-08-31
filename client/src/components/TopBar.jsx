@@ -1,16 +1,14 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useContext, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'motion/react';
 import Menu from 'lucide-react/dist/esm/icons/menu';
 import PanelLeft from 'lucide-react/dist/esm/icons/panel-left';
 import Search from 'lucide-react/dist/esm/icons/search';
 import Bell from 'lucide-react/dist/esm/icons/bell';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
-import UserNotificationsRail from './UserNotificationsRail';
-import SubscriptionExpiredModal from './SubscriptionExpiredModal';
-import { api } from '../api';
-import { levelFromXp } from '../utils/leveling';
+
+const UserNotificationsRail = lazy(() => import('./UserNotificationsRail.jsx'));
+const SubscriptionExpiredModal = lazy(() => import('./SubscriptionExpiredModal.jsx'));
 
 const ROUTE_TITLES = [
     { prefix: '/dashboard', title: 'Today' },
@@ -54,24 +52,7 @@ export default function TopBar({ onOpenCommandPalette }) {
     const { user, isLoggedIn } = useContext(AuthContext) || {};
     const bellRef = useRef(null);
     const panelRef = useRef(null);
-    const [level, setLevel] = useState(null);
-
-    // Always-visible level so progress is felt everywhere, not just on the profile.
-    // One lightweight fetch when logged in; silently hidden if unavailable.
-    useEffect(() => {
-        let cancelled = false;
-        if (!isLoggedIn) {
-            return undefined;
-        }
-        api.getStudyCoach()
-            .then((coach) => {
-                if (cancelled || !coach?.stats) return;
-                const stats = coach.stats;
-                setLevel(Math.max(1, Number(stats.level) || levelFromXp(stats.xpTotal)));
-            })
-            .catch(() => {});
-        return () => { cancelled = true; };
-    }, [isLoggedIn]);
+    const level = Number(user?.level) || null;
 
     const pageTitle = getPageTitle(location.pathname);
     const avatarInitial = (user?.displayName || user?.username || '?')[0].toUpperCase();
@@ -177,18 +158,15 @@ export default function TopBar({ onOpenCommandPalette }) {
                         </button>
 
                         {/* Notification dropdown panel */}
-                        <AnimatePresence>
-                            {notifPanelOpen && (
-                                <motion.div
+                        {notifPanelOpen && (
+                                <div
                                     ref={panelRef}
-                                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                                    className="absolute right-0 top-full mt-2 w-[360px] rounded-[1.6rem] bg-claude-surface border border-claude-border/30 shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden"
+                                    className="riven-shell-popover absolute right-0 top-full mt-2 w-[360px] rounded-[1.6rem] bg-claude-surface border border-claude-border/30 shadow-[0_16px_48px_rgba(0,0,0,0.35)] overflow-hidden"
                                 >
                                     <div className="max-h-[480px] overflow-y-auto [&>div]:px-3 [&>div]:pt-3">
-                                        <UserNotificationsRail />
+                                        <Suspense fallback={null}>
+                                            <UserNotificationsRail />
+                                        </Suspense>
                                     </div>
                                     <div className="px-4 py-3 border-t border-claude-border/20 flex items-center justify-between">
                                         <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-claude-secondary/60">Notifications</span>
@@ -200,9 +178,8 @@ export default function TopBar({ onOpenCommandPalette }) {
                                             Close
                                         </button>
                                     </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                </div>
+                        )}
                     </div>
                 )}
 
@@ -227,7 +204,11 @@ export default function TopBar({ onOpenCommandPalette }) {
             </div>
                 </div>
             </header>
-            {isLoggedIn ? <SubscriptionExpiredModal /> : null}
+            {isLoggedIn ? (
+                <Suspense fallback={null}>
+                    <SubscriptionExpiredModal />
+                </Suspense>
+            ) : null}
         </>
     );
 }

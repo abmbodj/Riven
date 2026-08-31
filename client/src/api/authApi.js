@@ -163,17 +163,6 @@ const cacheGoogleOAuthBridgeToken = (token) => {
     return normalizedToken;
 };
 
-const getCachedGoogleOAuthBridgeToken = () => {
-    let cachedToken = null;
-
-    forEachAuthStorage((storage) => {
-        if (cachedToken != null) return;
-        cachedToken = storage.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
-    });
-
-    return cachedToken;
-};
-
 const clearGoogleOAuthBridgeToken = () => {
     forEachAuthStorage((storage) => {
         storage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
@@ -1022,43 +1011,73 @@ export const hydrateUserIfOnboardingMissing = async (user) => {
     }
 };
 
-export const restoreSessionUser = async () => {
-    const refreshedSupabaseToken = await refreshSupabaseToken().catch(() => null);
-    const token = getToken();
-    if (!token) {
-        clearGoogleOAuthBridgeToken();
-        return null;
+const readVerifiedStartupSession = async () => {
+    let { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    let session = data?.session || null;
+
+    if (!session?.access_token) {
+        const bridged = await hydrateSupabaseSessionFromBridge().catch(() => null);
+        session = bridged || null;
+    }
+    if (!session?.access_token) return null;
+
+    if (!isSupabaseAccessToken(session.access_token) || isJwtExpired(session.access_token)) {
+        const refreshed = await supabase.auth.refreshSession().catch(() => ({ data: {}, error: null }));
+        if (refreshed?.error) throw refreshed.error;
+        session = refreshed?.data?.session || null;
+    }
+    if (!session?.access_token) return null;
+
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(session.access_token);
+    if (claimsError || !claimsData?.claims?.sub) {
+        throw claimsError || new Error('Unable to verify the active session');
     }
 
+    const googleBridgeToken = cacheGoogleOAuthBridgeTokenFromSession(session);
+    setToken(session.access_token);
+    return { session, claims: claimsData.claims, googleBridgeToken };
+};
+
+export const restoreSessionUser = async () => {
     try {
-        const [user, mfaState] = await Promise.all([
-            getLocalMe(),
-            getSupabaseMfaState().catch(() => ({
-                hasSession: false,
-                enabled: false,
-                factorId: null,
-                currentLevel: null,
-                nextLevel: null,
-            })),
-        ]);
+        const verified = await readVerifiedStartupSession();
+        if (!verified) {
+            clearGoogleOAuthBridgeToken();
+            setToken(null);
+            return null;
+        }
 
-        if (mfaState.hasSession && user?.twoFAEnabled && !mfaState.enabled) {
-            const session = await getActiveSupabaseSession().catch(() => null);
-            const googleBridgeToken = getCachedGoogleOAuthBridgeToken()
-                || cacheGoogleOAuthBridgeTokenFromSession(session);
+        let user;
+        try {
+            user = mapOwnUserRow(await getSupabaseSelfUserRow(verified.claims.sub));
+        } catch (error) {
+            if (error.code !== 'ACCOUNT_SETUP_REQUIRED') throw error;
+            const result = await completeRegistration();
+            user = result.user;
+        }
+        if (user?.id) {
+            cachedAppUserId = user.id;
+            cachedAuthToken = verified.session.access_token;
+        }
 
+        const currentAal = verified.claims.aal || 'aal1';
+        if (
+            user?.twoFAEnabled
+            && currentAal !== 'aal2'
+            && isGoogleOAuthSession(verified.session)
+        ) {
             await supabase.auth.signOut().catch(() => {});
             setToken(null);
-            clearGoogleOAuthBridgeToken();
 
-            if (!isGoogleOAuthSession(session) || !googleBridgeToken) {
+            if (!verified.googleBridgeToken) {
                 return null;
             }
 
             try {
                 const legacyData = await authFetch('/auth/oauth/google', {
                     method: 'POST',
-                    body: JSON.stringify({ credential: googleBridgeToken }),
+                    body: JSON.stringify({ credential: verified.googleBridgeToken }),
                 });
 
                 if (legacyData.require2FA) {
@@ -1081,76 +1100,15 @@ export const restoreSessionUser = async () => {
             }
         }
 
-        if (requiresSupabaseMfaChallenge(mfaState)) {
+        if (user?.twoFAEnabled && currentAal !== 'aal2') {
             return {
                 require2FA: true,
                 provider: 'supabase',
-                factorId: mfaState.factorId,
+                factorId: null,
             };
         }
 
-        return mergeUserWithMfaState(user, mfaState);
-    } catch (err) {
-        if (refreshedSupabaseToken && err.code === 'ACCOUNT_SETUP_REQUIRED') {
-            const result = await completeRegistration();
-            const mfaState = await getSupabaseMfaState().catch(() => ({
-                hasSession: false,
-                enabled: false,
-                factorId: null,
-                currentLevel: null,
-                nextLevel: null,
-            }));
-
-            if (mfaState.hasSession && result.user?.twoFAEnabled && !mfaState.enabled) {
-                const session = await getActiveSupabaseSession().catch(() => null);
-                const googleBridgeToken = getCachedGoogleOAuthBridgeToken()
-                    || cacheGoogleOAuthBridgeTokenFromSession(session);
-
-                await supabase.auth.signOut().catch(() => {});
-                setToken(null);
-                clearGoogleOAuthBridgeToken();
-
-                if (!isGoogleOAuthSession(session) || !googleBridgeToken) {
-                    return null;
-                }
-
-                try {
-                    const legacyData = await authFetch('/auth/oauth/google', {
-                        method: 'POST',
-                        body: JSON.stringify({ credential: googleBridgeToken }),
-                    });
-
-                    if (legacyData.require2FA) {
-                        return {
-                            ...legacyData,
-                            provider: 'legacy',
-                        };
-                    }
-
-                    if (legacyData.token) {
-                        setToken(legacyData.token);
-                    } else if (legacyData.user) {
-                        setToken('logged_in');
-                    }
-
-                    return legacyData.user || null;
-                } catch (bridgeError) {
-                    console.warn('[authApi] Google OAuth legacy 2FA bridge failed:', bridgeError);
-                    return null;
-                }
-            }
-
-            if (requiresSupabaseMfaChallenge(mfaState)) {
-                return {
-                    require2FA: true,
-                    provider: 'supabase',
-                    factorId: mfaState.factorId,
-                };
-            }
-
-            return mergeUserWithMfaState(result.user, mfaState);
-        }
-        throw err;
+        return user;
     } finally {
         clearGoogleOAuthBridgeToken();
     }
@@ -2135,7 +2093,15 @@ export const deleteStudyGuide = async (id) => {
     return { message: 'Study guide deleted' };
 };
 
-export const getStudyCoach = async () => authFetch('/study/coach');
+export const getStudyCoach = async () => edgeFunctionFetch('study-coach', { method: 'GET' });
+
+export const getDashboardBootstrap = async (timeZone = 'UTC') => {
+    const { data, error } = await supabase.rpc('get_dashboard_bootstrap', {
+        p_time_zone: normalizeWeeklySummaryTimeZone(timeZone),
+    });
+    if (error) _sbThrow(error);
+    return data;
+};
 
 export const completeStudyCoachSession = async (payload) => edgeFunctionFetch('study-session-complete', {
     method: 'POST',
@@ -3852,9 +3818,13 @@ const mapOwnUserRow = (row) => {
     };
 };
 
-const getSupabaseSelfUserRow = async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser?.id) {
+const getSupabaseSelfUserRow = async (verifiedAuthUserId = null) => {
+    let authUserId = verifiedAuthUserId;
+    if (!authUserId) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        authUserId = authUser?.id || null;
+    }
+    if (!authUserId) {
         const err = new Error('Account setup required');
         err.code = 'ACCOUNT_SETUP_REQUIRED';
         err.status = 401;
@@ -3864,7 +3834,7 @@ const getSupabaseSelfUserRow = async () => {
     const { data, error } = await supabase
         .from('users')
         .select(SELF_PROFILE_SELECT)
-        .eq('supabase_auth_id', authUser.id)
+        .eq('supabase_auth_id', authUserId)
         .single();
 
     if (error) {
@@ -5353,8 +5323,8 @@ export const dismissMessage = async (id) => {
     return { message: 'Message dismissed' };
 };
 
-export const getUserNotifications = async () => safeFetchArray((async () => {
-    const userId = await getAppUserId();
+export const getUserNotifications = async (currentUserOverride = null) => safeFetchArray((async () => {
+    const userId = currentUserOverride?.id || await getAppUserId();
     const { data, error } = await supabase
         .from('user_notifications')
         .select('id, user_id, kind, title, content, metadata, created_at, dismissed_at')
@@ -5376,8 +5346,8 @@ export const getUserNotifications = async () => safeFetchArray((async () => {
     }));
 })());
 
-export const dismissUserNotification = async (id) => {
-    const userId = await getAppUserId();
+export const dismissUserNotification = async (id, currentUserOverride = null) => {
+    const userId = currentUserOverride?.id || await getAppUserId();
     const { error } = await supabase
         .from('user_notifications')
         .update({
@@ -5579,9 +5549,21 @@ export const disable2FA = async (input) => {
 export const login2FA = async (challengeOrTempToken, token, options = {}) => {
     applyAuthPersistenceOption(options);
 
-    if (challengeOrTempToken?.provider === 'supabase' && challengeOrTempToken.factorId) {
+    if (challengeOrTempToken?.provider === 'supabase') {
+        let factorId = challengeOrTempToken.factorId || null;
+        if (!factorId) {
+            const { data: factorData, error: factorError } = await supabase.auth.mfa.listFactors();
+            if (factorError) throw factorError;
+            factorId = (factorData?.totp || factorData?.all || [])
+                .find((factor) => factor.factor_type === 'totp' && factor.status === 'verified')?.id || null;
+        }
+        if (!factorId) {
+            const error = new Error('No verified authenticator is available for this account');
+            error.status = 400;
+            throw error;
+        }
         const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-            factorId: challengeOrTempToken.factorId,
+            factorId,
             code: token,
         });
         if (error) throw error;

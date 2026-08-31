@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "performance:budget": "node scripts/check-performance-budgets.mjs",
+    "test:e2e": "playwright test",
     "build:ios": "vite build && npm run patch:revenuecat-ios && npm run patch:voice-recorder-ios && npx cap sync ios",
     "ios:sync": "npm run patch:revenuecat-ios && npm run patch:voice-recorder-ios && npx cap sync ios",
     "ios:open": "npx cap open ios",
@@ -65,6 +67,7 @@
     "remark-math": "^6.0.0",
     "tippy.js": "^6.3.7",
     "ts-fsrs": "^5.2.3",
+    "web-vitals": "^5.1.0",
     "zod": "^3.24.1",
     "zxcvbn": "^4.4.2"
   },
@@ -72,6 +75,7 @@
     "@capacitor/cli": "^8.1.0",
     "@capacitor/ios": "^8.1.0",
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.62.0",
     "@sentry/vite-plugin": "^5.1.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

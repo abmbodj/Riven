@@ -85,7 +85,7 @@ const primaryButton = (text: string, url: string) => `
 </table>`;
 
 export const sendWelcomeEmail = async (email: string, username: string) => {
-  const appUrl = Deno.env.get('FRONTEND_URL') || 'https://riven.rocks';
+  const appUrl = Deno.env.get('FRONTEND_URL') || 'https://www.riven.rocks';
 
   const html = emailShell(`
     <h2 style="font-size: 24px; font-weight: 400; color: #e4ddd0; margin: 0 0 8px; line-height: 1.3;">

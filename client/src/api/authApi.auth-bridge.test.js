@@ -13,6 +13,7 @@ vi.mock('../lib/supabaseClient', () => ({
     from: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      getClaims: vi.fn().mockResolvedValue({ data: { claims: null }, error: null }),
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
       setSession: vi.fn(),
       updateUser: vi.fn(),
@@ -51,6 +52,9 @@ describe('authApi Supabase auth bridge reductions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', 'true');
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     localStorage.clear();
     authApi.setToken(null);
     globalThis.fetch = vi.fn(() => {
@@ -64,6 +68,10 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
     supabase.auth.getUser.mockResolvedValue({
       data: { user: { id: 'auth-user' } },
+      error: null,
+    });
+    supabase.auth.getClaims.mockResolvedValue({
+      data: { claims: { sub: 'auth-user', aal: 'aal1' } },
       error: null,
     });
     supabase.auth.setSession.mockResolvedValue({
@@ -146,7 +154,45 @@ describe('authApi Supabase auth bridge reductions', () => {
       email_verified: true,
       onboardingCompletedAt: null,
       onboardingStep: 0,
+      base_subscription_tier: 'free',
+      has_manageable_subscription: false,
+      premium_access_source: 'admin_included',
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      subscription_expires_at: null,
     });
+  });
+
+  it('restores startup auth with one session read, verified claims, and one profile query', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: SUPABASE_ACCESS_TOKEN,
+          user: { id: 'auth-user' },
+        },
+      },
+      error: null,
+    });
+    const { select } = createSelectSingleChain({
+      id: 42,
+      username: 'atlas',
+      email: 'atlas@example.com',
+      role: 'user',
+      two_fa_enabled: false,
+      onboarding_completed_at: '2026-07-01T00:00:00.000Z',
+    });
+    supabase.from.mockReturnValue({ select });
+
+    const user = await authApi.restoreSessionUser();
+
+    expect(user.id).toBe(42);
+    expect(supabase.auth.getSession).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.getClaims).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.getClaims).toHaveBeenCalledWith(SUPABASE_ACCESS_TOKEN);
+    expect(supabase.auth.getUser).not.toHaveBeenCalled();
+    expect(supabase.auth.mfa.getAuthenticatorAssuranceLevel).not.toHaveBeenCalled();
+    expect(supabase.auth.mfa.listFactors).not.toHaveBeenCalled();
+    expect(supabase.from).toHaveBeenCalledTimes(1);
   });
 
   it('completes registration on refresh when the Supabase session exists but the app row is missing', async () => {
@@ -161,7 +207,7 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
     supabase.from.mockReturnValue({ select });
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      user: { id: 42, email: 'atlas@example.com', username: 'atlas' },
+      user: { id: 42, email: 'atlas@example.com', username: 'atlas', twoFAEnabled: false },
     }));
 
     const user = await authApi.restoreSessionUser();
@@ -209,7 +255,7 @@ describe('authApi Supabase auth bridge reductions', () => {
 
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       2,
-      'http://localhost:3000/api/auth/supabase-token',
+      '/api/auth/supabase-token',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({

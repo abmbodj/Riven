@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({
     isLoggedIn: false,
 }));
 
-vi.mock('./api', () => ({
-    api: {
+vi.mock('./api/themeApi.js', () => ({
+    themeApi: {
         getThemes: mocks.getThemes,
         activateTheme: mocks.activateTheme,
         createTheme: vi.fn(),
@@ -26,6 +26,8 @@ vi.mock('./api', () => ({
 vi.mock('./hooks/useAuth', () => ({
     default: () => ({
         isLoggedIn: mocks.isLoggedIn,
+        loading: false,
+        user: mocks.isLoggedIn ? { id: 42 } : null,
     }),
 }));
 

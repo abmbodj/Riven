@@ -11,6 +11,7 @@ const toastApi = {
 
 vi.mock('../api', () => ({
   api: {
+    getDashboardBootstrap: vi.fn(),
     getAssignments: vi.fn(),
     getDecks: vi.fn(),
     getClasses: vi.fn(),
@@ -27,7 +28,7 @@ vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
     isLoggedIn: true,
     loading: false,
-    user: { username: 'Avery', subscription_tier: 'free' },
+    user: { id: 7, username: 'Avery', subscription_tier: 'free' },
   }),
 }));
 
@@ -67,6 +68,7 @@ vi.mock('../utils/notifications', () => ({
 }));
 
 const { api } = await import('../api');
+const { cache } = await import('../utils/cache.js');
 const { scheduleAssignmentNotifications } = await import('../utils/notifications');
 
 const FIXED_NOW = new Date('2026-03-21T12:00:00.000Z');
@@ -114,7 +116,10 @@ async function renderDashboard() {
   await act(async () => {
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
   });
+
+  expect(screen.getByTestId('streak-activity-card')).toBeInTheDocument();
 }
 
 describe('DashboardHome analytics repositioning', () => {
@@ -122,6 +127,8 @@ describe('DashboardHome analytics repositioning', () => {
     vi.useFakeTimers();
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
+    cache.clear();
+    cache.clearPersistent();
     mockReducedMotion();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -139,6 +146,74 @@ describe('DashboardHome analytics repositioning', () => {
     });
     api.getMockExams.mockResolvedValue([]);
     api.getWeeklySummary.mockResolvedValue(weeklySummary);
+    api.getDashboardBootstrap.mockImplementation(async () => {
+      const [
+        assignments,
+        decks,
+        classes,
+        notes,
+        guides,
+        exams,
+        summary,
+      ] = await Promise.all([
+        api.getAssignments(),
+        api.getDecks(),
+        api.getClasses(),
+        api.getNotes(),
+        api.getStudyGuides(),
+        api.getMockExams(),
+        api.getWeeklySummary(),
+      ]);
+      const activeClasses = classes.filter((classItem) => !classItem.is_archived);
+      const activeClassIds = new Set(activeClasses.map((classItem) => classItem.id));
+      const recentStudyItems = [
+        ...decks.map((item) => ({
+          ...item,
+          type: 'flashcard',
+          activityAt: item.last_studied || item.created_at,
+        })),
+        ...notes.map((item) => ({
+          ...item,
+          type: 'note',
+          activityAt: item.updated_at || item.created_at,
+        })),
+        ...guides.map((item) => ({
+          ...item,
+          type: 'guide',
+          activityAt: item.updated_at || item.created_at,
+        })),
+        ...exams.map((item) => ({
+          ...item,
+          type: 'exam',
+          activityAt: item.created_at,
+        })),
+      ].sort((left, right) => new Date(right.activityAt) - new Date(left.activityAt)).slice(0, 4);
+
+      return {
+        version: 1,
+        generatedAt: FIXED_NOW.toISOString(),
+        assignments: assignments.filter((assignment) => (
+          assignment.status !== 'Archived'
+          && (!assignment.class_id || activeClassIds.has(assignment.class_id))
+        )),
+        classes: activeClasses,
+        archivedClassCount: classes.length - activeClasses.length,
+        counts: {
+          decks: decks.length,
+          notes: notes.length,
+          guides: guides.length,
+          exams: exams.length,
+        },
+        recentDecks: decks.slice(0, 4),
+        recentStudyItems,
+        weeklySummary: summary,
+        streakSummary: {
+          currentStreak: 5,
+          longestStreak: 5,
+          lastStudyDate: FIXED_NOW.toISOString(),
+        },
+      };
+    });
     api.updateAssignment.mockResolvedValue({});
     toastApi.error.mockReset();
     toastApi.success.mockReset();

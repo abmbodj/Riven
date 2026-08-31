@@ -317,6 +317,9 @@ export const api = {
     getStudyCoach: () => isLoggedIn()
         ? serverApi.getStudyCoach()
         : Promise.resolve(null),
+    getDashboardBootstrap: (timeZone) => isLoggedIn()
+        ? serverApi.getDashboardBootstrap(timeZone)
+        : Promise.reject(new Error('Must be logged in to load the dashboard')),
     getStudyCoverageMap: (classId = null) => isLoggedIn()
         ? serverApi.getStudyCoverageMap(classId)
         : Promise.resolve(null),

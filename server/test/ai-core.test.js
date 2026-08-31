@@ -10,7 +10,9 @@ import {
   generateExamFromAi,
   generateStudyGuideFromAi,
   getAiLimitStatus,
+  aiModelMap,
 } from '../../supabase/functions/_shared/aiCore.mjs';
+import { STUDY_GUIDE_FORMAT_VERSION } from '../../supabase/functions/_shared/studyGuideCore.mjs';
 
 const makeStrongTeaching = (topic) => ({
   learning_objective: `Explain ${topic} with its mechanism, outcome, examples, and common exam traps.`,
@@ -46,6 +48,11 @@ const makeStrongTeaching = (topic) => ({
     `Only memorizing a keyword is wrong because ${topic} questions often ask for the mechanism behind the keyword instead.`,
     `Giving an intermediate value instead of the final answer is wrong because the correction depends on whether the prompt asks for gross or net outcome.`,
   ],
+  predicts: [{
+    prompt: `Before revealing the result, what outcome should ${topic} produce?`,
+    answer: `The outcome should match the defining result of ${topic}, not a similar process.`,
+    after_beat: 1,
+  }],
   example: `${topic} can be checked by asking what changes, where it changes, and what final output remains.`,
   steps: ['Name the location.', 'Trace the mechanism.', 'State the final outcome.'],
   why_it_matters: `${topic} matters because it supports later questions that combine definitions, mechanisms, and distractor elimination.`,
@@ -158,7 +165,7 @@ describe('aiCore', () => {
       apiKey: 'gemini-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
+        expect(model).toBe(aiModelMap.default);
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Lecture Notes/Text Content:') }),
         ]));
@@ -294,7 +301,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('meta-llama/llama-4-scout-17b-16e-instruct');
+        expect(model).toBe(aiModelMap.guide);
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('River-led AI tutor session') }),
         ]));
@@ -438,7 +445,7 @@ describe('aiCore', () => {
     expect(createdGuides).toEqual([expect.objectContaining({
       userId: 9,
       title: 'Bio River Session',
-      formatVersion: 4,
+      formatVersion: STUDY_GUIDE_FORMAT_VERSION,
       noteId: 'note-1',
       classId: 'class-1',
       guideData: expect.objectContaining({

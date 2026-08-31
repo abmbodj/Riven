@@ -65,6 +65,16 @@ vi.mock('./api', () => ({
     },
 }));
 
+vi.mock('./api/themeApi.js', () => ({
+    themeApi: {
+        getThemes: getThemesMock,
+        activateTheme: vi.fn(),
+        createTheme: vi.fn(),
+        updateTheme: vi.fn(),
+        deleteTheme: vi.fn(),
+    },
+}));
+
 vi.mock('./lib/supabaseClient', () => ({
     supabase: {
         auth: {
@@ -101,7 +111,7 @@ function renderAppAt(pathname) {
 }
 
 function findLandingReady() {
-    return screen.findByText('Cultivated by Riven', {}, { timeout: 3000 });
+    return screen.findByRole('heading', { name: 'Riven', level: 1 }, { timeout: 3000 });
 }
 
 describe('App bootstrap smoke tests', () => {
@@ -122,7 +132,7 @@ describe('App bootstrap smoke tests', () => {
     });
 
     it('mounts the landing route without showing the error boundary', async () => {
-        const { container } = renderAppAt('/');
+        renderAppAt('/');
 
         await findLandingReady();
 
@@ -130,12 +140,11 @@ describe('App bootstrap smoke tests', () => {
             expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
         });
 
-        expect(container.querySelectorAll('.p-mote').length).toBeGreaterThan(0);
         expect(window.__RIVEN_LAST_APP_ERROR).toBeUndefined();
     });
 
     it('mounts the account route without showing the error boundary', async () => {
-        const { container } = renderAppAt('/account');
+        renderAppAt('/account');
 
         await screen.findByRole('heading', { name: 'Log in' });
 
@@ -143,7 +152,6 @@ describe('App bootstrap smoke tests', () => {
             expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
         });
 
-        expect(container.querySelectorAll('.p-mote').length).toBeGreaterThan(0);
         expect(window.__RIVEN_LAST_APP_ERROR).toBeUndefined();
     });
 

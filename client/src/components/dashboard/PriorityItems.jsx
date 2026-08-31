@@ -22,10 +22,10 @@ export default function PriorityItems({ items = [], onComplete, completingIds = 
     return (
         <section
             aria-labelledby="priority-items-heading"
-            className="glass-panel-premium gsap-section rounded-[28px] p-5 sm:p-6 lg:sticky lg:top-6"
+            className="glass-panel-premium rounded-[28px] p-5 sm:p-6 lg:sticky lg:top-6"
             data-testid="priority-items"
         >
-            <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="mb-5 flex items-start justify-between gap-4" data-section-reveal-target="true">
                 <div>
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.26em] text-claude-secondary">
                         Priority

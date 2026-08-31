@@ -57,6 +57,11 @@ export function capturePosthogPageview() {
     if (!KEY || typeof window === 'undefined') return
 
     void getPosthog().then((posthog) => posthog?.capture('$pageview', {
-        $current_url: window.location.href,
+        $current_url: `${window.location.origin}${window.location.pathname}`,
     }))
+}
+
+export function capturePosthogPerformance(event) {
+    if (!KEY || !event) return
+    void getPosthog().then((posthog) => posthog?.capture('riven_performance', event))
 }

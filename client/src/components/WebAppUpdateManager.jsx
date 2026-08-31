@@ -45,6 +45,7 @@ function scheduleReloadForActivatedWorker() {
 export default function WebAppUpdateManager({ children }) {
   const isWebRuntime = typeof window !== 'undefined' && !Capacitor.isNativePlatform();
   const registrationRef = useRef(null);
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
   const [dismissedUpdate, setDismissedUpdate] = useState(false);
   const [isRefreshingUpdate, setIsRefreshingUpdate] = useState(false);
 
@@ -80,7 +81,7 @@ export default function WebAppUpdateManager({ children }) {
   }, []);
 
   const { needRefresh: [needRefresh] = [false], updateServiceWorker } = useRegisterSW({
-    immediate: true,
+    enabled: registrationEnabled,
     onNeedRefresh: handleNeedRefresh,
     onRegisteredSW: handleRegisteredSW,
     onRegisterError(error) {
@@ -89,13 +90,27 @@ export default function WebAppUpdateManager({ children }) {
   });
 
   useEffect(() => {
+    if (!isWebRuntime) return undefined;
+    const enable = () => {
+      const schedule = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 1));
+      schedule(() => setRegistrationEnabled(true), { timeout: 2500 });
+    };
+    window.addEventListener('riven:route-ready', enable, { once: true });
+    const fallback = window.setTimeout(enable, 5000);
+    return () => {
+      window.removeEventListener('riven:route-ready', enable);
+      window.clearTimeout(fallback);
+    };
+  }, [isWebRuntime]);
+
+  useEffect(() => {
     if (!needRefresh) {
       setIsRefreshingUpdate(false);
     }
   }, [needRefresh]);
 
   useEffect(() => {
-    if (!isWebRuntime) return undefined;
+    if (!isWebRuntime || !registrationEnabled) return undefined;
 
     void checkForUpdate();
 
@@ -123,7 +138,7 @@ export default function WebAppUpdateManager({ children }) {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [checkForUpdate, isWebRuntime]);
+  }, [checkForUpdate, isWebRuntime, registrationEnabled]);
 
   useEffect(() => {
     if (!isWebRuntime) return undefined;

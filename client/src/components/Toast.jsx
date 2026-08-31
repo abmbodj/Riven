@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import Check from 'lucide-react/dist/esm/icons/check';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
@@ -38,7 +37,6 @@ export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
     const idCounter = useRef(0);
     const toastTimers = useRef(new Map());
-    const prefersReducedMotion = useReducedMotion();
 
     useEffect(() => {
         const timers = toastTimers.current;
@@ -73,19 +71,6 @@ export function ToastProvider({ children }) {
     const warn = useCallback((message, action) => show(message, 'warn', { action }), [show]);
 
     const value = useMemo(() => ({ show, success, error, warn }), [show, success, error, warn]);
-    const initialAnimation = prefersReducedMotion
-        ? { opacity: 0 }
-        : { opacity: 0, x: 22, y: -10, scale: 0.98 };
-    const animateAnimation = prefersReducedMotion
-        ? { opacity: 1 }
-        : { opacity: 1, x: 0, y: 0, scale: 1 };
-    const exitAnimation = prefersReducedMotion
-        ? { opacity: 0 }
-        : { opacity: 0, x: 28, y: -6, scale: 0.98 };
-    const transition = prefersReducedMotion
-        ? { duration: 0.16, ease: 'easeOut' }
-        : { type: 'spring', stiffness: 320, damping: 28, mass: 0.9 };
-
     return (
         <ToastContext.Provider value={value}>
             {children}
@@ -96,43 +81,21 @@ export function ToastProvider({ children }) {
                 className="pointer-events-none fixed inset-x-4 top-[calc(var(--safe-area-top)+0.9rem)] z-[9999] flex flex-col items-center gap-2.5 md:inset-x-auto md:right-5 md:top-[calc(var(--safe-area-top)+1rem)] md:w-[min(24rem,calc(100vw-2rem))] md:items-stretch"
                 data-testid="toast-viewport"
             >
-                <AnimatePresence mode="popLayout">
-                    {toasts.map(toast => (
-                        <ToastCard
-                            key={toast.id}
-                            toast={toast}
-                            dismiss={dismiss}
-                            initialAnimation={initialAnimation}
-                            animateAnimation={animateAnimation}
-                            exitAnimation={exitAnimation}
-                            transition={transition}
-                        />
-                    ))}
-                </AnimatePresence>
+                {toasts.map(toast => (
+                    <ToastCard key={toast.id} toast={toast} dismiss={dismiss} />
+                ))}
             </div>
         </ToastContext.Provider>
     );
 }
 
-function ToastCard({
-    toast,
-    dismiss,
-    initialAnimation,
-    animateAnimation,
-    exitAnimation,
-    transition,
-}) {
+function ToastCard({ toast, dismiss }) {
     const style = TOAST_STYLES[toast.type] ?? TOAST_STYLES.success;
     const Icon = style.icon;
 
     return (
-        <motion.div
-            layout
-            initial={initialAnimation}
-            animate={animateAnimation}
-            exit={exitAnimation}
-            transition={transition}
-            className={`pointer-events-auto relative w-full max-w-[min(100%,24rem)] overflow-hidden rounded-[1.25rem] border border-white/9 bg-[color-mix(in_srgb,var(--surface-color)_86%,rgba(255,255,255,0.12))] text-claude-text backdrop-blur-[18px] before:absolute before:bottom-3 before:left-3.5 before:top-3 before:w-[2px] before:rounded-full ${style.ring} ${style.glow}`}
+        <div
+            className={`toast-card-enter pointer-events-auto relative w-full max-w-[min(100%,24rem)] overflow-hidden rounded-[1.25rem] border border-white/9 bg-[color-mix(in_srgb,var(--surface-color)_86%,rgba(255,255,255,0.12))] text-claude-text backdrop-blur-[18px] before:absolute before:bottom-3 before:left-3.5 before:top-3 before:w-[2px] before:rounded-full ${style.ring} ${style.glow}`}
             data-testid={`toast-${toast.type}`}
         >
             <div className="absolute inset-0 bg-[linear-gradient(150deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05)_36%,rgba(255,255,255,0.01)_72%)] opacity-75" />
@@ -178,6 +141,6 @@ function ToastCard({
                     <X className="h-4 w-4" />
                 </button>
             </div>
-        </motion.div>
+        </div>
     );
 }

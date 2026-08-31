@@ -79,6 +79,21 @@ describe('useRegisterSW', () => {
     });
   });
 
+  it('does not register until startup work marks it enabled', async () => {
+    const registration = createRegistration();
+    registerMock.mockResolvedValue(registration);
+    const { rerender } = renderHook(
+      ({ enabled }) => useRegisterSW({ enabled }),
+      { initialProps: { enabled: false } },
+    );
+
+    await act(async () => Promise.resolve());
+    expect(registerMock).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+    await waitFor(() => expect(registerMock).toHaveBeenCalledTimes(1));
+  });
+
   it('marks a waiting worker as needing refresh', async () => {
     const registration = createRegistration({ waiting: createWaitingWorker() });
     registerMock.mockResolvedValue(registration);

@@ -3,6 +3,7 @@ import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
 import { GroupErrorBoundary } from '../components/ui/GroupErrorBoundary';
 
 // Lazy load pages
+const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
 const Home = lazy(() => import('../pages/Home.jsx'));
 const StudyDashboard = lazy(() => import('../pages/StudyDashboard.jsx'));
 const DeckLibrary = lazy(() => import('../pages/DeckLibrary.jsx'));
@@ -93,7 +94,7 @@ export function prefetchRoute(path) {
 
 export const routesConfig = [
   // Public Routes
-  { path: '/', element: <Home mode="landing" /> },
+  { path: '/', element: <LandingPage /> },
   { path: '/decks', element: <StudyDashboard /> },
   { path: '/account', element: <Account /> },
   { path: '/reset-password', element: <ResetPassword /> },
@@ -106,7 +107,7 @@ export const routesConfig = [
   {
     element: <ProtectedRoute />,
     children: [
-      { path: '/dashboard', element: <Home mode="dashboard" /> },
+      { path: '/dashboard', element: <Home /> },
       { path: '/decks/library', element: <DeckLibrary /> },
       { path: '/notes', element: <NotesLibrary /> },
       { path: '/note/:id', element: <NoteEditor /> },

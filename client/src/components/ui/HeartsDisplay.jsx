@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Heart } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../api';
+import { getDevE2EFixtures } from '../../testing/e2eFixtures.js';
 
 export default function HeartsDisplay({ onClick }) {
-    const [status, setStatus] = useState(null);
+    const fixtureStatus = getDevE2EFixtures()?.hearts;
+    const [status, setStatus] = useState(fixtureStatus || null);
     const [timeInSeconds, setTimeInSeconds] = useState(0);
 
     const fetchHearts = useCallback(async () => {
@@ -21,6 +22,7 @@ export default function HeartsDisplay({ onClick }) {
     }, []);
 
     useEffect(() => {
+        if (fixtureStatus) return undefined;
         const initialLoadId = window.setTimeout(() => {
             void fetchHearts();
         }, 0);
@@ -32,15 +34,16 @@ export default function HeartsDisplay({ onClick }) {
             window.clearTimeout(initialLoadId);
             window.clearInterval(intervalId);
         };
-    }, [fetchHearts]);
+    }, [fetchHearts, fixtureStatus]);
 
     useEffect(() => {
+        if (fixtureStatus) return undefined;
         const handleFocus = () => {
             void fetchHearts();
         };
         window.addEventListener('focus', handleFocus);
         return () => window.removeEventListener('focus', handleFocus);
-    }, [fetchHearts]);
+    }, [fetchHearts, fixtureStatus]);
 
     useEffect(() => {
         if (!status?.nextRefill || status.isUnlimited || status.hearts >= status.max) return;
@@ -70,7 +73,7 @@ export default function HeartsDisplay({ onClick }) {
     return (
         <button
             onClick={onClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-bg/80 md:backdrop-blur-md border border-red-500/20 rounded-full shadow-sm hover:bg-red-500/5 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action relative z-10"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-bg/80 border border-red-500/20 rounded-full shadow-sm hover:bg-red-500/5 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action relative z-10"
         >
             <Heart className={`w-4 h-4 ${status.isUnlimited ? 'text-indigo-500 fill-indigo-500' : 'text-red-500 fill-red-500'}`} />
             <span className={`font-mono font-bold text-sm ${status.isUnlimited ? 'text-indigo-500' : 'text-red-500'}`}>

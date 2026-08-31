@@ -68,9 +68,19 @@ function handleFpsSample(event) {
     }
 
     if (nextForcedByFps !== forcedByFps) {
+        const previousBudget = forcedByFps
+            ? VISUAL_BUDGET_CONSTRAINED
+            : VISUAL_BUDGET_NORMAL;
         forcedByFps = nextForcedByFps;
         consecutiveLow = 0;
         consecutiveGood = 0;
+        window.dispatchEvent(new CustomEvent('riven:visual-budget-transition', {
+            detail: {
+                from: previousBudget,
+                to: forcedByFps ? VISUAL_BUDGET_CONSTRAINED : VISUAL_BUDGET_NORMAL,
+                fps,
+            },
+        }));
         emitChange();
     }
 }

@@ -1247,6 +1247,15 @@ export const getGuideMasterySnapshot = (guideData, studyState, options = {}) => 
   };
 };
 
+export const estimateSectionEffortMinutes = (section) => {
+  const cardCount = Array.isArray(section?.card_ids) ? section.card_ids.length : 1;
+  return Math.max(3, Math.min(12, cardCount * 2 + 1));
+};
+
+export const estimateSessionEffortMinutes = (sections = []) => (
+  sections.reduce((total, section) => total + estimateSectionEffortMinutes(section), 0)
+);
+
 export const getSessionDelta = (guideData, stateBefore, stateAfter) => {
   const beforeSnapshot = getGuideMasterySnapshot(guideData, stateBefore);
   const afterSnapshot = getGuideMasterySnapshot(guideData, stateAfter);

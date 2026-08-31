@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { useTheme } from '../hooks/useTheme';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { ThemeEffectOverlay } from './themes/themeEffects.jsx';
-import { generateParticles, particleGlow, radialParticleBackground, withAlpha } from './themes/themeParticles.js';
+import { generateParticles, radialParticleBackground, withAlpha } from './themes/themeParticles.js';
 import { buildGradientCss, normalizeGradientRecipe } from '../utils/themeGradientRecipe.js';
 
 /** Static accent wash — no GSAP, no particles (mobile / coarse pointer). */
@@ -42,6 +42,23 @@ const THEME_MAP = {
     'Cherry Blossom': 'sakura',
     'Lavender Dusk':  'lavender',
 };
+
+function createThemeTimeline(build) {
+    const timeline = gsap.timeline({ repeat: -1 });
+    build(timeline);
+
+    const syncVisibility = () => {
+        if (document.hidden) timeline.pause();
+        else timeline.resume();
+    };
+    document.addEventListener('visibilitychange', syncVisibility);
+    syncVisibility();
+
+    return () => {
+        document.removeEventListener('visibilitychange', syncVisibility);
+        timeline.kill();
+    };
+}
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function GlobalThemeOverlay() {
@@ -141,12 +158,14 @@ function GlobalOverlayContent({ archetype, accent, lightAtmosphere }) {
 function ForestOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-mote').forEach((el, i) => {
-            const p = P_MOTES[i % P_MOTES.length];
-            gsap.timeline({ repeat: -1, delay: p.delay })
-                .fromTo(el,
+        return createThemeTimeline((timeline) => {
+            selector('.p-mote').forEach((el, i) => {
+                const p = P_MOTES[i % P_MOTES.length];
+                const start = p.delay;
+                timeline.fromTo(el,
                     { opacity: 0, y: 0, x: 0 },
-                    { opacity: p.opacity * 0.36, duration: p.duration * 0.22, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.36, duration: p.duration * 0.22, ease: 'sine.in' },
+                    start,
                 )
                 .to(el, {
                     opacity: 0,
@@ -154,7 +173,8 @@ function ForestOverlay({ accent, lightAtmosphere }) {
                     x: (p.spin - 0.5) * 26,
                     duration: p.duration * 0.78,
                     ease: 'power1.out',
-                });
+                }, start + p.duration * 0.22);
+            });
         });
     }, [lightAtmosphere]);
 
@@ -204,10 +224,8 @@ function ForestOverlay({ accent, lightAtmosphere }) {
             {P_MOTES.map(p => (
                 <div key={p.id} className="p-mote absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (p.size * 1.1) + 'px', height: (p.size * 1.1) + 'px',
+                    width: (p.size * 1.8) + 'px', height: (p.size * 1.8) + 'px',
                     background: radialParticleBackground(accent, { highlight: 0.88, core: 'b0', mid: '30', outer: '08' }),
-                    boxShadow: particleGlow(accent, p.size, 0.45),
-                    filter: `blur(${p.size * 0.22}px)`,
                     willChange: 'transform, opacity',
                 }} />
             ))}
@@ -239,12 +257,14 @@ function ForestOverlay({ accent, lightAtmosphere }) {
 function EmberOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-ember').forEach((el, i) => {
-            const p = P_EMBERS[i % P_EMBERS.length];
-            gsap.timeline({ repeat: -1, delay: p.delay })
-                .fromTo(el,
+        return createThemeTimeline((timeline) => {
+            selector('.p-ember').forEach((el, i) => {
+                const p = P_EMBERS[i % P_EMBERS.length];
+                const start = p.delay;
+                timeline.fromTo(el,
                     { opacity: 0, y: 0, x: 0, scale: 0.3 },
-                    { opacity: p.opacity * 0.64, scale: 1, duration: p.duration * 0.18, ease: 'power2.in' }
+                    { opacity: p.opacity * 0.64, scale: 1, duration: p.duration * 0.18, ease: 'power2.in' },
+                    start,
                 )
                 .to(el, {
                     opacity: 0,
@@ -253,7 +273,8 @@ function EmberOverlay({ accent, lightAtmosphere }) {
                     scale: 0.15,
                     duration: p.duration * 0.82,
                     ease: 'power2.out',
-                });
+                }, start + p.duration * 0.18);
+            });
         });
     }, [lightAtmosphere]);
 
@@ -297,10 +318,8 @@ function EmberOverlay({ accent, lightAtmosphere }) {
             {P_EMBERS.map(p => (
                 <div key={p.id} className="p-ember absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (1.8 + p.size * 0.9) + 'px', height: (1.8 + p.size * 0.9) + 'px',
+                    width: (2.6 + p.size * 1.2) + 'px', height: (2.6 + p.size * 1.2) + 'px',
                     background: radialParticleBackground(accent, { highlight: 0.98, core: 'ff', mid: '88', outer: '18' }),
-                    boxShadow: particleGlow(accent, p.size + 1, 1.2),
-                    filter: `blur(${p.size * 0.12}px)`,
                     willChange: 'transform, opacity',
                 }} />
             ))}
@@ -313,13 +332,15 @@ function EmberOverlay({ accent, lightAtmosphere }) {
 function MistOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        // Large fog orbs drift slowly
-        selector('.p-fog').forEach((el, i) => {
-            const p = P_MIST[i % P_MIST.length];
-            gsap.timeline({ repeat: -1, delay: p.delay * 0.5 })
-                .fromTo(el,
+        return createThemeTimeline((timeline) => {
+            // Large fog orbs drift slowly
+            selector('.p-fog').forEach((el, i) => {
+                const p = P_MIST[i % P_MIST.length];
+                const start = p.delay * 0.5;
+                timeline.fromTo(el,
                     { opacity: 0, x: 0 },
-                    { opacity: p.opacity * 0.14, duration: p.duration * 0.25, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.14, duration: p.duration * 0.25, ease: 'sine.in' },
+                    start,
                 )
                 .to(el, {
                     x: (p.spin - 0.5) * 90,
@@ -328,17 +349,18 @@ function MistOverlay({ accent, lightAtmosphere }) {
                     ease: 'sine.inOut',
                     yoyo: true,
                     repeat: 3,
-                })
-                .to(el, { opacity: 0, duration: p.duration * 0.2, ease: 'sine.out' });
-        });
+                }, start + p.duration * 0.25)
+                .to(el, { opacity: 0, duration: p.duration * 0.2, ease: 'sine.out' }, start + p.duration * 3.25);
+            });
 
-        // Tiny drifting motes
-        selector('.p-mote').forEach((el, i) => {
-            const p = P_MIST[i % P_MIST.length];
-            gsap.timeline({ repeat: -1, delay: p.delay })
-                .fromTo(el,
+            // Tiny drifting motes
+            selector('.p-mote').forEach((el, i) => {
+                const p = P_MIST[i % P_MIST.length];
+                const start = p.delay;
+                timeline.fromTo(el,
                     { opacity: 0, x: 0, y: 0 },
-                    { opacity: p.opacity * 0.3, duration: p.duration * 0.2, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.3, duration: p.duration * 0.2, ease: 'sine.in' },
+                    start,
                 )
                 .to(el, {
                     opacity: 0,
@@ -346,7 +368,8 @@ function MistOverlay({ accent, lightAtmosphere }) {
                     y: (p.drift - 0.4) * 18,
                     duration: p.duration * 0.8,
                     ease: 'none',
-                });
+                }, start + p.duration * 0.2);
+            });
         });
     }, [lightAtmosphere]);
 
@@ -390,8 +413,6 @@ function MistOverlay({ accent, lightAtmosphere }) {
                     left: p.x + '%', top: p.y + '%',
                     width: (55 + p.drift * 80) + 'px', height: (38 + p.drift * 50) + 'px',
                     background: `radial-gradient(ellipse, ${accent}0d 0%, ${accent}06 46%, transparent 100%)`,
-                    boxShadow: particleGlow(accent, 18 + p.drift * 12, 0.35),
-                    filter: `blur(${18 + p.drift * 18}px)`,
                     transform: 'translate(-50%, -50%)',
                     opacity: 0,
                     willChange: 'transform, opacity',
@@ -402,9 +423,8 @@ function MistOverlay({ accent, lightAtmosphere }) {
             {P_MIST.map(p => (
                 <div key={`m${p.id}`} className="p-mote absolute rounded-full" style={{
                     left: (p.x + 2) % 96 + '%', top: (p.y + 3) % 96 + '%',
-                    width: (p.size * 0.9) + 'px', height: (p.size * 0.9) + 'px',
+                    width: (p.size * 1.45) + 'px', height: (p.size * 1.45) + 'px',
                     background: radialParticleBackground(accent, { highlight: 0.8, core: '9c', mid: '24', outer: '08' }),
-                    boxShadow: particleGlow(accent, p.size, 0.38),
                     willChange: 'transform, opacity',
                 }} />
             ))}
@@ -417,26 +437,26 @@ function MistOverlay({ accent, lightAtmosphere }) {
 function LanternOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-fly').forEach((el, i) => {
-            const p = P_FIREFLY[i % P_FIREFLY.length];
-            // Gentle bobbing movement
-            gsap.to(el, {
+        return createThemeTimeline((timeline) => {
+            selector('.p-fly').forEach((el, i) => {
+                const p = P_FIREFLY[i % P_FIREFLY.length];
+                const start = p.delay;
+                const duration = 2.8 + p.drift * 3.2;
+                timeline.to(el, {
                 y: (p.spin - 0.5) * 22,
                 x: (p.drift - 0.5) * 16,
-                duration: 2.8 + p.drift * 3.2,
-                repeat: -1,
+                duration,
                 yoyo: true,
+                repeat: 1,
                 ease: 'sine.inOut',
-                delay: p.delay,
-            });
-            // Separate opacity pulse (firefly blink)
-            gsap.to(el, {
+            }, start);
+                timeline.to(el, {
                 opacity: p.opacity * 0.74,
                 duration: 1.4 + p.spin * 1.8,
-                repeat: -1,
+                repeat: 1,
                 yoyo: true,
                 ease: 'sine.inOut',
-                delay: p.delay * 0.4,
+            }, start);
             });
         });
     }, [lightAtmosphere]);
@@ -479,9 +499,8 @@ function LanternOverlay({ accent, lightAtmosphere }) {
             {P_FIREFLY.map(p => (
                 <div key={p.id} className="p-fly absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (2.4 + p.size * 1.1) + 'px', height: (2.4 + p.size * 1.1) + 'px',
+                    width: (3.2 + p.size * 1.45) + 'px', height: (3.2 + p.size * 1.45) + 'px',
                     background: radialParticleBackground(accent, { highlight: 1, core: 'ff', mid: '7a', outer: '18' }),
-                    boxShadow: particleGlow(accent, p.size + 2, 1.1),
                     opacity: 0,
                     willChange: 'transform, opacity',
                 }} />
@@ -495,16 +514,17 @@ function LanternOverlay({ accent, lightAtmosphere }) {
 function MoonOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-star').forEach((el, i) => {
-            const p = P_STARS[i % P_STARS.length];
-            gsap.to(el, {
+        return createThemeTimeline((timeline) => {
+            selector('.p-star').forEach((el, i) => {
+                const p = P_STARS[i % P_STARS.length];
+                timeline.to(el, {
                 opacity: p.opacity * 0.68,
                 scale: 1.75,
                 duration: 1.4 + p.spin * 2.8,
-                repeat: -1,
+                repeat: 1,
                 yoyo: true,
                 ease: 'power1.inOut',
-                delay: p.delay * 0.5,
+            }, p.delay * 0.5);
             });
         });
     }, [lightAtmosphere]);
@@ -550,10 +570,9 @@ function MoonOverlay({ accent, lightAtmosphere }) {
             {P_STARS.map(p => (
                 <div key={p.id} className="p-star absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (p.size * 0.82 + 0.6) + 'px', height: (p.size * 0.82 + 0.6) + 'px',
+                    width: (p.size * 1.35 + 1) + 'px', height: (p.size * 1.35 + 1) + 'px',
                     background: radialParticleBackground(accent, { highlight: 1, core: 'd6', mid: '52', outer: '10' }),
                     opacity: p.opacity * 0.18,
-                    boxShadow: `0 0 ${p.size * 1.2}px rgba(255,255,255,0.78), ${particleGlow(accent, p.size + 0.8, 0.6)}`,
                     willChange: 'transform, opacity',
                 }} />
             ))}
@@ -571,19 +590,20 @@ function MoonOverlay({ accent, lightAtmosphere }) {
 function RainOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-rain').forEach((el, i) => {
-            const p = P_RAIN[i % P_RAIN.length];
-            gsap.fromTo(el,
+        return createThemeTimeline((timeline) => {
+            selector('.p-rain').forEach((el, i) => {
+                const p = P_RAIN[i % P_RAIN.length];
+                timeline.fromTo(el,
                 { y: -(60 + p.drift * 180) + 'px', opacity: 0 },
                 {
                     y: '110vh',
                     opacity: p.opacity * 0.36,
                     duration: 4.5 + p.drift * 4.5,
-                    delay: p.delay * 0.7,
-                    repeat: -1,
                     ease: 'none',
-                }
+                },
+                p.delay * 0.7,
             );
+            });
         });
     }, [lightAtmosphere]);
 
@@ -628,7 +648,6 @@ function RainOverlay({ accent, lightAtmosphere }) {
                     width: (1 + p.size * 0.08) + 'px',
                     height: (14 + p.drift * 18) + 'px',
                     background: `linear-gradient(180deg, transparent 0%, ${accent}70 16%, rgba(255,255,255,0.92) 54%, ${accent}26 100%)`,
-                    boxShadow: `0 0 ${1.5 + p.size * 0.3}px ${accent}44`,
                     opacity: 0,
                     borderRadius: '1px',
                     willChange: 'transform, opacity',
@@ -652,12 +671,14 @@ function RainOverlay({ accent, lightAtmosphere }) {
 function SakuraOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-petal').forEach((el, i) => {
-            const p = P_PETALS[i % P_PETALS.length];
-            gsap.timeline({ repeat: -1, delay: p.delay })
-                .fromTo(el,
+        return createThemeTimeline((timeline) => {
+            selector('.p-petal').forEach((el, i) => {
+                const p = P_PETALS[i % P_PETALS.length];
+                const start = p.delay;
+                timeline.fromTo(el,
                     { opacity: 0, y: 0, rotation: (p.spin - 0.5) * 48, rotationX: 12 + p.spin * 36, x: 0, scale: 0.72 + p.drift * 0.28 },
-                    { opacity: p.opacity * 0.64, scale: 0.92 + p.drift * 0.36, duration: p.duration * 0.16, ease: 'power1.in' }
+                    { opacity: p.opacity * 0.64, scale: 0.92 + p.drift * 0.36, duration: p.duration * 0.16, ease: 'power1.in' },
+                    start,
                 )
                 .to(el, {
                     opacity: 0,
@@ -668,21 +689,21 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
                     scale: 0.58 + p.spin * 0.42,
                     duration: p.duration * 1.02,
                     ease: 'sine.out',
-                });
-        });
+                }, start + p.duration * 0.16);
+            });
 
-        selector('.p-blossom-mote').forEach((el, i) => {
-            const p = P_PETALS[(i + 7) % P_PETALS.length];
-            gsap.to(el, {
+            selector('.p-blossom-mote').forEach((el, i) => {
+                const p = P_PETALS[(i + 7) % P_PETALS.length];
+                timeline.to(el, {
                 opacity: p.opacity * 0.42,
                 scale: 0.78 + p.spin * 0.7,
                 x: (p.spin - 0.5) * 16,
                 y: (p.drift - 0.5) * 12,
                 duration: 2.8 + p.duration * 0.35,
-                repeat: -1,
+                repeat: 1,
                 yoyo: true,
                 ease: 'sine.inOut',
-                delay: p.delay * 0.28,
+            }, p.delay * 0.28);
             });
         });
     }, [lightAtmosphere]);
@@ -746,8 +767,6 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
                     background: `linear-gradient(135deg, rgba(255,255,255,0.92) 0%, ${withAlpha(accent, 0.95)} 32%, ${withAlpha(accent, 0.74)} 72%, ${withAlpha(accent, 0.28)} 100%)`,
                     borderRadius: '50% 50% 50% 0',
                     opacity: 0,
-                    filter: `blur(${p.size * 0.18}px)`,
-                    boxShadow: particleGlow(accent, p.size + 1.4, 0.6),
                     border: `1px solid ${withAlpha(accent, 0.14)}`,
                     transformOrigin: 'center',
                     willChange: 'transform, opacity',
@@ -758,10 +777,9 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
                 <div key={`mote${p.id}`} className="p-blossom-mote absolute rounded-full" style={{
                     left: `${68 + (p.spin - 0.5) * 32}%`,
                     top: `${6 + p.drift * 45}%`,
-                    width: `${2 + p.size * 1.8}px`,
-                    height: `${2 + p.size * 1.8}px`,
+                    width: `${3 + p.size * 2.2}px`,
+                    height: `${3 + p.size * 2.2}px`,
                     background: radialParticleBackground(accent, { highlight: 0.98, coreAlpha: 0.46, midAlpha: 0.18, outerAlpha: 0.05 }),
-                    boxShadow: particleGlow(accent, p.size + 1, 0.36),
                     opacity: 0,
                     willChange: 'transform, opacity',
                 }} />
@@ -818,12 +836,14 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
 function LavenderOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
         if (lightAtmosphere) return;
-        selector('.p-pollen').forEach((el, i) => {
-            const p = P_POLLEN[i % P_POLLEN.length];
-            gsap.timeline({ repeat: -1, delay: p.delay })
-                .fromTo(el,
+        return createThemeTimeline((timeline) => {
+            selector('.p-pollen').forEach((el, i) => {
+                const p = P_POLLEN[i % P_POLLEN.length];
+                const start = p.delay;
+                timeline.fromTo(el,
                     { opacity: 0, y: 0, x: 0 },
-                    { opacity: p.opacity * 0.4, duration: p.duration * 0.24, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.4, duration: p.duration * 0.24, ease: 'sine.in' },
+                    start,
                 )
                 .to(el, {
                     opacity: 0,
@@ -831,7 +851,8 @@ function LavenderOverlay({ accent, lightAtmosphere }) {
                     x: (p.spin - 0.5) * 20,
                     duration: p.duration * 0.76,
                     ease: 'power1.out',
-                });
+                }, start + p.duration * 0.24);
+            });
         });
     }, [lightAtmosphere]);
 
@@ -875,11 +896,9 @@ function LavenderOverlay({ accent, lightAtmosphere }) {
             {P_POLLEN.map(p => (
                 <div key={p.id} className="p-pollen absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (p.size * 0.95) + 'px', height: (p.size * 0.95) + 'px',
+                    width: (p.size * 1.55) + 'px', height: (p.size * 1.55) + 'px',
                     background: radialParticleBackground(accent, { highlight: 0.86, core: 'c8', mid: '38', outer: '10' }),
-                    boxShadow: particleGlow(accent, p.size + 0.6, 0.55),
                     opacity: 0,
-                    filter: `blur(${p.size * 0.16}px)`,
                     willChange: 'transform, opacity',
                 }} />
             ))}

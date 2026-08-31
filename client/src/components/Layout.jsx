@@ -12,14 +12,12 @@ import Plus from 'lucide-react/dist/esm/icons/plus';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import OnboardingArt from './OnboardingArt';
-import { motion, AnimatePresence } from 'motion/react';
+import BrandMark from './BrandMark.jsx';
 import { prefetchRoute } from '../routes/config.jsx';
 import { UIContext } from '../context/UIContext';
 import { AuthContext, AuthStatusContext } from '../context/AuthContext';
 import { useAppUpdate } from '../context/AppUpdateContext.jsx';
 import TopBar from './TopBar.jsx';
-import { useNotificationSync } from '../hooks/useNotificationSync';
 import {
     COLLAPSED_NAV_WIDTH,
     COMPACT_NAV_WIDTH,
@@ -146,7 +144,6 @@ export default function Layout({ children }) {
         dismissUpdate,
         refreshToLatestVersion,
     } = useAppUpdate();
-    useNotificationSync();
     const primaryNavItems = getPrimaryNavItems(isLoggedIn);
 
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test') || /^\/exam\/[^/]+$/.test(location.pathname);
@@ -159,6 +156,7 @@ export default function Layout({ children }) {
     const [hasOpenedCommandPalette, setHasOpenedCommandPalette] = useState(false);
     const [hasOpenedCreateSheet, setHasOpenedCreateSheet] = useState(false);
     const [hasOpenedDrawer, setHasOpenedDrawer] = useState(false);
+    const [themeEffectsReady, setThemeEffectsReady] = useState(false);
     const [isSidebarResizing, setIsSidebarResizing] = useState(false);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => (
         typeof window !== 'undefined'
@@ -189,6 +187,19 @@ export default function Layout({ children }) {
         mediaQuery.addEventListener?.('change', handleChange);
 
         return () => mediaQuery.removeEventListener?.('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        const activate = () => {
+            const schedule = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 1));
+            schedule(() => setThemeEffectsReady(true), { timeout: 1500 });
+        };
+        window.addEventListener('riven:route-ready', activate, { once: true });
+        const fallback = window.setTimeout(activate, 4000);
+        return () => {
+            window.removeEventListener('riven:route-ready', activate);
+            window.clearTimeout(fallback);
+        };
     }, []);
 
     useEffect(() => {
@@ -396,9 +407,11 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
-            <Suspense fallback={null}>
-                <GlobalThemeOverlay />
-            </Suspense>
+            {themeEffectsReady && (
+                <Suspense fallback={null}>
+                    <GlobalThemeOverlay />
+                </Suspense>
+            )}
 
             {/* Skip to main content (accessibility) */}
             <a
@@ -434,7 +447,7 @@ export default function Layout({ children }) {
                                     tabIndex={renderedNavCollapsed ? -1 : 0}
                                 >
                                     <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-white/[0.1] group-hover:border-claude-accent/20">
-                                        <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
+                                        <BrandMark className="w-7 h-7" />
                                     </div>
                                     <span className={`font-display text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white whitespace-nowrap ${
                                         isCompactSidebar ? 'text-lg' : 'text-xl'
@@ -445,7 +458,7 @@ export default function Layout({ children }) {
                                 {renderedNavCollapsed && (
                                     <div className={`pt-6 pb-4 ${COLLAPSED_SIDEBAR_ICON_FRAME_CLASS}`}>
                                         <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 overflow-hidden">
-                                            <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
+                                            <BrandMark className="w-7 h-7" />
                                         </div>
                                     </div>
                                 )}
@@ -652,15 +665,11 @@ export default function Layout({ children }) {
                     `}
                     style={showDesktopSidebar ? { marginLeft: `${renderedSidebarWidth}px` } : undefined}
                 >
-                    <AnimatePresence>
-                        {isUpdateAvailable && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
+                    {isUpdateAvailable && (
+                            <div
                                 role="status"
                                 aria-live="polite"
-                                className="sticky top-0 z-40 border-b border-claude-accent/30 bg-claude-surface/95 px-4 py-3 backdrop-blur safe-area-top overflow-hidden"
+                                className="shell-banner-enter sticky top-0 z-40 border-b border-claude-accent/30 bg-claude-surface/95 px-4 py-3 backdrop-blur safe-area-top overflow-hidden"
                             >
                                 <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                     <div className="min-w-0">
@@ -692,26 +701,20 @@ export default function Layout({ children }) {
                                         </button>
                                     </div>
                                 </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                            </div>
+                    )}
 
                     {/* Offline banner */}
-                    <AnimatePresence>
-                        {isOffline && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
+                    {isOffline && (
+                            <div
                                 role="alert"
                                 aria-live="polite"
-                                className="sticky top-0 z-30 bg-yellow-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top overflow-hidden"
+                                className="shell-banner-enter sticky top-0 z-30 bg-yellow-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top overflow-hidden"
                             >
                                 <WifiOff className="w-4 h-4" />
                                 <span className="font-mono text-xs tracking-wide">Offline — changes saved locally</span>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                            </div>
+                    )}
 
                     {/* Top bar */}
                     {showTopBar && (

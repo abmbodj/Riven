@@ -1,9 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { api } from './api';
+import { themeApi } from './api/themeApi.js';
 import { ThemeContext } from './context/themeContext';
 import useAuth from './hooks/useAuth';
 import { getDefaultThemes } from './themeCatalog.js';
 import { buildGradientCss, normalizeGradientRecipe } from './utils/themeGradientRecipe';
+import { cache } from './utils/cache.js';
+import { getDevE2EFixtures } from './testing/e2eFixtures.js';
+
+const ACTIVE_THEME_CACHE_KEY = 'theme:active';
 
 function normalizeThemeForContext(theme) {
     if (!theme) return theme;
@@ -74,7 +78,7 @@ function resolveColorScheme(hexColor) {
 }
 
 export function ThemeProvider({ children }) {
-    const { isLoggedIn } = useAuth();
+    const { isLoggedIn, loading: authLoading, user } = useAuth();
     const [themes, setThemes] = useState([]);
     const [activeTheme, setActiveTheme] = useState(null);
     const [appliedTheme, setAppliedTheme] = useState(null);
@@ -111,8 +115,30 @@ export function ThemeProvider({ children }) {
     }, []);
 
     useEffect(() => {
+        if (authLoading) return undefined;
+
         let mounted = true;
-        api.getThemes().then(async (data) => {
+        if (user?.id) {
+            cache.ensureUser(user.id);
+            const cachedTheme = cache.peek(ACTIVE_THEME_CACHE_KEY);
+            if (cachedTheme) {
+                const resolvedCachedTheme = normalizeThemeForContext(cachedTheme);
+                applyTheme(resolvedCachedTheme);
+                queueMicrotask(() => {
+                    if (!mounted) return;
+                    setThemes([resolvedCachedTheme]);
+                    setActiveTheme(resolvedCachedTheme);
+                    setAppliedTheme(resolvedCachedTheme);
+                });
+            }
+        }
+
+        const fixtureThemes = getDevE2EFixtures()?.themes;
+        const themesRequest = Array.isArray(fixtureThemes)
+            ? Promise.resolve(fixtureThemes)
+            : themeApi.getThemes();
+
+        themesRequest.then(async (data) => {
             if (!mounted) return;
             const normalizedThemes = (data || []).map(normalizeThemeForContext);
             const existingActive = normalizedThemes.find(t => t.is_active);
@@ -124,7 +150,7 @@ export function ThemeProvider({ children }) {
 
                 if (isLoggedIn && fallbackTheme?.id) {
                     try {
-                        active = normalizeThemeForContext(await api.activateTheme(fallbackTheme.id));
+                        active = normalizeThemeForContext(await themeApi.activateTheme(fallbackTheme.id));
                     } catch {
                         // Use the local Riven/default fallback even if remote repair fails.
                     }
@@ -139,6 +165,7 @@ export function ThemeProvider({ children }) {
             setActiveTheme(resolvedActive);
             setAppliedTheme(resolvedActive);
             applyTheme(resolvedActive);
+            if (user?.id) cache.setPersistent(ACTIVE_THEME_CACHE_KEY, resolvedActive);
         }).catch(() => {
             if (!mounted) return;
             const fallbackTheme = getRivenFallbackTheme();
@@ -148,12 +175,12 @@ export function ThemeProvider({ children }) {
             applyTheme(fallbackTheme);
         });
         return () => { mounted = false; };
-    }, [applyTheme, isLoggedIn]);
+    }, [applyTheme, authLoading, isLoggedIn, user?.id]);
 
     const switchTheme = useCallback(async (themeId) => {
         let activatedTheme;
         try {
-            activatedTheme = normalizeThemeForContext(await api.activateTheme(themeId));
+            activatedTheme = normalizeThemeForContext(await themeApi.activateTheme(themeId));
         } catch (error) {
             if (activeTheme) {
                 setAppliedTheme(activeTheme);
@@ -181,18 +208,19 @@ export function ThemeProvider({ children }) {
         setActiveTheme(activatedTheme);
         setAppliedTheme(activatedTheme);
         applyTheme(activatedTheme);
+        if (user?.id) cache.setPersistent(ACTIVE_THEME_CACHE_KEY, activatedTheme);
 
         return activatedTheme;
-    }, [activeTheme, applyTheme]);
+    }, [activeTheme, applyTheme, user?.id]);
 
     const addTheme = useCallback(async (themeData) => {
-        const newTheme = normalizeThemeForContext(await api.createTheme(themeData));
+        const newTheme = normalizeThemeForContext(await themeApi.createTheme(themeData));
         setThemes(prev => [...prev, newTheme]);
         return newTheme;
     }, []);
 
     const updateTheme = useCallback(async (themeId, themeData) => {
-        const updatedTheme = normalizeThemeForContext(await api.updateTheme(themeId, themeData));
+        const updatedTheme = normalizeThemeForContext(await themeApi.updateTheme(themeId, themeData));
         setThemes(prev => prev.map(t => t.id === themeId ? updatedTheme : t));
         // If this is the active theme, re-apply it
         if (activeTheme?.id === themeId) {
@@ -208,7 +236,7 @@ export function ThemeProvider({ children }) {
         if (activeTheme?.id === themeId) {
             throw new Error('Cannot delete the active theme. Switch to another theme first.');
         }
-        await api.deleteTheme(themeId);
+        await themeApi.deleteTheme(themeId);
         setThemes(prev => prev.filter(t => t.id !== themeId));
     }, [activeTheme]);
 
