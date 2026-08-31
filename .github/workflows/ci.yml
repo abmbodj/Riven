@@ -28,6 +28,10 @@ jobs:
   client:
     name: Client lint, test, build
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: ci-test-anon-key
+      VITE_ENABLE_LEGACY_AUTH_BRIDGE: "false"
     defaults:
       run:
         working-directory: client
@@ -42,11 +46,7 @@ jobs:
       - name: Lint (must be error-free)
         run: npx eslint .
       - name: Unit tests
-        # NOTE: ~31 pre-existing failures (feature/UI drift, see
-        # docs/reviews/2026-06-remediation.md). Non-blocking until that debt clears;
-        # flip to required once the suite is green.
         run: npx vitest run
-        continue-on-error: true
       - name: Build
         run: npx vite build
       - name: Enforce production performance budgets
@@ -65,3 +65,27 @@ jobs:
             client/playwright-report
       - name: Production audit (report only)
         run: npm audit --omit=dev || true
+
+  edge-functions:
+    name: Edge Function unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno test --allow-env _shared/*.test.ts
+
+  database:
+    name: Database migrations and pgTAP tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase db start
+      - run: supabase test db

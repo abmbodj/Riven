@@ -1,5 +1,10 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/dom';
 import { vi } from 'vitest';
+
+// Full-suite CI runs enough jsdom workers that lazy routes and exit animations
+// can occasionally exceed Testing Library's 1s default without being broken.
+configure({ asyncUtilTimeout: 5000 });
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

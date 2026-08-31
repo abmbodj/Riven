@@ -146,7 +146,7 @@ describe('App bootstrap smoke tests', () => {
     it('mounts the account route without showing the error boundary', async () => {
         renderAppAt('/account');
 
-        await screen.findByRole('heading', { name: 'Log in' });
+        await screen.findByRole('heading', { name: 'Log in' }, { timeout: 3000 });
 
         await waitFor(() => {
             expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();

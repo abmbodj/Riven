@@ -128,12 +128,12 @@ describe('Onboarding (activation flow)', () => {
         await waitFor(() => expect(generateDeckPreview).toHaveBeenCalledWith('Photosynthesis'));
 
         // Reveal → S4 taste
-        fireEvent.click(await screen.findByRole('button', { name: /see my cards/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /see my cards/i }, { timeout: 5000 }));
 
         // Answer 3 cards (reveal then "Got it")
         for (let i = 0; i < 3; i += 1) {
-            fireEvent.click(await screen.findByText(`Q${i + 1}`));
-            fireEvent.click(await screen.findByRole('button', { name: /got it/i }));
+            fireEvent.click(await screen.findByText(`Q${i + 1}`, undefined, { timeout: 5000 }));
+            fireEvent.click(await screen.findByRole('button', { name: /got it/i }, { timeout: 5000 }));
         }
 
         // Save (signed-in path): persists the previewed deck + marks complete, then reveals

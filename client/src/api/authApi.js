@@ -26,7 +26,6 @@ import {
 } from '../lib/examInsightSignals.js';
 import {
     DEFAULT_PUSH_PREFERENCES,
-    decodeJwtPayload,
     isJwtExpired,
     isSupabaseAccessToken,
     normalizePushPreferences,
@@ -468,12 +467,31 @@ const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false 
         return cachedToken;
     }
 
-    if (cachedToken && decodeJwtPayload(cachedToken) && !isSupabaseAccessToken(cachedToken) && !skipForceReauth) {
-        await forceReauth();
-        const error = new Error('Session expired. Please sign in again.');
-        error.code = AUTH_SESSION_EXPIRED_CODE;
-        error.status = 401;
-        throw error;
+    if (cachedToken && !isSupabaseAccessToken(cachedToken) && canAttemptSupabaseSessionBridge()) {
+        try {
+            const bridgedSession = await hydrateSupabaseSessionFromBridge();
+            if (bridgedSession?.access_token) {
+                return bridgedSession.access_token;
+            }
+
+            const error = new Error('The legacy auth bridge did not return a Supabase session.');
+            error.status = 503;
+            throw error;
+        } catch (bridgeError) {
+            if (Number(bridgeError?.status) !== 401 && Number(bridgeError?.status) !== 403) {
+                throw bridgeError;
+            }
+
+            if (!skipForceReauth) {
+                await forceReauth();
+                const error = new Error('Session expired. Please sign in again.');
+                error.code = AUTH_SESSION_EXPIRED_CODE;
+                error.status = 401;
+                throw error;
+            }
+
+            return null;
+        }
     }
 
     const accessToken = await refreshSupabaseToken().catch(() => null);

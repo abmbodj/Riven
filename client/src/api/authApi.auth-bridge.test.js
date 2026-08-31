@@ -33,8 +33,28 @@ import * as authApi from './authApi';
 
 const SUPABASE_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwic3ViIjoiYXV0aC11c2VyIiwiZXhwIjo0MTAyNDQ0ODAwfQ.sig';
 
+const encodeSegment = (value) => btoa(JSON.stringify(value))
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/g, '');
+
+const buildLegacyJwt = (payload) => [
+  encodeSegment({ alg: 'HS256', typ: 'JWT' }),
+  encodeSegment(payload),
+  'legacy-signature',
+].join('.');
+
 const buildJsonResponse = (body) => ({
   ok: true,
+  headers: {
+    get: () => 'application/json',
+  },
+  text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+});
+
+const buildErrorResponse = (status, body) => ({
+  ok: false,
+  status,
   headers: {
     get: () => 'application/json',
   },
@@ -287,6 +307,96 @@ describe('authApi Supabase auth bridge reductions', () => {
       canWatchAd: false,
       isPremium: false,
     });
+  });
+
+  it('bridges a structurally valid legacy JWT before forcing reauthentication', async () => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildJsonResponse({
+        access_token: SUPABASE_ACCESS_TOKEN,
+        refresh_token: 'refresh-token',
+      }))
+      .mockResolvedValueOnce(buildJsonResponse({
+        remaining: 7,
+        max: 10,
+        characterLimit: 15000,
+        flashcardRange: [5, 15],
+        canWatchAd: false,
+        isPremium: false,
+      }));
+
+    await expect(authApi.getAILimits()).resolves.toMatchObject({ remaining: 7 });
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/auth/supabase-token',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${legacyToken}`,
+        }),
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      3,
+      'https://supabase.test/functions/v1/ai-limits',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+        }),
+      }),
+    );
+  });
+
+  it.each([401, 403])('forces reauthentication after a %i legacy bridge rejection', async (status) => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildErrorResponse(status, { error: 'Invalid legacy token' }));
+
+    await expect(authApi.getAILimits()).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+    });
+
+    expect(authApi.getToken()).toBeNull();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the legacy session when the auth bridge returns a server error', async () => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildErrorResponse(500, { error: 'Bridge unavailable' }));
+
+    await expect(authApi.getAILimits()).rejects.toMatchObject({
+      status: 500,
+      message: 'Bridge unavailable',
+    });
+
+    expect(authApi.getToken()).toBe(legacyToken);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the legacy session when the auth bridge is temporarily unavailable', async () => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    await expect(authApi.getAILimits()).rejects.toThrow('Failed to fetch');
+
+    expect(authApi.getToken()).toBe(legacyToken);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('hydrates a missing Supabase session from a cross-origin auth bridge using the returned csrf token', async () => {

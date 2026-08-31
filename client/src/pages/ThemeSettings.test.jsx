@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ThemeSettings from './ThemeSettings.jsx';
 
@@ -454,26 +454,23 @@ describe('ThemeSettings theme studio', () => {
     expect(applyDraftThemeMock).not.toHaveBeenCalled();
 
     await waitFor(() => {
-      expect(applyDraftThemeMock.mock.calls.length).toBeGreaterThan(0);
-    });
+      expect(applyDraftThemeMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gradient_angle: 260,
+          gradient_colors: expect.arrayContaining(['#52d1c6']),
+        }),
+        expect.objectContaining({ commit: false })
+      );
+    }, { timeout: 3000 });
 
     expect(applyDraftThemeMock.mock.calls.length).toBeLessThan(8);
-    expect(applyDraftThemeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        gradient_angle: 260,
-        gradient_colors: expect.arrayContaining(['#52d1c6']),
-      }),
-      expect.objectContaining({ commit: false })
-    );
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 220));
-    });
-
-    expect(applyDraftThemeMock).toHaveBeenCalledWith(
-      expect.objectContaining({ gradient_angle: 260 }),
-      expect.objectContaining({ commit: true })
-    );
+    await waitFor(() => {
+      expect(applyDraftThemeMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gradient_angle: 260 }),
+        expect.objectContaining({ commit: true })
+      );
+    }, { timeout: 3000 });
   });
 
   it('opens editing and saves effect plus expert token overrides', async () => {

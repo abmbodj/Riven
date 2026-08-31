@@ -26,11 +26,13 @@ const dashboard = {
     ],
     weeklySummary: {
         cards_studied: 42,
-        accuracy: 86,
+        accuracy: 0.86,
         total_minutes: 55,
         daily_breakdown: Array.from({ length: 7 }, (_, index) => ({
             date: new Date(now - (6 - index) * 86400000).toISOString().slice(0, 10),
             day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index],
+            cards: index > 3 ? (index - 3) * 7 : 0,
+            minutes: index > 3 ? (index - 3) * 5 : 0,
             studied: index > 3,
             is_today: index === 6,
         })),
@@ -125,6 +127,8 @@ test('cold authenticated dashboard becomes meaningful within the release gate', 
         expect(Date.now() - startedAt).toBeLessThan(2500);
         await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
         await expect(page.getByText('Cell Biology', { exact: true }).first()).toBeVisible();
+        await expect(page.getByText('86%', { exact: true })).toBeVisible();
+        await expect(page.getByRole('listitem').filter({ hasText: '21 cards studied' })).toBeAttached();
     } finally {
         await restoreEmulation();
     }

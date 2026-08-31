@@ -1,15 +1,16 @@
 begin;
 
-do $test$
-begin
-  if pg_catalog.has_function_privilege('anon', 'public.get_dashboard_bootstrap(text)', 'execute') then
-    raise exception 'anonymous callers must not execute get_dashboard_bootstrap';
-  end if;
-  if not pg_catalog.has_function_privilege('authenticated', 'public.get_dashboard_bootstrap(text)', 'execute') then
-    raise exception 'authenticated callers must execute get_dashboard_bootstrap';
-  end if;
-end;
-$test$;
+create extension if not exists pgtap with schema extensions;
+select extensions.plan(12);
+
+select extensions.ok(
+  not pg_catalog.has_function_privilege('anon', 'public.get_dashboard_bootstrap(text)', 'execute'),
+  'anonymous callers cannot execute get_dashboard_bootstrap'
+);
+select extensions.ok(
+  pg_catalog.has_function_privilege('authenticated', 'public.get_dashboard_bootstrap(text)', 'execute'),
+  'authenticated callers can execute get_dashboard_bootstrap'
+);
 
 insert into public.users (username, email, password, supabase_auth_id)
 values
@@ -48,7 +49,6 @@ from public.users
 where username = 'dashboard_test_a';
 
 insert into public.study_sessions (
-  user_id,
   deck_id,
   cards_studied,
   cards_correct,
@@ -56,7 +56,6 @@ insert into public.study_sessions (
   created_at
 )
 select
-  u.id,
   d.id,
   3,
   2,
@@ -73,35 +72,63 @@ select pg_catalog.set_config(
 );
 set local role authenticated;
 
-do $test$
-declare
-  snapshot jsonb := public.get_dashboard_bootstrap('UTC');
-  honolulu_snapshot jsonb := public.get_dashboard_bootstrap('Pacific/Honolulu');
-begin
-  if snapshot ->> 'version' <> '1' then
-    raise exception 'snapshot version must be 1';
-  end if;
-  if jsonb_array_length(snapshot -> 'assignments') <> 1 then
-    raise exception 'snapshot must contain only current-user assignments';
-  end if;
-  if snapshot::text like '%Other user assignment%' then
-    raise exception 'snapshot leaked another user row';
-  end if;
-  if snapshot::text like '%private assignment body%'
-    or snapshot::text like '%note body%'
-    or snapshot::text like '%question body%'
-    or snapshot ? 'content'
-    or snapshot ? 'questions' then
-    raise exception 'snapshot leaked heavy content';
-  end if;
-  if (snapshot #>> '{weeklySummary,cards_studied}')::integer <> 3 then
-    raise exception 'UTC weekly summary must include the Sunday boundary session';
-  end if;
-  if (honolulu_snapshot #>> '{weeklySummary,cards_studied}')::integer <> 0 then
-    raise exception 'timezone boundary must exclude the prior local-week session';
-  end if;
-end;
-$test$;
+create temporary table dashboard_test_snapshots as
+select
+  public.get_dashboard_bootstrap('UTC') as snapshot,
+  public.get_dashboard_bootstrap('Pacific/Honolulu') as honolulu_snapshot;
+
+select extensions.is(snapshot ->> 'version', '1', 'snapshot version is 1')
+from dashboard_test_snapshots;
+select extensions.is(
+  jsonb_array_length(snapshot -> 'assignments'),
+  1,
+  'snapshot contains only the current user assignment'
+)
+from dashboard_test_snapshots;
+select extensions.ok(
+  snapshot::text not like '%Other user assignment%',
+  'snapshot does not leak another user row'
+)
+from dashboard_test_snapshots;
+select extensions.ok(
+  snapshot::text not like '%private assignment body%'
+    and snapshot::text not like '%note body%'
+    and snapshot::text not like '%question body%'
+    and snapshot::text not like '%"content":%'
+    and snapshot::text not like '%"questions":%',
+  'snapshot excludes heavy content fields'
+)
+from dashboard_test_snapshots;
+select extensions.is(
+  (snapshot #>> '{weeklySummary,cards_studied}')::integer,
+  3,
+  'UTC summary includes the deck-owned Sunday boundary session'
+)
+from dashboard_test_snapshots;
+select extensions.is(
+  (snapshot #>> '{weeklySummary,accuracy}')::numeric,
+  0.6667::numeric,
+  'weekly accuracy is a 0-to-1 ratio'
+)
+from dashboard_test_snapshots;
+select extensions.is(
+  (snapshot #>> '{weeklySummary,daily_breakdown,0,cards}')::integer,
+  3,
+  'daily breakdown exposes card totals'
+)
+from dashboard_test_snapshots;
+select extensions.is(
+  (snapshot #>> '{weeklySummary,daily_breakdown,0,minutes}')::integer,
+  3,
+  'daily breakdown exposes minute totals'
+)
+from dashboard_test_snapshots;
+select extensions.is(
+  (honolulu_snapshot #>> '{weeklySummary,cards_studied}')::integer,
+  0,
+  'timezone boundary excludes the prior local-week session'
+)
+from dashboard_test_snapshots;
 
 reset role;
 
@@ -112,17 +139,15 @@ select pg_catalog.set_config(
 );
 set local role authenticated;
 
-do $test$
-declare
-  snapshot jsonb := public.get_dashboard_bootstrap('UTC');
-begin
-  if snapshot -> 'assignments' <> '[]'::jsonb
-    or snapshot -> 'classes' <> '[]'::jsonb
-    or snapshot -> 'recentDecks' <> '[]'::jsonb
-    or snapshot -> 'recentStudyItems' <> '[]'::jsonb then
-    raise exception 'new users must receive empty arrays';
-  end if;
-end;
-$test$;
+select extensions.ok(
+  snapshot -> 'assignments' = '[]'::jsonb
+    and snapshot -> 'classes' = '[]'::jsonb
+    and snapshot -> 'recentDecks' = '[]'::jsonb
+    and snapshot -> 'recentStudyItems' = '[]'::jsonb,
+  'new users receive empty arrays'
+)
+from (select public.get_dashboard_bootstrap('UTC') as snapshot) as new_user;
+
+select * from extensions.finish();
 
 rollback;

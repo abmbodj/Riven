@@ -422,11 +422,11 @@ describe('NoteEditor', () => {
     await waitFor(() => {
       expect(recorderMock.reset).toHaveBeenCalledTimes(1);
       expect(recorderMock.setAudioPath).toHaveBeenCalledWith(null);
+      expect(screen.queryByText(/lecture captured - enhance your notes/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
     });
 
     expect(api.deleteNoteAudio).not.toHaveBeenCalled();
-    expect(screen.queryByText(/lecture captured - enhance your notes/i)).not.toBeInTheDocument();
-    expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
   });
 
   it('deletes uploaded note audio when discarding from the enhancement error banner', async () => {
