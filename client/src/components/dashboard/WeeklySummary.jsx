@@ -1,6 +1,5 @@
-import React, { useEffect, useId, useMemo, useRef } from 'react';
+import React, { useId, useMemo } from 'react';
 import { CalendarDays, Clock3, Target, TrendingUp } from 'lucide-react';
-import { animateCounter, EASE } from '../../utils/animations';
 
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 92;
@@ -88,9 +87,9 @@ function WeeklySummarySkeleton() {
     return (
         <section
             aria-label="Loading weekly summary"
-            className="glass-panel-premium gsap-section min-h-[208px] rounded-[28px] p-5 sm:p-6"
+            className="glass-panel-premium min-h-[208px] rounded-[28px] p-5 sm:p-6"
         >
-            <div className="mb-5 flex items-center justify-between gap-4">
+            <div className="mb-5 flex items-center justify-between gap-4" data-section-reveal-target="true">
                 <div>
                     <div className="h-3 w-16 animate-pulse rounded bg-claude-border/60" />
                     <div className="mt-3 h-6 w-28 animate-pulse rounded bg-claude-border/50" />
@@ -127,10 +126,7 @@ export default function WeeklySummary({
     summary,
     loading,
     dueThisWeekCount = 0,
-    reducedMotion = false,
-    lowVisualBudget = false,
 }) {
-    const metricRefs = useRef({});
     const gradientBaseId = useId().replace(/:/g, '');
     const areaGradientId = `${gradientBaseId}-area`;
 
@@ -170,39 +166,6 @@ export default function WeeklySummary({
         [summary],
     );
 
-    useEffect(() => {
-        if (!summary || loading) return undefined;
-
-        const animations = [];
-
-        metrics.forEach((metric) => {
-            const el = metricRefs.current[metric.id];
-            if (!el) return;
-
-            if (metric.id === 'accuracy' && summary.accuracy == null) {
-                el.textContent = '--';
-                return;
-            }
-
-            const finalText = metric.formatter(metric.value);
-            if (reducedMotion || lowVisualBudget) {
-                el.textContent = String(finalText);
-                return;
-            }
-
-            el.textContent = metric.formatter(0);
-            animations.push(animateCounter(el, metric.value, {
-                duration: 0.6,
-                ease: EASE.reveal,
-                formatter: metric.formatter,
-            }));
-        });
-
-        return () => {
-            animations.forEach((animation) => animation?.kill?.());
-        };
-    }, [summary, loading, reducedMotion, lowVisualBudget, metrics]);
-
     if (loading || !summary) {
         return <WeeklySummarySkeleton />;
     }
@@ -210,10 +173,10 @@ export default function WeeklySummary({
     return (
         <section
             aria-labelledby="weekly-summary-heading"
-            className="glass-panel-premium gsap-section rounded-[28px] p-5 sm:p-6"
+            className="glass-panel-premium rounded-[28px] p-5 sm:p-6"
             data-testid="weekly-summary"
         >
-            <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="mb-5 flex items-start justify-between gap-4" data-section-reveal-target="true">
                 <div>
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.26em] text-claude-secondary">
                         This Week
@@ -242,9 +205,6 @@ export default function WeeklySummary({
                                 <Icon className={`h-3.5 w-3.5 ${metric.accent}`} />
                             </div>
                             <p
-                                ref={(node) => {
-                                    metricRefs.current[metric.id] = node;
-                                }}
                                 className={`mt-3 font-display text-2xl font-bold leading-none ${metric.accent}`}
                                 aria-hidden="true"
                             >

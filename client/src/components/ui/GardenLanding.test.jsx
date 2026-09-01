@@ -45,15 +45,15 @@ describe('GardenLanding', () => {
         );
 
         expect(getByText('After the garden opens')).toBeInTheDocument();
-        expect(getByText('Screenshot slots for the real study flow.')).toBeInTheDocument();
+        expect(getByText('Four surfaces, one connected system.')).toBeInTheDocument();
         expect(getByText('From raw material to the next session in three moves.')).toBeInTheDocument();
         expect(getByText('Start free, then stay when the rhythm clicks.')).toBeInTheDocument();
 
         expect(getAllByRole('img')).toHaveLength(4);
         expect(getByRole('img', {
-            name: 'Notes screenshot placeholder for /landing/riven-notes.png',
+            name: 'Notes screenshot placeholder — add /landing/riven-notes.png',
         })).toBeInTheDocument();
-        expect(getAllByText('Add the real capture at')).toHaveLength(4);
+        expect(getAllByText('Screenshot coming')).toHaveLength(4);
         expect(getByText('/landing/riven-notes.png')).toBeInTheDocument();
 
         expect(getByText('Seedling')).toBeInTheDocument();

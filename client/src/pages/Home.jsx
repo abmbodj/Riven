@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Link } from 'react-router-dom';
 import {
     ArrowRight,
     BookOpen,
@@ -17,27 +17,29 @@ import {
 import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
-import { useStreak } from '../hooks/useStreak';
 import HeartsDisplay from '../components/ui/HeartsDisplay';
 import AIGenDisplay from '../components/ui/AIGenDisplay';
-import PricingModal from '../components/ui/PricingModal';
-import { PageLoader } from '../components/ui/PageLoader.jsx';
-import GardenLanding from '../components/ui/GardenLanding';
 import PriorityItems from '../components/dashboard/PriorityItems.jsx';
 import WeeklySummary from '../components/dashboard/WeeklySummary.jsx';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../hooks/useGSAP';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
-import { EASE, DURATION, STAGGER, animateCounter, breathe } from '../utils/animations';
+import { EASE, DURATION } from '../utils/animations';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
 import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
 import { xpProgress as getXpProgress } from '../utils/leveling';
+import { cache } from '../utils/cache.js';
+import {
+    DASHBOARD_CACHE_KEY,
+    loadDashboardSnapshot,
+    updateCachedAssignment,
+} from '../performance/dashboardSnapshot.js';
+import { markRouteReady, reportPerformanceEvent } from '../performance/performanceReporter.js';
+import { getDevE2EFixtures } from '../testing/e2eFixtures.js';
 
-
-gsap.registerPlugin(ScrollTrigger);
 
 const REDUCED_MOTION_MQ = '(prefers-reduced-motion: reduce)';
+const PricingModal = lazy(() => import('../components/ui/PricingModal.jsx'));
 
 function subscribeReducedMotion(cb) {
     if (typeof window === 'undefined') return () => {};
@@ -48,6 +50,58 @@ function subscribeReducedMotion(cb) {
 function getReducedMotionSnapshot() {
     if (typeof window === 'undefined') return false;
     return window.matchMedia(REDUCED_MOTION_MQ).matches;
+}
+
+function SectionReveal({ children, reducedMotion, constrained, className = '' }) {
+    const sectionRef = useRef(null);
+    const motionDisabled = reducedMotion || constrained;
+
+    useEffect(() => {
+        const element = sectionRef.current;
+        const target = element?.querySelector('[data-section-reveal-target="true"]');
+        if (!element || motionDisabled) {
+            return undefined;
+        }
+        if (!target || typeof IntersectionObserver === 'undefined') {
+            element.dataset.sectionReveal = 'ready';
+            return undefined;
+        }
+
+        let animation = null;
+        const observer = new IntersectionObserver((entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) return;
+            observer.disconnect();
+            animation = target.animate([
+                { opacity: 0, transform: 'translate3d(0, 10px, 0)' },
+                { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+            ], {
+                duration: 260,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                fill: 'both',
+            });
+            void animation.finished.then(() => {
+                element.dataset.sectionReveal = 'ready';
+                animation?.cancel();
+                animation = null;
+            }).catch(() => {});
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+
+        observer.observe(element);
+        return () => {
+            observer.disconnect();
+            animation?.cancel();
+        };
+    }, [motionDisabled]);
+
+    return (
+        <div
+            ref={sectionRef}
+            className={className}
+            data-section-reveal={motionDisabled ? 'static' : 'pending'}
+        >
+            {children}
+        </div>
+    );
 }
 
 function getRelativeDueLabel(dueValue, now = new Date()) {
@@ -225,10 +279,10 @@ function ActivityStreakCard({ streak, weeklySummary, loading }) {
     return (
         <Link
             to="/garden"
-            className="glass-panel-premium gsap-section tap-action block rounded-[28px] p-5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 sm:p-6"
+            className="glass-panel-premium tap-action block rounded-[28px] p-5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 sm:p-6"
             data-testid="streak-activity-card"
         >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4" data-section-reveal-target="true">
                 <div>
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.26em] text-claude-secondary">
                         Study Rhythm
@@ -287,9 +341,9 @@ function StudyCoachCard({ coach }) {
     return (
         <section
             data-testid="study-coach-card"
-            className="gsap-section glass-panel-premium rounded-[28px] p-5 sm:p-6"
+            className="glass-panel-premium rounded-[28px] p-5 sm:p-6"
         >
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3" data-section-reveal-target="true">
                 <div>
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-accent">
                         River Snapshot
@@ -395,41 +449,134 @@ function StudyCoachCard({ coach }) {
     );
 }
 
-export default function Home({ mode = 'landing' }) {
-    const { isLoggedIn, loading } = useAuth();
+function normalizeSnapshot(snapshot) {
+    const recentStudyItems = (snapshot?.recentStudyItems || []).map((item) => {
+        const type = item.type || item._type || 'note';
+        return {
+            ...item,
+            _type: type,
+            _date: item.activityAt || item._date || item.created_at,
+            _route: type === 'flashcard'
+                ? `/deck/${item.id}`
+                : type === 'guide'
+                    ? `/guide/${item.id}`
+                    : type === 'exam'
+                        ? `/exam/${item.id}`
+                        : `/note/${item.id}`,
+        };
+    });
 
-    if (loading) {
-        return <PageLoader />;
-    }
+    const streakSummary = snapshot?.streakSummary || {};
+    const lastStudyDate = streakSummary.lastStudyDate
+        ? new Date(streakSummary.lastStudyDate)
+        : null;
+    const hoursSinceStudy = lastStudyDate && !Number.isNaN(lastStudyDate.getTime())
+        ? (Date.now() - lastStudyDate.getTime()) / (60 * 60 * 1000)
+        : Number.POSITIVE_INFINITY;
+    const currentStreak = Number(streakSummary.currentStreak || 0);
 
-    if (mode === 'dashboard') {
-        return isLoggedIn ? <DashboardHome /> : <Navigate to="/account" replace />;
-    }
+    return {
+        assignments: snapshot?.assignments || [],
+        classes: snapshot?.classes || [],
+        archivedClassCount: Number(snapshot?.archivedClassCount || 0),
+        decks: snapshot?.recentDecks || [],
+        recentStudyItems,
+        counts: {
+            decks: Number(snapshot?.counts?.decks || 0),
+            notes: Number(snapshot?.counts?.notes || 0),
+            guides: Number(snapshot?.counts?.guides || 0),
+            exams: Number(snapshot?.counts?.exams || 0),
+        },
+        weeklySummary: snapshot?.weeklySummary || null,
+        streakSummary: {
+            currentStreak,
+            longestStreak: Number(streakSummary.longestStreak || 0),
+            lastStudyDate: streakSummary.lastStudyDate || null,
+            status: currentStreak <= 0 || hoursSinceStudy >= 48
+                ? 'broken'
+                : hoursSinceStudy >= 24
+                    ? 'at-risk'
+                    : 'active',
+        },
+    };
+}
 
-    if (isLoggedIn) {
-        return <Navigate to="/dashboard" replace />;
-    }
+async function loadLegacyDashboardSnapshot(timeZone) {
+    const [assignData, decksData, classesData, notesData, guidesData, examsData, weeklySummary] = await Promise.all([
+        api.getAssignments().catch(() => []),
+        api.getDecks().catch(() => []),
+        api.getClasses().catch(() => []),
+        api.getNotes().catch(() => []),
+        api.getStudyGuides().catch(() => []),
+        api.getMockExams().catch(() => []),
+        api.getWeeklySummary(timeZone).catch(() => ({
+            cards_studied: 0,
+            accuracy: null,
+            total_minutes: 0,
+            daily_breakdown: getLast7DayFallback(),
+        })),
+    ]);
+    const activeClassIds = new Set((classesData || [])
+        .filter((classItem) => !classItem.is_archived)
+        .map((classItem) => classItem.id));
+    const activeClasses = (classesData || []).filter((classItem) => !classItem.is_archived);
+    const assignments = (assignData || []).filter((assignment) => (
+        assignment.status !== 'Archived'
+        && (!assignment.class_id || activeClassIds.has(assignment.class_id))
+    ));
+    const typedItems = [
+        ...(decksData || []).map((item) => ({ ...item, type: 'flashcard', activityAt: item.last_studied || item.created_at })),
+        ...(notesData || []).map((item) => ({ ...item, type: 'note', activityAt: item.updated_at || item.created_at })),
+        ...(guidesData || []).map((item) => ({ ...item, type: 'guide', activityAt: item.updated_at || item.created_at })),
+        ...(examsData || []).map((item) => ({ ...item, type: 'exam', activityAt: item.created_at })),
+    ].sort((left, right) => new Date(right.activityAt) - new Date(left.activityAt)).slice(0, 4);
 
-    return <GardenLanding />;
+    return {
+        version: 1,
+        generatedAt: new Date().toISOString(),
+        assignments,
+        classes: activeClasses,
+        archivedClassCount: Math.max(0, (classesData || []).length - activeClasses.length),
+        counts: {
+            decks: decksData?.length || 0,
+            notes: notesData?.length || 0,
+            guides: guidesData?.length || 0,
+            exams: examsData?.length || 0,
+        },
+        recentDecks: (decksData || []).slice(0, 4),
+        recentStudyItems: typedItems,
+        weeklySummary,
+        streakSummary: {},
+    };
+}
+
+export default function Home() {
+    return <DashboardHome />;
 }
 
 function DashboardHome() {
     const { user } = useAuth();
     const toast = useToast();
-    const streak = useStreak();
     const pageRef = useRef(null);
 
-    const [loading, setLoading] = useState(true);
-    const [assignments, setAssignments] = useState([]);
-    const [decks, setDecks] = useState([]);
-    const [classes, setClasses] = useState([]);
-    const [archivedClassCount, setArchivedClassCount] = useState(0);
-    const [notes, setNotes] = useState([]);
-    const [guides, setGuides] = useState([]);
-    const [exams, setExams] = useState([]);
+    const initialSnapshot = useMemo(() => {
+        if (!user?.id) return null;
+        cache.ensureUser(user.id);
+        return cache.peek(DASHBOARD_CACHE_KEY);
+    }, [user?.id]);
+    const initialData = useMemo(() => normalizeSnapshot(initialSnapshot), [initialSnapshot]);
+    const [loading, setLoading] = useState(!initialSnapshot);
+    const [assignments, setAssignments] = useState(initialData.assignments);
+    const [decks, setDecks] = useState(initialData.decks);
+    const [classes, setClasses] = useState(initialData.classes);
+    const [archivedClassCount, setArchivedClassCount] = useState(initialData.archivedClassCount);
+    const [resourceCounts, setResourceCounts] = useState(initialData.counts);
+    const [snapshotRecentItems, setSnapshotRecentItems] = useState(initialData.recentStudyItems);
     const [studyCoach, setStudyCoach] = useState(null);
-    const [weeklySummary, setWeeklySummary] = useState(null);
-    const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(true);
+    const [weeklySummary, setWeeklySummary] = useState(initialData.weeklySummary);
+    const [streak, setStreak] = useState(initialData.streakSummary);
+    const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(!initialData.weeklySummary);
+    const [dashboardStale, setDashboardStale] = useState(false);
     const [pricingOpen, setPricingOpen] = useState(false);
     const [completingAssignmentIds, setCompletingAssignmentIds] = useState([]);
     const lightVisualBudget = useMobileVisualBudget();
@@ -443,165 +590,97 @@ function DashboardHome() {
         if (loading || !pageRef.current || reducedMotion) return;
 
         const ctx = gsap.context(() => {
-            // Hero rows stagger in
-            gsap.from('.gsap-hero-row', {
+            // The hero owns one short compositor animation. Animating each row
+            // separately forces the enclosing glass surface to recomposite for
+            // the full stagger window and makes first-scroll input feel choppy.
+            gsap.from('.gsap-hero-content', {
                 y: 18,
                 opacity: 0,
-                duration: DURATION.slow,
-                stagger: STAGGER.relaxed,
+                duration: DURATION.normal,
                 ease: EASE.reveal
             });
 
-            // Stat counter animation
-            const statEls = pageRef.current.querySelectorAll('[data-stat-value]');
-            statEls.forEach((el) => {
-                const target = Number(el.dataset.statValue);
-                if (target > 0) {
-                    animateCounter(el, target, { duration: 1.2, ease: EASE.organic });
-                }
-            });
-
-            // Breathe animation for at-risk streak
-            const streakLeaf = pageRef.current.querySelector('.streak-leaf-icon');
-            if (streakLeaf) {
-                breathe(streakLeaf, { scale: 1.15, duration: 2.5 });
-            }
-
-            // Class pills slide in
-            const classPills = gsap.utils.toArray('.gsap-class-pill');
-            if (classPills.length) {
-                gsap.from(classPills, {
-                    x: 30,
-                    opacity: 0,
-                    duration: DURATION.normal,
-                    stagger: STAGGER.tight,
-                    ease: EASE.organic,
-                    delay: 0.25
-                });
-            }
-
-            // Scroll-triggered sections (skip ScrollTrigger on mobile — lighter main thread during scroll)
-            if (lightVisualBudget) {
-                gsap.from('.gsap-section', {
-                    y: 20,
-                    opacity: 0,
-                    duration: DURATION.normal,
-                    stagger: STAGGER.tight,
-                    ease: EASE.reveal,
-                    delay: 0.2,
-                    clearProps: 'opacity,transform',
-                });
-            } else {
-                gsap.utils.toArray('.gsap-section').forEach((section) => {
-                    gsap.from(section, {
-                        y: 30,
-                        opacity: 0,
-                        duration: DURATION.slow,
-                        ease: EASE.reveal,
-                        clearProps: 'opacity,transform',
-                        scrollTrigger: {
-                            trigger: section,
-                            start: 'top 88%',
-                            toggleActions: 'play none none none',
-                        },
-                    });
-                });
-            }
-
-            // Deck cards scale in
-            gsap.from('.gsap-deck-card', {
-                scale: 0.92,
-                opacity: 0,
-                duration: DURATION.slow,
-                stagger: STAGGER.normal,
-                ease: EASE.spring,
-                delay: 0.15
-            });
         }, pageRef.current);
 
         return () => ctx.revert();
     }, [loading, lightVisualBudget, reducedMotion]);
 
-    useEffect(() => {
-        const loadDashboard = async () => {
-            try {
-                const [assignData, decksData, classesData, notesData, guidesData, coachData, examsData] = await Promise.all([
-                    api.getAssignments().catch(() => []),
-                    api.getDecks().catch(() => []),
-                    api.getClasses().catch(() => []),
-                    api.getNotes().catch(() => []),
-                    api.getStudyGuides().catch(() => []),
-                    api.getStudyCoach().catch(() => null),
-                    api.getMockExams().catch(() => []),
-                ]);
-                const activeClassIds = new Set((classesData || [])
-                    .filter((classItem) => !classItem.is_archived)
-                    .map((classItem) => classItem.id));
-                const activeClasses = (classesData || []).filter((classItem) => !classItem.is_archived);
-                const visibleAssignments = (assignData || []).filter((assignment) => (
-                    assignment.status !== 'Archived'
-                    && (!assignment.class_id || activeClassIds.has(assignment.class_id))
-                ));
+    const applySnapshot = useCallback((snapshot, { cacheState = 'none' } = {}) => {
+        const normalized = normalizeSnapshot(snapshot);
+        setAssignments(normalized.assignments);
+        setDecks(normalized.decks);
+        setClasses(normalized.classes);
+        setArchivedClassCount(normalized.archivedClassCount);
+        setResourceCounts(normalized.counts);
+        setSnapshotRecentItems(normalized.recentStudyItems);
+        setWeeklySummary(normalized.weeklySummary);
+        setStreak(normalized.streakSummary);
+        setWeeklySummaryLoading(false);
+        setLoading(false);
+        markRouteReady({ pathname: '/dashboard', cacheState });
 
-                setAssignments(visibleAssignments);
-                setDecks(decksData || []);
-                setClasses(activeClasses);
-                setArchivedClassCount(Math.max(0, (classesData || []).length - activeClasses.length));
-                setNotes(notesData || []);
-                setGuides(guidesData || []);
-                setStudyCoach(coachData || null);
-                setExams(examsData || []);
-
-                // Schedule local notifications for assignments
-                if (assignData) {
-                    const saved = localStorage.getItem('notifications_enabled');
-                    const notificationsEnabled = saved === null ? true : saved === 'true';
-                    scheduleAssignmentNotifications(assignData, notificationsEnabled);
-                }
-
-            } catch (err) {
-                console.error('Dashboard load error', err);
-                toast.error('Failed to load dashboard data');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadDashboard();
-    }, [toast]);
+        const saved = localStorage.getItem('notifications_enabled');
+        const notificationsEnabled = saved === null ? true : saved === 'true';
+        scheduleAssignmentNotifications(normalized.assignments, notificationsEnabled);
+    }, []);
 
     useEffect(() => {
+        if (!user?.id) return undefined;
         let active = true;
+        const startedAt = performance.now();
+        const e2eFixtures = getDevE2EFixtures();
+        const fetchSnapshot = e2eFixtures?.dashboard
+            ? () => new Promise((resolve) => {
+                window.setTimeout(() => resolve(e2eFixtures.dashboard), e2eFixtures.dashboardDelayMs || 0);
+            })
+            : () => api.getDashboardBootstrap(timeZone);
 
-        const loadWeeklySummary = async () => {
-            setWeeklySummaryLoading(true);
-            try {
-                const summary = await api.getWeeklySummary(timeZone);
-                if (active) {
-                    setWeeklySummary(summary);
-                }
-            } catch (error) {
-                console.error('Weekly summary load error', error);
-                if (active) {
-                    setWeeklySummary({
-                        cards_studied: 0,
-                        accuracy: null,
-                        total_minutes: 0,
-                        daily_breakdown: getLast7DayFallback(),
-                    });
-                }
-            } finally {
-                if (active) {
-                    setWeeklySummaryLoading(false);
-                }
-            }
-        };
+        void loadDashboardSnapshot({
+            cache,
+            fetchSnapshot,
+            fallbackFetch: () => loadLegacyDashboardSnapshot(timeZone),
+            onSnapshot: (snapshot, meta) => {
+                if (active) applySnapshot(snapshot, meta);
+            },
+        }).then((result) => {
+            if (!active) return;
+            setDashboardStale(result.stale);
+            reportPerformanceEvent({
+                name: 'dashboard-data',
+                value: performance.now() - startedAt,
+                unit: 'ms',
+                rating: performance.now() - startedAt <= 2500 ? 'good' : 'poor',
+                pathname: '/dashboard',
+                cacheState: result.cacheState,
+            });
+        }).catch((error) => {
+            if (!active) return;
+            console.error('Dashboard load error', error);
+            toast.error('Failed to load dashboard data');
+            setLoading(false);
+        });
 
-        loadWeeklySummary();
         return () => {
             active = false;
         };
-    }, [timeZone]);
+    }, [applySnapshot, timeZone, toast, user?.id]);
+
+    useEffect(() => {
+        if (loading) return undefined;
+        const fixtureCoach = getDevE2EFixtures()?.studyCoach;
+        let active = true;
+        const coachRequest = fixtureCoach
+            ? Promise.resolve(fixtureCoach)
+            : api.getStudyCoach();
+        void coachRequest
+            .then((coach) => {
+                if (active) setStudyCoach(coach || null);
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, [loading]);
 
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
@@ -641,37 +720,7 @@ function DashboardHome() {
         [decks]
     );
 
-    const recentStudyItems = useMemo(() => {
-        const typed = [
-            ...decks.map((d) => ({
-                ...d,
-                _type: 'flashcard',
-                _date: d.last_studied || d.created_at,
-                _route: `/deck/${d.id}`,
-            })),
-            ...notes.map((n) => ({
-                ...n,
-                _type: 'note',
-                _date: n.updated_at || n.created_at,
-                _route: `/note/${n.id}`,
-            })),
-            ...guides.map((g) => ({
-                ...g,
-                _type: 'guide',
-                _date: g.updated_at || g.created_at,
-                _route: `/guide/${g.id}`,
-            })),
-            ...exams.map((e) => ({
-                ...e,
-                _type: 'exam',
-                _date: e.created_at,
-                _route: `/exam/${e.id}`,
-            })),
-        ];
-        return typed
-            .sort((a, b) => new Date(b._date) - new Date(a._date))
-            .slice(0, 4);
-    }, [decks, notes, guides, exams]);
+    const recentStudyItems = snapshotRecentItems;
 
     const classesById = useMemo(() => new Map(classes.map((classItem) => [classItem.id, classItem])), [classes]);
     const rescheduleDashboardAssignmentNotifications = (nextAssignments) => {
@@ -696,6 +745,7 @@ function DashboardHome() {
 
         setCompletingAssignmentIds((current) => [...current, assignmentId]);
         setAssignments(nextAssignments);
+        updateCachedAssignment(cache, assignmentId, { status: 'Done' });
         rescheduleDashboardAssignmentNotifications(nextAssignments);
 
         try {
@@ -704,6 +754,7 @@ function DashboardHome() {
         } catch (error) {
             console.error('Priority completion error', error);
             setAssignments(previousAssignments);
+            updateCachedAssignment(cache, assignmentId, { status: previousAssignments.find((item) => item.id === assignmentId)?.status });
             rescheduleDashboardAssignmentNotifications(previousAssignments);
             toast.error('Failed to mark assignment complete');
         } finally {
@@ -880,9 +931,9 @@ function DashboardHome() {
     const stats = useMemo(() => ([
         { label: 'Up Next', value: upcomingAssignments.length },
         { label: 'Past Due', value: pastDueAssignments.length, tone: 'danger' },
-        { label: 'Decks', value: decks.length },
+        { label: 'Decks', value: resourceCounts.decks },
         { label: 'Classes', value: classes.length }
-    ]), [upcomingAssignments.length, pastDueAssignments.length, decks.length, classes.length]);
+    ]), [upcomingAssignments.length, pastDueAssignments.length, resourceCounts.decks, classes.length]);
 
     if (loading) {
         return (
@@ -934,7 +985,12 @@ function DashboardHome() {
     }
 
     return (
-        <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
+        <div ref={pageRef} data-dashboard-ready="true" className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
+            {dashboardStale ? (
+                <div role="status" className="mb-3 text-right font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
+                    Showing saved dashboard · refresh pending
+                </div>
+            ) : null}
             {/* ZONE A — Command Surface */}
             <div className="gsap-hero glass-panel-premium relative mb-6 overflow-hidden rounded-[34px] p-5 sm:mb-8 sm:p-6 lg:p-7">
                 <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('/textures/paper-fibers.png')]" />
@@ -942,7 +998,7 @@ function DashboardHome() {
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/[0.02] to-transparent" />
 
                 {/* Hero inner: 2-col on lg+ */}
-                <div className="relative z-10 lg:grid lg:grid-cols-[1fr_280px] lg:gap-6 xl:grid-cols-[1fr_320px]">
+                <div className="gsap-hero-content relative z-10 lg:grid lg:grid-cols-[1fr_280px] lg:gap-6 xl:grid-cols-[1fr_320px]">
                     {/* LEFT — Identity + CTA */}
                     <div className="min-w-0">
                         {/* Meta row */}
@@ -1131,28 +1187,38 @@ function DashboardHome() {
             {/* ZONE B — Work Surface */}
             <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-6">
                 <div className="order-1 space-y-6">
-                    <StudyCoachCard coach={studyCoach} />
-                    <ActivityStreakCard
-                        streak={streak}
-                        weeklySummary={weeklySummary}
-                        loading={weeklySummaryLoading}
-                    />
-                    <WeeklySummary
-                        summary={weeklySummary}
-                        loading={weeklySummaryLoading}
-                        dueThisWeekCount={dueThisWeekCount}
-                        reducedMotion={reducedMotion}
-                        lowVisualBudget={lightVisualBudget}
-                    />
+                    {studyCoach ? (
+                        <SectionReveal reducedMotion={reducedMotion} constrained={lightVisualBudget}>
+                            <StudyCoachCard coach={studyCoach} />
+                        </SectionReveal>
+                    ) : null}
+                    <SectionReveal reducedMotion={reducedMotion} constrained={lightVisualBudget}>
+                        <ActivityStreakCard
+                            streak={streak}
+                            weeklySummary={weeklySummary}
+                            loading={weeklySummaryLoading}
+                        />
+                    </SectionReveal>
+                    <SectionReveal reducedMotion={reducedMotion} constrained={lightVisualBudget}>
+                        <WeeklySummary
+                            summary={weeklySummary}
+                            loading={weeklySummaryLoading}
+                            dueThisWeekCount={dueThisWeekCount}
+                        />
+                    </SectionReveal>
                 </div>
 
-                <div className="order-2 lg:row-span-2">
+                <SectionReveal
+                    reducedMotion={reducedMotion}
+                    constrained={lightVisualBudget}
+                    className="order-2 lg:row-span-2"
+                >
                     <PriorityItems
                         items={priorityItems}
                         onComplete={handleCompletePriorityItem}
                         completingIds={completingAssignmentIds}
                     />
-                </div>
+                </SectionReveal>
 
                 <div className="order-3">
                     <SectionHeading icon={Clock} title="Recently Visited" to="/notes" />
@@ -1222,11 +1288,15 @@ function DashboardHome() {
                 </div>
             </div>
 
-            <PricingModal
-                isOpen={pricingOpen}
-                onClose={() => setPricingOpen(false)}
-                currentTier={user?.subscription_tier || 'free'}
-            />
+            {pricingOpen ? (
+                <Suspense fallback={null}>
+                    <PricingModal
+                        isOpen
+                        onClose={() => setPricingOpen(false)}
+                        currentTier={user?.subscription_tier || 'free'}
+                    />
+                </Suspense>
+            ) : null}
         </div>
     );
 }

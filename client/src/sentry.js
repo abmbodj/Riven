@@ -38,3 +38,27 @@ export function captureException(error, context) {
             Sentry.captureException(error, context);
         });
 }
+
+export function recordPerformanceTrace(event) {
+    if (!event || !import.meta.env.PROD || !import.meta.env.VITE_SENTRY_DSN) return;
+
+    void initClientSentry()
+        .then(() => loadSentry())
+        .then((Sentry) => {
+            Sentry.startSpan({
+                name: `performance.${event.name}`,
+                op: 'ui.performance',
+                attributes: {
+                    'riven.route_template': event.routeTemplate,
+                    'riven.cache_state': event.cacheState,
+                    'riven.release': event.release,
+                    'riven.visual_budget': event.visualBudget,
+                    'riven.browser_class': event.browserClass,
+                    'riven.rating': event.rating,
+                    'riven.value': event.value,
+                    'riven.unit': event.unit,
+                },
+            }, () => {});
+        })
+        .catch(() => {});
+}

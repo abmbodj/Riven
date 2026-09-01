@@ -18,12 +18,15 @@ describe('client auth bridge guard', () => {
       '2fa/login',
       '2fa/setup',
       '2fa/verify',
+      'account',
+      'forgot-password',
       'login',
       'me',
       'oauth/apple',
       'oauth/google',
       'register',
       'supabase-token',
+      'verify-email',
     ]);
   });
 });

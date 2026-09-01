@@ -57,6 +57,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: sentrySourceMapsEnabled,
+    manifest: true,
     // Optimize chunk splitting for faster initial load
     cssCodeSplit: true,
     // esbuild minify (default, ~10x faster than terser)

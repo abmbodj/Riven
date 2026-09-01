@@ -118,7 +118,7 @@ function escapeHtml(value = '') {
 const WELCOME_EMAIL_SUBJECT = 'Welcome to Riven';
 
 function buildWelcomeEmailHtml(username, baseUrl) {
-    const appUrl = baseUrl || 'https://riven.rocks';
+    const appUrl = baseUrl || 'https://www.riven.rocks';
     const safeUsername = escapeHtml(username);
 
     return emailShell(`

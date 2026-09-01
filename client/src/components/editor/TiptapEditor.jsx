@@ -162,23 +162,31 @@ function TiptapEditorInner({ content, onUpdate, editable = true, placeholder = '
     });
 
     useEffect(() => {
+        let cancelled = false;
         if (editor && normalizedContent && !editor.isFocused) {
             const currentJson = JSON.stringify(editor.getJSON());
             const newJson = JSON.stringify(normalizedContent);
             if (currentJson !== newJson) {
+                let nextFallback = null;
                 try {
                     editor.commands.setContent(normalizedContent, { emitUpdate: false });
-                    setFallbackContent(null);
                 } catch {
-                    setFallbackContent(normalizedContent);
+                    nextFallback = normalizedContent;
                     try {
                         editor.commands.setContent(EMPTY_RICH_TEXT_DOC, { emitUpdate: false });
                     } catch {
                         // The local fallback below keeps the note page usable.
                     }
                 }
+                queueMicrotask(() => {
+                    if (!cancelled) setFallbackContent(nextFallback);
+                });
             }
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [normalizedContent, editor]);
 
     useEffect(() => {

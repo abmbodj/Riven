@@ -1,0 +1,12 @@
+project_id = "riven-dashboard-bootstrap-tests"
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = false
+
+[db.seed]
+enabled = false

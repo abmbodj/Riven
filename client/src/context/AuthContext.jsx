@@ -5,6 +5,7 @@ import { clearOnboardingDoneClient, markOnboardingDoneClient } from '../utils/on
 import { getStoredPushInstallationId } from '../utils/pushNotifications.js';
 import { cache } from '../utils/cache';
 import { AuthContext, AuthActionsContext, AuthStatusContext } from './authContextDef';
+import { getDevE2EFixtures } from '../testing/e2eFixtures.js';
 
 // Re-export for convenience
 export { AuthContext, AuthActionsContext, AuthStatusContext };
@@ -34,6 +35,15 @@ export function AuthProvider({ children }) {
     // Initial Session Check
     useEffect(() => {
         const initAuth = async () => {
+            const e2eUser = getDevE2EFixtures()?.user;
+            if (e2eUser?.id) {
+                authApi.setToken('e2e-authenticated-session');
+                setPendingTwoFactor(null);
+                setUser(e2eUser);
+                setLoading(false);
+                return;
+            }
+
             try {
                 const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error('Auth initialization timed out')), 10000)
@@ -323,8 +333,8 @@ export function AuthProvider({ children }) {
     const adminBanUser = useCallback((id) => authApi.adminBanUser(id), []);
     const getActiveMessages = useCallback(() => authApi.getActiveMessages(), []);
     const dismissMessage = useCallback((id) => authApi.dismissMessage(id), []);
-    const getUserNotifications = useCallback(() => authApi.getUserNotifications(), []);
-    const dismissUserNotification = useCallback((id) => authApi.dismissUserNotification(id), []);
+    const getUserNotifications = useCallback(() => authApi.getUserNotifications(userRef.current), []);
+    const dismissUserNotification = useCallback((id) => authApi.dismissUserNotification(id, userRef.current), []);
     const getPushPreferences = useCallback(() => authApi.getPushPreferences(), []);
     const updatePushPreferences = useCallback((prefs) => authApi.updatePushPreferences(prefs), []);
     const adminGetUserStreakData = useCallback(() => { return null; }, []);

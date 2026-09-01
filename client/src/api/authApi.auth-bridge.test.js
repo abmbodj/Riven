@@ -13,6 +13,7 @@ vi.mock('../lib/supabaseClient', () => ({
     from: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      getClaims: vi.fn().mockResolvedValue({ data: { claims: null }, error: null }),
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
       setSession: vi.fn(),
       updateUser: vi.fn(),
@@ -32,8 +33,28 @@ import * as authApi from './authApi';
 
 const SUPABASE_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwic3ViIjoiYXV0aC11c2VyIiwiZXhwIjo0MTAyNDQ0ODAwfQ.sig';
 
+const encodeSegment = (value) => btoa(JSON.stringify(value))
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/g, '');
+
+const buildLegacyJwt = (payload) => [
+  encodeSegment({ alg: 'HS256', typ: 'JWT' }),
+  encodeSegment(payload),
+  'legacy-signature',
+].join('.');
+
 const buildJsonResponse = (body) => ({
   ok: true,
+  headers: {
+    get: () => 'application/json',
+  },
+  text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+});
+
+const buildErrorResponse = (status, body) => ({
+  ok: false,
+  status,
   headers: {
     get: () => 'application/json',
   },
@@ -51,6 +72,9 @@ describe('authApi Supabase auth bridge reductions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', 'true');
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     localStorage.clear();
     authApi.setToken(null);
     globalThis.fetch = vi.fn(() => {
@@ -64,6 +88,10 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
     supabase.auth.getUser.mockResolvedValue({
       data: { user: { id: 'auth-user' } },
+      error: null,
+    });
+    supabase.auth.getClaims.mockResolvedValue({
+      data: { claims: { sub: 'auth-user', aal: 'aal1' } },
       error: null,
     });
     supabase.auth.setSession.mockResolvedValue({
@@ -146,7 +174,45 @@ describe('authApi Supabase auth bridge reductions', () => {
       email_verified: true,
       onboardingCompletedAt: null,
       onboardingStep: 0,
+      base_subscription_tier: 'free',
+      has_manageable_subscription: false,
+      premium_access_source: 'admin_included',
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      subscription_expires_at: null,
     });
+  });
+
+  it('restores startup auth with one session read, verified claims, and one profile query', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: SUPABASE_ACCESS_TOKEN,
+          user: { id: 'auth-user' },
+        },
+      },
+      error: null,
+    });
+    const { select } = createSelectSingleChain({
+      id: 42,
+      username: 'atlas',
+      email: 'atlas@example.com',
+      role: 'user',
+      two_fa_enabled: false,
+      onboarding_completed_at: '2026-07-01T00:00:00.000Z',
+    });
+    supabase.from.mockReturnValue({ select });
+
+    const user = await authApi.restoreSessionUser();
+
+    expect(user.id).toBe(42);
+    expect(supabase.auth.getSession).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.getClaims).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.getClaims).toHaveBeenCalledWith(SUPABASE_ACCESS_TOKEN);
+    expect(supabase.auth.getUser).not.toHaveBeenCalled();
+    expect(supabase.auth.mfa.getAuthenticatorAssuranceLevel).not.toHaveBeenCalled();
+    expect(supabase.auth.mfa.listFactors).not.toHaveBeenCalled();
+    expect(supabase.from).toHaveBeenCalledTimes(1);
   });
 
   it('completes registration on refresh when the Supabase session exists but the app row is missing', async () => {
@@ -161,7 +227,7 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
     supabase.from.mockReturnValue({ select });
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      user: { id: 42, email: 'atlas@example.com', username: 'atlas' },
+      user: { id: 42, email: 'atlas@example.com', username: 'atlas', twoFAEnabled: false },
     }));
 
     const user = await authApi.restoreSessionUser();
@@ -209,7 +275,7 @@ describe('authApi Supabase auth bridge reductions', () => {
 
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       2,
-      'http://localhost:3000/api/auth/supabase-token',
+      '/api/auth/supabase-token',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -241,6 +307,96 @@ describe('authApi Supabase auth bridge reductions', () => {
       canWatchAd: false,
       isPremium: false,
     });
+  });
+
+  it('bridges a structurally valid legacy JWT before forcing reauthentication', async () => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildJsonResponse({
+        access_token: SUPABASE_ACCESS_TOKEN,
+        refresh_token: 'refresh-token',
+      }))
+      .mockResolvedValueOnce(buildJsonResponse({
+        remaining: 7,
+        max: 10,
+        characterLimit: 15000,
+        flashcardRange: [5, 15],
+        canWatchAd: false,
+        isPremium: false,
+      }));
+
+    await expect(authApi.getAILimits()).resolves.toMatchObject({ remaining: 7 });
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/auth/supabase-token',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${legacyToken}`,
+        }),
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      3,
+      'https://supabase.test/functions/v1/ai-limits',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+        }),
+      }),
+    );
+  });
+
+  it.each([401, 403])('forces reauthentication after a %i legacy bridge rejection', async (status) => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildErrorResponse(status, { error: 'Invalid legacy token' }));
+
+    await expect(authApi.getAILimits()).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+    });
+
+    expect(authApi.getToken()).toBeNull();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the legacy session when the auth bridge returns a server error', async () => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildErrorResponse(500, { error: 'Bridge unavailable' }));
+
+    await expect(authApi.getAILimits()).rejects.toMatchObject({
+      status: 500,
+      message: 'Bridge unavailable',
+    });
+
+    expect(authApi.getToken()).toBe(legacyToken);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the legacy session when the auth bridge is temporarily unavailable', async () => {
+    const legacyToken = buildLegacyJwt({ id: 7, email: 'atlas@example.com', role: 'user' });
+    authApi.setToken(legacyToken);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    await expect(authApi.getAILimits()).rejects.toThrow('Failed to fetch');
+
+    expect(authApi.getToken()).toBe(legacyToken);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('hydrates a missing Supabase session from a cross-origin auth bridge using the returned csrf token', async () => {

@@ -363,7 +363,7 @@ module.exports = function registerAuthRoutes({
             });
 
             // Send welcome email (fire-and-forget, don't block registration)
-            const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
+            const baseUrl = process.env.FRONTEND_URL || 'https://www.riven.rocks';
             sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
         } catch (error) {
             console.error('POST /api/auth/register error:', error);
@@ -498,7 +498,7 @@ module.exports = function registerAuthRoutes({
             // Welcome email
             try {
                 const { sendWelcomeEmail } = require('../utils/email');
-                const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
+                const baseUrl = process.env.FRONTEND_URL || 'https://www.riven.rocks';
                 sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
             } catch (e) { }
         }
@@ -1283,7 +1283,7 @@ module.exports = function registerAuthRoutes({
             // Welcome email (fire-and-forget)
             try {
                 const { sendWelcomeEmail } = require('../utils/email');
-                const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
+                const baseUrl = process.env.FRONTEND_URL || 'https://www.riven.rocks';
                 sendWelcomeEmail(email.toLowerCase(), finalUsername, baseUrl).catch(() => {});
             } catch (e) {}
 

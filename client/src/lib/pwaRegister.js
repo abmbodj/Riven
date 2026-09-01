@@ -32,6 +32,7 @@ function trackInstallingWorker({
 
 export function useRegisterSW(options = {}) {
   const {
+    enabled = true,
     onNeedRefresh,
     onOfflineReady,
     onRegistered,
@@ -66,7 +67,7 @@ export function useRegisterSW(options = {}) {
   }, [onOfflineReady]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+    if (!enabled || typeof window === 'undefined' || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
       return undefined;
     }
 
@@ -156,7 +157,7 @@ export function useRegisterSW(options = {}) {
       removeUpdateFoundListener();
       removeControllerChangeListener();
     };
-  }, [markNeedRefresh, markOfflineReady, onRegisterError, onRegistered, onRegisteredSW]);
+  }, [enabled, markNeedRefresh, markOfflineReady, onRegisterError, onRegistered, onRegisteredSW]);
 
   const updateServiceWorker = useCallback(async () => {
     const waitingWorker = registrationRef.current?.waiting ?? waitingWorkerRef.current;

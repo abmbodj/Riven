@@ -232,6 +232,11 @@ describe('NoteEditor', () => {
     toast.success.mockReset();
     toast.show.mockReset();
     recorderMock.reset.mockReset();
+    recorderMock.reset.mockImplementation(() => {
+      recorderMock.state = 'idle';
+      recorderMock.duration = 0;
+      recorderMock.audioPath = null;
+    });
     recorderMock.setProcessingState.mockReset();
     recorderMock.setAudioPath.mockReset();
     recorderMock.start.mockReset();
@@ -417,11 +422,11 @@ describe('NoteEditor', () => {
     await waitFor(() => {
       expect(recorderMock.reset).toHaveBeenCalledTimes(1);
       expect(recorderMock.setAudioPath).toHaveBeenCalledWith(null);
+      expect(screen.queryByText(/lecture captured - enhance your notes/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
     });
 
     expect(api.deleteNoteAudio).not.toHaveBeenCalled();
-    expect(screen.queryByText(/lecture captured - enhance your notes/i)).not.toBeInTheDocument();
-    expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
   });
 
   it('deletes uploaded note audio when discarding from the enhancement error banner', async () => {

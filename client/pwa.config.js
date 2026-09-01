@@ -43,7 +43,14 @@ export const pwaOptions = {
     ]
   },
   workbox: {
-    globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+    // Keep install work bounded. Hashed route chunks are cached only after the
+    // browser actually visits them, instead of downloading the whole app.
+    globPatterns: [
+      'index.html',
+      'manifest.webmanifest',
+      'assets/index-*.js',
+      'assets/index-*.css',
+    ],
     // Prompt-mode updates need both app-triggered SKIP_WAITING and worker-side clientsClaim
     // so an already-open tab swaps to the newly activated controller immediately.
     clientsClaim: true,
@@ -52,6 +59,20 @@ export const pwaOptions = {
     navigateFallbackDenylist: [/^\/api/],
     // Runtime caching for fonts
     runtimeCaching: [
+      {
+        urlPattern: /\/assets\/.*-[A-Za-z0-9_-]+\.(?:js|css|woff2?|png|svg|webp)$/i,
+        handler: 'StaleWhileRevalidate',
+        options: {
+          cacheName: 'riven-route-assets-v1',
+          expiration: {
+            maxEntries: 120,
+            maxAgeSeconds: 60 * 60 * 24 * 30
+          },
+          cacheableResponse: {
+            statuses: [0, 200]
+          }
+        }
+      },
       {
         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
         handler: 'CacheFirst',

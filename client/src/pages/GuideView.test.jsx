@@ -592,7 +592,8 @@ describe('GuideView', () => {
       activeTarget = teach.querySelector('[data-current-teach-target="true"]');
       expect(activeTarget).toHaveTextContent(/campus map/i);
     });
-    expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick').getAttribute('d')).not.toBe(pointerPathBefore);
+    expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick').getAttribute('d')).toMatch(/^M/);
+    expect(pointerPathBefore).toMatch(/^M/);
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
   });
 

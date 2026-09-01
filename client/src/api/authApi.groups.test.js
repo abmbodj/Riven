@@ -53,6 +53,8 @@ describe('authApi group edge migration', () => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', '');
     localStorage.clear();
     authApi.setToken(null);
   });
@@ -151,7 +153,7 @@ describe('authApi group edge migration', () => {
 
   it('forces re-login for non-Supabase tokens on group deck sharing', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'user@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
+    globalThis.fetch = vi.fn();
 
     await expect(authApi.shareDeckToGroup('group-1', 44)).rejects.toMatchObject({
       status: 401,
@@ -161,18 +163,7 @@ describe('authApi group edge migration', () => {
 
     expect(authApi.getToken()).toBeNull();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/group-actions',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          apikey: 'supabase-anon-key',
-        }),
-      }),
-    );
-
-    const requestOptions = globalThis.fetch.mock.calls[0][1];
-    expect(requestOptions.headers.Authorization).toBeUndefined();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('uses the group edge function for file uploads', async () => {

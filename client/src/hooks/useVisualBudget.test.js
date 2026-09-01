@@ -24,6 +24,8 @@ function sample(fps) {
 describe('useVisualBudget FPS hysteresis', () => {
     it('trips to constrained only after sustained low fps', async () => {
         const { useVisualBudget, VISUAL_BUDGET_CONSTRAINED, VISUAL_BUDGET_NORMAL } = await import('./useVisualBudget.js');
+        const transitions = [];
+        window.addEventListener('riven:visual-budget-transition', (event) => transitions.push(event.detail), { once: true });
         const { result } = renderHook(() => useVisualBudget());
         expect(result.current).toBe(VISUAL_BUDGET_NORMAL);
 
@@ -32,6 +34,11 @@ describe('useVisualBudget FPS hysteresis', () => {
 
         act(() => sample(30));
         expect(result.current).toBe(VISUAL_BUDGET_CONSTRAINED);
+        expect(transitions).toEqual([{
+            from: VISUAL_BUDGET_NORMAL,
+            to: VISUAL_BUDGET_CONSTRAINED,
+            fps: 30,
+        }]);
     });
 
     it('does not recover on a single borderline sample (the flicker bug)', async () => {

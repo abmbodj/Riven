@@ -16,6 +16,10 @@ vi.mock('../lib/supabaseClient', () => ({
         data: { session: { access_token: 'supabase-token' } },
         error: null,
       }),
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'auth-user-id' } },
+        error: null,
+      }),
       mfa: {
         getAuthenticatorAssuranceLevel: vi.fn().mockResolvedValue({
           data: { currentLevel: 'aal1', nextLevel: 'aal1' },
@@ -46,8 +50,9 @@ const buildJwt = (payload) => [
 
 const createSelectSingleChain = (data, error = null) => {
   const single = vi.fn().mockResolvedValue({ data, error });
-  const select = vi.fn().mockReturnValue({ single });
-  return { select, single };
+  const eq = vi.fn().mockReturnValue({ single });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, single };
 };
 
 const createSelectEqChain = (data, error = null) => {

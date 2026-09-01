@@ -11,7 +11,11 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/test/setup.js',
+        // Bound jsdom concurrency so animation/lazy-route tests are not starved
+        // by dozens of simultaneous workers on developer and CI hosts.
+        maxWorkers: 4,
         include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
     },
     resolve: {
         alias: {

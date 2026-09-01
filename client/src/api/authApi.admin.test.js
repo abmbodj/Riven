@@ -53,6 +53,7 @@ describe('authApi admin edge migration', () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     localStorage.clear();
+    document.cookie = 'riven_csrf=test-csrf-token; path=/';
     authApi.setToken(null);
   });
 

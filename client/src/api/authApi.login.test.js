@@ -13,6 +13,7 @@ vi.mock('../lib/supabaseClient', () => ({
     from: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      getClaims: vi.fn(),
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
       signInWithOAuth: vi.fn(),
       signInWithPassword: vi.fn(),
@@ -68,6 +69,10 @@ describe('authApi login migration bridge', () => {
     });
     supabase.auth.getUser.mockResolvedValue({
       data: { user: { id: 'auth-user' } },
+      error: null,
+    });
+    supabase.auth.getClaims.mockResolvedValue({
+      data: { claims: { sub: 'auth-user', aal: 'aal1' } },
       error: null,
     });
     supabase.auth.updateUser.mockResolvedValue({
@@ -241,7 +246,7 @@ describe('authApi login migration bridge', () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({
-        user: { id: 7, email: 'test@example.com', username: 'tester' },
+        user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false },
       }));
 
     const user = await authApi.restoreSessionUser();

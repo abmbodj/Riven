@@ -28,6 +28,10 @@ jobs:
   client:
     name: Client lint, test, build
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: ci-test-anon-key
+      VITE_ENABLE_LEGACY_AUTH_BRIDGE: "false"
     defaults:
       run:
         working-directory: client
@@ -42,12 +46,67 @@ jobs:
       - name: Lint (must be error-free)
         run: npx eslint .
       - name: Unit tests
-        # NOTE: ~31 pre-existing failures (feature/UI drift, see
-        # docs/reviews/2026-06-remediation.md). Non-blocking until that debt clears;
-        # flip to required once the suite is green.
         run: npx vitest run
-        continue-on-error: true
       - name: Build
         run: npx vite build
+      - name: Enforce production performance budgets
+        run: npm run performance:budget
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Dashboard performance journeys
+        run: npm run test:e2e
+        env:
+          # Shared GitHub VMs are not calibrated performance hardware. The
+          # journeys still capture metrics/traces; controlled runs enforce gates.
+          RIVEN_ENFORCE_PERFORMANCE_GATES: "false"
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-performance-traces
+          path: |
+            client/test-results
+            client/playwright-report
       - name: Production audit (report only)
         run: npm audit --omit=dev || true
+
+  edge-functions:
+    name: Edge Function unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno test --allow-env _shared/*.test.ts
+
+  database:
+    name: Database migrations and pgTAP tests
+    runs-on: ubuntu-latest
+    env:
+      RIVEN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      # Legacy production tables predate this repository's Phase 2 migration
+      # history, so replay the dashboard RPC against its explicit contract schema.
+      - name: Start isolated Supabase Postgres
+        run: supabase db start --workdir supabase/tests/database/harness
+      - name: Create dashboard test schema
+        run: psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/tests/database/fixtures/dashboard_bootstrap_schema.sql
+      - name: Apply dashboard bootstrap migrations
+        run: |
+          psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/migrations/20260729133817_dashboard_bootstrap_performance.sql
+          psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/migrations/20260729140200_dashboard_bootstrap_coalesce_fix.sql
+          psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/migrations/20260831055303_fix_dashboard_weekly_summary_contract.sql
+      - name: Run dashboard pgTAP contract tests
+        run: supabase test db --workdir supabase/tests/database/harness --db-url "$RIVEN_TEST_DATABASE_URL" supabase/tests/database/dashboard_bootstrap.test.sql

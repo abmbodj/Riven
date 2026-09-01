@@ -610,9 +610,9 @@ export default function GardenLanding() {
 
                 <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 lg:px-12">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)", letterSpacing: "0.2em" }}
-                        animate={{ opacity: 1, scale: 1, filter: "blur(0px)", letterSpacing: "normal" }}
-                        transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], opacity: { duration: 1 }, filter: { duration: 1.2 } }}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], opacity: { duration: 1 } }}
                         className="flex flex-col items-center justify-center pointer-events-none"
                     >
                         <h1 className="text-6xl sm:text-8xl lg:text-[10rem] font-bold tracking-tighter text-white drop-shadow-2xl selection:bg-white/10" style={{ textShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>

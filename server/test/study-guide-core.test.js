@@ -4,6 +4,7 @@ import {
   buildCoverageMap,
   buildStudyGuideSummaryDoc,
   createDefaultStudyGuideState,
+  estimateSessionEffortMinutes,
   normalizeStudyGuideData,
   studyGuideDataToPlainText,
   validateTutorSessionQuality,
@@ -14,6 +15,15 @@ import {
   consumeAiQuota,
   buildGuideSourceContents,
 } from '../../supabase/functions/_shared/aiCore.mjs';
+
+describe('shared study-guide effort estimates', () => {
+  it('bounds each recommended section and sums one session estimate', () => {
+    expect(estimateSessionEffortMinutes([
+      { card_ids: ['a'] },
+      { card_ids: ['b', 'c', 'd', 'e', 'f', 'g', 'h'] },
+    ])).toBe(15);
+  });
+});
 
 const makeStrongTeaching = (topic = 'mitosis') => ({
   learning_objective: `Explain ${topic} by tracing the mechanism, outcome, examples, and likely mistakes.`,
@@ -49,6 +59,11 @@ const makeStrongTeaching = (topic = 'mitosis') => ({
     `Only naming the topic is wrong because the correction requires explaining what ${topic} actually changes.`,
     `Choosing a similar process is wrong because the final result should be used to correct the mix-up.`,
   ],
+  predicts: [{
+    prompt: `Before revealing the result, what outcome should ${topic} produce?`,
+    answer: `The outcome should match the defining result of ${topic}, not a similar process.`,
+    after_beat: 1,
+  }],
   example: `${topic} can be tested by asking what changes, why it changes, and what final state proves the change happened.`,
   steps: ['Name the output.', 'Trace the mechanism.', 'Reject the distractor.'],
   why_it_matters: `${topic} matters because it turns memorized vocabulary into usable exam reasoning.`,
@@ -90,6 +105,11 @@ const makeStrongMathTeaching = () => ({
     'A sign error like factoring $x^2 + 5x + 6$ as $(x - 2)(x - 3)$ is wrong because it gives $x^2 - 5x + 6$, so the signs must match the middle term.',
     'Stopping at $(x + 2)(x + 3) = 0$ is incomplete because the correction is to set each factor equal to zero and solve $x + 2 = 0$ and $x + 3 = 0$.',
   ],
+  predicts: [{
+    prompt: 'Before revealing the factors, which two numbers must multiply to $6$ and add to $5$?',
+    answer: '$2$ and $3$, so the factors are $(x + 2)(x + 3)$.',
+    after_beat: 1,
+  }],
   example: 'A factorable quadratic like $x^2 + 5x + 6 = 0$ can be solved by factoring, splitting, solving, and checking.',
   steps: ['Factor the quadratic.', 'Set each factor equal to zero.', 'Solve and check both roots.'],
   why_it_matters: 'Factoring matters because it is the fastest clean method when a quadratic has simple integer factors.',

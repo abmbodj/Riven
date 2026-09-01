@@ -23,14 +23,18 @@ export function useGSAP(callback, deps = []) {
 
         const selector = gsap.utils.selector(container);
 
+        let callbackCleanup;
         ctx.current = gsap.context(() => {
-            callback({
+            callbackCleanup = callback({
                 selector,
                 container: container.current,
             });
         }, container.current);
 
         return () => {
+            if (typeof callbackCleanup === 'function') {
+                callbackCleanup();
+            }
             ctx.current?.revert();
         };
     }, deps);
