@@ -82,10 +82,21 @@ jobs:
   database:
     name: Database migrations and pgTAP tests
     runs-on: ubuntu-latest
+    env:
+      RIVEN_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
           version: 2.116.0
-      - run: supabase db start
-      - run: supabase test db
+      - name: Start isolated Supabase Postgres
+        run: supabase db start --workdir supabase/tests/database/harness
+      - name: Create dashboard test schema
+        run: supabase db query --db-url "$RIVEN_TEST_DATABASE_URL" --file supabase/tests/database/fixtures/dashboard_bootstrap_schema.sql
+      - name: Apply dashboard bootstrap migrations
+        run: |
+          supabase db query --db-url "$RIVEN_TEST_DATABASE_URL" --file supabase/migrations/20260729133817_dashboard_bootstrap_performance.sql
+          supabase db query --db-url "$RIVEN_TEST_DATABASE_URL" --file supabase/migrations/20260729140200_dashboard_bootstrap_coalesce_fix.sql
+          supabase db query --db-url "$RIVEN_TEST_DATABASE_URL" --file supabase/migrations/20260831055303_fix_dashboard_weekly_summary_contract.sql
+      - name: Run dashboard pgTAP contract tests
+        run: supabase test db --db-url "$RIVEN_TEST_DATABASE_URL" supabase/tests/database/dashboard_bootstrap.test.sql

@@ -20,6 +20,27 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+// Keep jsdom's default client deterministic across developer machines and CI.
+// Production code deliberately treats low-core/low-memory devices as visually
+// constrained, while component tests opt into those signals explicitly.
+Object.defineProperty(navigator, 'hardwareConcurrency', {
+  configurable: true,
+  value: 8,
+});
+
+Object.defineProperty(navigator, 'deviceMemory', {
+  configurable: true,
+  value: 8,
+});
+
+Object.defineProperty(navigator, 'connection', {
+  configurable: true,
+  value: {
+    saveData: false,
+    effectiveType: '4g',
+  },
+});
+
 Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
   writable: true,
   value: vi.fn(),
