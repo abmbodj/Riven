@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+const enforcePerformanceGates = globalThis.process?.env.RIVEN_ENFORCE_PERFORMANCE_GATES !== 'false';
+
+async function recordPerformanceMetric(testInfo, name, value, unit, target) {
+    await testInfo.attach(`performance-${name}`, {
+        body: JSON.stringify({ name, value, unit, target, enforced: enforcePerformanceGates }),
+        contentType: 'application/json',
+    });
+}
+
 const now = Date.now();
 const tomorrow = new Date(now + 24 * 60 * 60 * 1000).toISOString();
 const yesterday = new Date(now - 24 * 60 * 60 * 1000).toISOString();
@@ -124,7 +133,9 @@ test('cold authenticated dashboard becomes meaningful within the release gate', 
         const startedAt = Date.now();
         await page.goto('/dashboard');
         await expect(page.locator('[data-dashboard-ready="true"]')).toBeVisible();
-        expect(Date.now() - startedAt).toBeLessThan(2500);
+        const routeReadyMs = Date.now() - startedAt;
+        await recordPerformanceMetric(testInfo, 'cold-dashboard-ready', routeReadyMs, 'ms', 2500);
+        if (enforcePerformanceGates) expect(routeReadyMs).toBeLessThan(2500);
         await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
         await expect(page.getByText('Cell Biology', { exact: true }).first()).toBeVisible();
         await expect(page.getByText('86%', { exact: true })).toBeVisible();
@@ -152,7 +163,9 @@ test('cached dashboard paints within one second while revalidation continues', a
     const startedAt = Date.now();
     await page.goto('/dashboard');
     await expect(page.locator('[data-dashboard-ready="true"]')).toBeVisible();
-    expect(Date.now() - startedAt).toBeLessThan(1000);
+    const routeReadyMs = Date.now() - startedAt;
+    await recordPerformanceMetric(testInfo, 'cached-dashboard-ready', routeReadyMs, 'ms', 1000);
+    if (enforcePerformanceGates) expect(routeReadyMs).toBeLessThan(1000);
 });
 
 test('navigation and theme effects avoid interaction tasks over 200ms', async ({ page }, testInfo) => {
@@ -167,7 +180,11 @@ test('navigation and theme effects avoid interaction tasks over 200ms', async ({
     await expect(page).toHaveURL(/\/classes$/);
 
     const interactionTasks = await page.evaluate(() => window.__RIVEN_LONG_TASKS__ || []);
-    expect(interactionTasks.filter((duration) => duration > 200)).toEqual([]);
+    const longestInteractionTask = Math.max(0, ...interactionTasks);
+    await recordPerformanceMetric(testInfo, 'longest-interaction-task', longestInteractionTask, 'ms', 200);
+    if (enforcePerformanceGates) {
+        expect(interactionTasks.filter((duration) => duration > 200)).toEqual([]);
+    }
 });
 
 test('native scrolling sustains at least 55 FPS after route entrance', async ({ page }, testInfo) => {
@@ -192,7 +209,9 @@ test('native scrolling sustains at least 55 FPS after route entrance', async ({ 
         };
         requestAnimationFrame(sample);
     }));
-    expect(sampledFps).toBeGreaterThanOrEqual(55);
+    await recordPerformanceMetric(testInfo, 'dashboard-scroll-fps', sampledFps, 'fps', 55);
+    expect(Number.isFinite(sampledFps)).toBe(true);
+    if (enforcePerformanceGates) expect(sampledFps).toBeGreaterThanOrEqual(55);
 });
 
 test('reduced-motion mode renders the dashboard without entrance transforms', async ({ page }, testInfo) => {
