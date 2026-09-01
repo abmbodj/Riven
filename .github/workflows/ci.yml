@@ -89,6 +89,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.116.0
+      # Legacy production tables predate this repository's Phase 2 migration
+      # history, so replay the dashboard RPC against its explicit contract schema.
       - name: Start isolated Supabase Postgres
         run: supabase db start --workdir supabase/tests/database/harness
       - name: Create dashboard test schema
