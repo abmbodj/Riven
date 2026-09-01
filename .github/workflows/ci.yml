@@ -105,4 +105,4 @@ jobs:
           psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/migrations/20260729140200_dashboard_bootstrap_coalesce_fix.sql
           psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/migrations/20260831055303_fix_dashboard_weekly_summary_contract.sql
       - name: Run dashboard pgTAP contract tests
-        run: supabase test db --db-url "$RIVEN_TEST_DATABASE_URL" supabase/tests/database/dashboard_bootstrap.test.sql
+        run: supabase test db --workdir supabase/tests/database/harness --db-url "$RIVEN_TEST_DATABASE_URL" supabase/tests/database/dashboard_bootstrap.test.sql
