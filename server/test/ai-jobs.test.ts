@@ -1,9 +1,46 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.hoisted(() => {
+  Object.defineProperty(globalThis, 'Deno', {
+    configurable: true,
+    value: { env: { get: () => undefined } },
+  });
+});
+
+vi.mock('npm:groq-sdk@0.24.0', () => ({
+  default: class Groq {},
+}));
+vi.mock('npm:@sentry/deno@10.45.0', () => ({
+  captureException: vi.fn(),
+  init: vi.fn(),
+  withScope: vi.fn(),
+}));
 
 import {
   createJobReporter,
+  getAiModelMap,
   normalizeAiJobError,
 } from '../../supabase/functions/_shared/aiJobs.ts';
+import * as aiJobProcessors from '../../supabase/functions/_shared/aiJobProcessors.ts';
+
+type StreamChunk = { text: string };
+type StreamWithFallback = (args: {
+  ai: { streamContent: (args: { model: string }) => AsyncIterable<StreamChunk> };
+  primaryModel: string;
+  fallbackModel: string;
+  messages: unknown[];
+  maxTokens: number;
+}) => AsyncIterable<StreamChunk>;
+
+const getStreamWithFallback = () => (
+  aiJobProcessors as unknown as { streamWithFallback?: StreamWithFallback }
+).streamWithFallback;
+
+const collectStream = async (stream: AsyncIterable<StreamChunk>) => {
+  const chunks: StreamChunk[] = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return chunks;
+};
 
 const createAdminRecorder = () => {
   const updates: unknown[] = [];
@@ -24,6 +61,84 @@ const createAdminRecorder = () => {
 };
 
 describe('ai job error reporting', () => {
+  it('uses active Groq models when no model overrides are configured', () => {
+    vi.stubGlobal('Deno', { env: { get: vi.fn(() => undefined) } });
+
+    expect(getAiModelMap()).toEqual({
+      draft: 'openai/gpt-oss-20b',
+      final: 'openai/gpt-oss-120b',
+      grading: 'openai/gpt-oss-120b',
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('honors configured model overrides', () => {
+    const models = new Map([
+      ['AI_DRAFT_MODEL', 'custom-draft'],
+      ['AI_FINAL_MODEL', 'custom-final'],
+      ['AI_GRADING_MODEL', 'custom-grading'],
+    ]);
+    vi.stubGlobal('Deno', { env: { get: vi.fn((key: string) => models.get(key)) } });
+
+    expect(getAiModelMap()).toEqual({
+      draft: 'custom-draft',
+      final: 'custom-final',
+      grading: 'custom-grading',
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('retries a retired draft model when it fails before the first streamed chunk', async () => {
+    const streamWithFallback = getStreamWithFallback();
+    expect(streamWithFallback).toBeTypeOf('function');
+    if (!streamWithFallback) return;
+
+    const primaryStream = async function* (): AsyncGenerator<StreamChunk> {
+      throw new Error('The model has been decommissioned');
+    };
+    const fallbackStream = async function* (): AsyncGenerator<StreamChunk> {
+      yield { text: '{"type":"doc"}' };
+    };
+    const ai = {
+      streamContent: vi.fn(({ model }: { model: string }) => (
+        model === 'retired-draft' ? primaryStream() : fallbackStream()
+      )),
+    };
+
+    await expect(collectStream(streamWithFallback({
+      ai,
+      primaryModel: 'retired-draft',
+      fallbackModel: 'active-final',
+      messages: [],
+      maxTokens: 64,
+    }))).resolves.toEqual([{ text: '{"type":"doc"}' }]);
+    expect(ai.streamContent).toHaveBeenCalledWith(expect.objectContaining({ model: 'retired-draft' }));
+    expect(ai.streamContent).toHaveBeenCalledWith(expect.objectContaining({ model: 'active-final' }));
+  });
+
+  it('does not merge a fallback stream after the draft has emitted content', async () => {
+    const streamWithFallback = getStreamWithFallback();
+    expect(streamWithFallback).toBeTypeOf('function');
+    if (!streamWithFallback) return;
+
+    const partialStream = async function* (): AsyncGenerator<StreamChunk> {
+      yield { text: '{"type"' };
+      throw new Error('model unavailable');
+    };
+    const ai = { streamContent: vi.fn(() => partialStream()) };
+
+    await expect(collectStream(streamWithFallback({
+      ai,
+      primaryModel: 'retired-draft',
+      fallbackModel: 'active-final',
+      messages: [],
+      maxTokens: 64,
+    }))).rejects.toThrow('model unavailable');
+    expect(ai.streamContent).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves Supabase-style plain object error fields', async () => {
     const { admin, updates } = createAdminRecorder();
     const reporter = createJobReporter(admin, {

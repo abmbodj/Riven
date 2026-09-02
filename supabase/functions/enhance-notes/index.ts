@@ -4,6 +4,7 @@ import { consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared
 import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getAiModelMap } from '../_shared/aiJobs.ts';
 import { buildSinglePassNoteEnhancePrompt, buildSinglePassNoteGeneratePrompt } from '../_shared/notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from '../_shared/noteValidator.mjs';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -11,11 +12,6 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
 const RETRY_SEVERITY_THRESHOLD = 4;
-// Hybrid models: a fast model streams the first usable pass; a stronger model handles the
-// correction/retry + batch path. Defaults mirror getAiModelMap (Scout draft, 70b final);
-// both stay env-overridable via AI_DRAFT_MODEL / AI_FINAL_MODEL.
-const NOTES_DRAFT_MODEL = Deno.env.get('AI_DRAFT_MODEL') ?? 'meta-llama/llama-4-scout-17b-16e-instruct';
-const NOTES_FINAL_MODEL = Deno.env.get('AI_FINAL_MODEL') ?? 'llama-3.3-70b-versatile';
 const NOTES_MAX_TOKENS = 8192;
 
 // Bias Whisper toward the lecture's domain vocabulary and proper nouns so technical
@@ -110,6 +106,7 @@ serve(async (request) => {
     }
 
     const ai = createAiClient(apiKey);
+    const noteModels = getAiModelMap();
 
     // Transcribe audio with Whisper
     const ext = audioPath.split('.').pop()?.toLowerCase() ?? 'webm';
@@ -151,7 +148,7 @@ serve(async (request) => {
       (async () => {
         try {
           const streamResponse = ai.streamContent({
-            model: NOTES_DRAFT_MODEL,
+            model: noteModels.draft,
             messages: aiMessages,
             maxTokens: NOTES_MAX_TOKENS,
           });
@@ -193,7 +190,7 @@ serve(async (request) => {
 
               let retryFullText = '';
               const retryStream = ai.streamContent({
-                model: NOTES_FINAL_MODEL,
+                model: noteModels.final,
                 messages: retryMessages,
                 maxTokens: NOTES_MAX_TOKENS,
               });
@@ -259,7 +256,7 @@ serve(async (request) => {
 
     // ── BATCH PATH ──────────────────────────────────────
     const rawText = await ai.generateContent({
-      model: NOTES_FINAL_MODEL,
+      model: noteModels.final,
       messages: aiMessages,
       maxTokens: NOTES_MAX_TOKENS,
       responseFormat: 'json_object',
@@ -278,7 +275,7 @@ serve(async (request) => {
     if (!validation.ok && validation.severity >= RETRY_SEVERITY_THRESHOLD) {
       try {
         const retryText = await ai.generateContent({
-          model: NOTES_FINAL_MODEL,
+          model: noteModels.final,
           messages: [
             ...aiMessages,
             { role: 'assistant' as const, content: rawText },

@@ -7,7 +7,7 @@ import {
   assertTutorSessionQuality,
   parseAiJsonResponse,
 } from './aiCore.mjs';
-import { createAiClient, contentsToMessages, type AiClient, type AiMessage, type AiResponseFormat } from './aiClient.ts';
+import { createAiClient, contentsToMessages, type AiClient, type AiMessage, type AiResponseFormat, type AiStreamChunk } from './aiClient.ts';
 import {
   buildMergePrompt,
   buildNoteDraftPrompt,
@@ -95,10 +95,15 @@ const generateNotesForSection = async ({
 
 const shouldFallbackToFinalModel = (error: unknown) => {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
-  return message.includes('model') || message.includes('not found') || message.includes('unsupported');
+  return message.includes('model')
+    || message.includes('not found')
+    || message.includes('unsupported')
+    || message.includes('deprecated')
+    || message.includes('decommissioned')
+    || message.includes('retired');
 };
 
-const streamWithFallback = async ({
+export const streamWithFallback = async function* ({
   ai,
   primaryModel,
   fallbackModel,
@@ -110,12 +115,21 @@ const streamWithFallback = async ({
   fallbackModel: string;
   messages: AiMessage[];
   maxTokens: number;
-}) => {
+}): AsyncGenerator<AiStreamChunk> {
+  let emittedContent = false;
+
   try {
-    return ai.streamContent({ model: primaryModel, messages, maxTokens });
+    for await (const chunk of ai.streamContent({ model: primaryModel, messages, maxTokens })) {
+      emittedContent = true;
+      yield chunk;
+    }
   } catch (error) {
-    if (primaryModel !== fallbackModel && shouldFallbackToFinalModel(error)) {
-      return ai.streamContent({ model: fallbackModel, messages, maxTokens });
+    // Once content has reached the caller we cannot safely blend a replacement stream into the
+    // partial JSON response. Before the first chunk, retrying is safe and covers model-retirement
+    // errors that only surface when the provider begins consuming the stream.
+    if (!emittedContent && primaryModel !== fallbackModel && shouldFallbackToFinalModel(error)) {
+      yield* ai.streamContent({ model: fallbackModel, messages, maxTokens });
+      return;
     }
     throw error;
   }
