@@ -165,7 +165,7 @@ Common secrets used by functions include:
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`, `STRIPE_TEST_COUPON` | Stripe checkout, portal, and webhooks |
 | `CLIENT_URL`, `FRONTEND_URL`, `ALLOWED_ORIGINS` | CORS and redirect origins, especially for Capacitor origins |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email delivery |
-| `GROQ_API_KEY`, `AI_DRAFT_MODEL`, `AI_FINAL_MODEL`, `AI_JOB_RUNNER_SECRET` | Edge AI generation and queued jobs |
+| `GROQ_API_KEY`, `AI_DRAFT_MODEL`, `AI_FINAL_MODEL`, `AI_JOB_RUNNER_SECRET` | Edge AI generation and queued jobs. Note processing defaults to `openai/gpt-oss-20b` for drafts and `openai/gpt-oss-120b` for final notes; set the two model secrets to override them. |
 | `RC_WEBHOOK_SECRET`, `RC_SECRET_KEY`, `RC_IOS_API_KEY` | RevenueCat webhooks and sync |
 | `CANVAS_AUTO_SYNC_SECRET` | Scheduled Canvas sync protection |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Edge rate limit backend |

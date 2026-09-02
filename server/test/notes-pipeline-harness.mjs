@@ -16,7 +16,7 @@
 //   GROQ_API_KEY=... node server/test/notes-pipeline-harness.mjs technical-lecture
 //
 // It calls Groq's OpenAI-compatible REST endpoint directly (no SDK dependency) so it
-// runs under plain Node. Models mirror the app defaults (Scout draft, 70b quality pass).
+// runs under plain Node. Models mirror the app defaults (GPT-OSS 20B draft, GPT-OSS 120B quality pass).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync } from 'node:fs';
@@ -34,8 +34,8 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TRANSCRIPTS = join(HERE, 'fixtures', 'transcripts');
 
-const DRAFT_MODEL = process.env.AI_DRAFT_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
-const FINAL_MODEL = process.env.AI_FINAL_MODEL || 'llama-3.3-70b-versatile';
+const DRAFT_MODEL = process.env.AI_DRAFT_MODEL || 'openai/gpt-oss-20b';
+const FINAL_MODEL = process.env.AI_FINAL_MODEL || 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const FIXTURES = [
