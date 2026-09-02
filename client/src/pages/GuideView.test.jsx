@@ -41,6 +41,19 @@ vi.mock('../components/ConfirmModal', () => ({
 
 const { api } = await import('../api');
 
+const useViewport = (narrow = false) => {
+  window.matchMedia = vi.fn().mockImplementation((query) => ({
+    matches: narrow && query === '(max-width: 1023px)',
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+};
+
 const makeGuide = (overrides = {}) => ({
   id: 'guide-river-1',
   title: 'Cell Division Tutor Session',
@@ -433,6 +446,7 @@ const goToCheck = (teach) => {
 describe('GuideView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useViewport();
     mobileBudgetMock.mockReset();
     mobileBudgetMock.mockReturnValue(false);
     api.updateStudyGuide.mockImplementation(async (id, updates) => ({
@@ -592,9 +606,71 @@ describe('GuideView', () => {
       activeTarget = teach.querySelector('[data-current-teach-target="true"]');
       expect(activeTarget).toHaveTextContent(/campus map/i);
     });
+    await waitFor(() => {
+      expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick').getAttribute('d')).not.toBe(pointerPathBefore);
+    });
     expect(within(boardTeacher).getByTestId('desktop-board-teacher-stick').getAttribute('d')).toMatch(/^M/);
     expect(pointerPathBefore).toMatch(/^M/);
     expect(within(boardTeacher).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'point');
+  });
+
+  it('keeps one lecture document mounted when the visual budget changes', async () => {
+    api.getStudyGuide.mockResolvedValue(makeToctGuide());
+
+    const view = render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    const lectureDocument = within(teach).getByTestId('river-lecture-document');
+    expect(within(lectureDocument).getByText(/A system design is a map/i)).toBeInTheDocument();
+
+    mobileBudgetMock.mockReturnValue(true);
+    view.rerender(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(within(teach).getByTestId('river-lecture-document')).toBe(lectureDocument);
+    expect(within(teach).getByText(/A system design is a map/i)).toBeInTheDocument();
+    expect(within(teach).queryByTestId('mobile-teacher-strip')).not.toBeInTheDocument();
+  });
+
+  it('reveals the next lecture section without scrolling away the surrounding context', async () => {
+    api.getStudyGuide.mockResolvedValue(makeToctGuide());
+    window.HTMLElement.prototype.scrollIntoView.mockClear();
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-toct-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(await within(teach).findByRole('button', { name: /Continue.*Mental Model/i }));
+
+    await waitFor(() => {
+      expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    });
+    expect(within(teach).getByText(/A system design is a map/i)).toBeInTheDocument();
+    expect(within(teach).getByText(/campus map/i)).toBeInTheDocument();
   });
 
   it('uses Still fuzzy to show the mental model inline and skip the later Mental Model step', async () => {
@@ -961,6 +1037,7 @@ describe('GuideView', () => {
   });
 
   it('matches the Still fuzzy skip behavior on mobile', async () => {
+    useViewport(true);
     mobileBudgetMock.mockReturnValue(true);
     api.getStudyGuide.mockResolvedValue(makeFuzzyFlowGuide());
 
@@ -975,24 +1052,27 @@ describe('GuideView', () => {
     fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
     const teach = await screen.findByTestId('river-session-teach');
-    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
-    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+    expect(within(teach).getByTestId('mobile-river-strip')).toBeInTheDocument();
+    expect(within(teach).queryByTestId('desktop-board-teacher')).not.toBeInTheDocument();
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
 
-    fireEvent.click(await within(teach).findByRole('button', { name: /Put it another way/i }));
+    fireEvent.click(await within(teach).findByRole('button', { name: /Still fuzzy/i }));
 
     expect(within(teach).getAllByText(/campus map/i).length).toBeGreaterThan(0);
-    expect(within(teach).queryByRole('button', { name: /Put it another way/i })).not.toBeInTheDocument();
+    expect(within(teach).queryByRole('button', { name: /Still fuzzy/i })).not.toBeInTheDocument();
 
-    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
-    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
 
     await waitFor(() => {
-      expect(within(teach).getByRole('button', { name: /Next: Example 1: Profile update/i })).toBeInTheDocument();
+      expect(within(teach).getByRole('button', { name: /Continue.*Example 1: Profile update/i })).toBeInTheDocument();
     });
-    expect(within(teach).queryByRole('button', { name: /Next: Mental Model/i })).not.toBeInTheDocument();
+    expect(within(teach).queryByRole('button', { name: /Continue.*Mental Model/i })).not.toBeInTheDocument();
   });
 
   it('does not offer a fuzzy CTA when the card has no mental model', async () => {
+    useViewport(true);
     mobileBudgetMock.mockReturnValue(true);
     const baseGuide = makeGuide();
     api.getStudyGuide.mockResolvedValue(makeGuide({
@@ -1025,10 +1105,10 @@ describe('GuideView', () => {
     fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
     const teach = await screen.findByTestId('river-session-teach');
-    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
-    fireEvent.click(within(teach).getByRole('button', { name: /Keep going/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
+    fireEvent.click(within(teach).getByRole('button', { name: /Go on/i }));
 
-    expect(within(teach).queryByRole('button', { name: /Put it another way/i })).not.toBeInTheDocument();
+    expect(within(teach).queryByRole('button', { name: /Still fuzzy/i })).not.toBeInTheDocument();
   });
 
   it('shows the unsupported hard-cutover state for pre-v4 guides', async () => {
