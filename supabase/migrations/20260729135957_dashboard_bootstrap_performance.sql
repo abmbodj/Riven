@@ -186,7 +186,7 @@ begin
   ),
   user_streak as (
     select case
-      when coalesce(u.streak_data, '') ~ '^\s*\{' then u.streak_data::jsonb
+      when pg_catalog.coalesce(u.streak_data, '') ~ '^\s*\{' then u.streak_data::jsonb
       else '{}'::jsonb
     end as value
     from public.users as u
@@ -292,3 +292,4 @@ comment on function public.get_dashboard_bootstrap(text) is
 revoke all on function public.get_dashboard_bootstrap(text) from public;
 revoke all on function public.get_dashboard_bootstrap(text) from anon;
 grant execute on function public.get_dashboard_bootstrap(text) to authenticated;
+;
