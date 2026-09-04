@@ -44,6 +44,17 @@ import {
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
 } from './studyGuideCore.mjs';
+import {
+  buildEvidenceTranscript,
+  buildGroundedClassroomInstruction,
+  buildMissingAudioGapSignals,
+  buildRecordingAssetEvidence,
+  buildSourceSnapshotHash,
+  extractExplicitStudySignals,
+  resolveClassroomNoteMethod,
+} from './audioNotesV2Core.mjs';
+import { isRetryableProviderError } from './aiJobRetryCore.mjs';
+import { transcribeDeepgramRecording } from './deepgramBatchCore.mjs';
 
 type JobProcessorArgs = {
   admin: any;
@@ -58,6 +69,7 @@ const generateNotesForSection = async ({
   className,
   subject,
   modelMap,
+  groundingContext,
 }: {
   ai: AiClient;
   section: AudioSection;
@@ -66,6 +78,7 @@ const generateNotesForSection = async ({
   className: string | null;
   subject: string | null;
   modelMap: ReturnType<typeof getAiModelMap>;
+  groundingContext: string;
 }): Promise<unknown> => {
   const placeholder = {
     type: 'doc',
@@ -81,7 +94,10 @@ const generateNotesForSection = async ({
       ai,
       primaryModel: modelMap.draft,
       fallbackModel: modelMap.final,
-      messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
+      messages: [{
+        role: 'user',
+        content: `${prompt}\n\n${groundingContext}\n\nSection Transcript:\n${section.text}`,
+      }],
       responseFormat: 'json_object',
       maxTokens: 4096,
     });
@@ -174,8 +190,122 @@ const getAudioMimeType = (audioPath: string) => {
   return mimeMap[ext] || 'audio/webm';
 };
 
-type AudioSegment = { id: number; start: number; end: number; text: string };
+type AudioSegment = { id: number | string; start: number; end: number; text: string };
 type AudioSection = { index: number; text: string; startTime: number; endTime: number };
+
+const transcriptCoverageEndsAtMs = (rows: any[]) => rows.reduce(
+  (latest, row) => Math.max(latest, Number(row?.ended_at_ms || 0)),
+  0,
+);
+
+const recoverDurableRecordingTranscript = async ({
+  admin,
+  recordingSession,
+  chunkRows,
+  existingRows,
+  className,
+  subject,
+}: {
+  admin: any;
+  recordingSession: any;
+  chunkRows: any[];
+  existingRows: any[];
+  className: string | null;
+  subject: string | null;
+}) => {
+  const expectedDurationMs = Math.max(
+    Number(recordingSession?.duration_ms || 0),
+    ...chunkRows.map((chunk) => Number(chunk?.ended_at_ms || 0)),
+  );
+  if (existingRows.length
+    && expectedDurationMs > 0
+    && transcriptCoverageEndsAtMs(existingRows) >= Math.max(0, expectedDurationMs - 10_000)) {
+    return null;
+  }
+  if (!chunkRows.length) return null;
+
+  const orderedChunks = [...chunkRows].sort((left, right) => Number(left.sequence) - Number(right.sequence));
+  const rawLinear16 = chunkRows.every((chunk) => chunk.mime_type === 'application/octet-stream');
+  const mimeType = rawLinear16 ? 'application/octet-stream' : String(chunkRows[0]?.mime_type || 'audio/webm');
+  let nextChunkIndex = 0;
+  // Stream sequentially from Storage into Deepgram. A four-hour native PCM lecture
+  // can be hundreds of MB, so constructing one in-memory Blob would exceed an Edge
+  // Function's memory limit precisely when offline recovery is needed most.
+  const audioStream = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (nextChunkIndex >= orderedChunks.length) {
+        controller.close();
+        return;
+      }
+      const chunk = orderedChunks[nextChunkIndex];
+      nextChunkIndex += 1;
+      const { data, error } = await admin.storage.from('recording-chunks').download(chunk.storage_path);
+      if (error || !data) {
+        controller.error(error || createHttpError('A durable audio chunk could not be recovered.', 503));
+        return;
+      }
+      controller.enqueue(new Uint8Array(await data.arrayBuffer()));
+    },
+  });
+  const languageConfig = recordingSession?.language_config || {};
+  const languages = [languageConfig.primary || 'en', ...(languageConfig.secondary || [])];
+  let memoryTerms: any[] = [];
+  if (recordingSession?.class_id) {
+    const { data, error } = await admin
+      .from('class_memory_terms')
+      .select('term, corrected_form, speaker_role')
+      .eq('class_id', recordingSession.class_id)
+      .eq('user_id', recordingSession.user_id)
+      .order('confirmed_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    memoryTerms = data || [];
+  }
+
+  const recovered = await transcribeDeepgramRecording({
+    apiKey: Deno.env.get('DEEPGRAM_API_KEY') || '',
+    audio: audioStream,
+    mimeType,
+    languages,
+    keyterms: [
+      className,
+      subject,
+      ...memoryTerms.flatMap((term) => [term.corrected_form, term.term]),
+    ].filter(Boolean),
+    rawLinear16,
+  });
+
+  const corrections = existingRows.filter((row) => row.corrected_text || row.speaker_role);
+  return recovered.segments.map((segment: any) => {
+    const startedAtMs = Math.round(segment.start * 1000);
+    const endedAtMs = Math.round(segment.end * 1000);
+    let text = segment.text;
+    let speakerRole = null;
+    for (const correction of corrections) {
+      const overlaps = Number(correction.ended_at_ms || 0) >= startedAtMs
+        && Number(correction.started_at_ms || 0) <= endedAtMs;
+      if (!overlaps) continue;
+      const original = String(correction.original_text || '').trim();
+      const corrected = String(correction.corrected_text || '').trim();
+      if (original && corrected && text.includes(original)) text = text.replace(original, corrected);
+      if (correction.speaker_role) speakerRole = correction.speaker_role;
+    }
+    return {
+      provider_segment_id: segment.id,
+      started_at_ms: startedAtMs,
+      ended_at_ms: endedAtMs,
+      source: 'replay',
+      speaker_key: segment.speaker,
+      speaker_role: speakerRole,
+      language_code: segment.language,
+      confidence: segment.confidence,
+      original_text: text,
+      corrected_text: null,
+      revision: 1,
+      is_deleted: false,
+    };
+  });
+};
 
 // Bias Whisper toward the lecture's domain vocabulary / proper nouns so technical terms
 // and names transcribe correctly instead of being mangled.
@@ -785,6 +915,76 @@ const getApiKeyAndClient = () => {
   return createAiClient(apiKey);
 };
 
+const bytesToBase64 = (bytes: Uint8Array) => {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+};
+
+const analyzeRecordingPhotoSources = async ({
+  admin,
+  ai,
+  assets,
+}: {
+  admin: any;
+  ai: AiClient;
+  assets: any[];
+}) => {
+  const analyzed = [];
+  let photoCount = 0;
+  for (const asset of assets) {
+    if (asset.asset_kind !== 'photo' || asset.extracted_text || photoCount >= 5) {
+      analyzed.push(asset);
+      continue;
+    }
+    photoCount += 1;
+    try {
+      const { data, error } = await admin.storage.from('note-assets').download(asset.storage_path);
+      if (error || !data) throw error || new Error('Class photo could not be downloaded');
+      if (data.size > 4 * 1024 * 1024) {
+        analyzed.push({ ...asset, analysis: { status: 'skipped', reason: 'image_too_large' } });
+        continue;
+      }
+      const base64 = bytesToBase64(new Uint8Array(await data.arrayBuffer()));
+      const model = Deno.env.get('AI_VISION_MODEL') || 'qwen/qwen3.6-27b';
+      const visibleText = (await ai.generateContent({
+        model,
+        maxTokens: 2048,
+        temperature: 0,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Extract classroom evidence from this photo. Transcribe every readable word, equation, label, table value, and diagram relationship faithfully. Preserve uncertainty as [unclear]. Do not solve, explain, infer, or add outside facts. Return plain evidence text only.',
+            },
+            { type: 'image_url', image_url: { url: `data:${asset.mime_type};base64,${base64}` } },
+          ],
+        }],
+      })).trim();
+      const analysis = {
+        status: visibleText ? 'readable' : 'unreadable',
+        model,
+        analyzed_at: new Date().toISOString(),
+      };
+      const { error: updateError } = await admin
+        .from('recording_assets')
+        .update({ extracted_text: visibleText || null, analysis })
+        .eq('id', asset.id);
+      if (updateError) throw updateError;
+      analyzed.push({ ...asset, extracted_text: visibleText || null, analysis });
+    } catch (error) {
+      if (isRetryableProviderError(error)) throw error;
+      console.warn('[note_enhancement] class photo analysis skipped', error);
+      analyzed.push({ ...asset, analysis: { status: 'failed' } });
+    }
+  }
+  return analyzed;
+};
+
 // Text-only enhancement: the user typed notes and pressed Enhance without a recording.
 // Same two-pass + fidelity + knowledge-layer pipeline as audio, minus transcription and
 // sectioning (typed notes are bounded). Grounding for fidelity/knowledge is the user's text.
@@ -923,6 +1123,7 @@ const processNoteEnhancementJob = async ({
   const input = (job.input_payload || {}) as Record<string, unknown>;
   const noteId = String(input.noteId || '');
   const audioPath = String(input.audioPath || '');
+  const sessionId = String(input.sessionId || '');
   const userNotesSnapshot = typeof input.userNotesSnapshot === 'string' ? input.userNotesSnapshot : null;
   const titleSnapshot = typeof input.titleSnapshot === 'string' ? input.titleSnapshot : 'Enhanced Notes';
   const className = typeof input.className === 'string' ? input.className : null;
@@ -934,7 +1135,7 @@ const processNoteEnhancementJob = async ({
 
   // No audio → text-only enhancement of the user's typed notes (same quality pipeline,
   // minus transcription/sectioning). Empty + no audio is rejected up front.
-  if (!audioPath) {
+  if (!audioPath && !sessionId) {
     if (!userNotesSnapshot || !userNotesSnapshot.trim()) {
       throw createHttpError('Add some notes or a recording to enhance.', 400);
     }
@@ -948,26 +1149,182 @@ const processNoteEnhancementJob = async ({
   let firstPreviewAt: number | null = null;
 
   await reporter.markRunning('accepted', 5, 'Accepted note enhancement job');
+  let transcription = '';
+  let segments: AudioSegment[] = [];
+  let persistedSegments: unknown[] = [];
+  let sourceSnapshotHash: string | null = null;
+  let studySignals: Array<Record<string, unknown>> = [];
+  let groundedInstruction = '';
+  let assetEvidence = '';
+  let recordingAssets: any[] = [];
+  let classroomMethod = resolveClassroomNoteMethod({ subject: subject || className || '', sessionKind: 'lecture' });
 
-  await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
-  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
-  if (storageError || !audioData) {
-    throw createHttpError('Failed to retrieve audio file.', 500);
+  if (sessionId) {
+    await reporter.update('processing_media', 18, 'Preparing timestamped class transcript');
+    const [{ data: recordingSession, error: sessionError }, transcriptResult, marksResult, assetsResult, chunksResult] = await Promise.all([
+      admin
+        .from('recording_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .eq('user_id', job.user_id)
+        .maybeSingle(),
+      admin
+        .from('transcript_segments')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', job.user_id)
+        .eq('is_deleted', false)
+        .order('started_at_ms', { ascending: true }),
+      admin
+        .from('recording_marks')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', job.user_id)
+        .order('marked_at_ms', { ascending: true }),
+      admin
+        .from('recording_assets')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', job.user_id)
+        .order('captured_at_ms', { ascending: true }),
+      admin
+        .from('recording_chunks')
+        .select('sequence, started_at_ms, ended_at_ms, storage_path, mime_type, upload_state')
+        .eq('session_id', sessionId)
+        .eq('user_id', job.user_id)
+        .eq('upload_state', 'verified')
+        .order('sequence', { ascending: true }),
+    ]);
+
+    if (sessionError) throw sessionError;
+    if (!recordingSession || String(recordingSession.note_id) !== noteId) {
+      throw createHttpError('Recording session was not found for this note.', 404);
+    }
+    if (transcriptResult.error) throw transcriptResult.error;
+    if (marksResult.error) throw marksResult.error;
+    if (assetsResult.error) throw assetsResult.error;
+    if (chunksResult.error) throw chunksResult.error;
+
+    let transcriptRows = transcriptResult.data || [];
+    const recoveredTranscriptRows = await recoverDurableRecordingTranscript({
+      admin,
+      recordingSession,
+      chunkRows: chunksResult.data || [],
+      existingRows: transcriptRows,
+      className,
+      subject,
+    });
+    if (recoveredTranscriptRows?.length) {
+      transcriptRows = recoveredTranscriptRows;
+      if (!(transcriptResult.data || []).length) {
+        const { error: recoveredInsertError } = await admin.from('transcript_segments').upsert(
+          recoveredTranscriptRows.map((segment: any) => ({
+            ...segment,
+            user_id: job.user_id,
+            session_id: sessionId,
+          })),
+          { onConflict: 'session_id,provider_segment_id' },
+        );
+        if (recoveredInsertError) throw recoveredInsertError;
+      }
+    }
+    if (!transcriptRows.length) {
+      throw createHttpError('The recording transcript is not ready yet. Try Enhance again shortly.', 409);
+    }
+
+    const assetRows = await analyzeRecordingPhotoSources({
+      admin,
+      ai,
+      assets: assetsResult.data || [],
+    });
+    recordingAssets = assetRows;
+    assetEvidence = buildRecordingAssetEvidence(assetRows);
+
+    transcription = buildEvidenceTranscript(transcriptRows);
+    persistedSegments = transcriptRows.map((segment: any) => ({
+      id: segment.provider_segment_id,
+      start: Number(segment.started_at_ms || 0) / 1000,
+      end: Number(segment.ended_at_ms || 0) / 1000,
+      text: segment.corrected_text || segment.original_text,
+      speaker: segment.speaker_key,
+      speakerRole: segment.speaker_role,
+      confidence: segment.confidence,
+      evidenceRef: segment.provider_segment_id,
+    }));
+    segments = transcriptRows.map((segment: any) => ({
+      id: segment.provider_segment_id,
+      start: Number(segment.started_at_ms || 0) / 1000,
+      end: Number(segment.ended_at_ms || 0) / 1000,
+      text: buildEvidenceTranscript([segment]),
+    }));
+    sourceSnapshotHash = await buildSourceSnapshotHash({
+      segments: transcriptRows,
+      jots: userNotesSnapshot || '',
+      marks: marksResult.data || [],
+      assets: assetRows,
+    });
+    studySignals = extractExplicitStudySignals(transcriptRows).map((signal: any) => ({
+      signal_kind: signal.signalKind,
+      title: signal.title,
+      body: signal.body,
+      severity: signal.severity,
+      evidence_refs: signal.evidenceRefs,
+      payload: signal.payload,
+    }));
+    studySignals.push(...buildMissingAudioGapSignals({
+      manifestChunkCount: recordingSession.manifest_chunk_count,
+      chunks: chunksResult.data || [],
+    }).map((signal: any) => ({
+      signal_kind: signal.signalKind,
+      title: signal.title,
+      body: signal.body,
+      severity: signal.severity,
+      evidence_refs: signal.evidenceRefs,
+      payload: signal.payload,
+    })));
+    for (const mark of marksResult.data || []) {
+      studySignals.push({
+        signal_kind: 'marked_moment',
+        title: mark.label || 'Marked moment',
+        body: null,
+        severity: 'review',
+        evidence_refs: [],
+        payload: { markedAtMs: mark.marked_at_ms, markId: mark.id },
+      });
+    }
+    classroomMethod = recordingSession.session_kind === 'lecture'
+      && input.preferredFormat
+      && input.preferredFormat !== 'auto'
+      ? String(input.preferredFormat)
+      : resolveClassroomNoteMethod({ subject: subject || className || '', sessionKind: recordingSession.session_kind });
+    groundedInstruction = buildGroundedClassroomInstruction({
+      method: classroomMethod,
+      evidenceTranscript: transcription,
+      assetEvidence,
+      userJots: userNotesSnapshot || '',
+    });
+  } else {
+    await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
+    const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
+    if (storageError || !audioData) {
+      throw createHttpError('Failed to retrieve audio file.', 500);
+    }
+
+    const audioBlob = new Blob([await audioData.arrayBuffer()], { type: getAudioMimeType(audioPath) });
+    const filename = audioPath.split('/').pop() || 'audio.webm';
+    if (audioBlob.size > 25 * 1024 * 1024) {
+      throw createHttpError('Audio file exceeds the 25MB processing limit. Try a shorter recording.', 413);
+    }
+    await reporter.update('processing_media', 24, 'Transcribing audio');
+    const transcriptionResult = await ai.transcribeAudioWithSegments(
+      audioBlob,
+      filename,
+      { prompt: buildTranscriptionBiasPrompt(className, subject) },
+    );
+    transcription = transcriptionResult.text;
+    segments = transcriptionResult.segments;
+    persistedSegments = segments;
   }
-
-  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: getAudioMimeType(audioPath) });
-  const filename = audioPath.split('/').pop() || 'audio.webm';
-
-  if (audioBlob.size > 25 * 1024 * 1024) {
-    throw createHttpError('Audio file exceeds the 25MB processing limit. Try a shorter recording.', 413);
-  }
-
-  await reporter.update('processing_media', 24, 'Transcribing audio');
-  const { text: transcription, segments } = await ai.transcribeAudioWithSegments(
-    audioBlob,
-    filename,
-    { prompt: buildTranscriptionBiasPrompt(className, subject) },
-  );
 
   const sections = groupSegmentsIntoSections(segments);
 
@@ -977,7 +1334,7 @@ const processNoteEnhancementJob = async ({
   if (sections.length <= 1) {
     const draftMessages: AiMessage[] = [{
       role: 'user',
-      content: `${buildNoteDraftPrompt(userNotesSnapshot, className, subject, transcription)}\n\nLecture Audio Transcription:\n${transcription}`,
+      content: `${buildNoteDraftPrompt(userNotesSnapshot, className, subject, transcription)}\n\n${groundedInstruction || `Lecture Audio Transcription:\n${transcription}`}`,
     }];
 
     const draftResult = await streamDocPreview({
@@ -1011,7 +1368,7 @@ const processNoteEnhancementJob = async ({
       fallbackModel: modelMap.final,
       messages: [{
         role: 'user',
-        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc, subject, transcription)}\n\nLecture Audio Transcription:\n${transcription}`,
+        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc, subject, transcription)}\n\n${groundedInstruction || `Lecture Audio Transcription:\n${transcription}`}`,
       }],
       responseFormat: 'json_object',
     });
@@ -1040,6 +1397,11 @@ const processNoteEnhancementJob = async ({
     await reporter.update('drafting', 30, `Generating notes for ${sections.length} sections`);
 
     await processConcurrently(sections, CONCURRENCY, async (section) => {
+      const nearbyAssetEvidence = buildRecordingAssetEvidence(recordingAssets.filter((asset: any) => {
+        const capturedAtSeconds = Number(asset?.captured_at_ms || 0) / 1000;
+        return capturedAtSeconds >= Math.max(0, section.startTime - 60)
+          && capturedAtSeconds <= section.endTime + 60;
+      }));
       const sectionDoc = await generateNotesForSection({
         ai,
         section,
@@ -1048,6 +1410,12 @@ const processNoteEnhancementJob = async ({
         className,
         subject,
         modelMap,
+        groundingContext: `Classroom note method: ${classroomMethod}.
+Use only this section transcript, the student's jots, and readable class assets below. Do not add outside facts, inferred definitions, invented examples, or solutions the instructor did not give.
+Preserve student jots and label any source conflict for review.
+
+Timestamped readable class assets near this section:
+${nearbyAssetEvidence || 'None'}`,
       });
 
       completedSections[section.index] = sectionDoc;
@@ -1076,7 +1444,12 @@ const processNoteEnhancementJob = async ({
       fallbackModel: modelMap.final,
       messages: [{
         role: 'user',
-        content: buildMergePrompt(userNotesSnapshot, className, completedSections, subject),
+        content: `${buildMergePrompt(userNotesSnapshot, className, completedSections, subject)}
+
+Merge only the grounded section drafts and readable class assets below. Do not add outside facts, inferred definitions, invented examples, or missing audio content. Preserve every student jot and retain clearly labeled source conflicts.
+
+Timestamped readable class assets:
+${assetEvidence || 'None'}`,
       }],
       responseFormat: 'json_object',
       // Scale the merge budget with section count so a long lecture yields a proportionally
@@ -1111,7 +1484,7 @@ const processNoteEnhancementJob = async ({
   finalDoc = await ensureNoteFidelity({
     ai,
     finalDoc,
-    transcription,
+    transcription: assetEvidence ? `${transcription}\n\nTimestamped readable class assets:\n${assetEvidence}` : transcription,
     userNotesSnapshot,
     className,
     subject,
@@ -1129,24 +1502,39 @@ const processNoteEnhancementJob = async ({
     modelMap,
   });
 
-  const { error: updateError } = await admin
-    .from('notes')
-    .update({
-      enhanced_content: finalDoc,
-      content: finalDoc,
-      transcript: transcription,
-      audio_segments: segments,
-      audio_url: audioPath,
-      polish_status: 'polished',
-      source_type: 'audio',
-      knowledge_layer: knowledgeLayer,
-    })
-    .eq('id', noteId)
-    .eq('user_id', job.user_id);
-
-  if (updateError) throw updateError;
-
   const persistedAt = new Date().toISOString();
+
+  if (sessionId) {
+    const { error: applyError } = await admin.rpc('apply_audio_note_enhancement_v2', {
+      p_user_id: job.user_id,
+      p_note_id: noteId,
+      p_session_id: sessionId,
+      p_content: finalDoc,
+      p_transcript: transcription,
+      p_audio_segments: persistedSegments,
+      p_knowledge_layer: knowledgeLayer,
+      p_source_snapshot_hash: sourceSnapshotHash,
+      p_study_signals: studySignals,
+      p_completed_at: persistedAt,
+    });
+    if (applyError) throw applyError;
+  } else {
+    const { error: updateError } = await admin
+      .from('notes')
+      .update({
+        enhanced_content: finalDoc,
+        content: finalDoc,
+        transcript: transcription,
+        audio_segments: persistedSegments,
+        audio_url: audioPath,
+        polish_status: 'polished',
+        source_type: 'audio',
+        knowledge_layer: knowledgeLayer,
+      })
+      .eq('id', noteId)
+      .eq('user_id', job.user_id);
+    if (updateError) throw updateError;
+  }
 
   await reporter.markSaving('Saving enhanced notes', {
     final_doc: finalDoc,
@@ -1175,6 +1563,8 @@ const processNoteEnhancementJob = async ({
       note_id: noteId,
       note_persisted: true,
       persisted_at: persistedAt,
+      source_snapshot_hash: sourceSnapshotHash,
+      study_signal_count: studySignals.length,
     },
   });
 };

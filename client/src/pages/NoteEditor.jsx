@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ChevronLeft, Check, Loader2, Layers, BookOpen, ClipboardCheck, Trash2, X, ChevronDown,
-    Mic, Sparkles, AlertCircle, Share2, Play, Pause
+    Mic, Sparkles, AlertCircle, Share2, Play, Pause, Paperclip
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -14,8 +14,12 @@ import PricingModal from '../components/ui/PricingModal';
 import { createArrayStreamParser } from '../utils/streamingJsonParser';
 import ShareToFriendModal from '../components/ShareToFriendModal';
 import WaveformBars from '../components/audio/WaveformBars.jsx';
+import RecordingRail from '../components/audio/RecordingRail.jsx';
+import TranscriptReview from '../components/audio/TranscriptReview.jsx';
+import StudySignalsPanel from '../components/audio/StudySignalsPanel.jsx';
 import SectionedPreview from '../components/audio/SectionedPreview';
 import { formatRecordingDuration } from '../utils/audioRecording.js';
+import { extractPdfText } from '../utils/pdfText.js';
 import { UIContext } from '../context/UIContext';
 import {
     buildShareMessageContent,
@@ -87,6 +91,12 @@ export default function NoteEditor() {
     const [content, setContent] = useState(null);
     const [classId, setClassId] = useState(searchParams.get('classId') || null);
     const [classes, setClasses] = useState([]);
+    const [studySignals, setStudySignals] = useState([]);
+    const [recordingAssets, setRecordingAssets] = useState([]);
+    const [assetUploading, setAssetUploading] = useState(false);
+    const [includeTabAudio, setIncludeTabAudio] = useState(false);
+    const [recordingProfile, setRecordingProfile] = useState(null);
+    const [keepRecordingFor30Days, setKeepRecordingFor30Days] = useState(false);
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(true);
@@ -116,6 +126,7 @@ export default function NoteEditor() {
     const [audioCurrentTime, setAudioCurrentTime] = useState(0);
     const [audioDuration, setAudioDuration] = useState(0);
     const audioPlayerRef = useRef(null);
+    const recordingAssetInputRef = useRef(null);
     const [activeEnhancementJob, setActiveEnhancementJob] = useState(null);
     const [enhancementCompletionRail, setEnhancementCompletionRail] = useState(null);
     const [streamedEnhancementDoc, setStreamedEnhancementDoc] = useState(null);
@@ -184,6 +195,39 @@ export default function NoteEditor() {
         noteId,
         noteTitle: title || titleRef.current || 'Untitled',
     });
+
+    useEffect(() => {
+        if (!noteId) return undefined;
+        let cancelled = false;
+        api.getStudySignalsForNote(noteId).then((signals) => {
+            if (!cancelled) setStudySignals(signals || []);
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [noteId, enhancementCompletionRail?.id]);
+
+    useEffect(() => {
+        if (!classId) {
+            setRecordingProfile(null);
+            return undefined;
+        }
+        let cancelled = false;
+        api.getClassNoteProfile?.(classId).then((profile) => {
+            if (!cancelled) setRecordingProfile(profile || null);
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [classId]);
+
+    useEffect(() => {
+        if (!recorder.recordingSessionId) {
+            setRecordingAssets([]);
+            return undefined;
+        }
+        let cancelled = false;
+        api.getRecordingAssets?.(recorder.recordingSessionId).then((assets) => {
+            if (!cancelled) setRecordingAssets(assets || []);
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [recorder.recordingSessionId]);
 
     const { setContextToolbar, clearContextToolbar } = useContext(UIContext) || {};
 
@@ -982,7 +1026,7 @@ export default function NoteEditor() {
             return;
         }
 
-        if (recorder.state === 'recording') {
+        if (recorder.state === 'recording' || recorder.state === 'paused') {
             recorder.stop();
             return;
         }
@@ -1013,19 +1057,141 @@ export default function NoteEditor() {
             setSaving(false);
         }
 
-        await recorder.start(resolvedNoteId, titleRef.current || 'Untitled');
+        const selectedClassData = classes.find((candidate) => candidate.id === classId);
+        const [profile, memoryTerms] = classId
+            ? await Promise.all([
+                api.getClassNoteProfile?.(classId).catch(() => null),
+                api.getClassMemoryTerms?.(classId).catch(() => []),
+            ])
+            : [null, []];
+        if (profile?.recording_policy_status === 'restricted') {
+            toast.error('Recording is marked as restricted for this class. Update the class recording policy before starting.');
+            return;
+        }
+        setRecordingProfile(profile || null);
+        await recorder.start(resolvedNoteId, titleRef.current || 'Untitled', {
+            classId,
+            sessionKind: 'lecture',
+            includeTabAudio,
+            languageConfig: {
+                primary: profile?.primary_language || 'en',
+                secondary: profile?.secondary_languages || [],
+            },
+            keyterms: [
+                selectedClassData?.name,
+                selectedClassData?.subject,
+                ...(memoryTerms || []).flatMap((term) => [term.corrected_form, term.term]),
+            ].filter(Boolean).slice(0, 100),
+        });
     };
 
+    const handleRecordingAssetUpload = useCallback(async (event) => {
+        const files = [...(event.target.files || [])];
+        event.target.value = '';
+        if (!files.length || !recorder.recordingSessionId || assetUploading) return;
+
+        setAssetUploading(true);
+        try {
+            const uploaded = [];
+            for (const file of files) {
+                const extractedText = file.type === 'application/pdf'
+                    ? await extractPdfText(file)
+                    : null;
+                uploaded.push(await api.uploadRecordingAsset(recorder.recordingSessionId, file, {
+                    capturedAtMs: recorder.duration * 1000,
+                    extractedText,
+                }));
+            }
+            setRecordingAssets((current) => [...current, ...uploaded]);
+            toast.success(`${uploaded.length} class source${uploaded.length === 1 ? '' : 's'} added`);
+        } catch (error) {
+            toast.error(error?.message || 'Could not add this class source');
+        } finally {
+            setAssetUploading(false);
+        }
+    }, [assetUploading, recorder.duration, recorder.recordingSessionId, toast]);
+
+    const handleRecordingMark = useCallback(async () => {
+        if (!recorder.recordingSessionId) return;
+        try {
+            await api.createRecordingMark(recorder.recordingSessionId, recorder.duration * 1000);
+            toast.success('Moment marked');
+        } catch {
+            toast.error('Could not mark this moment');
+        }
+    }, [recorder.duration, recorder.recordingSessionId, toast]);
+
+    const handleTranscriptCorrection = useCallback(async (segment) => {
+        if (!recorder.recordingSessionId || !segment?.id) return;
+        try {
+            await api.correctTranscriptSegment(segment.id, {
+                sessionId: recorder.recordingSessionId,
+                correctedText: segment.correctedText,
+                originalText: segment.originalText,
+                speakerRole: segment.speakerRole,
+                revision: segment.revision || 1,
+                classId,
+            });
+            toast.success('Transcript correction saved');
+        } catch {
+            toast.error('Could not save transcript correction');
+        }
+    }, [classId, recorder.recordingSessionId, toast]);
+
+    const handleStudySignalUpdate = useCallback(async (signalId, updates) => {
+        const previous = studySignals;
+        setStudySignals((current) => current.map((signal) => (
+            signal.id === signalId ? { ...signal, ...updates } : signal
+        )));
+        try {
+            await api.updateStudySignal(signalId, updates);
+        } catch {
+            setStudySignals(previous);
+            toast.error('Could not update study signal');
+        }
+    }, [studySignals, toast]);
+
+    const handleRetentionToggle = useCallback(async () => {
+        if (!recorder.recordingSessionId) return;
+        const next = !keepRecordingFor30Days;
+        setKeepRecordingFor30Days(next);
+        try {
+            await api.updateRecordingSession(recorder.recordingSessionId, {
+                audioRetentionPolicy: next ? 'keep_30_days' : 'standard',
+            });
+        } catch {
+            setKeepRecordingFor30Days(!next);
+            toast.error('Could not update audio retention');
+        }
+    }, [keepRecordingFor30Days, recorder.recordingSessionId, toast]);
+
+    const handleUndoEnhancement = useCallback(async () => {
+        if (!noteId) return;
+        try {
+            const restored = await api.undoLatestAudioEnhancement(noteId);
+            const restoredDoc = normalizeRichTextDoc(restored?.content || EMPTY_RICH_TEXT_DOC);
+            contentRef.current = restoredDoc;
+            setContent(restoredDoc);
+            setStreamedEnhancementDoc(null);
+            setEnhancementCompletionRail(null);
+            setSaved(true);
+            toast.success('Enhancement undone');
+        } catch (error) {
+            toast.error(error?.message || 'Could not restore the previous note');
+        }
+    }, [noteId, toast]);
+
     const handleEnhance = async () => {
+        const recordingSessionId = recorder.recordingSessionId;
         const blob = recorder.getBlob();
-        if (!blob) {
+        if (!recordingSessionId && !blob) {
             toast.error('No recording found. Please record again.');
             return;
         }
         if (!noteId) return;
 
         const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // 24MB — 1MB below Groq's 25MB limit
-        if (blob.size > MAX_AUDIO_BYTES) {
+        if (!recordingSessionId && blob.size > MAX_AUDIO_BYTES) {
             setEnhanceError('Recording is too large to process (max ~90 min at standard quality). Please try a shorter recording.');
             return;
         }
@@ -1053,7 +1219,7 @@ export default function NoteEditor() {
         setActiveEnhancementJob({
             id: 'pending-note-enhancement',
             status: 'queued',
-            phase: 'uploading_audio',
+            phase: recordingSessionId ? 'processing_media' : 'uploading_audio',
             progress_percent: 2,
             progress_message: ENHANCEMENT_PHASE_LABELS.uploading_audio,
             result_payload: {},
@@ -1063,23 +1229,34 @@ export default function NoteEditor() {
         setEnhancementSectionsTotal(0);
 
         try {
-            const uploadResult = await api.uploadNoteAudio(noteId, blob);
-            const storagePath = uploadResult.path;
-            setAudioPath(storagePath);
-            recorder.setAudioPath(storagePath);
-
             const userNotesSnapshot = extractText(contentRef.current).trim() || null;
             const selectedClassData = classes.find((c) => c.id === classId);
             const selectedClassName = selectedClassData?.name || null;
-
-            const jobResponse = await api.createAiJob('note_enhancement', {
-                noteId,
-                audioPath: storagePath,
-                userNotesSnapshot,
-                titleSnapshot: titleRef.current || 'Untitled',
-                className: selectedClassName,
-                subject: selectedClassData?.subject || null,
-            });
+            let jobResponse;
+            if (recordingSessionId) {
+                jobResponse = await api.enhanceRecordedNote({
+                    noteId,
+                    sessionId: recordingSessionId,
+                    userNotes: userNotesSnapshot || '',
+                    titleSnapshot: titleRef.current || 'Untitled',
+                    className: selectedClassName,
+                    subject: selectedClassData?.subject || null,
+                    preferredFormat: recordingProfile?.preferred_format || 'auto',
+                });
+            } else {
+                const uploadResult = await api.uploadNoteAudio(noteId, blob);
+                const storagePath = uploadResult.path;
+                setAudioPath(storagePath);
+                recorder.setAudioPath(storagePath);
+                jobResponse = await api.createAiJob('note_enhancement', {
+                    noteId,
+                    audioPath: storagePath,
+                    userNotesSnapshot,
+                    titleSnapshot: titleRef.current || 'Untitled',
+                    className: selectedClassName,
+                    subject: selectedClassData?.subject || null,
+                });
+            }
 
             enhancementMetricsRef.current.ackMs = Math.round(
                 performance.now() - enhancementMetricsRef.current.clickAt,
@@ -1375,7 +1552,7 @@ export default function NoteEditor() {
     useEffect(() => {
         if (!setContextToolbar) return;
 
-        const isRec = recorder.state === 'recording';
+        const isRec = recorder.state === 'recording' || recorder.state === 'paused';
         const recProcessing = recorder.state === 'uploading' || recorder.state === 'processing';
         const enhLocked = isEnhancementJobActive(activeEnhancementJob);
         const micOff = recorder.isAnotherNoteRecording || enhancing || enhLocked || !!generating || recProcessing;
@@ -1443,7 +1620,7 @@ export default function NoteEditor() {
     }
 
     const selectedClass = classes.find((c) => c.id === classId);
-    const isRecording = recorder.state === 'recording';
+    const isRecording = recorder.state === 'recording' || recorder.state === 'paused';
     const isRecordingInAnotherNote = recorder.isAnotherNoteRecording;
     const enhancementLocked = isEnhancementJobActive(activeEnhancementJob);
     const micDisabled = isRecordingInAnotherNote || enhancing || enhancementLocked || !!generating || recorder.state === 'uploading' || recorder.state === 'processing';
@@ -1454,6 +1631,9 @@ export default function NoteEditor() {
     const enhancementRailIsCompleting = !enhancementLocked && Boolean(enhancementCompletionRail);
     const editorContent = streamedEnhancementDoc ?? content;
     const showImportSweep = enhancementLocked && streamedEnhancementDoc && !prefersReducedMotion;
+    const supportsTabAudio = !isRecording
+        && typeof navigator !== 'undefined'
+        && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
 
     const micLabel = isRecording
         ? `Stop recording (${formatRecordingDuration(recorder.duration)})`
@@ -1585,6 +1765,63 @@ export default function NoteEditor() {
                 </div>
 
                 <div className="max-w-3xl mx-auto px-4 pt-6">
+                    {recorder.state === 'error' && recorder.error === 'update_required' && (
+                        <div
+                            role="alert"
+                            className="mb-4 rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 py-3"
+                        >
+                            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">
+                                Update Riven to record classes
+                            </p>
+                            <p className="mt-1 text-[12px] leading-relaxed text-claude-text">
+                                This version cannot use the new reliable classroom recorder. Your notes are still available; update the app to start a new recording.
+                            </p>
+                        </div>
+                    )}
+                    {supportsTabAudio && (recorder.state === 'idle' || recorder.state === 'error') && (
+                        <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-xl border border-claude-border/40 bg-claude-surface/35 px-3 py-2 text-[11px] text-claude-secondary">
+                            <input
+                                type="checkbox"
+                                checked={includeTabAudio}
+                                onChange={(event) => setIncludeTabAudio(event.target.checked)}
+                                className="accent-claude-accent"
+                            />
+                            Also capture audio from a shared browser tab (select “Share tab audio” when prompted)
+                        </label>
+                    )}
+                    {(recorder.state === 'recording' || recorder.state === 'paused' || recorder.state === 'reconnecting') && recorder.isActiveNote && (
+                        <RecordingRail recorder={recorder} onMark={handleRecordingMark} />
+                    )}
+                    {recorder.recordingSessionId && recorder.isActiveNote && ['recording', 'paused', 'reconnecting', 'stopped'].includes(recorder.state) && (
+                        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-claude-border/35 bg-claude-surface/35 px-3 py-2">
+                            <input
+                                ref={recordingAssetInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,application/pdf"
+                                multiple
+                                className="hidden"
+                                onChange={handleRecordingAssetUpload}
+                            />
+                            <button
+                                type="button"
+                                disabled={assetUploading}
+                                onClick={() => recordingAssetInputRef.current?.click()}
+                                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-claude-border px-2.5 font-mono text-[9px] font-bold uppercase tracking-wider text-claude-text hover:border-claude-accent/40 disabled:opacity-50"
+                            >
+                                {assetUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                                Add photo or PDF
+                            </button>
+                            <span className="text-[11px] text-claude-secondary">
+                                {recordingAssets.length
+                                    ? `${recordingAssets.length} timestamped class source${recordingAssets.length === 1 ? '' : 's'}`
+                                    : 'Attach the board, slides, diagrams, or handouts at the moment they appear.'}
+                            </span>
+                        </div>
+                    )}
+                    {recorder.state === 'stopped' && recorder.isActiveNote && recorder.transcriptSegments?.length > 0 && (
+                        <TranscriptReview segments={recorder.transcriptSegments} onCorrect={handleTranscriptCorrection} />
+                    )}
+                    <StudySignalsPanel signals={studySignals} onUpdate={handleStudySignalUpdate} />
                     <AnimatePresence>
                         {isRecordingInAnotherNote && (
                             <motion.div
@@ -1627,6 +1864,18 @@ export default function NoteEditor() {
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {recorder.recordingSessionId && (
+                                        <button
+                                            type="button"
+                                            onClick={handleRetentionToggle}
+                                            className={`rounded-lg border px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider transition-colors ${keepRecordingFor30Days
+                                                ? 'border-claude-accent/50 bg-claude-accent/10 text-claude-accent'
+                                                : 'border-claude-border text-claude-secondary hover:text-claude-text'}`}
+                                            title="Audio is deleted 24 hours after enhancement unless kept"
+                                        >
+                                            {keepRecordingFor30Days ? 'Keeping 30 days' : 'Keep audio 30 days'}
+                                        </button>
+                                    )}
                                     <button
                                         onClick={handleEnhance}
                                         disabled={enhancing}
@@ -1670,6 +1919,15 @@ export default function NoteEditor() {
                                         </p>
                                     </div>
                                     <div className="inline-flex items-center gap-2 shrink-0">
+                                        {enhancementRailIsCompleting && (
+                                            <button
+                                                type="button"
+                                                onClick={handleUndoEnhancement}
+                                                className="rounded-lg border border-claude-border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wider text-claude-secondary hover:text-claude-text"
+                                            >
+                                                Undo
+                                            </button>
+                                        )}
                                         <span className="text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary">
                                             {enhancementProgressPercent != null ? `${enhancementProgressPercent}%` : 'Live'}
                                         </span>

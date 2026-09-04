@@ -397,6 +397,15 @@ verify_jwt = false
 [functions.run-ai-job]
 verify_jwt = false
 
+[functions.retry-ai-jobs]
+verify_jwt = false
+
+[functions.transcription-token]
+verify_jwt = false
+
+[functions.audio-retention-cleanup]
+verify_jwt = false
+
 [functions.accept-shared-deck]
 verify_jwt = false
 

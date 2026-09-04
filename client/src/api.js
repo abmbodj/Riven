@@ -302,6 +302,64 @@ export const api = {
     deleteNoteAudio: (audioPath) => isLoggedIn()
         ? serverApi.deleteNoteAudio(audioPath)
         : Promise.reject(new Error('Must be logged in to delete note audio')),
+    createRecordingSession: (payload) => isLoggedIn()
+        ? serverApi.createRecordingSession(payload)
+        : Promise.reject(new Error('Must be logged in to record audio')),
+    getRecordingSession: (sessionId) => isLoggedIn()
+        ? serverApi.getRecordingSession(sessionId)
+        : Promise.reject(new Error('Must be logged in to view recordings')),
+    updateRecordingSession: (sessionId, updates) => isLoggedIn()
+        ? serverApi.updateRecordingSession(sessionId, updates)
+        : Promise.reject(new Error('Must be logged in to update recordings')),
+    uploadRecordingChunk: (sessionId, descriptor, blob) => isLoggedIn()
+        ? serverApi.uploadRecordingChunk(sessionId, descriptor, blob)
+        : Promise.reject(new Error('Must be logged in to upload recordings')),
+    upsertTranscriptSegments: (sessionId, segments) => isLoggedIn()
+        ? serverApi.upsertTranscriptSegments(sessionId, segments)
+        : Promise.reject(new Error('Must be logged in to save a transcript')),
+    getTranscriptSegments: (sessionId) => isLoggedIn()
+        ? serverApi.getTranscriptSegments(sessionId)
+        : Promise.resolve([]),
+    correctTranscriptSegment: (segmentId, updates) => isLoggedIn()
+        ? serverApi.correctTranscriptSegment(segmentId, updates)
+        : Promise.reject(new Error('Must be logged in to correct a transcript')),
+    createRecordingMark: (sessionId, markedAtMs, label) => isLoggedIn()
+        ? serverApi.createRecordingMark(sessionId, markedAtMs, label)
+        : Promise.reject(new Error('Must be logged in to mark a recording')),
+    uploadRecordingAsset: (sessionId, file, options) => isLoggedIn()
+        ? serverApi.uploadRecordingAsset(sessionId, file, options)
+        : Promise.reject(new Error('Must be logged in to add a class source')),
+    getRecordingAssets: (sessionId) => isLoggedIn()
+        ? serverApi.getRecordingAssets(sessionId)
+        : Promise.resolve([]),
+    finalizeRecordingSession: (sessionId, payload) => isLoggedIn()
+        ? serverApi.finalizeRecordingSession(sessionId, payload)
+        : Promise.reject(new Error('Must be logged in to finish a recording')),
+    getStudySignalsForNote: (noteId) => isLoggedIn()
+        ? serverApi.getStudySignalsForNote(noteId)
+        : Promise.resolve([]),
+    updateStudySignal: (signalId, updates) => isLoggedIn()
+        ? serverApi.updateStudySignal(signalId, updates)
+        : Promise.reject(new Error('Must be logged in to update a study signal')),
+    undoLatestAudioEnhancement: (noteId) => isLoggedIn()
+        ? mutate(() => serverApi.undoLatestAudioEnhancement(noteId), invalidateNotes)
+        : Promise.reject(new Error('Must be logged in to restore a note revision')),
+    getClassNoteProfile: (classId) => isLoggedIn()
+        ? serverApi.getClassNoteProfile(classId)
+        : Promise.resolve(null),
+    getClassMemoryTerms: (classId) => isLoggedIn()
+        ? serverApi.getClassMemoryTerms(classId)
+        : Promise.resolve([]),
+    upsertClassNoteProfile: (classId, profile) => isLoggedIn()
+        ? serverApi.upsertClassNoteProfile(classId, profile)
+        : Promise.reject(new Error('Must be logged in to update class note settings')),
+    createTranscriptionToken: () => isLoggedIn()
+        ? serverApi.createTranscriptionToken()
+        : Promise.reject(new Error('Must be logged in to transcribe audio')),
+    enhanceRecordedNote: (payload) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to enhance notes'));
+        return mutate(() => serverApi.enhanceRecordedNote(payload), invalidateNotes);
+    },
     enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className, subject) => {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to enhance notes'));
         return mutate(() => serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className, subject), invalidateNotes);

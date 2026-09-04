@@ -26,6 +26,8 @@ const { subscriptionHandlers, toast, recorderMock } = vi.hoisted(() => ({
     setAudioPath: vi.fn(),
     start: vi.fn(),
     stop: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
     getBlob: vi.fn(() => null),
     discardRecovery: vi.fn(),
     recover: vi.fn(),
@@ -61,6 +63,11 @@ vi.mock('../api', () => ({
     uploadNoteAudio: vi.fn(),
     deleteNoteAudio: vi.fn(),
     createAiJob: vi.fn(),
+    enhanceRecordedNote: vi.fn(),
+    createRecordingMark: vi.fn(),
+    correctTranscriptSegment: vi.fn(),
+    getStudySignalsForNote: vi.fn(),
+    updateStudySignal: vi.fn(),
     generateAiDeckStream: vi.fn(),
     generateAiGuideStream: vi.fn(),
     generateAiExamStream: vi.fn(),
@@ -250,13 +257,21 @@ describe('NoteEditor', () => {
     recorderMock.activeNoteId = 'note-42';
     recorderMock.activeNoteTitle = 'Cell Respiration Notes';
     recorderMock.state = 'idle';
+    recorderMock.error = null;
     recorderMock.globalState = 'idle';
     recorderMock.duration = 0;
     recorderMock.audioPath = null;
+    recorderMock.recordingSessionId = null;
+    recorderMock.transcriptSegments = [];
+    recorderMock.transcriptState = 'idle';
+    recorderMock.chunkCount = 0;
+    recorderMock.uploadedChunkCount = 0;
+    recorderMock.isActiveNote = true;
     recorderMock.hasRecoveryData = false;
     api.getClasses.mockResolvedValue([]);
     api.getNote.mockResolvedValue(note);
     api.getAiJob.mockResolvedValue(null);
+    api.getStudySignalsForNote.mockResolvedValue([]);
     api.listAiJobs.mockResolvedValue([]);
     api.deleteNoteAudio.mockResolvedValue({ path: '7/note-42.webm' });
     api.subscribeToAiJob.mockImplementation((jobId, handlers) => {
@@ -367,7 +382,10 @@ describe('NoteEditor', () => {
 
     await waitFor(() => {
       expect(api.createNote).toHaveBeenCalledWith('Untitled', emptyDoc, null);
-      expect(recorderMock.start).toHaveBeenCalledWith('note-new', 'Untitled');
+      expect(recorderMock.start).toHaveBeenCalledWith('note-new', 'Untitled', expect.objectContaining({
+        classId: null,
+        sessionKind: 'lecture',
+      }));
     });
   });
 
@@ -384,6 +402,16 @@ describe('NoteEditor', () => {
 
     expect(recorderMock.goToActiveNote).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /recording in world history lecture/i })).toBeDisabled();
+  });
+
+  it('tells students to update old iOS builds that cannot start the v2 recorder', async () => {
+    recorderMock.state = 'error';
+    recorderMock.error = 'update_required';
+
+    renderNoteEditor();
+
+    expect(await screen.findByText(/update riven to record classes/i)).toBeInTheDocument();
+    expect(screen.getByText(/your notes are still available/i)).toBeInTheDocument();
   });
 
   it('keeps the captured audio when discard is cancelled from the enhance banner', async () => {
@@ -427,6 +455,26 @@ describe('NoteEditor', () => {
     });
 
     expect(api.deleteNoteAudio).not.toHaveBeenCalled();
+  });
+
+  it('enhances a v2 recording from its durable transcript without uploading a whole audio blob', async () => {
+    recorderMock.state = 'stopped';
+    recorderMock.duration = 75;
+    recorderMock.recordingSessionId = 'session-v2';
+    recorderMock.transcriptSegments = [{ id: 'seg-1', text: 'ATP stores energy.', isFinal: true }];
+    recorderMock.getBlob.mockReturnValue(null);
+    api.enhanceRecordedNote.mockResolvedValue({ jobId: 'job-v2', status: 'queued', phase: 'accepted' });
+    api.getAiJob.mockResolvedValue(buildEnhancementJob({ id: 'job-v2', status: 'queued' }));
+
+    renderNoteEditor();
+    expect(await screen.findByText(/lecture captured - enhance your notes/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^enhance$/i }));
+
+    await waitFor(() => expect(api.enhanceRecordedNote).toHaveBeenCalledWith(expect.objectContaining({
+      noteId: 'note-42',
+      sessionId: 'session-v2',
+    })));
+    expect(api.uploadNoteAudio).not.toHaveBeenCalled();
   });
 
   it('deletes uploaded note audio when discarding from the enhancement error banner', async () => {

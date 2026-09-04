@@ -2086,6 +2086,407 @@ export const deleteNoteAudio = async (audioPath) => {
     return { path: normalizedPath };
 };
 
+// --- Classroom audio notes v2 ---
+
+const recordingExtensionForMimeType = (mimeType = '') => {
+    if (mimeType.includes('ogg')) return 'ogg';
+    if (mimeType.includes('mp4') || mimeType.includes('m4a')) return 'm4a';
+    if (mimeType.includes('aac')) return 'aac';
+    return 'webm';
+};
+
+export const createRecordingSession = async ({
+    noteId,
+    classId = null,
+    clientSessionId,
+    sessionKind = 'lecture',
+    sourceConfig = {},
+    languageConfig = {},
+}) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('recording_sessions')
+        .upsert({
+            user_id: userId,
+            note_id: noteId,
+            class_id: classId || null,
+            client_session_id: clientSessionId,
+            session_kind: sessionKind,
+            source_config: sourceConfig,
+            language_config: languageConfig,
+        }, { onConflict: 'user_id,client_session_id' })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const getRecordingSession = async (sessionId) => {
+    const { data, error } = await supabase
+        .from('recording_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const updateRecordingSession = async (sessionId, updates = {}) => {
+    const fieldMap = {
+        state: 'state',
+        startedAt: 'started_at',
+        stoppedAt: 'stopped_at',
+        durationMs: 'duration_ms',
+        manifestChunkCount: 'manifest_chunk_count',
+        manifestUploadedCount: 'manifest_uploaded_count',
+        transcriptRevision: 'transcript_revision',
+        sourceSnapshotHash: 'source_snapshot_hash',
+        enhancementCompletedAt: 'enhancement_completed_at',
+        audioRetentionPolicy: 'audio_retention_policy',
+        audioExpiresAt: 'audio_expires_at',
+        lastErrorCode: 'last_error_code',
+        sourceConfig: 'source_config',
+        languageConfig: 'language_config',
+    };
+    const payload = Object.fromEntries(
+        Object.entries(updates)
+            .filter(([key]) => fieldMap[key])
+            .map(([key, value]) => [fieldMap[key], value]),
+    );
+    const { data, error } = await supabase
+        .from('recording_sessions')
+        .update(payload)
+        .eq('id', sessionId)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const uploadRecordingChunk = async (sessionId, descriptor, audioBlob) => {
+    if (!(audioBlob instanceof Blob) || audioBlob.size === 0) {
+        throw new Error('A non-empty audio chunk is required');
+    }
+    const userId = await getAppUserId();
+    const mimeType = descriptor.mimeType || audioBlob.type || 'audio/webm';
+    const extension = recordingExtensionForMimeType(mimeType);
+    const storagePath = `${userId}/${sessionId}/${descriptor.sequence}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+        .from('recording-chunks')
+        .upload(storagePath, audioBlob, {
+            contentType: mimeType,
+            upsert: true,
+        });
+    if (uploadError) _sbThrow(uploadError);
+
+    const { data, error } = await supabase
+        .from('recording_chunks')
+        .upsert({
+            user_id: userId,
+            session_id: sessionId,
+            sequence: descriptor.sequence,
+            started_at_ms: descriptor.startedAtMs,
+            ended_at_ms: descriptor.endedAtMs,
+            duration_ms: descriptor.durationMs,
+            source: descriptor.source || 'microphone',
+            storage_path: storagePath,
+            sha256: descriptor.checksum,
+            mime_type: mimeType,
+            byte_size: descriptor.byteSize ?? audioBlob.size,
+            upload_state: 'verified',
+        }, { onConflict: 'session_id,sequence' })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const upsertTranscriptSegments = async (sessionId, segments = []) => {
+    if (!segments.length) return [];
+    const userId = await getAppUserId();
+    const rows = segments.map((segment) => ({
+        user_id: userId,
+        session_id: sessionId,
+        provider_segment_id: segment.id,
+        started_at_ms: Math.max(0, Math.round(segment.startMs || 0)),
+        ended_at_ms: Math.max(0, Math.round(segment.endMs || segment.startMs || 0)),
+        source: segment.source || 'microphone',
+        speaker_key: segment.speaker == null ? null : String(segment.speaker),
+        speaker_role: segment.speakerRole || null,
+        language_code: segment.language || null,
+        confidence: Number.isFinite(segment.confidence) ? segment.confidence : null,
+        original_text: String(segment.text || '').trim(),
+        revision: Math.max(1, Math.round(segment.revision || 1)),
+        is_deleted: Boolean(segment.isDeleted),
+    }));
+    const { data, error } = await supabase
+        .from('transcript_segments')
+        .upsert(rows, { onConflict: 'session_id,provider_segment_id' })
+        .select();
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const getTranscriptSegments = async (sessionId) => {
+    const { data, error } = await supabase
+        .from('transcript_segments')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('is_deleted', false)
+        .order('started_at_ms', { ascending: true });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const correctTranscriptSegment = async (providerSegmentId, {
+    sessionId,
+    correctedText,
+    originalText,
+    speakerRole = null,
+    revision = 1,
+    classId = null,
+}) => {
+    if (!sessionId) throw new Error('Recording session is required to correct a transcript');
+    const payload = {
+        corrected_text: String(correctedText || '').trim() || null,
+        speaker_role: speakerRole?.trim() || null,
+        revision: Math.max(1, Math.round(revision || 1) + 1),
+    };
+    const { data, error } = await supabase
+        .from('transcript_segments')
+        .update(payload)
+        .eq('provider_segment_id', providerSegmentId)
+        .eq('session_id', sessionId)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+
+    const sourceTerm = String(originalText || '').trim();
+    const correctedTerm = String(correctedText || '').trim();
+    if (classId && sourceTerm && correctedTerm && sourceTerm !== correctedTerm) {
+        const userId = await getAppUserId();
+        const { error: memoryError } = await supabase
+            .from('class_memory_terms')
+            .upsert({
+                user_id: userId,
+                class_id: classId,
+                term: sourceTerm,
+                corrected_form: correctedTerm,
+                speaker_role: speakerRole?.trim() || null,
+                source_kind: 'transcript_correction',
+                confirmed_at: new Date().toISOString(),
+            }, { onConflict: 'class_id,term' })
+            .select()
+            .single();
+        if (memoryError) _sbThrow(memoryError);
+    }
+    return data;
+};
+
+export const createRecordingMark = async (sessionId, markedAtMs, label = null) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('recording_marks')
+        .insert({
+            user_id: userId,
+            session_id: sessionId,
+            marked_at_ms: Math.max(0, Math.round(markedAtMs || 0)),
+            label: label?.trim() || null,
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const uploadRecordingAsset = async (sessionId, file, {
+    capturedAtMs = null,
+    extractedText = null,
+} = {}) => {
+    if (!sessionId || !(file instanceof Blob) || file.size === 0) {
+        throw new Error('A recording session and non-empty class source are required');
+    }
+    const mimeType = file.type || '';
+    const isPhoto = ['image/png', 'image/jpeg', 'image/webp'].includes(mimeType);
+    const isPdf = mimeType === 'application/pdf';
+    if (!isPhoto && !isPdf) throw new Error('Class sources must be a photo or PDF');
+    if (isPhoto && file.size > 4 * 1024 * 1024) {
+        throw new Error('Photos must be 4MB or smaller so they can be analyzed reliably');
+    }
+    if (file.size > 50 * 1024 * 1024) throw new Error('Class sources must be 50MB or smaller');
+
+    const { data: existingAssets, error: existingAssetsError } = await supabase
+        .from('recording_assets')
+        .select('byte_size')
+        .eq('session_id', sessionId);
+    if (existingAssetsError) _sbThrow(existingAssetsError);
+    const existingBytes = (existingAssets || []).reduce(
+        (total, asset) => total + Math.max(0, Number(asset.byte_size || 0)),
+        0,
+    );
+    if (existingBytes + file.size > 50 * 1024 * 1024) {
+        throw new Error('Class sources are limited to 50MB total for each recording');
+    }
+
+    const userId = await getAppUserId();
+    const extension = mimeType === 'application/pdf'
+        ? 'pdf'
+        : mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+    const assetId = globalThis.crypto?.randomUUID?.()
+        || `asset-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const storagePath = `${userId}/${sessionId}/${assetId}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+        .from('note-assets')
+        .upload(storagePath, file, { contentType: mimeType, upsert: false });
+    if (uploadError) _sbThrow(uploadError);
+
+    const { data, error } = await supabase
+        .from('recording_assets')
+        .insert({
+            user_id: userId,
+            session_id: sessionId,
+            asset_kind: isPhoto ? 'photo' : 'slide_pdf',
+            captured_at_ms: capturedAtMs == null ? null : Math.max(0, Math.round(capturedAtMs)),
+            storage_path: storagePath,
+            mime_type: mimeType,
+            byte_size: file.size,
+            extracted_text: String(extractedText || '').trim() || null,
+            accessible_label: String(file.name || (isPhoto ? 'Class photo' : 'Class PDF')).slice(0, 240),
+        })
+        .select()
+        .single();
+    if (error) {
+        await supabase.storage.from('note-assets').remove([storagePath]).catch(() => {});
+        _sbThrow(error);
+    }
+    return data;
+};
+
+export const getRecordingAssets = async (sessionId) => {
+    const { data, error } = await supabase
+        .from('recording_assets')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('captured_at_ms', { ascending: true, nullsFirst: false });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const finalizeRecordingSession = (sessionId, {
+    durationMs,
+    chunkCount,
+    uploadedCount,
+    stoppedAt = new Date().toISOString(),
+} = {}) => updateRecordingSession(sessionId, {
+    state: 'stopped',
+    stoppedAt,
+    durationMs,
+    manifestChunkCount: chunkCount,
+    manifestUploadedCount: uploadedCount,
+});
+
+export const getStudySignalsForNote = async (noteId) => {
+    const { data, error } = await supabase
+        .from('study_signals')
+        .select('*')
+        .eq('note_id', noteId)
+        .order('created_at', { ascending: true });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const updateStudySignal = async (signalId, updates = {}) => {
+    const payload = {};
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.shareVisibility !== undefined) payload.share_visibility = updates.shareVisibility;
+    const { data, error } = await supabase
+        .from('study_signals')
+        .update(payload)
+        .eq('id', signalId)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const undoLatestAudioEnhancement = async (noteId) => {
+    const userId = await getAppUserId();
+    const { data: revision, error: revisionError } = await supabase
+        .from('note_revisions')
+        .select('revision')
+        .eq('note_id', noteId)
+        .eq('change_kind', 'manual')
+        .order('revision', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    if (revisionError) _sbThrow(revisionError);
+    if (!revision) throw new Error('No pre-enhancement revision is available');
+
+    const { data, error } = await supabase.rpc('restore_audio_note_revision', {
+        p_user_id: userId,
+        p_note_id: noteId,
+        p_revision: revision.revision,
+    });
+    if (error) _sbThrow(error);
+    return Array.isArray(data) ? data[0] : data;
+};
+
+export const getClassNoteProfile = async (classId) => {
+    const { data, error } = await supabase
+        .from('class_note_profiles')
+        .select('*')
+        .eq('class_id', classId)
+        .maybeSingle();
+    if (error) _sbThrow(error);
+    return data || null;
+};
+
+export const getClassMemoryTerms = async (classId) => {
+    if (!classId) return [];
+    const { data, error } = await supabase
+        .from('class_memory_terms')
+        .select('term, corrected_form, speaker_role, confirmed_at')
+        .eq('class_id', classId)
+        .order('confirmed_at', { ascending: false })
+        .limit(100);
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const upsertClassNoteProfile = async (classId, profile = {}) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('class_note_profiles')
+        .upsert({
+            user_id: userId,
+            class_id: classId,
+            primary_language: profile.primaryLanguage || 'en',
+            secondary_languages: profile.secondaryLanguages || [],
+            translation_mode: profile.translationMode || 'original',
+            preferred_format: profile.preferredFormat || 'auto',
+            detail_level: profile.detailLevel || 'detailed',
+            custom_instruction: profile.customInstruction?.trim() || null,
+            recording_policy_status: profile.recordingPolicyStatus || 'unknown',
+            cellular_behavior: profile.cellularBehavior || 'stream',
+        }, { onConflict: 'class_id' })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const createTranscriptionToken = () => edgeFunctionFetch('transcription-token', { body: {} });
+
+export const enhanceRecordedNote = ({ noteId, sessionId, userNotes = '', ...context }) => (
+    createAiJob('note_enhancement', {
+        noteId,
+        sessionId,
+        userNotesSnapshot: userNotes,
+        ...context,
+        schemaVersion: 2,
+    })
+);
+
 export const enhanceNoteWithAudio = (noteId, audioPath, userNotes, title, className, subject) =>
     edgeFunctionFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className, subject } });
 

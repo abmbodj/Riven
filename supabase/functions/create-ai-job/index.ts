@@ -5,6 +5,7 @@ import { getYoutubeSourceKey, isAiJobKind } from '../_shared/aiJobs.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 // Bump deployment artifact so hosted config/runtime definitely rotates.
@@ -79,10 +80,10 @@ serve(async (request) => {
     let targetId: string | null = null;
 
     if (kind === 'note_enhancement') {
-      // Audio enhancement needs an audioPath; text-only enhancement needs typed notes.
+      // v2 uses a durable transcript session; legacy audioPath and text-only notes remain supported.
       const hasUserNotes = typeof payload.userNotesSnapshot === 'string' && payload.userNotesSnapshot.trim().length > 0;
-      if (!payload.noteId || (!payload.audioPath && !hasUserNotes)) {
-        return jsonResponse({ error: 'noteId and either audioPath or notes are required.' }, { status: 400 }, request);
+      if (!payload.noteId || (!payload.audioPath && !payload.sessionId && !hasUserNotes)) {
+        return jsonResponse({ error: 'noteId and either sessionId, audioPath, or notes are required.' }, { status: 400 }, request);
       }
       targetType = 'note';
       targetId = String(payload.noteId);
@@ -236,6 +237,9 @@ serve(async (request) => {
     }, { status: 202 }, request);
   } catch (error) {
     const requestError = normalizeRequestError(error);
+    if ((requestError.status || 500) >= 500) {
+      await reportEdgeException(error, { request, functionName: 'create-ai-job' });
+    }
     return jsonResponse({
       error: requestError.message || 'Failed to create AI job.',
     }, { status: requestError.status || 500 }, request);

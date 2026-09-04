@@ -29,8 +29,8 @@ function useRecordingSession(options = {}) {
         }
     }, [context.activeNoteId, navigate]);
 
-    const start = useCallback((targetNoteId = noteId, targetNoteTitle = noteTitle) => (
-        context.start(targetNoteId, targetNoteTitle || 'Untitled')
+    const start = useCallback((targetNoteId = noteId, targetNoteTitle = noteTitle, startOptions = {}) => (
+        context.start(targetNoteId, targetNoteTitle || 'Untitled', startOptions)
     ), [context, noteId, noteTitle]);
 
     const getBlob = useCallback(() => {
