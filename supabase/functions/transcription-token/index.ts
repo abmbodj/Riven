@@ -35,11 +35,33 @@ serve(async (request) => {
     const requestError = normalizeRequestError(error);
     const status = requestError.status || requestError.statusCode || 500;
     if (status >= 500) {
-      await reportEdgeException(error, { request, functionName: 'transcription-token' });
+      const classified = error && typeof error === 'object' ? error as {
+        provider_status?: unknown;
+        provider_category?: unknown;
+      } : {};
+      await reportEdgeException(error, {
+        request,
+        functionName: 'transcription-token',
+        tags: {
+          provider_status: typeof classified.provider_status === 'number'
+            ? classified.provider_status
+            : undefined,
+          provider_category: typeof classified.provider_category === 'string'
+            ? classified.provider_category
+            : undefined,
+        },
+      });
     }
     console.error('[transcription-token] request failed', requestError.message);
+    const errorCode = typeof requestError.code === 'string' ? requestError.code : '';
+    const userMessage = errorCode === 'DEEPGRAM_PERMISSION_DENIED' || errorCode === 'DEEPGRAM_NOT_CONFIGURED'
+      ? 'Live transcription is unavailable; audio is still being recorded.'
+      : errorCode === 'DEEPGRAM_CONFIGURATION_ERROR'
+        ? 'Live transcription needs attention; audio is still being recorded.'
+        : 'Transcription is temporarily unavailable; audio is still being recorded.';
     return jsonResponse({
-      error: status >= 500 ? 'Transcription is temporarily unavailable' : requestError.message,
+      error: userMessage,
+      code: errorCode || undefined,
     }, { status }, request);
   }
 });

@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { createJobReporter, ensureInternalJobAuth, normalizeAiJobError } from '../_shared/aiJobs.ts';
-import { buildAiJobRetrySchedule, isRetryableProviderError } from '../_shared/aiJobRetryCore.mjs';
+import { buildAiJobRetrySchedule, isRetryableAiJobError } from '../_shared/aiJobRetryCore.mjs';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { processAiJob } from '../_shared/aiJobProcessors.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
@@ -76,7 +76,7 @@ serve(async (request) => {
     try {
       await processAiJob({ admin, job });
     } catch (error) {
-      const retrySchedule = job.kind === 'note_enhancement' && isRetryableProviderError(error)
+      const retrySchedule = job.kind === 'note_enhancement' && isRetryableAiJobError(error)
         ? buildAiJobRetrySchedule({
           createdAt: job.created_at,
           retryUntil: job.retry_until,
@@ -85,12 +85,15 @@ serve(async (request) => {
         : null;
       if (retrySchedule) {
         const normalized = normalizeAiJobError(error);
+        const isInvalidOutput = normalized.code === 'AI_OUTPUT_INVALID';
         const { error: retryError } = await admin
           .from('ai_jobs')
           .update({
             status: 'queued',
             phase: 'accepted',
-            progress_message: 'Provider temporarily unavailable — retrying automatically',
+            progress_message: isInvalidOutput
+              ? 'Note format needs another pass — retrying automatically'
+              : 'Provider temporarily unavailable — retrying automatically',
             attempt_count: retrySchedule.attemptCount,
             next_attempt_at: retrySchedule.nextAttemptAt,
             retry_until: retrySchedule.retryUntil,

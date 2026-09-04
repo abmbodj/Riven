@@ -7,6 +7,16 @@ export default function RecordingRail({ recorder, onMark }) {
     const segments = recorder.transcriptSegments || [];
     const isPaused = recorder.state === 'paused';
     const safeChunks = Math.min(recorder.uploadedChunkCount || 0, recorder.chunkCount || 0);
+    const liveTranscriptUnavailable = recorder.transcriptState === 'failed' || recorder.transcriptState === 'offline';
+    const transcriptStatus = isPaused
+        ? 'Paused'
+        : recorder.transcriptState === 'open' || recorder.transcriptState === 'live'
+            ? 'Live transcript'
+            : liveTranscriptUnavailable
+                ? 'Live transcript unavailable'
+                : recorder.transcriptState === 'reconnecting'
+                    ? 'Live transcript reconnecting'
+                    : 'Recording locally';
 
     return (
         <section
@@ -21,7 +31,7 @@ export default function RecordingRail({ recorder, onMark }) {
                             {formatRecordingDuration(recorder.duration || 0)}
                         </span>
                         <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-claude-secondary">
-                            {isPaused ? 'Paused' : recorder.transcriptState === 'open' ? 'Live transcript' : 'Recording locally'}
+                            {transcriptStatus}
                         </span>
                     </div>
                     <p className="mt-1 font-mono text-[9px] text-claude-secondary">
@@ -80,6 +90,24 @@ export default function RecordingRail({ recorder, onMark }) {
                 </p>
             )}
 
+            {liveTranscriptUnavailable && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber-300/20 bg-amber-300/5 px-3 py-2">
+                    <p className="text-[11px] text-amber-100">
+                        {recorder.transcriptFailureKind === 'configuration'
+                            ? 'Live transcript needs attention. Audio is still being saved safely and will be recovered when you stop.'
+                            : 'Live transcript is reconnecting. Audio is still being saved safely and will be recovered when you stop.'}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={recorder.retryLiveTranscript}
+                        disabled={typeof recorder.retryLiveTranscript !== 'function'}
+                        className="inline-flex min-h-8 items-center rounded-lg border border-amber-200/40 px-2.5 text-[9px] font-mono font-bold uppercase tracking-wider text-amber-100 hover:border-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Retry live transcript
+                    </button>
+                </div>
+            )}
+
             <button
                 type="button"
                 onClick={() => setTranscriptOpen((current) => !current)}
@@ -93,7 +121,11 @@ export default function RecordingRail({ recorder, onMark }) {
             {transcriptOpen && (
                 <div aria-live="polite" className="max-h-48 space-y-2 overflow-y-auto border-t border-claude-border/20 px-3 py-3">
                     {segments.length === 0 ? (
-                        <p className="text-[12px] text-claude-secondary">Listening… transcript appears as your class speaks.</p>
+                        <p className="text-[12px] text-claude-secondary">
+                            {liveTranscriptUnavailable
+                                ? 'Your recording is safe. The transcript will be recovered from saved audio when you stop.'
+                                : 'Listening… transcript appears as your class speaks.'}
+                        </p>
                     ) : segments.slice(-12).map((segment) => (
                         <p key={segment.id} className={`text-[12px] leading-relaxed ${segment.isFinal ? 'text-claude-text' : 'text-claude-secondary'}`}>
                             {segment.speaker != null && (

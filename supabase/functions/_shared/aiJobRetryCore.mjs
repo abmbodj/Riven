@@ -21,6 +21,11 @@ export function isRetryableProviderError(error) {
   return NETWORK_ERROR_PATTERN.test(String(error?.message || error || ''));
 }
 
+export function isRetryableAiJobError(error) {
+  if (String(error?.code || '') === 'AI_OUTPUT_INVALID') return true;
+  return isRetryableProviderError(error);
+}
+
 export function buildAiJobRetrySchedule({ createdAt, retryUntil, attemptCount = 0, now = new Date() }) {
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
   const createdMs = new Date(createdAt).getTime();

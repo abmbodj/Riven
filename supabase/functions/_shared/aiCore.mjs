@@ -379,7 +379,10 @@ export const parseAiJsonResponse = (rawResponse, invalidMessage) => {
   try {
     return JSON.parse(cleanAiResponseText(rawResponse));
   } catch {
-    throw createHttpError(invalidMessage, 500);
+    throw createHttpError(invalidMessage, 500, {
+      code: 'AI_OUTPUT_INVALID',
+      retryable: true,
+    });
   }
 };
 

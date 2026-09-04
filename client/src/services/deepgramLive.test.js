@@ -123,4 +123,60 @@ describe('Deepgram classroom streaming', () => {
       droppedAudioCount: 1,
     }));
   });
+
+  it('automatically backs off after a transient token failure', async () => {
+    const scheduled = [];
+    const tokenProvider = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('temporarily unavailable'), { code: 'DEEPGRAM_TRANSIENT_FAILURE' }))
+      .mockResolvedValue({ token: 'fresh-token' });
+    const client = createDeepgramStreamingClient({
+      tokenProvider,
+      WebSocketImpl: class FakeWebSocket { static OPEN = 1; },
+      setTimeoutFn: (callback) => { scheduled.push(callback); return scheduled.length; },
+      clearTimeoutFn: vi.fn(),
+    });
+
+    await expect(client.connect()).rejects.toThrow('temporarily unavailable');
+    expect(scheduled).toHaveLength(1);
+    scheduled[0]();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(tokenProvider).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets a student manually retry after live transcription exhausts its reconnects', async () => {
+    const sockets = [];
+    const scheduled = [];
+    class FakeWebSocket {
+      static OPEN = 1;
+      constructor() {
+        this.readyState = FakeWebSocket.OPEN;
+        this.send = vi.fn();
+        this.close = vi.fn();
+        sockets.push(this);
+      }
+    }
+    const client = createDeepgramStreamingClient({
+      tokenProvider: vi.fn().mockResolvedValue({ token: 'fresh-token' }),
+      WebSocketImpl: FakeWebSocket,
+      maxReconnectAttempts: 1,
+      setTimeoutFn: (callback) => { scheduled.push(callback); return scheduled.length; },
+      clearTimeoutFn: vi.fn(),
+    });
+
+    await client.connect();
+    sockets[0].onopen();
+    sockets[0].onclose();
+    expect(scheduled).toHaveLength(1);
+    scheduled[0]();
+    await Promise.resolve();
+    await Promise.resolve();
+    sockets[1].onclose();
+    expect(client.getState().reconnectAttempts).toBe(1);
+
+    await client.retry();
+
+    expect(sockets).toHaveLength(3);
+    expect(client.getState().reconnectAttempts).toBe(0);
+  });
 });

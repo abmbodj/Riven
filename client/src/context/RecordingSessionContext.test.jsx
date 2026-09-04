@@ -144,6 +144,8 @@ function NoteRouteHarness() {
       <div data-testid="note-error">{recorder.error || 'none'}</div>
       <div data-testid="note-title">{noteTitle}</div>
       <div data-testid="transcript-count">{recorder.transcriptSegments?.length || 0}</div>
+      <div data-testid="transcript-state">{recorder.transcriptState}</div>
+      <div data-testid="transcript-failure-kind">{recorder.transcriptFailureKind || 'none'}</div>
       <div data-testid="requires-continuation">{String(Boolean(recorder.requiresContinuation))}</div>
       <button type="button" onClick={() => recorder.start('note-42', 'Biology Lecture', { classId: 'class-1' })}>
         Start recording
@@ -162,6 +164,9 @@ function NoteRouteHarness() {
       </button>
       <button type="button" onClick={() => recorder.stop()}>
         Stop recording
+      </button>
+      <button type="button" onClick={() => recorder.retryLiveTranscript()}>
+        Retry live transcript
       </button>
       <button type="button" onClick={() => recorder.reset()}>
         Reset recording
@@ -191,6 +196,7 @@ function renderHarness(initialEntries = ['/note/note-42']) {
     transcriptionState.options = options;
     const client = {
       connect: vi.fn(async () => {}),
+      retry: vi.fn(async () => {}),
       send: vi.fn(),
       finalizeAndClose: vi.fn(async () => {}),
       close: vi.fn(),
@@ -333,6 +339,41 @@ describe('RecordingSessionProvider', () => {
       'server-session-1',
       [expect.objectContaining({ id: 'segment-1' })],
     ));
+  });
+
+  it('keeps durable capture running and exposes a retry when live transcription fails', async () => {
+    renderHarness();
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+    await waitFor(() => expect(screen.getByTestId('note-state')).toHaveTextContent('recording'));
+
+    act(() => {
+      const error = new Error('Live transcription needs attention');
+      error.code = 'DEEPGRAM_PERMISSION_DENIED';
+      transcriptionState.options.onError(error);
+    });
+
+    expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
+    expect(screen.getByTestId('transcript-state')).toHaveTextContent('failed');
+    expect(screen.getByTestId('transcript-failure-kind')).toHaveTextContent('configuration');
+    MockMediaRecorder.instances[0].emitChunk('audio remains durable when live transcript is offline');
+    await waitFor(() => expect(recordingApiMock.uploadRecordingChunk).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: /retry live transcript/i }));
+    expect(transcriptionState.client.retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores and uploads classroom audio even when a live WebSocket send throws', async () => {
+    renderHarness();
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+    await waitFor(() => expect(screen.getByTestId('note-state')).toHaveTextContent('recording'));
+    transcriptionState.client.send.mockImplementationOnce(() => {
+      throw new Error('WebSocket closed during send');
+    });
+
+    MockMediaRecorder.instances[0].emitChunk('durable audio survives a live socket race');
+
+    await waitFor(() => expect(chunkStoreMock.putChunk).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(recordingApiMock.uploadRecordingChunk).toHaveBeenCalledTimes(1));
   });
 
   it('pauses and resumes a web recording without ending the session', async () => {

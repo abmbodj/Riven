@@ -73,6 +73,7 @@ export function createDeepgramStreamingClient({
   onError = () => {},
   maxReconnectAttempts = 5,
   setTimeoutFn = globalThis.setTimeout,
+  clearTimeoutFn = globalThis.clearTimeout,
   setIntervalFn = globalThis.setInterval,
   clearIntervalFn = globalThis.clearInterval,
   maxPendingAudioBytes = 5 * 1024 * 1024,
@@ -86,11 +87,44 @@ export function createDeepgramStreamingClient({
   let reconnectAttempts = 0;
   let intentionallyClosed = false;
   let keepAliveTimer = null;
+  let reconnectTimer = null;
   const pendingAudio = [];
   let pendingAudioBytes = 0;
   let droppedAudioCount = 0;
 
   const isOpen = () => socket?.readyState === (WebSocketImpl.OPEN ?? 1);
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimer !== null) {
+      clearTimeoutFn(reconnectTimer);
+      reconnectTimer = null;
+    }
+  };
+
+  const isRetryableConnectionError = (error) => {
+    if (error?.retryable === false) return false;
+    return ![
+      'DEEPGRAM_PERMISSION_DENIED',
+      'DEEPGRAM_NOT_CONFIGURED',
+      'DEEPGRAM_CONFIGURATION_ERROR',
+    ].includes(error?.code);
+  };
+
+  const scheduleReconnect = (error) => {
+    if (intentionallyClosed || !isRetryableConnectionError(error)) return false;
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      onState('failed');
+      return false;
+    }
+    reconnectAttempts += 1;
+    onState('reconnecting');
+    const delay = Math.min(1000 * (2 ** (reconnectAttempts - 1)), 15000);
+    reconnectTimer = setTimeoutFn(() => {
+      reconnectTimer = null;
+      connect(options).catch(() => {});
+    }, delay);
+    return true;
+  };
 
   const connect = async (nextOptions = options) => {
     options = nextOptions;
@@ -134,29 +168,43 @@ export function createDeepgramStreamingClient({
           onState('closed');
           return;
         }
-        if (reconnectAttempts >= maxReconnectAttempts) {
-          onState('failed');
-          onError(new Error('Live transcription could not reconnect'));
-          return;
-        }
-        reconnectAttempts += 1;
-        onState('reconnecting');
-        const delay = Math.min(1000 * (2 ** (reconnectAttempts - 1)), 15000);
-        setTimeoutFn(() => connect(options).catch(onError), delay);
+        const reconnectError = new Error('Live transcription could not reconnect');
+        if (!scheduleReconnect(reconnectError)) onError(reconnectError);
       };
       return socket;
     } catch (error) {
-      onState('failed');
       onError(error);
+      if (!scheduleReconnect(error)) onState('failed');
       throw error;
     }
   };
 
   return {
     connect,
+    async retry(nextOptions = options) {
+      clearReconnectTimer();
+      reconnectAttempts = 0;
+      intentionallyClosed = false;
+      if (socket && !isOpen()) {
+        socket.onclose = null;
+        socket.close?.();
+      }
+      return connect(nextOptions);
+    },
     send(audio) {
       if (!audio || (audio instanceof Blob && audio.size === 0)) return;
-      if (isOpen()) socket.send(audio);
+      if (isOpen()) {
+        try {
+          socket.send(audio);
+        } catch (error) {
+          onError(error);
+          try {
+            socket.close?.();
+          } catch {
+            // The closed socket will recover through the durable recording path.
+          }
+        }
+      }
       else {
         const audioSize = Number(audio?.size || audio?.byteLength || 0);
         while (pendingAudio.length && pendingAudioBytes + audioSize > maxPendingAudioBytes) {
@@ -177,6 +225,7 @@ export function createDeepgramStreamingClient({
     },
     close() {
       intentionallyClosed = true;
+      clearReconnectTimer();
       if (keepAliveTimer) clearIntervalFn(keepAliveTimer);
       keepAliveTimer = null;
       if (isOpen()) socket.send(JSON.stringify({ type: 'Finalize' }));
@@ -184,6 +233,7 @@ export function createDeepgramStreamingClient({
     },
     async finalizeAndClose({ graceMs = 750 } = {}) {
       intentionallyClosed = true;
+      clearReconnectTimer();
       if (keepAliveTimer) clearIntervalFn(keepAliveTimer);
       keepAliveTimer = null;
       if (!isOpen()) {

@@ -44,6 +44,7 @@ const INITIAL_SESSION = {
     localSessionId: null,
     transcriptSegments: [],
     transcriptState: 'idle',
+    transcriptFailureKind: null,
     chunkCount: 0,
     uploadedChunkCount: 0,
     requiresContinuation: false,
@@ -429,6 +430,7 @@ export function RecordingSessionProvider({ children, services = null }) {
             ...prev,
             transcriptSegments: mergeTranscriptSegments(prev.transcriptSegments, [segment]),
             transcriptState: segment.isFinal ? 'live' : prev.transcriptState,
+            transcriptFailureKind: segment.isFinal ? null : prev.transcriptFailureKind,
         }));
         if (!segment.isFinal) return;
         const transcriptUpload = serverSessionPromiseRef.current?.then((remoteSession) => {
@@ -447,10 +449,25 @@ export function RecordingSessionProvider({ children, services = null }) {
             tokenProvider: () => serviceRef.current.apiClient.createTranscriptionToken(),
             onSegment: handleTranscriptSegment,
             onState: (transcriptState) => {
-                setSessionSnapshot((prev) => ({ ...prev, transcriptState }));
+                setSessionSnapshot((prev) => ({
+                    ...prev,
+                    transcriptState,
+                    transcriptFailureKind: transcriptState === 'open' ? null : prev.transcriptFailureKind,
+                }));
             },
-            onError: () => {
-                setSessionSnapshot((prev) => ({ ...prev, transcriptState: 'offline' }));
+            onError: (error) => {
+                const isConfigurationError = [
+                    'TRANSCRIPTION_CONFIGURATION_REQUIRED',
+                    'DEEPGRAM_PERMISSION_DENIED',
+                    'DEEPGRAM_NOT_CONFIGURED',
+                    'DEEPGRAM_CONFIGURATION_ERROR',
+                ].includes(error?.code)
+                    || Number(error?.status) === 403;
+                setSessionSnapshot((prev) => ({
+                    ...prev,
+                    transcriptState: 'failed',
+                    transcriptFailureKind: isConfigurationError ? 'configuration' : 'temporary',
+                }));
             },
         });
         transcriptionClientRef.current = transcriptionClient;
@@ -521,7 +538,16 @@ export function RecordingSessionProvider({ children, services = null }) {
         if (handledChunkSequencesRef.current.has(sequence)) return;
         handledChunkSequencesRef.current.add(sequence);
         capturedByteCountRef.current += blob.size;
-        transcriptionClientRef.current?.send?.(blob);
+        try {
+            transcriptionClientRef.current?.send?.(blob);
+        } catch {
+            // Live transcription is best-effort; local chunk persistence below is authoritative.
+            setSessionSnapshot((prev) => ({
+                ...prev,
+                transcriptState: 'failed',
+                transcriptFailureKind: 'temporary',
+            }));
+        }
 
         chunkSequenceRef.current = Math.max(chunkSequenceRef.current, sequence + 1);
         const durationMs = Math.max(1, nativeChunk?.durationMs || RECORDING_CHUNK_MS);
@@ -729,6 +755,7 @@ export function RecordingSessionProvider({ children, services = null }) {
             recordingSessionId: null,
             transcriptSegments: [],
             transcriptState: 'connecting',
+            transcriptFailureKind: null,
             chunkCount: 0,
             uploadedChunkCount: 0,
             requiresContinuation: false,
@@ -1207,6 +1234,17 @@ export function RecordingSessionProvider({ children, services = null }) {
         pause,
         resume,
         continueRecording,
+        retryLiveTranscript: async () => {
+            const client = transcriptionClientRef.current;
+            if (!client) return false;
+            setSessionSnapshot((prev) => ({ ...prev, transcriptState: 'connecting', transcriptFailureKind: null }));
+            try {
+                await (client.retry?.() ?? client.connect?.());
+                return true;
+            } catch {
+                return false;
+            }
+        },
     }), [
         getBlob,
         reset,
@@ -1219,6 +1257,7 @@ export function RecordingSessionProvider({ children, services = null }) {
         pause,
         resume,
         continueRecording,
+        setSessionSnapshot,
     ]);
 
     return (

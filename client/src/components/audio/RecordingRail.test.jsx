@@ -56,4 +56,19 @@ describe('RecordingRail', () => {
     expect(continueRecording).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: /^resume recording$/i })).not.toBeInTheDocument();
   });
+
+  it('explains that audio is safe and lets the student retry live transcription', () => {
+    const retryLiveTranscript = vi.fn();
+    render(<RecordingRail recorder={{
+      ...recorder,
+      transcriptState: 'failed',
+      transcriptFailureKind: 'configuration',
+      transcriptSegments: [],
+      retryLiveTranscript,
+    }} onMark={() => {}} />);
+
+    expect(screen.getByText(/audio is still being saved safely/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /retry live transcript/i }));
+    expect(retryLiveTranscript).toHaveBeenCalledTimes(1);
+  });
 });
