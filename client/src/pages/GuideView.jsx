@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
-import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget.js';
+import useMediaQuery from '../hooks/useMediaQuery.js';
 import SubjectRenderer from '../components/ui/SubjectRenderer';
 import RiverMascot from '../components/study/RiverMascot.jsx';
 import LevelUpModal from '../components/study/LevelUpModal.jsx';
@@ -302,7 +302,10 @@ export default function GuideView() {
     const navigate = useNavigate();
     const toast = useToast();
     const toastRef = useRef(toast);
-    const isMobileSession = useMobileVisualBudget();
+    // Structural mobile/desktop chrome must follow viewport width only.
+    // Visual budget (FPS / memory / network) is for motion density — wiring it
+    // here remounted alternate trees every few seconds on borderline desktops.
+    const isMobileSession = useMediaQuery('(max-width: 767px)');
     const { setStudyMode, clearStudyMode } = useContext(UIContext) || {};
 
     const [loading, setLoading] = useState(true);
@@ -1335,7 +1338,8 @@ export default function GuideView() {
                 canPrev: teachSection > 0 || (onExplainSection && explainRevealed > 1),
                 canNext: true,
             });
-            return () => clearStudyMode();
+            // Update in place — clearing on every teach-beat dep change remounts the dock.
+            return undefined;
         }
 
         if (sessionStage === 'check') {
@@ -1355,7 +1359,7 @@ export default function GuideView() {
                 canPrev: true,
                 canNext: true,
             });
-            return () => clearStudyMode();
+            return undefined;
         }
 
         if (sessionStage === 'feedback' && result) {
@@ -1375,7 +1379,7 @@ export default function GuideView() {
                 canPrev: true,
                 canNext: true,
             });
-            return () => clearStudyMode();
+            return undefined;
         }
 
         clearStudyMode();
@@ -1405,6 +1409,9 @@ export default function GuideView() {
         totalCards,
         unsupported,
     ]);
+
+    // Clear the mobile study dock once on leave/unmount — not on every beat update.
+    useEffect(() => () => clearStudyMode?.(), [clearStudyMode]);
 
     if (loading) {
         return (

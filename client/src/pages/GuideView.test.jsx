@@ -43,7 +43,10 @@ const { api } = await import('../api');
 
 const useViewport = (narrow = false) => {
   window.matchMedia = vi.fn().mockImplementation((query) => ({
-    matches: narrow && query === '(max-width: 1023px)',
+    matches: narrow && (
+      query === '(max-width: 1023px)'
+      || query === '(max-width: 767px)'
+    ),
     media: query,
     onchange: null,
     addListener: vi.fn(),
@@ -643,6 +646,37 @@ describe('GuideView', () => {
     expect(within(teach).getByTestId('river-lecture-document')).toBe(lectureDocument);
     expect(within(teach).getByText(/A system design is a map/i)).toBeInTheDocument();
     expect(within(teach).queryByTestId('mobile-teacher-strip')).not.toBeInTheDocument();
+  });
+
+  it('keeps desktop intro chrome when the visual budget changes', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    const view = render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const intro = await screen.findByTestId('river-session-intro');
+    expect(within(intro).getByText(/Today's lecture/i)).toBeInTheDocument();
+    expect(within(intro).queryByText(/River session/i)).not.toBeInTheDocument();
+    const desktopHeading = within(intro).getByRole('heading', { name: /Cell Division Tutor Session/i });
+
+    mobileBudgetMock.mockReturnValue(true);
+    view.rerender(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('river-session-intro')).toBe(intro);
+    expect(within(intro).getByText(/Today's lecture/i)).toBeInTheDocument();
+    expect(within(intro).queryByText(/River session/i)).not.toBeInTheDocument();
+    expect(within(intro).getByRole('heading', { name: /Cell Division Tutor Session/i })).toBe(desktopHeading);
   });
 
   it('reveals the next lecture section without scrolling away the surrounding context', async () => {
