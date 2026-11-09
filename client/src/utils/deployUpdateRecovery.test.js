@@ -4,6 +4,7 @@ import {
   APP_ERROR_DIAGNOSTIC_KEY,
   persistAppErrorDiagnostic,
   recoverStaleDeployAssets,
+  readRepeatedCrashDiagnostic,
   attemptDeployUpdateRecovery,
   isDeployUpdateError,
 } from './deployUpdateRecovery.js';
@@ -72,11 +73,37 @@ describe('deploy update recovery', () => {
     const storage = createStorage();
     persistAppErrorDiagnostic(new Error('Notes from Biology 101: mitochondria'), { storage });
 
-    expect(JSON.parse(storage.getItem(APP_ERROR_DIAGNOSTIC_KEY))).toEqual({
+    expect(JSON.parse(storage.getItem(APP_ERROR_DIAGNOSTIC_KEY))).toEqual(expect.objectContaining({
       kind: 'runtime',
       name: 'Error',
+      supportId: expect.any(String),
+      fingerprint: expect.any(String),
+      repeatCount: 1,
       timestamp: expect.any(String),
-    });
+    }));
+    expect(storage.getItem(APP_ERROR_DIAGNOSTIC_KEY)).not.toContain('mitochondria');
+  });
+
+  it('detects a repeated runtime crash and allows explicit cache-only recovery', async () => {
+    const storage = createStorage();
+    const error = new TypeError('Cannot read properties of undefined');
+    persistAppErrorDiagnostic(error, { storage, route: '/notes/note-1' });
+    persistAppErrorDiagnostic(error, { storage, route: '/notes/note-1' });
+
+    const diagnostic = readRepeatedCrashDiagnostic({ storage });
+    expect(diagnostic).toEqual(expect.objectContaining({ repeatCount: 2, route: '/notes/:id' }));
+
+    const cachesApi = { keys: vi.fn(async () => ['riven-route-assets-v1']), delete: vi.fn(async () => true) };
+    const location = { replace: vi.fn() };
+    await expect(recoverStaleDeployAssets(error, {
+      cachesApi,
+      navigatorApi: null,
+      location,
+      storage,
+      allowRepeatedRuntimeError: true,
+    })).resolves.toBe(true);
+    expect(cachesApi.delete).toHaveBeenCalledWith('riven-route-assets-v1');
+    expect(location.replace).toHaveBeenCalledWith(expect.stringMatching(/^\/notes\?safe-recovery=/));
   });
 
   it('still reloads safely when Cache Storage is unavailable', async () => {

@@ -22,7 +22,7 @@ export async function initClientSentry() {
     Sentry.init({
         dsn,
         environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE,
-        release: import.meta.env.VITE_SENTRY_RELEASE,
+        release: import.meta.env.VITE_SENTRY_RELEASE || import.meta.env.VITE_APP_RELEASE,
         integrations: [Sentry.browserTracingIntegration()],
         tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.02,
     });

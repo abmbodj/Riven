@@ -118,9 +118,10 @@ export function ThemeProvider({ children }) {
         if (authLoading) return undefined;
 
         let mounted = true;
+        let cachedTheme = null;
         if (user?.id) {
             cache.ensureUser(user.id);
-            const cachedTheme = cache.peek(ACTIVE_THEME_CACHE_KEY);
+            cachedTheme = cache.peek(ACTIVE_THEME_CACHE_KEY);
             if (cachedTheme) {
                 const resolvedCachedTheme = normalizeThemeForContext(cachedTheme);
                 applyTheme(resolvedCachedTheme);
@@ -168,7 +169,7 @@ export function ThemeProvider({ children }) {
             if (user?.id) cache.setPersistent(ACTIVE_THEME_CACHE_KEY, resolvedActive);
         }).catch(() => {
             if (!mounted) return;
-            const fallbackTheme = getRivenFallbackTheme();
+            const fallbackTheme = normalizeThemeForContext(cachedTheme) || getRivenFallbackTheme();
             setThemes([fallbackTheme]);
             setActiveTheme(fallbackTheme);
             setAppliedTheme(fallbackTheme);

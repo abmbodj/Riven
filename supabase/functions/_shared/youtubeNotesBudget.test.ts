@@ -34,7 +34,7 @@ Deno.test('buildYoutubeNotesTokenPlan budgets GPT OSS under the current 8k TPM t
   );
 });
 
-Deno.test('buildYoutubeNotesTokenPlan keeps the previously failing request shape inside Scout budget', () => {
+Deno.test('buildYoutubeNotesTokenPlan keeps a typical request inside the default model budget', () => {
   const previousFailurePromptTokens = 11_881 - 8_192;
   const sourceChars = Math.max(0, previousFailurePromptTokens - 1_200) * 4;
 
@@ -43,10 +43,10 @@ Deno.test('buildYoutubeNotesTokenPlan keeps the previously failing request shape
     sourceChars,
   });
 
-  assertEquals(plan.shouldCompact, false, 'Expected Scout to avoid compaction for the previously failing request size');
+  assertEquals(plan.shouldCompact, false, 'Expected the default model to avoid compaction for the previously failing request size');
   assert(
     plan.estimatedRequestTokens <= plan.safeRequestTokens,
-    'Expected Scout request estimate to fit under its safe budget',
+    'Expected the default request estimate to fit under its safe budget',
   );
 });
 
@@ -58,7 +58,7 @@ Deno.test('buildYoutubeNotesTokenPlan flags oversized transcripts for pre-genera
 
   assert(plan.shouldCompact, 'Expected oversized transcript source to compact before notes generation');
   assert(plan.directCharLimit < 120_000, 'Expected a bounded direct source character limit');
-  assertEquals(plan.compactionConcurrency, 3, 'Expected Scout to keep higher compaction concurrency');
+  assertEquals(plan.compactionConcurrency, 1, 'Expected bounded OpenAI compaction concurrency');
 });
 
 Deno.test('provider token limit errors are detected and sanitized', () => {

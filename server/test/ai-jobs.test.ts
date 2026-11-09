@@ -7,8 +7,8 @@ vi.hoisted(() => {
   });
 });
 
-vi.mock('npm:groq-sdk@0.24.0', () => ({
-  default: class Groq {},
+vi.mock('npm:openai@4.104.0', () => ({
+  default: class OpenAI {},
 }));
 vi.mock('npm:@sentry/deno@10.45.0', () => ({
   captureException: vi.fn(),
@@ -65,9 +65,9 @@ describe('ai job error reporting', () => {
     vi.stubGlobal('Deno', { env: { get: vi.fn(() => undefined) } });
 
     expect(getAiModelMap()).toEqual({
-      draft: 'openai/gpt-oss-20b',
-      final: 'openai/gpt-oss-120b',
-      grading: 'openai/gpt-oss-120b',
+      draft: 'gpt-5.4-mini',
+      final: 'gpt-5.4-mini',
+      grading: 'gpt-5.4-mini',
     });
 
     vi.unstubAllGlobals();

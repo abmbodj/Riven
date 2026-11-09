@@ -100,7 +100,7 @@ serve(async (request) => {
       throw createHttpError('Failed to retrieve audio file', 500);
     }
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     if (!apiKey) {
       throw createHttpError('AI integration is not configured on the server.', 500);
     }

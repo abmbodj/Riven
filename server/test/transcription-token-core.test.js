@@ -21,7 +21,7 @@ describe('requestDeepgramTemporaryToken', () => {
 
   it('rejects missing configuration and upstream failures with safe messages', async () => {
     await expect(requestDeepgramTemporaryToken({ apiKey: '', fetchFn: vi.fn() }))
-      .rejects.toThrow('Deepgram is not configured');
+      .rejects.toThrow('Live transcription is not configured');
 
     const fetchFn = vi.fn().mockResolvedValue(new Response('provider details', { status: 503 }));
     await expect(requestDeepgramTemporaryToken({ apiKey: 'secret', fetchFn }))

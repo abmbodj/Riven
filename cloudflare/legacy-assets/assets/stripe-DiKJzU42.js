@@ -1,0 +1,1 @@
+import{D as a,E as e}from"./index-Cwmn9nGa.js";async function c({priceId:t,isSubscription:r}){return(await a({priceId:t,isSubscription:r}))?.url||null}async function l(){try{return(await e())?.url||null}catch(t){return null}}export{c,l as g};

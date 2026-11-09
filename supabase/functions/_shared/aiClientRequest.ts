@@ -1,6 +1,10 @@
 export type AiResponseFormat = 'json_object';
 
-// A multimodal content part. Image parts let vision-capable models (Llama 4) read an
+// Existing deployments may still have Groq-specific model override secrets.
+export const resolveOpenAiModel = (model: string, fallback = 'gpt-5.4-mini') =>
+  /^(?:openai\/gpt-oss-|meta-llama\/|llama-)/i.test(model || '') ? fallback : (model || fallback);
+
+// A multimodal content part. Image parts let vision-capable models read an
 // uploaded photo/scan of a past exam or source document.
 export type AiContentPart =
   | { type: 'text'; text: string }
@@ -11,11 +15,10 @@ export type AiRequestMessage = {
   content: string | AiContentPart[];
 };
 
-export const buildGroqGenerateContentParams = ({
+export const buildOpenAiGenerateContentParams = ({
   model,
   messages,
   maxTokens,
-  temperature = 0,
   responseFormat,
 }: {
   model: string;
@@ -24,10 +27,9 @@ export const buildGroqGenerateContentParams = ({
   temperature?: number;
   responseFormat?: AiResponseFormat;
 }) => ({
-  model,
+  model: resolveOpenAiModel(model),
   messages,
-  temperature,
-  ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
+  max_completion_tokens: maxTokens ?? 8192,
   ...(responseFormat === 'json_object'
     ? { response_format: { type: 'json_object' as const } }
     : {}),

@@ -222,8 +222,8 @@ export default function Layout({ children }) {
 
         const animation = pageContentRef.current.animate(
             [
-                { opacity: 0, transform: 'translate3d(0, 10px, 0)' },
-                { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+                { transform: 'translate3d(0, 6px, 0)' },
+                { transform: 'translate3d(0, 0, 0)' },
             ],
             { duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
         );

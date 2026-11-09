@@ -55,6 +55,16 @@ import {
 } from './audioNotesV2Core.mjs';
 import { isRetryableProviderError } from './aiJobRetryCore.mjs';
 import { transcribeDeepgramRecording } from './deepgramBatchCore.mjs';
+import { submitDeepgramRecordingForCallback } from './deepgramCallbackCore.mjs';
+import {
+  AUDIO_CALLBACK_WAIT_MS,
+  buildRecoveryCheckpoint,
+  calculateVerifiedChunkCoverage,
+  createCallbackToken,
+  getNextSectionBatch,
+  hashCallbackToken,
+  mergeCompletedSections,
+} from './audioJobRecoveryCore.mjs';
 
 type JobProcessorArgs = {
   admin: any;
@@ -80,15 +90,8 @@ const generateNotesForSection = async ({
   modelMap: ReturnType<typeof getAiModelMap>;
   groundingContext: string;
 }): Promise<unknown> => {
-  const placeholder = {
-    type: 'doc',
-    content: [{
-      type: 'paragraph',
-      content: [{ type: 'text', text: '[This section could not be processed]' }],
-    }],
-  };
-
-  try {
+  let malformedAttempts = 0;
+  while (malformedAttempts < 3) {
     const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className, subject, section.text);
     const rawText = await generateWithFallback({
       ai,
@@ -101,11 +104,14 @@ const generateNotesForSection = async ({
       responseFormat: 'json_object',
       maxTokens: 4096,
     });
-    return parseAiJsonResponse(rawText, 'Invalid section notes format');
-  } catch (err) {
-    console.warn(`[audio-sections] Section ${section.index} failed:`, err instanceof Error ? err.message : err);
-    return placeholder;
+    try {
+      return parseAiJsonResponse(rawText, 'Invalid section notes format');
+    } catch (error) {
+      malformedAttempts += 1;
+      if ((error as { code?: string })?.code !== 'AI_OUTPUT_INVALID' || malformedAttempts >= 3) throw error;
+    }
   }
+  throw createHttpError('Invalid section notes format', 500, { code: 'AI_OUTPUT_INVALID', retryable: true });
 };
 
 
@@ -198,6 +204,47 @@ const transcriptCoverageEndsAtMs = (rows: any[]) => rows.reduce(
   0,
 );
 
+const notifyAudioNoteReady = async ({ admin, job, noteId, title }: {
+  admin: any;
+  job: any;
+  noteId: string;
+  title: string;
+}) => {
+  try {
+    const metadata = { ai_job_id: job.id, note_id: noteId, route: `/note/${noteId}` };
+    const { data: existing, error: lookupError } = await admin
+      .from('user_notifications')
+      .select('id')
+      .eq('user_id', job.user_id)
+      .eq('kind', 'audio_note_ready')
+      .contains('metadata', { ai_job_id: job.id })
+      .limit(1);
+    if (lookupError) throw lookupError;
+    if (!existing?.length) {
+      const { error: insertError } = await admin.from('user_notifications').insert({
+        user_id: job.user_id,
+        kind: 'audio_note_ready',
+        title: 'Your class notes are ready',
+        content: `${title || 'Your lecture'} has been transcribed and organized.`,
+        metadata,
+      });
+      if (insertError) throw insertError;
+    }
+
+    const pushSecret = Deno.env.get('PUSH_DISPATCH_SECRET');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+    if (pushSecret && supabaseUrl) {
+      await fetch(`${supabaseUrl}/functions/v1/push-dispatch`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${pushSecret}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'audio_note_ready', userId: job.user_id, noteId, title }),
+      });
+    }
+  } catch (error) {
+    console.warn('[note_enhancement] completion notification skipped', error);
+  }
+};
+
 const recoverDurableRecordingTranscript = async ({
   admin,
   recordingSession,
@@ -205,6 +252,8 @@ const recoverDurableRecordingTranscript = async ({
   existingRows,
   className,
   subject,
+  job,
+  reporter,
 }: {
   admin: any;
   recordingSession: any;
@@ -212,25 +261,60 @@ const recoverDurableRecordingTranscript = async ({
   existingRows: any[];
   className: string | null;
   subject: string | null;
+  job: any;
+  reporter: ReturnType<typeof createJobReporter>;
 }) => {
   const expectedDurationMs = Math.max(
     Number(recordingSession?.duration_ms || 0),
     ...chunkRows.map((chunk) => Number(chunk?.ended_at_ms || 0)),
   );
+  const existingRecovery = ((job?.result_payload || {}) as Record<string, any>).recovery || {};
+  const liveTranscriptHealth = recordingSession?.source_config?.live_transcription || {};
+  if (existingRows.length && existingRecovery.stage === 'transcript_ready') {
+    return null;
+  }
   if (existingRows.length
     && expectedDurationMs > 0
+    && liveTranscriptHealth.completed_healthily !== false
     && transcriptCoverageEndsAtMs(existingRows) >= Math.max(0, expectedDurationMs - 10_000)) {
     return null;
   }
   if (!chunkRows.length) return null;
 
   const orderedChunks = [...chunkRows].sort((left, right) => Number(left.sequence) - Number(right.sequence));
+  const coverage = calculateVerifiedChunkCoverage(
+    recordingSession.manifest_chunk_count || orderedChunks.length,
+    orderedChunks,
+  );
+  if (!coverage.ready) {
+    throw createHttpError(
+      `Saved lecture verification is ${Math.round(coverage.ratio * 100)}% complete; waiting for remaining audio chunks.`,
+      409,
+      { code: 'RECORDING_CHUNKS_INCOMPLETE', missing_chunk_count: coverage.missingSequences.length },
+    );
+  }
   const rawLinear16 = chunkRows.every((chunk) => chunk.mime_type === 'application/octet-stream');
   const mimeType = rawLinear16 ? 'application/octet-stream' : String(chunkRows[0]?.mime_type || 'audio/webm');
   let nextChunkIndex = 0;
   // Stream sequentially from Storage into Deepgram. A four-hour native PCM lecture
   // can be hundreds of MB, so constructing one in-memory Blob would exceed an Edge
   // Function's memory limit precisely when offline recovery is needed most.
+  const callbackToken = createCallbackToken();
+  const callbackTokenHash = await hashCallbackToken(callbackToken);
+  const callbackDeadlineAt = new Date(Date.now() + AUDIO_CALLBACK_WAIT_MS).toISOString();
+  const checkpointBase = buildRecoveryCheckpoint({
+    stage: 'submitting_transcript',
+    sessionId: recordingSession.id,
+    verifiedChunkCount: orderedChunks.length,
+    expectedChunkCount: Number(recordingSession.manifest_chunk_count || orderedChunks.length),
+    callbackTokenHash,
+    callbackDeadlineAt,
+    submissionAttempt: Number(existingRecovery.submission_attempt || 0) + 1,
+  });
+  await reporter.markRunning('processing_media', 12, 'Verifying saved lecture audio', {
+    recovery: checkpointBase,
+  });
+  let streamedBytes = 0;
   const audioStream = new ReadableStream<Uint8Array>({
     async pull(controller) {
       if (nextChunkIndex >= orderedChunks.length) {
@@ -244,7 +328,18 @@ const recoverDurableRecordingTranscript = async ({
         controller.error(error || createHttpError('A durable audio chunk could not be recovered.', 503));
         return;
       }
-      controller.enqueue(new Uint8Array(await data.arrayBuffer()));
+      const bytes = new Uint8Array(await data.arrayBuffer());
+      streamedBytes += bytes.byteLength;
+      controller.enqueue(bytes);
+      if (nextChunkIndex === orderedChunks.length || nextChunkIndex % 25 === 0) {
+        const ratio = nextChunkIndex / orderedChunks.length;
+        await reporter.update(
+          'processing_media',
+          Math.round(14 + ratio * 16),
+          `Sending saved lecture audio (${nextChunkIndex} of ${orderedChunks.length} chunks)`,
+          { recovery: { ...checkpointBase, streamed_bytes: streamedBytes, heartbeat_at: new Date().toISOString() } },
+        );
+      }
     },
   });
   const languageConfig = recordingSession?.language_config || {};
@@ -262,10 +357,14 @@ const recoverDurableRecordingTranscript = async ({
     memoryTerms = data || [];
   }
 
-  const recovered = await transcribeDeepgramRecording({
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+  if (!supabaseUrl) throw createHttpError('Supabase callback configuration is missing.', 500);
+  const callbackUrl = `${supabaseUrl}/functions/v1/deepgram-transcription-callback?jobId=${encodeURIComponent(job.id)}&token=${encodeURIComponent(callbackToken)}`;
+  const submitted = await submitDeepgramRecordingForCallback({
     apiKey: Deno.env.get('DEEPGRAM_API_KEY') || '',
     audio: audioStream,
     mimeType,
+    callbackUrl,
     languages,
     keyterms: [
       className,
@@ -274,37 +373,16 @@ const recoverDurableRecordingTranscript = async ({
     ].filter(Boolean),
     rawLinear16,
   });
-
-  const corrections = existingRows.filter((row) => row.corrected_text || row.speaker_role);
-  return recovered.segments.map((segment: any) => {
-    const startedAtMs = Math.round(segment.start * 1000);
-    const endedAtMs = Math.round(segment.end * 1000);
-    let text = segment.text;
-    let speakerRole = null;
-    for (const correction of corrections) {
-      const overlaps = Number(correction.ended_at_ms || 0) >= startedAtMs
-        && Number(correction.started_at_ms || 0) <= endedAtMs;
-      if (!overlaps) continue;
-      const original = String(correction.original_text || '').trim();
-      const corrected = String(correction.corrected_text || '').trim();
-      if (original && corrected && text.includes(original)) text = text.replace(original, corrected);
-      if (correction.speaker_role) speakerRole = correction.speaker_role;
-    }
-    return {
-      provider_segment_id: segment.id,
-      started_at_ms: startedAtMs,
-      ended_at_ms: endedAtMs,
-      source: 'replay',
-      speaker_key: segment.speaker,
-      speaker_role: speakerRole,
-      language_code: segment.language,
-      confidence: segment.confidence,
-      original_text: text,
-      corrected_text: null,
-      revision: 1,
-      is_deleted: false,
-    };
+  await reporter.markRunning('processing_media', 32, 'Transcribing saved lecture audio', {
+    recovery: {
+      ...checkpointBase,
+      stage: 'awaiting_callback',
+      streamed_bytes: streamedBytes,
+      provider_request_id: submitted.requestId,
+      heartbeat_at: new Date().toISOString(),
+    },
   });
+  return { deferred: true };
 };
 
 // Bias Whisper toward the lecture's domain vocabulary / proper nouns so technical terms
@@ -908,7 +986,7 @@ const scheduleBackgroundTask = (task: () => Promise<void>) => {
 };
 
 const getApiKeyAndClient = () => {
-  const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+  const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
   if (!apiKey) {
     throw createHttpError('AI integration is not configured on the server.', 500);
   }
@@ -1213,20 +1291,11 @@ const processNoteEnhancementJob = async ({
       existingRows: transcriptRows,
       className,
       subject,
+      job,
+      reporter,
     });
-    if (recoveredTranscriptRows?.length) {
-      transcriptRows = recoveredTranscriptRows;
-      if (!(transcriptResult.data || []).length) {
-        const { error: recoveredInsertError } = await admin.from('transcript_segments').upsert(
-          recoveredTranscriptRows.map((segment: any) => ({
-            ...segment,
-            user_id: job.user_id,
-            session_id: sessionId,
-          })),
-          { onConflict: 'session_id,provider_segment_id' },
-        );
-        if (recoveredInsertError) throw recoveredInsertError;
-      }
+    if (recoveredTranscriptRows?.deferred) {
+      return { deferred: true };
     }
     if (!transcriptRows.length) {
       throw createHttpError('The recording transcript is not ready yet. Try Enhance again shortly.', 409);
@@ -1391,12 +1460,25 @@ const processNoteEnhancementJob = async ({
 
   // ── LONG RECORDING: parallel section path ────────────────────────────────
   } else {
-    const completedSections: unknown[] = new Array(sections.length).fill(null);
     const CONCURRENCY = 4;
+    const currentResult = (reporter.getRow().result_payload || {}) as Record<string, any>;
+    const currentRecovery = currentResult.recovery && typeof currentResult.recovery === 'object'
+      ? currentResult.recovery
+      : {};
+    let completedEntries = Array.isArray(currentRecovery.completed_sections)
+      ? currentRecovery.completed_sections
+      : [];
+    const sectionBatch = getNextSectionBatch(sections, completedEntries, CONCURRENCY);
+    if (sectionBatch.length) {
+      const additions: Array<{ index: number; doc: unknown }> = [];
+      await reporter.update(
+        'drafting',
+        Math.round(30 + (completedEntries.length / sections.length) * 42),
+        `Generating sections ${completedEntries.length + 1}–${Math.min(sections.length, completedEntries.length + sectionBatch.length)} of ${sections.length}`,
+        { recovery: { ...currentRecovery, stage: 'drafting', total_sections: sections.length, heartbeat_at: new Date().toISOString() } },
+      );
 
-    await reporter.update('drafting', 30, `Generating notes for ${sections.length} sections`);
-
-    await processConcurrently(sections, CONCURRENCY, async (section) => {
+      await processConcurrently(sectionBatch, CONCURRENCY, async (section) => {
       const nearbyAssetEvidence = buildRecordingAssetEvidence(recordingAssets.filter((asset: any) => {
         const capturedAtSeconds = Number(asset?.captured_at_ms || 0) / 1000;
         return capturedAtSeconds >= Math.max(0, section.startTime - 60)
@@ -1418,23 +1500,34 @@ Timestamped readable class assets near this section:
 ${nearbyAssetEvidence || 'None'}`,
       });
 
-      completedSections[section.index] = sectionDoc;
-
-      const ready = completedSections.filter(Boolean);
+        additions.push({ index: section.index, doc: sectionDoc });
+      });
+      completedEntries = mergeCompletedSections(completedEntries, additions);
       if (firstPreviewAt == null) firstPreviewAt = Date.now();
-      const progressPercent = Math.round(30 + (ready.length / sections.length) * 42);
-
-      await reporter.markStreaming(
+      const completedDocs = completedEntries.map((entry: { doc: unknown }) => entry.doc);
+      const previewSections = completedDocs.flatMap((doc: any) => Array.isArray(doc?.content) ? doc.content : []);
+      const progressPercent = Math.round(30 + (completedEntries.length / sections.length) * 42);
+      await reporter.markQueued(
         'drafting',
         progressPercent,
-        `Section ${ready.length} of ${sections.length} complete`,
+        `Section ${completedEntries.length} of ${sections.length} complete`,
         {
-          preview_sections: ready,
-          sections_complete: ready.length,
+          preview_sections: previewSections,
+          sections_complete: completedEntries.length,
           sections_total: sections.length,
+          recovery: {
+            ...currentRecovery,
+            stage: 'drafting',
+            completed_sections: completedEntries,
+            total_sections: sections.length,
+            heartbeat_at: new Date().toISOString(),
+          },
         },
       );
-    });
+      return { redispatch: true };
+    }
+
+    const completedSections = completedEntries.map((entry: { doc: unknown }) => entry.doc);
 
     await reporter.update('enriching', 75, 'Merging sections into final notes');
 
@@ -1553,6 +1646,8 @@ ${assetEvidence || 'None'}`,
 
   // Audio is intentionally retained (audio_url above) so the note can replay the recording
   // and jump to timestamps. It is cleaned up when the note or its audio is explicitly deleted.
+
+  await notifyAudioNoteReady({ admin, job, noteId, title: titleSnapshot || className || 'Your lecture' });
 
   await reporter.complete({
     message: 'Notes enhanced successfully',

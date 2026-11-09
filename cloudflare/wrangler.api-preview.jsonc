@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "riven-migration-api",
+  "main": "api-worker.mjs",
+  "compatibility_date": "2026-11-05",
+  "compatibility_flags": ["enable_nodejs_http_server_modules"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "NODE_ENV": "production",
+    "RIVEN_WORKER_MODE": "true",
+    "ALLOWED_ORIGINS": "https://rivenos.com,https://www.rivenos.com,https://riven-migration-preview.pmbodj49.workers.dev,https://riven.rocks,https://riven-virid.vercel.app,capacitor://localhost,http://localhost",
+    "CLIENT_URL": "https://rivenos.com"
+  },
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "f92604e0ca6f4e449375b0b35f421670" }],
+  "durable_objects": { "bindings": [{ "name": "RATE_LIMITER", "class_name": "ApiRateLimiter" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ApiRateLimiter"] }]
+}

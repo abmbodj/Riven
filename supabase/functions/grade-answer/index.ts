@@ -43,7 +43,7 @@ serve(async (request) => {
       throw createHttpError('Answer is too long. Please limit to ~1000 words.', 400);
     }
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     ensureApiKey(apiKey);
 
     const prompt = `You are an expert exam grader. Grade the student's answer to the following question.

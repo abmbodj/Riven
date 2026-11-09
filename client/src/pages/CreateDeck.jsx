@@ -445,6 +445,17 @@ export default function CreateDeck() {
                                 </div>
                             )}
 
+                            <div>
+                                <label htmlFor="ai-deck-name" className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Deck name</label>
+                                <input
+                                    id="ai-deck-name"
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                    className="w-full px-4 py-4 glass-panel rounded-2xl focus:border-claude-accent outline-none transition-colors text-sm"
+                                    placeholder="Deck name"
+                                />
+                            </div>
+
                             {/* Notes / Source Material */}
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">

@@ -765,6 +765,28 @@ describe('NoteEditor', () => {
     expect(screen.getByTestId('note-editor-content-readonly')).toHaveTextContent('Streaming note import content');
   });
 
+  it('offers a retry for a stale enhancement job and reuses its durable input', async () => {
+    const inputPayload = { noteId: 'note-42', sessionId: 'session-1', userNotesSnapshot: null };
+    const staleJob = buildEnhancementJob({
+      status: 'running',
+      phase: 'processing_media',
+      progress_percent: 18,
+      progress_message: 'Preparing timestamped class transcript',
+      updated_at: '2026-09-04T17:16:58.000Z',
+      input_payload: inputPayload,
+    });
+    api.listAiJobs.mockResolvedValue([staleJob]);
+    api.getAiJob.mockResolvedValueOnce(staleJob);
+    api.createAiJob.mockResolvedValue({ jobId: 'job-1', status: 'queued', phase: 'accepted', reclaimed: true });
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    fireEvent.click(screen.getByRole('button', { name: /retry enhancement/i }));
+    await flushAsync(4);
+    expect(api.createAiJob).toHaveBeenCalledWith('note_enhancement', inputPayload);
+  });
+
   it('restores the original note content when an active enhancement job fails', async () => {
     const previewDoc = makeDoc('Streaming note import content');
 
@@ -903,6 +925,24 @@ describe('NoteEditor', () => {
 
     expect(api.uploadNoteAudio).not.toHaveBeenCalled();
     expect(screen.getByText(/too large to process/i)).toBeInTheDocument();
+  });
+
+  it('retries polling after a transient request failure', async () => {
+    vi.useFakeTimers();
+    const active = buildEnhancementJob({ status: 'running', phase: 'drafting' });
+    const finalDoc = makeDoc('Completed after a temporary network failure.');
+    api.listAiJobs.mockResolvedValue([active]);
+    api.getAiJob.mockResolvedValueOnce(active)
+      .mockRejectedValueOnce(new Error('temporary network error'))
+      .mockResolvedValueOnce(buildEnhancementJob({ status: 'completed', phase: 'done', result_payload: { final_doc: finalDoc, note_id: 'note-42' } }));
+    renderNoteEditor();
+    await flushAsync(6);
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    await flushAsync(4);
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    await flushAsync(4);
+    expect(api.getAiJob).toHaveBeenCalledTimes(3);
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Completed after a temporary network failure.');
   });
 
   it('stops enhancement polling when the editor unmounts', async () => {

@@ -1,0 +1,1 @@
+function s(){const i=typeof navigator<"u"&&"vibrate"in navigator;return{light:()=>{i&&navigator.vibrate(10)},medium:()=>{i&&navigator.vibrate(20)},heavy:()=>{i&&navigator.vibrate(30)},success:()=>{i&&navigator.vibrate([10,50,10])},error:()=>{i&&navigator.vibrate([30,50,30,50,30])},selection:()=>{i&&navigator.vibrate(5)},canVibrate:i}}export{s as u};

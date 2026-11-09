@@ -141,6 +141,7 @@ export function AuthProvider({ children }) {
 
     const signUp = useCallback(async (username, email, password, captchaToken = null) => {
         const userData = await authApi.register(username, email, password, captchaToken);
+        if (userData?.requiresEmailConfirmation) return userData;
         const next = await authApi.hydrateUserIfOnboardingMissing(userData);
         setUser(next);
         return next;

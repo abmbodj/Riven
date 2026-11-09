@@ -157,6 +157,7 @@ const serializeSharedData = ({
 
 const acceptDeckResource = async ({
   receiverId,
+  senderId,
   sharedData,
   loadDeck,
   loadDeckCards,
@@ -166,7 +167,7 @@ const acceptDeckResource = async ({
   insertDeckTags,
 }) => {
   const originalDeck = await loadDeck(sharedData.sourceId);
-  if (!originalDeck) {
+  if (!originalDeck || !senderId || Number(originalDeck.user_id) !== Number(senderId)) {
     throw createHttpError('Original deck no longer exists', 404);
   }
 
@@ -197,12 +198,13 @@ const acceptDeckResource = async ({
 
 const acceptNoteResource = async ({
   receiverId,
+  senderId,
   sharedData,
   loadNote,
   createNote,
 }) => {
   const originalNote = await loadNote(sharedData.sourceId);
-  if (!originalNote) {
+  if (!originalNote || !senderId || Number(originalNote.user_id) !== Number(senderId)) {
     throw createHttpError('Original note no longer exists', 404);
   }
 
@@ -228,12 +230,13 @@ const acceptNoteResource = async ({
 
 const acceptGuideResource = async ({
   receiverId,
+  senderId,
   sharedData,
   loadGuide,
   createGuide,
 }) => {
   const originalGuide = await loadGuide(sharedData.sourceId);
-  if (!originalGuide) {
+  if (!originalGuide || !senderId || Number(originalGuide.user_id) !== Number(senderId)) {
     throw createHttpError('Original guide no longer exists', 404);
   }
 
@@ -317,6 +320,7 @@ export const acceptSharedResourceCore = async ({
   if (sharedData.kind === 'deck') {
     acceptedResult = await acceptDeckResource({
       receiverId,
+      senderId: message.sender_id,
       sharedData,
       loadDeck,
       loadDeckCards,
@@ -328,6 +332,7 @@ export const acceptSharedResourceCore = async ({
   } else if (sharedData.kind === 'note') {
     acceptedResult = await acceptNoteResource({
       receiverId,
+      senderId: message.sender_id,
       sharedData,
       loadNote,
       createNote,
@@ -335,6 +340,7 @@ export const acceptSharedResourceCore = async ({
   } else {
     acceptedResult = await acceptGuideResource({
       receiverId,
+      senderId: message.sender_id,
       sharedData,
       loadGuide,
       createGuide,

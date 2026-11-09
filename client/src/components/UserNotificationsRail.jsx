@@ -4,7 +4,7 @@ import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import Bell from 'lucide-react/dist/esm/icons/bell';
 import X from 'lucide-react/dist/esm/icons/x';
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const NOTIFICATION_STYLES = {
@@ -22,6 +22,13 @@ const NOTIFICATION_STYLES = {
         eyebrow: 'Billing update',
         Icon: Sparkles,
     },
+    audio_note_ready: {
+        border: 'border-claude-accent/30',
+        background: 'bg-claude-accent/10',
+        iconTone: 'text-claude-accent',
+        eyebrow: 'Class notes ready',
+        Icon: Sparkles,
+    },
     default: {
         border: 'border-blue-400/20',
         background: 'bg-blue-400/10',
@@ -33,9 +40,11 @@ const NOTIFICATION_STYLES = {
 
 export default function UserNotificationsRail() {
     const location = useLocation();
+    const navigate = useNavigate();
     const { isLoggedIn, getUserNotifications, dismissUserNotification } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const notifiedCompletionIds = React.useRef(new Set());
     const isSettingsPage = location.pathname === '/settings';
 
     const loadNotifications = useCallback(async () => {
@@ -48,6 +57,13 @@ export default function UserNotificationsRail() {
         try {
             const nextNotifications = await getUserNotifications();
             setNotifications(nextNotifications || []);
+            (nextNotifications || []).forEach((notification) => {
+                if (notification.kind !== 'audio_note_ready' || notifiedCompletionIds.current.has(notification.id)) return;
+                notifiedCompletionIds.current.add(notification.id);
+                if (typeof window.Notification === 'function' && window.Notification.permission === 'granted') {
+                    new window.Notification(notification.title, { body: notification.content, tag: `riven-${notification.id}` });
+                }
+            });
         } catch (error) {
             console.warn('[UserNotificationsRail] Failed to load notifications:', error);
         } finally {
@@ -84,8 +100,10 @@ export default function UserNotificationsRail() {
 
         window.addEventListener('focus', handleWindowFocus);
         document.addEventListener('visibilitychange', handleVisibilityChange);
+        const pollTimer = window.setInterval(loadNotifications, 15000);
 
         return () => {
+            window.clearInterval(pollTimer);
             window.removeEventListener('focus', handleWindowFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
@@ -100,6 +118,13 @@ export default function UserNotificationsRail() {
         } catch (error) {
             console.warn('[UserNotificationsRail] Failed to dismiss notification:', error);
         }
+    };
+
+    const handleOpenNotification = async (notification) => {
+        const route = notification?.metadata?.route
+            || (notification?.metadata?.note_id ? `/note/${notification.metadata.note_id}` : '/notes');
+        await handleDismiss(notification.id);
+        navigate(route);
     };
 
     if (loading || notifications.length === 0) return null;
@@ -139,6 +164,15 @@ export default function UserNotificationsRail() {
                                             <p className="mt-2 text-[11px] font-mono leading-relaxed text-claude-secondary/85 sm:text-[12px]">
                                                 {notification.content}
                                             </p>
+                                            {notification.kind === 'audio_note_ready' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenNotification(notification)}
+                                                    className="mt-3 rounded-lg border border-claude-accent/35 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider text-claude-accent hover:border-claude-accent/70"
+                                                >
+                                                    Open notes
+                                                </button>
+                                            )}
                                         </div>
 
                                         <button

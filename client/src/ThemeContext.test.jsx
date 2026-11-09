@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from './ThemeContext.jsx';
 import { useTheme } from './hooks/useTheme.js';
 import { getDefaultThemes } from './themeCatalog.js';
+import { cache } from './utils/cache.js';
 
 const mocks = vi.hoisted(() => ({
     getThemes: vi.fn(),
@@ -52,6 +53,7 @@ describe('ThemeProvider fallback behavior', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.isLoggedIn = false;
+        cache.clear();
         document.documentElement.removeAttribute('style');
     });
 
@@ -74,6 +76,19 @@ describe('ThemeProvider fallback behavior', () => {
         expect(screen.getByTestId('applied-theme')).toHaveTextContent('Riven');
         expect(document.documentElement.style.getPropertyValue('--bg-color')).toBe('#162a31');
         expect(document.documentElement.style.getPropertyValue('--theme-background-style')).toBe('solid');
+    });
+
+    it('keeps the user’s cached theme when revalidation fails', async () => {
+        mocks.isLoggedIn = true;
+        const cached = { ...rivenTheme(), id: 10, name: 'Saved theme', bg_color: '#123456', is_active: 1 };
+        cache.ensureUser(42);
+        cache.setPersistent('theme:active', cached);
+        mocks.getThemes.mockRejectedValue(new Error('Offline'));
+
+        render(<ThemeProvider><ThemeProbe /></ThemeProvider>);
+
+        await waitFor(() => expect(screen.getByTestId('active-theme')).toHaveTextContent('Saved theme'));
+        expect(document.documentElement.style.getPropertyValue('--bg-color')).toBe('#123456');
     });
 
     it('repairs a loaded no-active theme list to Riven for logged-in users', async () => {

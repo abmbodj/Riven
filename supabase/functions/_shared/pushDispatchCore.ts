@@ -119,6 +119,19 @@ export const buildGroupMeetupPushPayload = ({
   };
 };
 
+export const buildAudioNoteReadyPushPayload = ({
+  noteId,
+  title,
+}: {
+  noteId: string | number;
+  title?: string | null;
+}) => ({
+  kind: 'audio_note_ready',
+  route: `/note/${noteId}`,
+  title: 'Your class notes are ready',
+  body: `${sanitizePreviewText(title) || 'Your lecture'} has been transcribed and organized.`,
+});
+
 export const getMostRecentLastSeenAt = (
   devices: Array<{ last_seen_at?: string | null; lastSeenAt?: string | null }>,
 ): Date | null => {

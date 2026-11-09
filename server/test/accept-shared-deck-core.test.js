@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   acceptSharedDeckCore,
@@ -6,6 +6,20 @@ import {
 } from '../../supabase/functions/_shared/acceptSharedDeckCore.mjs';
 
 describe('acceptSharedResourceCore', () => {
+  it.each(['deck', 'note', 'guide'])('rejects a %s the sender does not own before copying it', async (kind) => {
+    const copy = vi.fn();
+    const load = async () => ({ id: kind === 'deck' ? 7 : 'source-7', user_id: 99 });
+    const message = { id: 18, sender_id: 10, receiver_id: 42, message_type: kind, deck_data: { kind, sourceId: kind === 'deck' ? 7 : 'source-7' } };
+    await expect(acceptSharedResourceCore({
+      messageId: 18, receiverId: 42, loadMessageForReceiver: async () => message,
+      loadDeck: load, loadNote: load, loadGuide: load,
+      loadDeckCards: async () => [], loadDeckTags: async () => [],
+      createDeck: copy, createNote: copy, createGuide: copy,
+      insertDeckCards: async () => {}, insertDeckTags: async () => {}, updateMessageSharedData: async () => {},
+    })).rejects.toMatchObject({ status: 404 });
+    expect(copy).not.toHaveBeenCalled();
+  });
+
   it('clones a shared deck, cards, and tags and marks the message accepted', async () => {
     const createdDecks = [];
     const insertedCards = [];
@@ -17,12 +31,14 @@ describe('acceptSharedResourceCore', () => {
       receiverId: 42,
       loadMessageForReceiver: async () => ({
         id: 18,
+        sender_id: 10,
         receiver_id: 42,
         message_type: 'deck',
         deck_data: JSON.stringify({ id: 7, title: 'Biology' }),
       }),
       loadDeck: async () => ({
         id: 7,
+        user_id: 10,
         title: 'Biology',
         description: 'Lab prep',
       }),
@@ -56,7 +72,7 @@ describe('acceptSharedResourceCore', () => {
       newDeck: { id: 99, user_id: 42, title: 'Biology', description: 'Lab prep' },
       messageId: 18,
     });
-    expect(createdDecks).toEqual([{ userId: 42, deck: { id: 7, title: 'Biology', description: 'Lab prep' } }]);
+    expect(createdDecks).toEqual([{ userId: 42, deck: { id: 7, user_id: 10, title: 'Biology', description: 'Lab prep' } }]);
     expect(insertedCards).toEqual([{ deckId: 99, cards: [
       { front: 'Q1', back: 'A1', front_image: null, back_image: null, position: 0 },
       { front: 'Q2', back: 'A2', front_image: '/front.png', back_image: null, position: 1 },
@@ -81,6 +97,7 @@ describe('acceptSharedResourceCore', () => {
       receiverId: 42,
       loadMessageForReceiver: async () => ({
         id: 19,
+        sender_id: 10,
         receiver_id: 42,
         message_type: 'note',
         deck_data: JSON.stringify({
@@ -98,6 +115,7 @@ describe('acceptSharedResourceCore', () => {
       insertDeckTags: async () => {},
       loadNote: async () => ({
         id: 'note-7',
+        user_id: 10,
         title: 'Lecture Notes',
         content: { type: 'doc', content: [{ type: 'paragraph' }] },
         enhanced_content: { type: 'doc', content: [{ type: 'heading' }] },
@@ -157,6 +175,7 @@ describe('acceptSharedResourceCore', () => {
       receiverId: 42,
       loadMessageForReceiver: async () => ({
         id: 20,
+        sender_id: 10,
         receiver_id: 42,
         message_type: 'guide',
         deck_data: JSON.stringify({
@@ -176,6 +195,7 @@ describe('acceptSharedResourceCore', () => {
       createNote: async () => null,
       loadGuide: async () => ({
         id: 'guide-7',
+        user_id: 10,
         title: 'World War I Guide',
         format_version: 2,
         guide_data: {

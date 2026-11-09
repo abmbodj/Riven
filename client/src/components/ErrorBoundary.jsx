@@ -6,13 +6,14 @@ import {
     attemptDeployUpdateRecovery,
     isDeployUpdateError,
     persistAppErrorDiagnostic,
+    readRepeatedCrashDiagnostic,
     recoverStaleDeployAssets,
 } from '../utils/deployUpdateRecovery.js';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { hasError: false, error: null, isRecoveringAssets: false };
+        this.state = { hasError: false, error: null, isRecoveringAssets: false, repeatedCrashDiagnostic: null };
     }
 
     static getDerivedStateFromError(error) {
@@ -25,6 +26,7 @@ class ErrorBoundary extends React.Component {
         }
 
         persistAppErrorDiagnostic(error);
+        this.setState({ repeatedCrashDiagnostic: readRepeatedCrashDiagnostic() });
 
         if (typeof window !== 'undefined') {
             window.__RIVEN_LAST_APP_ERROR = {
@@ -50,7 +52,9 @@ class ErrorBoundary extends React.Component {
 
     handleAssetRecovery = async () => {
         this.setState({ isRecoveringAssets: true });
-        const recovered = await recoverStaleDeployAssets(this.state.error);
+        const recovered = await recoverStaleDeployAssets(this.state.error, {
+            allowRepeatedRuntimeError: Boolean(this.state.repeatedCrashDiagnostic),
+        });
         if (!recovered) this.setState({ isRecoveringAssets: false });
     };
 
@@ -66,14 +70,19 @@ class ErrorBoundary extends React.Component {
                         <p className="text-claude-secondary mb-2">
                             Don&apos;t worry, your data is safe. Try refreshing the page.
                         </p>
-                        {isDeployUpdateError(this.state.error) && (
+                        {(isDeployUpdateError(this.state.error) || this.state.repeatedCrashDiagnostic) && (
                             <button
                                 onClick={this.handleAssetRecovery}
                                 disabled={this.state.isRecoveringAssets}
                                 className="mb-3 text-sm text-claude-accent underline disabled:opacity-50"
                             >
-                                {this.state.isRecoveringAssets ? 'Recovering app assets…' : 'Recover app assets'}
+                                {this.state.isRecoveringAssets ? 'Opening Riven safely…' : 'Open Riven safely'}
                             </button>
+                        )}
+                        {this.state.repeatedCrashDiagnostic?.supportId && (
+                            <p className="mb-4 text-[11px] font-mono text-claude-secondary">
+                                Support ID: {this.state.repeatedCrashDiagnostic.supportId}
+                            </p>
                         )}
                         {import.meta.env.DEV && (
                             <div className="text-left bg-black/10 p-4 rounded text-xs text-red-500 overflow-auto max-h-48 mb-6">

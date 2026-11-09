@@ -7,6 +7,24 @@ import { processAiJob } from '../_shared/aiJobProcessors.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
+const redispatchJob = (jobId: string) => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/+$/, '');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const runnerSecret = Deno.env.get('AI_JOB_RUNNER_SECRET');
+  if (!supabaseUrl || !serviceRoleKey) return;
+  const task = fetch(`${supabaseUrl}/functions/v1/run-ai-job`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceRoleKey}`,
+      ...(runnerSecret ? { 'x-ai-job-secret': runnerSecret } : {}),
+    },
+    body: JSON.stringify({ jobId }),
+  }).catch(() => undefined);
+  const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+  edgeRuntime?.waitUntil?.(task);
+};
+
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
@@ -21,6 +39,9 @@ serve(async (request) => {
 
   let jobId = '';
   let jobKind = '';
+  let checkpointStage = '';
+  let jobAttempt = 0;
+  let sessionId = '';
 
   try {
     ensureInternalJobAuth(request);
@@ -44,6 +65,10 @@ serve(async (request) => {
     }
     let job = loadedJob;
     jobKind = typeof job.kind === 'string' ? job.kind : '';
+    const initialRecovery = job?.result_payload?.recovery || {};
+    checkpointStage = String(initialRecovery.stage || '');
+    jobAttempt = Number(initialRecovery.submission_attempt || job.attempt_count || 0);
+    sessionId = String(job?.input_payload?.sessionId || initialRecovery.session_id || '');
 
     if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
       return jsonResponse({ ok: true, skipped: true }, { status: 200 }, request);
@@ -74,7 +99,10 @@ serve(async (request) => {
     job = claimedJob;
 
     try {
-      await processAiJob({ admin, job });
+      const outcome = await processAiJob({ admin, job });
+      if (outcome && typeof outcome === 'object' && (outcome as { redispatch?: boolean }).redispatch) {
+        redispatchJob(job.id);
+      }
     } catch (error) {
       const retrySchedule = job.kind === 'note_enhancement' && isRetryableAiJobError(error)
         ? buildAiJobRetrySchedule({
@@ -125,6 +153,10 @@ serve(async (request) => {
       tags: {
         job_id: jobId || undefined,
         job_kind: jobKind || undefined,
+        session_id: sessionId || undefined,
+        checkpoint_stage: checkpointStage || undefined,
+        attempt: jobAttempt || undefined,
+        provider_category: String((requestError as Error & { code?: string }).code || 'job_error'),
       },
     });
     return jsonResponse({

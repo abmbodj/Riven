@@ -57,4 +57,17 @@ describe('CreateDeck guided flow', () => {
 
     expect(screen.getAllByText('Science').length).toBeGreaterThan(0);
   });
+  it('lets a user name and generate an AI deck without switching modes', async () => {
+    api.getFolders.mockResolvedValue([]);
+    api.getClasses.mockResolvedValue([]);
+    api.getTags.mockResolvedValue([]);
+    api.getAILimits.mockResolvedValue({ remaining: 5, max: 5 });
+    render(<MemoryRouter><CreateDeck /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /generate from notes/i }));
+    await screen.findByPlaceholderText(/paste your notes/i);
+    fireEvent.change(screen.getByPlaceholderText('Deck name'), { target: { value: 'Biology' } });
+    fireEvent.change(screen.getByPlaceholderText(/paste your notes/i), { target: { value: 'Photosynthesis converts light to chemical energy.' } });
+    expect(screen.getByRole('button', { name: /generate flashcards/i })).toBeEnabled();
+  });
+
 });

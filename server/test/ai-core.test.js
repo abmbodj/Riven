@@ -241,7 +241,7 @@ describe('aiCore', () => {
       apiKey: 'groq-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('openai/gpt-oss-120b');
+        expect(model).toBe('gpt-5.4-mini');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Output ONLY a valid JSON array.') }),
           expect.objectContaining({ text: expect.stringContaining('Source Material:') }),

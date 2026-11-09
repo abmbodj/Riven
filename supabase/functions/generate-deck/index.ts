@@ -64,7 +64,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
@@ -146,7 +146,7 @@ serve(async (request) => {
         try {
           const ai = createAiClient(apiKey);
           const streamResponse = ai.streamContent({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: 'gpt-5.4-mini',
             messages,
             maxTokens: 2048,
           });

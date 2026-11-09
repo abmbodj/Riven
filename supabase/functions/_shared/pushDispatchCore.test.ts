@@ -1,5 +1,6 @@
 import {
   buildGroupMeetupPushPayload,
+  buildAudioNoteReadyPushPayload,
   buildInactivityPushPayload,
   buildMessagePushBody,
   buildMessagePushPayload,
@@ -83,6 +84,19 @@ Deno.test('buildGroupMeetupPushPayload routes to the group and reads the topic',
       body: 'Someone cancelled "Problem set 4".',
     },
     'Expected a cancelled payload with sensible fallbacks',
+  );
+});
+
+Deno.test('buildAudioNoteReadyPushPayload routes back to the completed note', () => {
+  assertEquals(
+    buildAudioNoteReadyPushPayload({ noteId: 'note-42', title: 'EN199 Lecture' }),
+    {
+      kind: 'audio_note_ready',
+      route: '/note/note-42',
+      title: 'Your class notes are ready',
+      body: 'EN199 Lecture has been transcribed and organized.',
+    },
+    'Expected a completion push linked to the note',
   );
 });
 

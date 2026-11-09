@@ -79,7 +79,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
@@ -177,26 +177,15 @@ serve(async (request) => {
         try {
           const ai = createAiClient(apiKey);
 
-          // ── Phase 1: stream skeleton (perceived progress for the user) ──────
-          const streamResponse = ai.streamContent({
+          // The tutor skeleton must be a JSON object. Request JSON mode so that
+          // the model cannot prepend prose or wrap the output in Markdown.
+          const skeletonText = await ai.generateContent({
             model: aiModelMap.guide,
             messages: skeletonMessages,
-            maxTokens: 6000,
+            maxTokens: 10000,
+            responseFormat: 'json_object',
           });
-
-          const STREAM_DEADLINE_MS = 90_000;
-          const deadline = Date.now() + STREAM_DEADLINE_MS;
-          let skeletonText = '';
-          for await (const chunk of streamResponse) {
-            if (Date.now() > deadline) {
-              throw createHttpError('Generation timed out. Please try again with shorter content.', 504);
-            }
-            const text = chunk.text ?? '';
-            if (text) {
-              skeletonText += text;
-              sendChunk(text);
-            }
-          }
+          sendChunk(skeletonText);
 
           let guidePayload = mergeGuidePayloadMeta(
             parseAiJsonResponse(skeletonText, 'AI generated invalid tutor session format. Please try again.'),

@@ -35,6 +35,7 @@ const ACTIVE_AI_JOB_STATUSES = ['queued', 'running', 'streaming', 'saving'];
 const ENHANCEMENT_POLL_MS = 3000;
 const ENHANCEMENT_SAVING_POLL_MS = 1500;
 const ENHANCEMENT_LOCAL_COMPLETION_GRACE_POLLS = 2;
+const ENHANCEMENT_STALE_AFTER_MS = 5 * 60 * 1000;
 
 const ENHANCEMENT_PHASE_LABELS = {
     accepted: 'Accepted enhancement job',
@@ -56,6 +57,19 @@ const createDocFromSections = (sections) => normalizeRichTextDoc({
 const normalizeOptionalDoc = (doc) => (doc ? normalizeRichTextDoc(doc) : null);
 
 const isEnhancementJobActive = (job) => ACTIVE_AI_JOB_STATUSES.includes(job?.status);
+
+const isEnhancementJobStalled = (job, now = Date.now()) => {
+    if (!isEnhancementJobActive(job)) return false;
+
+    const recovery = job?.result_payload?.recovery;
+    if (recovery?.stage === 'awaiting_callback') {
+        const callbackDeadline = Date.parse(recovery.callback_deadline || '');
+        if (Number.isFinite(callbackDeadline) && callbackDeadline > now) return false;
+    }
+
+    const heartbeatAt = Date.parse(recovery?.heartbeat_at || job?.updated_at || '');
+    return Number.isFinite(heartbeatAt) && now - heartbeatAt >= ENHANCEMENT_STALE_AFTER_MS;
+};
 
 const getJobPreviewDoc = (job) => {
     const payload = job?.result_payload || {};
@@ -116,6 +130,7 @@ export default function NoteEditor() {
 
     const [showEnhanceBanner, setShowEnhanceBanner] = useState(false);
     const [enhancing, setEnhancing] = useState(false);
+    const [retryingEnhancement, setRetryingEnhancement] = useState(false);
     const [enhanceError, setEnhanceError] = useState(null);
     const [audioPath, setAudioPath] = useState(null);
     // Retained audio for a polished note — separate from pre-enhancement tracking so it
@@ -755,6 +770,29 @@ export default function NoteEditor() {
         }
     }, [processTrackedEnhancementJob, stopEnhancementTracking]);
 
+    const handleRetryEnhancementJob = useCallback(async () => {
+        const stalledJob = activeEnhancementJob;
+        if (!stalledJob?.id || retryingEnhancement) return;
+
+        setRetryingEnhancement(true);
+        try {
+            const response = await api.createAiJob('note_enhancement', stalledJob.input_payload || {});
+            const jobId = response?.jobId || stalledJob.id;
+            await trackEnhancementJob(jobId, {
+                ...stalledJob,
+                id: jobId,
+                status: response?.status || 'queued',
+                phase: response?.phase || stalledJob.phase || 'accepted',
+                progress_message: 'Saved lecture recovery resumed',
+                updated_at: new Date().toISOString(),
+            });
+        } catch (error) {
+            toast.error(error?.message || 'Could not retry the enhancement yet');
+        } finally {
+            setRetryingEnhancement(false);
+        }
+    }, [activeEnhancementJob, retryingEnhancement, toast, trackEnhancementJob]);
+
     useEffect(() => {
         api.warmupAiFunctions(
             'generate-deck',
@@ -827,7 +865,8 @@ export default function NoteEditor() {
             ? ENHANCEMENT_SAVING_POLL_MS
             : ENHANCEMENT_POLL_MS;
 
-        enhancementPollTimerRef.current = window.setTimeout(async () => {
+        let cancelled = false;
+        const pollEnhancement = async () => {
             enhancementPollTimerRef.current = null;
             if (trackedEnhancementJobIdRef.current !== trackedJobId) {
                 return;
@@ -845,13 +884,15 @@ export default function NoteEditor() {
                 }
                 processTrackedEnhancementJob(trackedJobId, latestJob);
             } catch (error) {
-                if (trackedEnhancementJobIdRef.current === trackedJobId) {
+                if (!cancelled && trackedEnhancementJobIdRef.current === trackedJobId) {
                     console.warn('[NoteEditor] Failed to poll enhancement job', error?.message || error);
+                    enhancementPollTimerRef.current = window.setTimeout(pollEnhancement, delay);
                 }
             }
-        }, delay);
+        };
+        enhancementPollTimerRef.current = window.setTimeout(pollEnhancement, delay);
 
-        return clearEnhancementPoll;
+        return () => { cancelled = true; clearEnhancementPoll(); };
     }, [activeEnhancementJob, clearEnhancementPoll, maybeResolveSavingEnhancementJob, noteId, processTrackedEnhancementJob]);
 
     useEffect(() => {
@@ -1629,6 +1670,7 @@ export default function NoteEditor() {
     const enhancementStatusText = visibleEnhancementRail?.progress_message || getEnhancementStatusText(visibleEnhancementRail);
     const enhancementProgressPercent = visibleEnhancementRail?.progress_percent ?? null;
     const enhancementRailIsCompleting = !enhancementLocked && Boolean(enhancementCompletionRail);
+    const enhancementJobIsStalled = enhancementLocked && isEnhancementJobStalled(activeEnhancementJob);
     const editorContent = streamedEnhancementDoc ?? content;
     const showImportSweep = enhancementLocked && streamedEnhancementDoc && !prefersReducedMotion;
     const supportsTabAudio = !isRecording
@@ -1919,6 +1961,16 @@ export default function NoteEditor() {
                                         </p>
                                     </div>
                                     <div className="inline-flex items-center gap-2 shrink-0">
+                                        {enhancementJobIsStalled && (
+                                            <button
+                                                type="button"
+                                                onClick={handleRetryEnhancementJob}
+                                                disabled={retryingEnhancement}
+                                                className="rounded-lg border border-claude-accent/35 px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wider text-claude-accent hover:border-claude-accent/70 disabled:opacity-50"
+                                            >
+                                                {retryingEnhancement ? 'Retrying…' : 'Retry enhancement'}
+                                            </button>
+                                        )}
                                         {enhancementRailIsCompleting && (
                                             <button
                                                 type="button"

@@ -15,7 +15,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
 const slowDown = require('express-slow-down');
-const xss = require('xss');
+const { sanitizeRequest } = require('./sanitizeRequest');
 const db = require('./db');
 const { isTokenRevoked } = require('./tokenRevocation');
 const registerAuthRoutes = require('./routes/auth');
@@ -60,6 +60,18 @@ if (process.env.NODE_ENV !== 'test' && process.env.SENTRY_DSN) {
 // Trust the first proxy (Render/Vercel load balancer)
 // Required for successful rate limiting behind a proxy
 app.set('trust proxy', 1);
+
+// The Worker adapter obtains this value from Cloudflare, not from client-supplied
+// forwarding headers. The request context is populated before Express runs.
+if (process.env.RIVEN_WORKER_MODE === 'true') {
+    app.use((req, _res, next) => {
+        const { currentWorkerContext } = require('./workerContext');
+        const ip = currentWorkerContext()?.clientIp;
+        if (!ip) return next(new Error('Missing Worker client address'));
+        Object.defineProperty(req, 'ip', { value: ip, configurable: true });
+        next();
+    });
+}
 
 // JWT Secret
 //
@@ -171,38 +183,8 @@ app.use(cookieParser());
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '1mb' }));
 
-// Recursive Deep XSS Sanitization utility function
-function sanitizeDeep(obj) {
-    if (typeof obj === 'string') {
-        return xss(obj);
-    }
-    if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeDeep(item));
-    }
-    if (typeof obj === 'object' && obj !== null) {
-        const sanitizedObj = {};
-        for (const [key, value] of Object.entries(obj)) {
-            sanitizedObj[key] = sanitizeDeep(value);
-        }
-        return sanitizedObj;
-    }
-    return obj;
-}
-
-// Input sanitization middleware
-app.use((req, res, next) => {
-    // Skip sanitization for Stripe webhooks as it needs the raw Buffer body for signature verification
-    if (req.path === '/api/webhooks/stripe') return next();
-
-    if (process.env.NODE_ENV !== 'test') {
-        if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-            req.body = sanitizeDeep(req.body);
-        }
-        if (req.query) req.query = sanitizeDeep(req.query);
-        if (req.params) req.params = sanitizeDeep(req.params);
-    }
-    next();
-});
+// Preserve raw Stripe webhook bodies; sanitize other input in non-test environments.
+if (process.env.NODE_ENV !== 'test') app.use(sanitizeRequest);
 
 app.use('/api/', apiLimiter);
 
@@ -460,11 +442,11 @@ const handleAcceptSharedResource = async (req, res) => {
             receiverId: req.user.id,
             loadMessageForReceiver: (targetMessageId, targetUserId) =>
                 db.queryOne(
-                    'SELECT id, receiver_id, message_type, deck_data FROM messages WHERE id = $1 AND receiver_id = $2',
+                    'SELECT id, sender_id, receiver_id, message_type, deck_data FROM messages WHERE id = $1 AND receiver_id = $2',
                     [targetMessageId, targetUserId]
                 ),
             loadDeck: (deckId) =>
-                db.queryOne('SELECT id, title, description FROM decks WHERE id = $1', [deckId]),
+                db.queryOne('SELECT id, user_id, title, description FROM decks WHERE id = $1', [deckId]),
             loadDeckCards: (deckId) =>
                 db.query(
                     'SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1 ORDER BY position ASC',
@@ -510,7 +492,7 @@ const handleAcceptSharedResource = async (req, res) => {
                 );
             },
             loadNote: (noteId) =>
-                db.queryOne('SELECT id, title, content, enhanced_content FROM notes WHERE id = $1', [noteId]),
+                db.queryOne('SELECT id, user_id, title, content, enhanced_content FROM notes WHERE id = $1', [noteId]),
             createNote: (userId, note) =>
                 db.queryOne(
                     `INSERT INTO notes
@@ -529,7 +511,7 @@ const handleAcceptSharedResource = async (req, res) => {
                     ]
                 ),
             loadGuide: (guideId) =>
-                db.queryOne('SELECT id, title, format_version, guide_data, study_state, content FROM study_guides WHERE id = $1', [guideId]),
+                db.queryOne('SELECT id, user_id, title, format_version, guide_data, study_state, content FROM study_guides WHERE id = $1', [guideId]),
             createGuide: (userId, guide) =>
                 db.queryOne(
                     `INSERT INTO study_guides
@@ -589,7 +571,7 @@ app.use((err, req, res, next) => {
     });
 });
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && process.env.RIVEN_WORKER_MODE !== 'true') {
     server.on('error', (error) => {
         console.error('Server startup error:', error);
         process.exit(1);

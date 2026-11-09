@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import {
   buildGroupMeetupPushPayload,
+  buildAudioNoteReadyPushPayload,
   buildInactivityPushPayload,
   buildMessagePushPayload,
   getInactivityReminderDecision,
@@ -410,6 +411,15 @@ const handleGroupMeetupEvent = async (meetupId: string, eventType: string) => {
   return { delivered, recipients: recipientIds.length };
 };
 
+const handleAudioNoteReady = async (userId: number, noteId: string, title: string | null) => {
+  const devices = await fetchActiveIosDevicesForUser(userId);
+  const uniqueTokens = Array.from(new Set(
+    devices.map((device) => device.push_token).filter((token): token is string => Boolean(token)),
+  ));
+  if (!uniqueTokens.length) return { delivered: 0, reason: 'no_active_tokens' };
+  return sendPushToTokens(uniqueTokens, buildAudioNoteReadyPushPayload({ noteId, title }));
+};
+
 const fetchGroupedDevices = async () => {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
@@ -587,6 +597,15 @@ serve(async (request) => {
       }
 
       return jsonResponse(await handleGroupMeetupEvent(meetupId, eventType), {}, request);
+    }
+
+    if (action === 'audio_note_ready') {
+      const userId = Number(body?.userId);
+      const noteId = String(body?.noteId || '').trim();
+      if (!Number.isInteger(userId) || userId <= 0 || !noteId) {
+        return jsonResponse({ error: 'userId and noteId are required' }, { status: 400 }, request);
+      }
+      return jsonResponse(await handleAudioNoteReady(userId, noteId, String(body?.title || '') || null), {}, request);
     }
 
     if (action === 'reengagement_scan') {

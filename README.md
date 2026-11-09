@@ -49,7 +49,7 @@ Riven combines student workflow tools that usually live in separate apps:
 | Client | React 19, Vite 7, React Router, Tailwind CSS, Motion, GSAP, TipTap, Lucide |
 | API | Express 5, Supabase Edge Functions, Zod-style validation utilities, `pg` |
 | Data | Supabase PostgreSQL, Supabase Auth, Supabase Storage, IndexedDB via `idb` |
-| AI | Google Gemini in Express AI routes, Groq-backed Edge AI flows where configured |
+| AI | OpenAI-backed Edge AI generation and Deepgram for live transcription |
 | Payments | Stripe for web checkout/billing portal/webhooks, RevenueCat for iOS IAP sync |
 | Email and auth | Resend, Supabase Auth, Google OAuth, native Apple Sign-In, TOTP 2FA |
 | Mobile | Capacitor 8 iOS project with native auth, notifications, haptics, and RevenueCat |
@@ -63,7 +63,7 @@ Riven combines student workflow tools that usually live in separate apps:
 - Node.js 20+.
 - npm, included with Node.
 - A Supabase project, or the Supabase CLI plus Docker for local Supabase.
-- Optional service accounts for Stripe, RevenueCat, Resend, Sentry, PostHog, Google/Apple auth, Groq/Gemini, Turnstile, and LMS integrations.
+- Optional service accounts for Stripe, RevenueCat, Resend, Sentry, PostHog, Google/Apple auth, OpenAI, Deepgram, Turnstile, and LMS integrations.
 
 ### Install
 
@@ -125,7 +125,6 @@ Use the checked-in examples as the source of truth:
 | `ALLOWED_ORIGINS` | Recommended | Comma-separated CORS origins for browser and native clients |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` | Feature-dependent | Supabase Auth, storage cleanup, bridge routes, and privileged operations |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL` | Payments | Web/PWA billing and webhook fulfillment |
-| `GEMINI_API_KEY` | AI | Express AI card/document generation |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email | Transactional email |
 | `GOOGLE_CLIENT_ID`, `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Auth | Legacy OAuth/native bridge fallbacks |
 | `TURNSTILE_SECRET_KEY`, `ALLOW_CAPACITOR_REGISTER_SKIP_TURNSTILE` | Signup protection | Cloudflare Turnstile and native signup behavior |
@@ -165,7 +164,7 @@ Common secrets used by functions include:
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`, `STRIPE_TEST_COUPON` | Stripe checkout, portal, and webhooks |
 | `CLIENT_URL`, `FRONTEND_URL`, `ALLOWED_ORIGINS` | CORS and redirect origins, especially for Capacitor origins |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email delivery |
-| `GROQ_API_KEY`, `AI_DRAFT_MODEL`, `AI_FINAL_MODEL`, `AI_JOB_RUNNER_SECRET` | Edge AI generation and queued jobs. Note processing defaults to `openai/gpt-oss-20b` for drafts and `openai/gpt-oss-120b` for final notes; set the two model secrets to override them. |
+| `OPENAI_API_KEY`, `AI_DRAFT_MODEL`, `AI_FINAL_MODEL`, `AI_GRADING_MODEL`, `AI_YOUTUBE_NOTES_MODEL`, `AI_JOB_RUNNER_SECRET` | Edge AI generation and queued jobs. Defaults use `gpt-5.4-mini`; model overrides must be valid OpenAI model IDs. Legacy Groq model IDs fall back to the default; update overrides to valid OpenAI model IDs. |
 | `RC_WEBHOOK_SECRET`, `RC_SECRET_KEY`, `RC_IOS_API_KEY` | RevenueCat webhooks and sync |
 | `CANVAS_AUTO_SYNC_SECRET` | Scheduled Canvas sync protection |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Edge rate limit backend |
@@ -187,11 +186,11 @@ flowchart LR
 
     express --> postgres["Supabase PostgreSQL"]
     express --> storage["Supabase Storage"]
-    express --> external["Stripe, Resend, Gemini, Canvas/iCal"]
+    express --> external["Stripe, Resend, Canvas/iCal"]
 
     edge --> postgres
     edge --> storage
-    edge --> edgeExternal["Stripe, RevenueCat, Resend, Groq, TranscriptAPI, Sentry"]
+    edge --> edgeExternal["Stripe, RevenueCat, Resend, OpenAI, Deepgram, TranscriptAPI, Sentry"]
 
     supabaseAuth --> postgres
 ```

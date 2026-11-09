@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-react-DG644mxh.js";import{G as t}from"./GardenContext-eYmybO6F.js";import"./index-CNpCI_Z6.js";import"./vendor-supabase-BBHTcFuD.js";import"./vendor-db-Dob3nYDb.js";function n({children:r}){return o.jsx(t,{children:r})}export{n as default};

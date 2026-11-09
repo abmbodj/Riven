@@ -205,19 +205,19 @@ function ForestOverlay({ accent, lightAtmosphere }) {
             {/* Dappled canopy light — scattered across screen */}
             <div className="absolute -top-1/4 left-1/5 w-2/5 h-2/5 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}0d 0%, transparent 60%)`,
-                animation: 'themeColorBloom 9s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             <div className="absolute top-1/3 -right-1/8 w-1/4 h-1/3 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}07 0%, transparent 65%)`,
-                animation: 'themeColorBloom 13s 4s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             <div className="absolute bottom-1/3 left-1/8 w-1/5 h-1/4 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}06 0%, transparent 60%)`,
-                animation: 'themeColorBloom 11s 7s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             <div className="absolute top-2/3 right-1/4 w-1/6 h-1/5 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}05 0%, transparent 60%)`,
-                animation: 'themeColorBloom 15s 2s ease-in-out infinite',
+                opacity: 0.2,
             }} />
 
             {/* Dust motes — full screen scatter */}
@@ -301,17 +301,17 @@ function EmberOverlay({ accent, lightAtmosphere }) {
             {/* Warm atmospheric glow — bottom */}
             <div className="absolute -bottom-1/6 left-1/4 right-1/4 h-1/3 rounded-full" style={{
                 background: `radial-gradient(ellipse at 50% 100%, ${accent}10 0%, transparent 70%)`,
-                animation: 'themeGlowPulse 7s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Top right warmth */}
             <div className="absolute -top-1/5 right-1/5 w-1/3 h-1/3 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}09 0%, transparent 65%)`,
-                animation: 'themeGlowPulse 11s 4s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Left mid warm bloom */}
             <div className="absolute top-2/5 -left-1/8 w-1/4 h-1/4 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}07 0%, transparent 60%)`,
-                animation: 'themeGlowPulse 9s 2s ease-in-out infinite',
+                opacity: 0.2,
             }} />
 
             {/* Ember sparks — scattered full screen */}
@@ -483,7 +483,7 @@ function LanternOverlay({ accent, lightAtmosphere }) {
             {/* Central warm lantern glow */}
             <div className="absolute top-1/4 left-1/4 w-2/4 h-1/2 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}0f 0%, transparent 65%)`,
-                animation: 'themeLanternWarm 6s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Bottom warmth gradient */}
             <div className="absolute bottom-0 left-0 right-0 h-1/4" style={{
@@ -492,7 +492,7 @@ function LanternOverlay({ accent, lightAtmosphere }) {
             {/* Top left secondary glow */}
             <div className="absolute -top-1/5 -left-1/8 w-1/3 h-1/3 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}07 0%, transparent 65%)`,
-                animation: 'themeLanternWarm 9s 3s ease-in-out infinite',
+                opacity: 0.2,
             }} />
 
             {/* Firefly dots — full screen */}
@@ -554,7 +554,7 @@ function MoonOverlay({ accent, lightAtmosphere }) {
             {/* Moonlight column from top-center */}
             <div className="absolute -top-1/3 left-1/3 w-1/3 h-2/3" style={{
                 background: `radial-gradient(ellipse at 50% 0%, ${accent}0b 0%, transparent 70%)`,
-                animation: 'themeGlowPulse 10s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Horizon shimmer */}
             <div className="absolute bottom-0 left-0 right-0 h-1/5" style={{
@@ -563,7 +563,7 @@ function MoonOverlay({ accent, lightAtmosphere }) {
             {/* Upper-left secondary glow */}
             <div className="absolute top-1/6 -left-1/6 w-2/5 h-2/5 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}06 0%, transparent 65%)`,
-                animation: 'themeGlowPulse 13s 5s ease-in-out infinite',
+                opacity: 0.2,
             }} />
 
             {/* Star field — full screen scatter */}
@@ -750,12 +750,12 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
             {/* Soft pink atmospheric bloom — top */}
             <div className="absolute -top-1/4 left-1/5 w-3/5 h-2/5 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}12 0%, transparent 65%)`,
-                animation: 'themeGlowPulse 9s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Right mid bloom */}
             <div className="absolute top-1/2 -right-1/8 w-1/4 h-1/3 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}08 0%, transparent 65%)`,
-                animation: 'themeGlowPulse 12s 5s ease-in-out infinite',
+                opacity: 0.2,
             }} />
 
             {/* Petal particles — full screen scatter */}
@@ -879,17 +879,17 @@ function LavenderOverlay({ accent, lightAtmosphere }) {
             {/* Deep atmospheric bloom — top-center */}
             <div className="absolute -top-1/4 left-1/6 w-2/3 h-3/5 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}0d 0%, transparent 65%)`,
-                animation: 'themeColorBloom 11s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Bottom right secondary bloom */}
             <div className="absolute bottom-1/5 -right-1/6 w-2/5 h-2/5 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}07 0%, transparent 65%)`,
-                animation: 'themeColorBloom 15s 6s ease-in-out infinite',
+                opacity: 0.2,
             }} />
             {/* Left mid subtle bloom */}
             <div className="absolute top-2/5 -left-1/8 w-1/4 h-1/3 rounded-full" style={{
                 background: `radial-gradient(ellipse, ${accent}05 0%, transparent 60%)`,
-                animation: 'themeColorBloom 13s 3s ease-in-out infinite',
+                opacity: 0.2,
             }} />
 
             {/* Pollen spores — full screen scatter */}

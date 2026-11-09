@@ -66,7 +66,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {

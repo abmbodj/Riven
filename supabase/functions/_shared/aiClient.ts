@@ -1,6 +1,6 @@
-import Groq from 'npm:groq-sdk@0.24.0';
+import OpenAI from 'npm:openai@4.104.0';
 
-import { buildGroqGenerateContentParams, type AiResponseFormat, type AiContentPart } from './aiClientRequest.ts';
+import { buildOpenAiGenerateContentParams, resolveOpenAiModel, type AiResponseFormat, type AiContentPart } from './aiClientRequest.ts';
 
 export type AiMessage = {
   role: 'system' | 'user' | 'assistant';
@@ -21,27 +21,25 @@ export type TranscribeOptions = {
 
 export type { AiResponseFormat, AiContentPart };
 
-export const createAiClient = (apiKey: string) => {
-  const groq = new Groq({ apiKey, timeout: 45_000, maxRetries: 1 });
+export const createAiClient = (apiKey: string, fetchFn?: typeof fetch) => {
+  const openai = new OpenAI({ apiKey, timeout: 45_000, maxRetries: 1, ...(fetchFn ? { fetch: fetchFn as unknown as NonNullable<NonNullable<ConstructorParameters<typeof OpenAI>[0]>["fetch"]> } : {}) });
 
   return {
     async *streamContent({
       model,
       messages,
       maxTokens,
-      temperature = 0,
     }: {
       model: string;
       messages: AiMessage[];
       maxTokens: number;
       temperature?: number;
     }): AsyncGenerator<AiStreamChunk> {
-      const stream = await groq.chat.completions.create({
-        model,
+      const stream = await openai.chat.completions.create({
+        model: resolveOpenAiModel(model),
         // Cast covers multimodal (image) content parts, which the SDK accepts for vision models.
-        messages: messages as unknown as Groq.Chat.Completions.ChatCompletionMessageParam[],
-        max_tokens: maxTokens,
-        temperature,
+        messages: messages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        max_completion_tokens: maxTokens,
         stream: true,
       });
 
@@ -55,7 +53,6 @@ export const createAiClient = (apiKey: string) => {
       model,
       messages,
       maxTokens,
-      temperature = 0,
       responseFormat,
     }: {
       model: string;
@@ -64,17 +61,16 @@ export const createAiClient = (apiKey: string) => {
       temperature?: number;
       responseFormat?: AiResponseFormat;
     }): Promise<string> {
-      const params = buildGroqGenerateContentParams({
+      const params = buildOpenAiGenerateContentParams({
         model,
         messages,
         maxTokens,
-        temperature,
         responseFormat,
       });
-      const response = await groq.chat.completions.create({
+      const response = await openai.chat.completions.create({
         ...params,
         // Cast covers multimodal (image) content parts, which the SDK accepts for vision models.
-        messages: params.messages as unknown as Groq.Chat.Completions.ChatCompletionMessageParam[],
+        messages: params.messages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
       });
 
       return response.choices?.[0]?.message?.content ?? '';
@@ -86,8 +82,8 @@ export const createAiClient = (apiKey: string) => {
       options: TranscribeOptions = {},
     ): Promise<string> {
       const file = new File([audioBlob], filename, { type: audioBlob.type });
-      const transcription = await groq.audio.transcriptions.create({
-        model: 'whisper-large-v3',
+      const transcription = await openai.audio.transcriptions.create({
+        model: 'whisper-1',
         file,
         // Bias decoding toward the lecture's domain vocabulary / proper nouns.
         ...(options.prompt ? { prompt: options.prompt } : {}),
@@ -106,8 +102,8 @@ export const createAiClient = (apiKey: string) => {
       segments: Array<{ id: number; start: number; end: number; text: string; avg_logprob?: number; no_speech_prob?: number }>;
     }> {
       const file = new File([audioBlob], filename, { type: audioBlob.type });
-      const transcription = await groq.audio.transcriptions.create({
-        model: 'whisper-large-v3',
+      const transcription = await openai.audio.transcriptions.create({
+        model: 'whisper-1',
         file,
         response_format: 'verbose_json',
         timestamp_granularities: ['segment'],
@@ -137,8 +133,8 @@ export type AiClient = ReturnType<typeof createAiClient>;
 const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 
 /**
- * Convert Gemini-style content parts array to a Groq chat message. Text parts are joined;
- * inline IMAGE data becomes an image_url part so vision models (Llama 4) can read an
+ * Convert Gemini-style content parts array to an OpenAI chat message. Text parts are joined;
+ * inline IMAGE data becomes an image_url part so vision models can read an
  * uploaded photo/scan. Non-image binary (e.g. PDF) is dropped here — extract its text first.
  */
 export const contentsToMessages = (

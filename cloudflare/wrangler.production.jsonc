@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "riven-production",
+  "main": "production-worker.mjs",
+  "compatibility_date": "2026-11-05",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "rivenos.com/*", "zone_name": "rivenos.com" },
+    { "pattern": "www.rivenos.com/*", "zone_name": "rivenos.com" }
+  ],
+  "services": [{ "binding": "API", "service": "riven-migration-api" }],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "../client/dist",
+    "not_found_handling": "none",
+    "run_worker_first": true
+  }
+}

@@ -48,6 +48,7 @@ const {
       upsertTranscriptSegments: vi.fn(async () => []),
       updateRecordingSession: vi.fn(async () => ({})),
       finalizeRecordingSession: vi.fn(async () => ({})),
+      getVerifiedRecordingChunkCount: vi.fn(async () => null),
       getTranscriptSegments: vi.fn(async () => []),
     },
     chunkStoreMock: {
@@ -263,6 +264,7 @@ describe('RecordingSessionProvider', () => {
     mediaDevicesMock.getUserMedia.mockClear();
     mediaDevicesMock.getDisplayMedia.mockReset();
     Object.values(recordingApiMock).forEach((mock) => mock.mockClear());
+    recordingApiMock.getVerifiedRecordingChunkCount.mockResolvedValue(null);
     Object.values(chunkStoreMock).forEach((mock) => mock.mockClear());
     chunkStoreMock.getSession.mockResolvedValue(null);
     transcriptionState.options = null;
@@ -405,6 +407,29 @@ describe('RecordingSessionProvider', () => {
       expect.objectContaining({ chunkCount: 1, uploadedCount: 1 }),
     ));
     expect(screen.getByTestId('note-state')).toHaveTextContent('stopped');
+  });
+
+  it('waits for an in-flight final data handler before reading verified upload totals', async () => {
+    let releaseChunk;
+    chunkStoreMock.putChunk.mockImplementationOnce(({ descriptor }) => new Promise((resolve) => {
+      releaseChunk = () => resolve(descriptor);
+    }));
+    recordingApiMock.getVerifiedRecordingChunkCount = vi.fn(async () => 1);
+    renderHarness();
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+    await waitFor(() => expect(screen.getByTestId('note-state')).toHaveTextContent('recording'));
+
+    MockMediaRecorder.instances[0].emitChunk('final classroom audio '.repeat(100));
+    fireEvent.click(screen.getByRole('button', { name: /stop recording/i }));
+    await flushMicrotasks();
+    expect(recordingApiMock.finalizeRecordingSession).not.toHaveBeenCalled();
+
+    releaseChunk();
+    await waitFor(() => expect(recordingApiMock.finalizeRecordingSession).toHaveBeenCalledWith(
+      'server-session-1',
+      expect.objectContaining({ chunkCount: 1, uploadedCount: 1 }),
+    ));
+    expect(recordingApiMock.getVerifiedRecordingChunkCount).toHaveBeenCalledWith('server-session-1');
   });
 
   it('requires an explicit continuation after four hours', async () => {

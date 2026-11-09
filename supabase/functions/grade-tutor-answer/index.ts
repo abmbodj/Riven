@@ -72,7 +72,7 @@ serve(async (request) => {
       throw createHttpError('Answer is too long. Please limit to ~1000 words.', 400);
     }
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     ensureApiKey(apiKey);
 
     const prompt = `You are River, a warm, encouraging tutor grading a student's free-response answer during a one-on-one study session. Grade for genuine conceptual understanding, the way a great human tutor would, NOT by matching keywords.

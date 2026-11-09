@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import JSZip from 'jszip';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GuidesLibrary from './GuidesLibrary.jsx';
@@ -480,6 +481,44 @@ describe('GuidesLibrary', () => {
     expect(call[2]).toBe('Tutor Session');
     expect(call[3]).toBe('note-1');
     expect(call[7]).not.toHaveProperty('examLabel');
+  });
+
+  it('creates a tutor session using text from an uploaded PowerPoint', async () => {
+    api.getStudyGuides.mockResolvedValue([]);
+    api.generateAiGuide.mockResolvedValue({ guide_id: 'guide-powerpoint' });
+    const deck = new JSZip();
+    deck.file('ppt/presentation.xml', `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+      xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+      <p:sldIdLst><p:sldId r:id="rId2"/><p:sldId r:id="rId1"/></p:sldIdLst>
+    </p:presentation>`);
+    deck.file('ppt/_rels/presentation.xml.rels', `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      <Relationship Id="rId1" Target="slides/slide1.xml"/>
+      <Relationship Id="rId2" Target="slides/slide2.xml"/>
+    </Relationships>`);
+    for (const [number, content] of [[1, 'Cell division'], [2, 'DNA &amp; chromosomes']]) {
+      deck.file(`ppt/slides/slide${number}.xml`, `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+        xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+        <a:p><a:r><a:t>${content}</a:t></a:r></a:p>
+      </p:sld>`);
+    }
+    const file = new File([await deck.generateAsync({ type: 'uint8array' })], 'Biology.PPTX');
+
+    const { container } = render(<MemoryRouter><GuidesLibrary /></MemoryRouter>);
+    await screen.findByText(/no tutor sessions yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /create tutor session/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /upload file/i }));
+    await screen.findByText(/tap to upload/i);
+    const input = container.querySelector('input[type=file]');
+    expect(input.accept).toContain('.pptx');
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByText('Biology.PPTX');
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /generate session/i }));
+
+    await waitFor(() => expect(api.generateAiGuide).toHaveBeenCalled());
+    const [notes, attachment] = api.generateAiGuide.mock.calls[0];
+    expect(notes).toContain('Slide 1\nDNA & chromosomes\n\nSlide 2\nCell division');
+    expect(attachment).toBeNull();
   });
 
   it('requires a topic or source material before creating a tutor session', async () => {

@@ -741,25 +741,8 @@ export const register = async (username, email, password, captchaToken = null) =
         return result.user;
     }
 
-    // Email confirmation required or Supabase signup failed —
-    // fall back to legacy Express register for immediate login.
-    // The Supabase user (if created) will be linked on first confirmed login.
-    const legacyData = await authFetch('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ username, email, password, captchaToken }),
-        headers: Capacitor.isNativePlatform() ? { 'X-Riven-Client': 'capacitor' } : {},
-    });
-
-    // Legacy register now creates a Supabase Auth user — sign in to get a
-    // proper Supabase session so edge functions work immediately.
-    const { data: sbLogin } = await supabase.auth.signInWithPassword({ email, password }).catch(() => ({ data: {} }));
-    if (sbLogin?.session?.access_token) {
-        setToken(sbLogin.session.access_token);
-    } else if (legacyData.token) {
-        setToken(legacyData.token);
-    }
-
-    return legacyData.user;
+    if (error) throw error;
+    return { requiresEmailConfirmation: true };
 };
 
 export const login = async (email, password, options = {}) => {
@@ -824,7 +807,11 @@ export const login = async (email, password, options = {}) => {
         return { user: mergeUserWithMfaState(user, mfaState) };
     }
 
-    // Supabase Auth failed — fall back to legacy Express login (existing users not yet in Supabase)
+    if (!isLegacyAuthBridgeEnabled()) {
+        throw error || new Error('Unable to sign in. Please try again.');
+    }
+
+    // Legacy bridge is available only on installations that explicitly configure it.
     const legacyData = await authFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
@@ -2129,6 +2116,16 @@ export const getRecordingSession = async (sessionId) => {
         .single();
     if (error) _sbThrow(error);
     return data;
+};
+
+export const getVerifiedRecordingChunkCount = async (sessionId) => {
+    const { count, error } = await supabase
+        .from('recording_chunks')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', sessionId)
+        .eq('upload_state', 'verified');
+    if (error) _sbThrow(error);
+    return Number(count || 0);
 };
 
 export const updateRecordingSession = async (sessionId, updates = {}) => {

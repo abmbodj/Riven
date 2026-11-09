@@ -1,0 +1,1 @@
+import{r}from"./vendor-react-DG644mxh.js";import{S as e}from"./StreakContext-BfQ_TWgP.js";function s(){const t=r.useContext(e);if(!t)throw new Error("useStreakContext must be used within a StreakProvider");return t}export{s as u};

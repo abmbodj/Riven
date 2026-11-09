@@ -24,6 +24,10 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VITE_SENTRY_DSN": "https://a2046e90f4a5c04f6132a2984e63a2dd@o4511982802567168.ingest.us.sentry.io/4512035318202368",
+    "VITE_SENTRY_ENVIRONMENT": "production",
+    "SENTRY_ORG": "fauiin-46",
+    "SENTRY_PROJECT": "riven-web"
   }
 }

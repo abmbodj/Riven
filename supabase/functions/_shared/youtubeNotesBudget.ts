@@ -1,4 +1,4 @@
-export const DEFAULT_YOUTUBE_NOTES_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+export const DEFAULT_YOUTUBE_NOTES_MODEL = 'gpt-5.4-mini';
 
 export const YOUTUBE_PROVIDER_TOKEN_LIMIT_MESSAGE =
   'Riven hit the AI provider\'s token limit for this video. Try again in a moment or use a shorter video.';

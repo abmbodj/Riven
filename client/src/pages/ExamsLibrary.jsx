@@ -326,7 +326,13 @@ export default function ExamsLibrary() {
         if (genSource === 'note' && selectedNote) {
             const note = notes.find(n => n.id === selectedNote);
             if (!note) { toast.error('Select a note'); return; }
-            noteText = extractText(note.content);
+            try {
+                const fullNote = await api.getNote(note.id);
+                noteText = extractText(fullNote?.content);
+            } catch (error) {
+                toast.error(error?.message || 'Could not load the selected note');
+                return;
+            }
             sourceType = 'notes';
             sourceId = note.id;
             classId = note.class_id;

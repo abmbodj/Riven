@@ -88,7 +88,7 @@ export const privacyPolicyDocument = {
                         },
                         {
                             title: 'AI and transcription processing',
-                            text: 'We use Google Gemini and related processing services for AI generation and certain transcription or content-processing features that you trigger.',
+                            text: 'We use OpenAI and Deepgram for AI generation, transcription, and related content-processing features that you trigger.',
                         },
                         {
                             title: 'Email, analytics, and monitoring',

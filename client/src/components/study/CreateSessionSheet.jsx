@@ -26,7 +26,7 @@ const SOURCE_CARDS = [
   { id: 'none', Icon: Sparkles, label: 'Topic only'  },
 ];
 
-const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
+const ACCEPTED_FILES = '.pdf,.docx,.doc,.pptx,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -229,7 +229,7 @@ function Step1({
                 <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-claude-border p-6 text-center transition-colors hover:border-claude-accent/40">
                   <Upload className="mx-auto mb-2 h-7 w-7 text-claude-secondary" />
                   <p className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Tap to upload</p>
-                  <p className="mt-1 text-xs text-claude-secondary/60">PDF, DOCX, TXT, Image · max 5 MB</p>
+                  <p className="mt-1 text-xs text-claude-secondary/60">PDF, Word, PowerPoint (.pptx), TXT, Image · max 5 MB</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -481,6 +481,10 @@ export default function CreateSessionSheet({
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) { toast.error('File must be under 5 MB'); return; }
+    if (/\.pptx$/i.test(file.name) || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+      setGenFile({ name: file.name, presentation: file });
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       setGenFile({ data: reader.result.split(',')[1], mimeType: file.type, name: file.name });
@@ -488,7 +492,7 @@ export default function CreateSessionSheet({
     reader.readAsDataURL(file);
   };
 
-  const buildParams = () => {
+  const buildParams = async () => {
     let noteText = '';
     let file = null;
     let noteId = null;
@@ -502,7 +506,14 @@ export default function CreateSessionSheet({
       noteId = selected.length === 1 ? selected[0].id : null;
       classId = selected[0]?.class_id || null;
     } else if (genSource === 'file' && genFile) {
-      file = genFile;
+      if (genFile.presentation) {
+        const { extractPowerPointText } = await import('./powerPointText.js');
+        const slideText = await extractPowerPointText(genFile.presentation);
+        if (!slideText) throw new Error('This PowerPoint has no readable slide text. Try uploading a PDF or a PowerPoint with text.');
+        noteText = `--- ${genFile.name} ---\n${slideText}`;
+      } else {
+        file = genFile;
+      }
     }
 
     const label = examLabel.trim();
@@ -533,7 +544,7 @@ export default function CreateSessionSheet({
     setStep('generating');
     setCaptionIndex(0);
     try {
-      await onGenerate(buildParams());
+      await onGenerate(await buildParams());
       onClose();
     } catch (err) {
       // Only a genuine entitlement exhaustion should surface the pricing modal — not a

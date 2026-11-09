@@ -53,6 +53,7 @@ type AiJobRow = {
   updated_at?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+  next_attempt_at?: string | null;
 };
 
 const toRecord = (value: unknown): JsonRecord => (
@@ -129,12 +130,12 @@ export const getAiModelMap = () => ({
   // Fast model streams the first usable draft; a stronger model handles the quality pass
   // (enrich, merge, fidelity correction, and knowledge-layer extraction). Both stay
   // env-overridable so they can be rotated without another deploy.
-  draft: Deno.env.get('AI_DRAFT_MODEL') || 'openai/gpt-oss-20b',
-  final: Deno.env.get('AI_FINAL_MODEL') || 'openai/gpt-oss-120b',
+  draft: Deno.env.get('AI_DRAFT_MODEL') || 'gpt-5.4-mini',
+  final: Deno.env.get('AI_FINAL_MODEL') || 'gpt-5.4-mini',
   // Conceptual answer grading runs LLM-first on every free-response, so it uses the stronger
   // model for humanlike judgement (not the fast draft model). Env-overridable so the model id
-  // can be rotated without a code change if Groq deprecates it.
-  grading: Deno.env.get('AI_GRADING_MODEL') || 'openai/gpt-oss-120b',
+  // can be rotated without a code change.
+  grading: Deno.env.get('AI_GRADING_MODEL') || 'gpt-5.4-mini',
 });
 
 export const getYoutubeSourceKey = (youtubeUrl: string) => {
@@ -370,6 +371,7 @@ export const createJobReporter = (admin: any, initialRow: AiJobRow) => {
     target_id?: string | null;
     started_at?: string | null;
     completed_at?: string | null;
+    next_attempt_at?: string | null;
     resultPatch?: JsonRecord;
     errorPatch?: JsonRecord;
   }) => {
@@ -398,6 +400,7 @@ export const createJobReporter = (admin: any, initialRow: AiJobRow) => {
         ...(patch.target_id !== undefined ? { target_id: patch.target_id } : {}),
         ...(patch.started_at !== undefined ? { started_at: patch.started_at } : {}),
         ...(patch.completed_at !== undefined ? { completed_at: patch.completed_at } : {}),
+        ...(patch.next_attempt_at !== undefined ? { next_attempt_at: patch.next_attempt_at } : {}),
         result_payload: currentRow.result_payload,
         error_payload: currentRow.error_payload,
       })
@@ -434,6 +437,15 @@ export const createJobReporter = (admin: any, initialRow: AiJobRow) => {
         progress_percent: 90,
         progress_message: message,
         started_at: currentRow.started_at || new Date().toISOString(),
+        resultPatch,
+      }),
+    markQueued: (phase: string, progressPercent: number | null, message: string, resultPatch?: JsonRecord) =>
+      persist({
+        status: 'queued',
+        phase,
+        progress_percent: progressPercent,
+        progress_message: message,
+        next_attempt_at: new Date().toISOString(),
         resultPatch,
       }),
     update: (phase: string, progressPercent: number | null, message: string, resultPatch?: JsonRecord) =>

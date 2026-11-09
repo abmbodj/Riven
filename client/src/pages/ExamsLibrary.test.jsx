@@ -36,6 +36,7 @@ vi.mock('../api', () => ({
   api: {
     getMockExams: vi.fn(),
     getNotes: vi.fn(),
+    getNote: vi.fn(),
     getStudyGuides: vi.fn(),
     getClasses: vi.fn(),
     getExamInsights: vi.fn(),
@@ -255,6 +256,19 @@ describe('ExamsLibrary insights hub', () => {
 
     expect(screen.getByText('Generate Mock Exam')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /note/i }).length).toBeGreaterThan(0);
+  });
+
+  it('loads a selected note body before generating an exam', async () => {
+    api.getNotes.mockResolvedValue([{ id: 'note-1', title: 'Lecture Notes', class_id: 'class-bio' }]);
+    api.getNote.mockResolvedValue({ id: 'note-1', content: { content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Photosynthesis uses sunlight.' }] }] } });
+    api.generateAiExam.mockResolvedValue({ exam_id: 'new-exam', question_count: 1 });
+    renderLibrary();
+    await screen.findByText('Deliberate Builder');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /build another biology exam/i })); });
+    fireEvent.click(await screen.findByRole('button', { name: 'Lecture Notes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Exam' }));
+    await waitFor(() => expect(api.getNote).toHaveBeenCalledWith('note-1'));
+    await waitFor(() => expect(api.generateAiExam).toHaveBeenCalledWith('Photosynthesis uses sunlight.', null, expect.anything(), 'notes', 'note-1', 'class-bio', 'Biology', expect.anything()));
   });
 
   it('does not render class filter chips on the insights hub', async () => {

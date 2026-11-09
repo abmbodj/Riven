@@ -1,0 +1,1 @@
+import{j as e,r as o}from"./vendor-react-DG644mxh.js";import{u as a}from"./useStreak-DhVzc6mt.js";const s=o.createContext(null);function x({children:r}){const t=a();return e.jsx(s.Provider,{value:t,children:r})}export{s as S,x as a};

@@ -24,7 +24,6 @@ describe('client auth bridge guard', () => {
       'me',
       'oauth/apple',
       'oauth/google',
-      'register',
       'supabase-token',
       'verify-email',
     ]);

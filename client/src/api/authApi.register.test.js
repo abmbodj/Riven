@@ -157,51 +157,18 @@ describe('authApi register flow', () => {
     expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
   });
 
-  it('normalizes a bare legacy API origin so register falls back to /api routes', async () => {
-    vi.stubEnv('VITE_API_URL', 'https://legacy.riven.test');
+  it('shows the Supabase error rather than trying the legacy registration endpoint', async () => {
+    const error = new Error('captcha required');
+    supabase.auth.signUp.mockResolvedValue({ data: { session: null }, error });
+    globalThis.fetch = vi.fn();
+    await expect(authApi.register('atlas', 'atlas@example.com', 'password123', 'captcha-token-123')).rejects.toThrow('captcha required');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
 
-    supabase.auth.signUp.mockResolvedValue({
-      data: { session: null },
-      error: { message: 'captcha required' },
-    });
-
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce(buildJsonResponse({
-        ok: true,
-        csrfToken: 'csrf-token-123',
-      }))
-      .mockResolvedValueOnce(buildJsonResponse({
-        token: 'legacy-token',
-        user: { id: 8, username: 'atlas', email: 'atlas@example.com' },
-      }));
-
-    const user = await authApi.register('atlas', 'atlas@example.com', 'password123', 'captcha-token-123');
-
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
-      'https://legacy.riven.test/api/csrf',
-      expect.objectContaining({
-        credentials: 'include',
-      }),
-    );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      'https://legacy.riven.test/api/auth/register',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'x-csrf-token': 'csrf-token-123',
-        }),
-        body: JSON.stringify({
-          username: 'atlas',
-          email: 'atlas@example.com',
-          password: 'password123',
-          captchaToken: 'captcha-token-123',
-        }),
-      }),
-    );
-    expect(user).toEqual({ id: 8, username: 'atlas', email: 'atlas@example.com' });
-    expect(sessionStorage.getItem('riven_auth_token')).toBe('legacy-token');
+  it('reports that email confirmation is required without attempting legacy registration', async () => {
+    supabase.auth.signUp.mockResolvedValue({ data: { session: null, user: { id: 'new-user' } }, error: null });
+    globalThis.fetch = vi.fn();
+    await expect(authApi.register('atlas', 'atlas@example.com', 'password123')).resolves.toEqual({ requiresEmailConfirmation: true });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

@@ -86,4 +86,18 @@ describe('UserNotificationsRail', () => {
     expect(region.parentElement).toHaveClass('lg:max-w-5xl');
     expect(region.parentElement).not.toHaveClass('xl:max-w-7xl');
   });
+
+  it('offers a direct route to a completed audio note', async () => {
+    getUserNotifications.mockResolvedValue([{
+      id: 10,
+      kind: 'audio_note_ready',
+      title: 'Your class notes are ready',
+      content: 'EN199 Lecture has been transcribed and organized.',
+      metadata: { note_id: 'note-42', route: '/note/note-42' },
+    }]);
+
+    renderRail('/dashboard');
+
+    expect(await screen.findByRole('button', { name: /open notes/i })).toBeInTheDocument();
+  });
 });

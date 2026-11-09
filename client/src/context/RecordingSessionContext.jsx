@@ -112,8 +112,16 @@ export function RecordingSessionProvider({ children, services = null }) {
     const longRecordingGateReachedRef = useRef(false);
     const recordingOptionsRef = useRef({});
     const uploadPromisesRef = useRef(new Set());
+    const chunkHandlingPromisesRef = useRef(new Set());
     const transcriptUploadPromisesRef = useRef(new Set());
     const transcriptionClientRef = useRef(null);
+    const liveTranscriptHealthRef = useRef({
+        state: 'idle',
+        everFailed: false,
+        disconnectedAtMs: null,
+        disconnectedRanges: [],
+        finalSegmentCount: 0,
+    });
     const serviceRef = useRef(null);
 
     if (!serviceRef.current) {
@@ -315,6 +323,13 @@ export function RecordingSessionProvider({ children, services = null }) {
         recordingOptionsRef.current = {};
         uploadPromisesRef.current.clear();
         transcriptUploadPromisesRef.current.clear();
+        liveTranscriptHealthRef.current = {
+            state: 'idle',
+            everFailed: false,
+            disconnectedAtMs: null,
+            disconnectedRanges: [],
+            finalSegmentCount: 0,
+        };
         transcriptionClientRef.current?.close?.();
         transcriptionClientRef.current = null;
         stopDurationTimer();
@@ -362,6 +377,7 @@ export function RecordingSessionProvider({ children, services = null }) {
 
     const finalizeRemoteSession = useCallback(async () => {
         const remoteSession = await serverSessionPromiseRef.current?.catch(() => null);
+        await Promise.allSettled([...chunkHandlingPromisesRef.current]);
         await Promise.allSettled([...uploadPromisesRef.current]);
         await Promise.allSettled([...transcriptUploadPromisesRef.current]);
         const pendingChunks = await serviceRef.current.chunkStore.listPendingChunks(localSessionIdRef.current);
@@ -370,12 +386,35 @@ export function RecordingSessionProvider({ children, services = null }) {
             if (chunkSequenceRef.current > 0) throw new Error('recording_session_unavailable');
             return;
         }
+        const verifiedCount = await serviceRef.current.apiClient
+            .getVerifiedRecordingChunkCount?.(remoteSession.id)
+            .catch(() => null);
+        const health = liveTranscriptHealthRef.current;
+        const stoppedAtMs = durationRef.current * 1000;
+        const disconnectedRanges = [...health.disconnectedRanges];
+        if (health.disconnectedAtMs != null) {
+            disconnectedRanges.push({ start_ms: health.disconnectedAtMs, end_ms: stoppedAtMs });
+        }
+        const completedHealthily = health.finalSegmentCount > 0 && !health.everFailed;
+        const sourceConfig = {
+            microphone: true,
+            tabAudio: Boolean(recordingOptionsRef.current?.includeTabAudio),
+            platform: isNative ? 'ios' : 'web',
+            live_transcription: {
+                state: completedHealthily ? 'healthy' : 'replay_required',
+                final_segment_count: health.finalSegmentCount,
+                disconnected_ranges: disconnectedRanges,
+                completed_healthily: completedHealthily,
+                finalized_at: new Date().toISOString(),
+            },
+        };
+        await serviceRef.current.apiClient.updateRecordingSession(remoteSession.id, { sourceConfig });
         await serviceRef.current.apiClient.finalizeRecordingSession(remoteSession.id, {
             durationMs: durationRef.current * 1000,
             chunkCount: chunkSequenceRef.current,
-            uploadedCount: uploadedChunkCountRef.current,
+            uploadedCount: Number.isInteger(verifiedCount) ? verifiedCount : uploadedChunkCountRef.current,
         });
-    }, []);
+    }, [isNative]);
 
     const finalizeStoppedSession = useCallback(async () => {
         stopDurationTimer();
@@ -426,6 +465,18 @@ export function RecordingSessionProvider({ children, services = null }) {
     }, [finalizeRemoteSession, setSessionSnapshot, stopDurationTimer]);
 
     const handleTranscriptSegment = useCallback((segment) => {
+        if (segment.isFinal) {
+            const health = liveTranscriptHealthRef.current;
+            if (health.disconnectedAtMs != null) {
+                health.disconnectedRanges.push({
+                    start_ms: health.disconnectedAtMs,
+                    end_ms: durationRef.current * 1000,
+                });
+                health.disconnectedAtMs = null;
+            }
+            health.state = 'live';
+            health.finalSegmentCount += 1;
+        }
         setSessionSnapshot((prev) => ({
             ...prev,
             transcriptSegments: mergeTranscriptSegments(prev.transcriptSegments, [segment]),
@@ -449,6 +500,12 @@ export function RecordingSessionProvider({ children, services = null }) {
             tokenProvider: () => serviceRef.current.apiClient.createTranscriptionToken(),
             onSegment: handleTranscriptSegment,
             onState: (transcriptState) => {
+                const health = liveTranscriptHealthRef.current;
+                health.state = transcriptState;
+                if (transcriptState === 'reconnecting' && health.disconnectedAtMs == null) {
+                    health.everFailed = true;
+                    health.disconnectedAtMs = durationRef.current * 1000;
+                }
                 setSessionSnapshot((prev) => ({
                     ...prev,
                     transcriptState,
@@ -463,6 +520,30 @@ export function RecordingSessionProvider({ children, services = null }) {
                     'DEEPGRAM_CONFIGURATION_ERROR',
                 ].includes(error?.code)
                     || Number(error?.status) === 403;
+                const health = liveTranscriptHealthRef.current;
+                health.state = 'failed';
+                health.everFailed = true;
+                if (health.disconnectedAtMs == null) {
+                    health.disconnectedAtMs = durationRef.current * 1000;
+                }
+                void serverSessionPromiseRef.current?.then((remoteSession) => (
+                    remoteSession?.id
+                        ? serviceRef.current.apiClient.updateRecordingSession(remoteSession.id, {
+                            sourceConfig: {
+                                microphone: true,
+                                tabAudio: Boolean(recordingOptionsRef.current?.includeTabAudio),
+                                platform: isNative ? 'ios' : 'web',
+                                live_transcription: {
+                                    state: 'unavailable',
+                                    failure_kind: isConfigurationError ? 'configuration' : 'temporary',
+                                    disconnected_ranges: health.disconnectedRanges,
+                                    disconnected_at_ms: health.disconnectedAtMs,
+                                    completed_healthily: false,
+                                },
+                            },
+                        })
+                        : null
+                )).catch(() => {});
                 setSessionSnapshot((prev) => ({
                     ...prev,
                     transcriptState: 'failed',
@@ -488,6 +569,12 @@ export function RecordingSessionProvider({ children, services = null }) {
             microphone: true,
             tabAudio: Boolean(options.includeTabAudio),
             platform: isNative ? 'ios' : 'web',
+            live_transcription: {
+                state: 'connecting',
+                final_segment_count: 0,
+                disconnected_ranges: [],
+                completed_healthily: false,
+            },
         };
         void serviceRef.current.chunkStore.saveSession({
             id: localSessionId,
@@ -646,11 +733,13 @@ export function RecordingSessionProvider({ children, services = null }) {
 
         recorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
-                void handleWebChunk(
+                const handlingPromise = handleWebChunk(
                     event.data,
                     mimeType,
                     options.includeTabAudio ? 'mixed' : 'microphone',
                 );
+                chunkHandlingPromisesRef.current.add(handlingPromise);
+                handlingPromise.catch(() => {}).finally(() => chunkHandlingPromisesRef.current.delete(handlingPromise));
             }
         };
 
@@ -735,6 +824,13 @@ export function RecordingSessionProvider({ children, services = null }) {
         handledChunkSequencesRef.current.clear();
         longRecordingGateReachedRef.current = false;
         recordingOptionsRef.current = options;
+        liveTranscriptHealthRef.current = {
+            state: 'connecting',
+            everFailed: false,
+            disconnectedAtMs: null,
+            disconnectedRanges: [],
+            finalSegmentCount: 0,
+        };
         uploadPromisesRef.current.clear();
         const localSessionId = globalThis.crypto?.randomUUID?.()
             || `recording-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -1238,6 +1334,10 @@ export function RecordingSessionProvider({ children, services = null }) {
             const client = transcriptionClientRef.current;
             if (!client) return false;
             setSessionSnapshot((prev) => ({ ...prev, transcriptState: 'connecting', transcriptFailureKind: null }));
+            liveTranscriptHealthRef.current.state = 'reconnecting';
+            if (liveTranscriptHealthRef.current.disconnectedAtMs == null) {
+                liveTranscriptHealthRef.current.disconnectedAtMs = durationRef.current * 1000;
+            }
             try {
                 await (client.retry?.() ?? client.connect?.());
                 return true;

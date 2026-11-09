@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from './supabaseAdmin.ts';
 
 type SharedDeckRecord = {
   id: number;
+  user_id: number;
   title: string;
   description: string | null;
 };
@@ -20,6 +21,7 @@ type SharedDeckCard = {
 
 type SharedNoteRecord = {
   id: string;
+  user_id: number;
   title: string;
   content: Record<string, unknown> | null;
   enhanced_content: Record<string, unknown> | null;
@@ -27,6 +29,7 @@ type SharedNoteRecord = {
 
 type SharedGuideRecord = {
   id: string;
+  user_id: number;
   title: string;
   format_version: number | null;
   guide_data: Record<string, unknown> | null;
@@ -127,7 +130,7 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
       loadMessageForReceiver: async (targetMessageId: number, targetUserId: number) => {
         const { data, error } = await admin
           .from('messages')
-          .select('id, receiver_id, message_type, deck_data')
+          .select('id, sender_id, receiver_id, message_type, deck_data')
           .eq('id', targetMessageId)
           .eq('receiver_id', targetUserId)
           .maybeSingle();
@@ -138,7 +141,7 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
       loadDeck: async (deckId: number) => {
         const { data, error } = await admin
           .from('decks')
-          .select('id, title, description')
+          .select('id, user_id, title, description')
           .eq('id', deckId)
           .maybeSingle();
 
@@ -205,7 +208,7 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
       loadNote: async (noteId: string) => {
         const { data, error } = await admin
           .from('notes')
-          .select('id, title, content, enhanced_content')
+          .select('id, user_id, title, content, enhanced_content')
           .eq('id', noteId)
           .maybeSingle();
 
@@ -234,7 +237,7 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
       loadGuide: async (guideId: string) => {
         const { data, error } = await admin
           .from('study_guides')
-          .select('id, title, format_version, guide_data, study_state, content')
+          .select('id, user_id, title, format_version, guide_data, study_state, content')
           .eq('id', guideId)
           .maybeSingle();
 

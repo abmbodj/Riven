@@ -1,0 +1,1 @@
+import{d as t,r}from"./vendor-react-DG644mxh.js";import{k as a}from"./index-CANHlenp.js";import"./vendor-supabase-BBHTcFuD.js";import"./vendor-db-Dob3nYDb.js";function n(){const o=t();return r.useEffect(()=>{a()},[o.pathname,o.search,o.hash]),null}export{n as PosthogPageviewTracker};

@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-DG644mxh.js";import{L as r,S as o,t as e}from"./legalDocuments-BlflO5fZ.js";import"./index-CANHlenp.js";import"./vendor-supabase-BBHTcFuD.js";import"./vendor-db-Dob3nYDb.js";import"./arrow-left-TLhaiSIq.js";import"./arrow-right-DNtEmfxr.js";import"./mail-sAJdrE-Z.js";function f(){return t.jsx(r,{document:e,icon:o})}export{f as default};

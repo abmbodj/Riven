@@ -17,20 +17,11 @@ const FREE_LIMIT = 10;
  * for guide generation without touching deck/exam paths.
  */
 export const aiModelMap = {
-  default: 'meta-llama/llama-4-scout-17b-16e-instruct',
-  // Guide generation runs on a stronger free-tier Groq model: depth and JSON
-  // adherence matter most here, and the two-phase generator keeps each call small
-  // enough to stay within free-tier rate limits. Grading stays on the small/fast
-  // model since it fires on every answer and depth matters less.
-  guide: 'openai/gpt-oss-120b',
-  grading: 'meta-llama/llama-4-scout-17b-16e-instruct',
-  // Exam generation: stronger model for answer correctness (esp. math) and JSON
-  // adherence across the expanded question-type set. gpt-oss-120b reasons noticeably
-  // better than llama-4-scout while staying on the free-tier Groq stack.
-  exam: 'openai/gpt-oss-120b',
-  // Blueprint extraction reads an uploaded photo/scan of a past exam, so it needs a
-  // VISION-capable model (gpt-oss is text-only). Llama 4 Scout is multimodal.
-  blueprint: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  default: 'gpt-5.4-mini',
+  guide: 'gpt-5.4-mini',
+  grading: 'gpt-5.4-mini',
+  exam: 'gpt-5.4-mini',
+  blueprint: 'gpt-5.4-mini',
 };
 const PREMIUM_LIMIT = 50;
 const PREMIUM_RESET_MS = 12 * 60 * 60 * 1000;
@@ -432,7 +423,7 @@ export const generateDeckFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: aiModelMap.default,
     contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className, subject, knowledgeContext }),
   });
 
@@ -1729,7 +1720,7 @@ export const generateClassPreview = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: aiModelMap.default,
     contents: buildClassContents({ processedNotes, hasProcessedNotes, keepFile, file }),
   });
 

@@ -7,6 +7,7 @@ import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { shouldReclaimAudioJob } from '../_shared/audioJobRecoveryCore.mjs';
 
 // Bump deployment artifact so hosted config/runtime definitely rotates.
 const getFunctionBaseUrl = () => {
@@ -101,6 +102,40 @@ serve(async (request) => {
         .maybeSingle();
 
       if (existingJob) {
+        const reclaim = shouldReclaimAudioJob(existingJob);
+        if (reclaim.reclaim) {
+          const now = new Date().toISOString();
+          const renewedRetryUntil = new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString();
+          const resultPayload = existingJob.result_payload && typeof existingJob.result_payload === 'object'
+            ? existingJob.result_payload
+            : {};
+          const recovery = resultPayload.recovery && typeof resultPayload.recovery === 'object'
+            ? resultPayload.recovery
+            : {};
+          const { data: reclaimedJob } = await admin.from('ai_jobs').update({
+            status: 'queued',
+            phase: 'accepted',
+            progress_message: 'Saved lecture recovery resumed',
+            next_attempt_at: now,
+            retry_until: renewedRetryUntil,
+            attempt_count: 0,
+            result_payload: {
+              ...resultPayload,
+              recovery: { ...recovery, stage: 'verifying', reclaim_reason: reclaim.reason, heartbeat_at: now },
+            },
+            error_payload: {},
+          }).eq('id', existingJob.id).eq('status', existingJob.status).select('*').maybeSingle();
+          if (reclaimedJob) {
+            triggerRunAiJob(reclaimedJob.id);
+            return jsonResponse({
+              jobId: reclaimedJob.id,
+              status: reclaimedJob.status,
+              phase: reclaimedJob.phase,
+              reused: true,
+              reclaimed: true,
+            }, { status: 202 }, request);
+          }
+        }
         return jsonResponse({
           jobId: existingJob.id,
           status: existingJob.status,
@@ -217,6 +252,7 @@ serve(async (request) => {
         phase: 'accepted',
         progress_percent: 0,
         progress_message: 'Accepted AI job',
+        next_attempt_at: new Date().toISOString(),
         input_payload: payload,
         source_key: sourceKey,
         target_type: targetType,

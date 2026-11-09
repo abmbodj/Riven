@@ -33,6 +33,11 @@ function manualChunks(id) {
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_RELEASE': JSON.stringify(
+      process.env.SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA || process.env.VITE_APP_RELEASE || 'unknown'
+    ),
+  },
   plugins: [
     react(),
     VitePWA(pwaOptions),

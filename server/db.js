@@ -10,14 +10,24 @@ if (global.__TEST_DB_MOCK__) {
     const connectionString = process.env.DATABASE_URL;
 
 
-    if (!connectionString && process.env.NODE_ENV !== 'test') {
+    const isWorker = process.env.RIVEN_WORKER_MODE === 'true';
+    if (!connectionString && process.env.NODE_ENV !== 'test' && !isWorker) {
         console.error('FATAL: DATABASE_URL environment variable is required');
         process.exit(1);
     }
 
     const isProduction = process.env.NODE_ENV === 'production';
     const needsSsl = isProduction || process.env.DB_SSL === 'true';
-    const pool = new Pool({
+    const pool = isWorker ? new Proxy({}, {
+        get(_target, property) {
+            if (property === 'on') return () => {};
+            const { currentWorkerContext } = require('./workerContext');
+            const requestPool = currentWorkerContext()?.pool;
+            if (!requestPool) throw new Error('Database used outside a Worker request');
+            const value = requestPool[property];
+            return typeof value === 'function' ? value.bind(requestPool) : value;
+        },
+    }) : new Pool({
         connectionString: connectionString || 'postgres://test', // Fallback for test env if not set
         ssl: needsSsl ? { rejectUnauthorized: false } : false,
         // Serverless-friendly: short idle timeout so connections don't linger
@@ -877,7 +887,7 @@ if (global.__TEST_DB_MOCK__) {
 
     // Initialize on startup (with guard for serverless cold starts)
     let _initPromise = null;
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && !isWorker && process.env.RIVEN_SKIP_DB_INIT !== 'true') {
         _initPromise = initDb().catch(err => {
             console.error('initDb failed:', err.message);
             _initPromise = null; // Allow retry on next cold start

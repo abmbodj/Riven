@@ -101,7 +101,7 @@ serve(async (request) => {
       },
     });
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     if (!apiKey) {
       throw createHttpError('AI integration is not configured on the server.', 500);
     }
@@ -114,7 +114,7 @@ serve(async (request) => {
       className,
       generateText: (prompt, maxTokens) =>
         ai.generateContent({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'gpt-5.4-mini',
           messages: [{ role: 'user', content: prompt }],
           maxTokens,
         }),
@@ -137,7 +137,7 @@ serve(async (request) => {
         try {
           const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 8192, notes: 6144 };
           const streamResponse = ai.streamContent({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: 'gpt-5.4-mini',
             messages,
             maxTokens: maxTokensByType[type] || 4096,
           });

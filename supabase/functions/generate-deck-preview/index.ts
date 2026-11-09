@@ -69,12 +69,12 @@ serve(async (request) => {
     const body = await request.json().catch(() => ({}));
     const topic = sanitizeTopic(body.topic);
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     ensureApiKey(apiKey);
 
     const ai = createAiClient(apiKey);
     const rawResponse = await ai.generateContent({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: 'gpt-5.4-mini',
       messages: contentsToMessages([{ text: buildPreviewPrompt(topic) }]),
       maxTokens: 1024,
     });

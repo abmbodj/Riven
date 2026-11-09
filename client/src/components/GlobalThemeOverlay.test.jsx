@@ -70,6 +70,14 @@ describe('GlobalThemeOverlay', () => {
         expect(container.querySelectorAll('.p-blossom-mote')).toHaveLength(14);
     });
 
+    it.each(['Sage Temple', 'Dawn Ember', 'Amber Lantern', 'Moonlit Cove', 'Cherry Blossom', 'Lavender Dusk'])(
+        'keeps the large background glows steady for %s', (name) => {
+            mocks.theme = professionalTheme(name);
+            const { container } = render(<GlobalThemeOverlay />);
+            expect(container.querySelector('[style*="themeGlowPulse"], [style*="themeColorBloom"], [style*="themeLanternWarm"]')).toBeNull();
+        }
+    );
+
     it('uses a lighter Cherry Blossom mobile atmosphere', () => {
         mocks.theme = professionalTheme('Cherry Blossom');
         mocks.lightAtmosphere = true;

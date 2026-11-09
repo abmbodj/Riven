@@ -82,7 +82,7 @@ serve(async (request) => {
     });
     await reporter.markRunning('drafting', 35, 'Generating class preview');
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     try {
       const result = await generateClassPreview({
         notes: body.notes,

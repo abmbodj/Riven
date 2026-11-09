@@ -17,6 +17,7 @@ import { api } from '../../api';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import useRevenueCat from '../../hooks/useRevenueCat';
+import { resolveStripePriceIds } from './stripePriceIds';
 
 function subscribeMaxWidth767(cb) {
     if (typeof window === 'undefined') return () => {};
@@ -35,10 +36,7 @@ function useIsNarrowViewport() {
     return useSyncExternalStore(subscribeMaxWidth767, getMaxWidth767Snapshot, () => false);
 }
 
-const PRICE_IDS = {
-    monthly: import.meta.env.VITE_STRIPE_PRICE_MONTHLY,
-    annual: import.meta.env.VITE_STRIPE_PRICE_ANNUAL ?? import.meta.env.VITE_STRIPE_PRICE_LIFETIME,
-};
+const PRICE_IDS = resolveStripePriceIds(import.meta.env);
 
 const PLAN_STYLES = {
     supporter: {

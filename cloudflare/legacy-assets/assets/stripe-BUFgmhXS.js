@@ -1,0 +1,1 @@
+import{E as a,F as e}from"./index-CANHlenp.js";async function c({priceId:t,isSubscription:r}){return(await a({priceId:t,isSubscription:r}))?.url||null}async function l(){try{return(await e())?.url||null}catch(t){return null}}export{c,l as g};

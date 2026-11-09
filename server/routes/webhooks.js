@@ -32,26 +32,27 @@ module.exports = function ({ app, db }) {
         try {
             const existing = await db.query('SELECT 1 FROM stripe_processed_events WHERE event_id = $1', [eventId]);
             if (existing.length > 0) return true;
-        } catch {
+        } catch (error) {
+            if (process.env.RIVEN_WORKER_MODE === 'true') throw error;
             // Table may not exist yet — rely on in-memory cache only
         }
         return false;
     }
 
     async function markEventProcessed(eventId) {
+        try {
+            await db.execute('INSERT INTO stripe_processed_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING', [eventId]);
+            // Periodic cleanup: remove events older than 7 days (Stripe retries stop after ~3 days)
+            await db.execute("DELETE FROM stripe_processed_events WHERE processed_at < NOW() - INTERVAL '7 days'").catch(() => {});
+        } catch (error) {
+            if (process.env.RIVEN_WORKER_MODE === 'true') throw error;
+            // Table may not exist yet — in-memory cache is still protecting us
+        }
         processedEventsCache.add(eventId);
         // Prevent unbounded memory growth
         if (processedEventsCache.size > CACHE_MAX) {
             const first = processedEventsCache.values().next().value;
             processedEventsCache.delete(first);
-        }
-
-        try {
-            await db.execute('INSERT INTO stripe_processed_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING', [eventId]);
-            // Periodic cleanup: remove events older than 7 days (Stripe retries stop after ~3 days)
-            await db.execute("DELETE FROM stripe_processed_events WHERE processed_at < NOW() - INTERVAL '7 days'");
-        } catch {
-            // Table may not exist yet — in-memory cache is still protecting us
         }
     }
 
@@ -67,7 +68,7 @@ module.exports = function ({ app, db }) {
                 return res.status(400).send('Webhook Error: Request body must be raw.');
             }
 
-            event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+            event = await stripe.webhooks.constructEventAsync(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
         } catch (err) {
             console.error('[Stripe Webhook] ❌ Signature verification failed:', err.message);
             console.error('[Stripe Webhook] Hint: Check if STRIPE_WEBHOOK_SECRET in Render matches the secret for THIS SPECIFIC ENDPOINT in the Stripe Dashboard.');
@@ -82,10 +83,6 @@ module.exports = function ({ app, db }) {
             console.info(`[Stripe Webhook] ⏭️ Skipping duplicate event: ${event.id}`);
             return res.json({ received: true });
         }
-
-        // BEST PRACTICE: Respond 200 immediately, then process asynchronously.
-        // Stripe times out at ~20s and retries, which can cause duplicate processing.
-        res.json({ received: true });
 
         try {
             switch (event.type) {
@@ -234,9 +231,10 @@ module.exports = function ({ app, db }) {
 
             // Mark event as processed AFTER successful handling
             await markEventProcessed(event.id);
+            return res.json({ received: true });
         } catch (error) {
-            // Response already sent (200) — log and let Stripe's idempotency + our DB guard handle retries
             console.error('[Stripe Webhook] Error processing event:', error);
+            return res.status(500).json({ error: 'Webhook processing failed' });
         }
     });
 

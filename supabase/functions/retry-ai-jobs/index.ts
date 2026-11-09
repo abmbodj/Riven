@@ -4,6 +4,7 @@ import { ensureInternalJobAuth } from '../_shared/aiJobs.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { shouldReclaimAudioJob } from '../_shared/audioJobRecoveryCore.mjs';
 
 const runJob = async (jobId: string) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -37,6 +38,49 @@ serve(async (request) => {
     ensureInternalJobAuth(request);
     const admin = getSupabaseAdmin();
     const now = new Date().toISOString();
+    const renewedRetryUntil = new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString();
+    const staleCandidate = new Date(Date.now() - (5 * 60 * 1000)).toISOString();
+    const { data: staleCandidates, error: staleError } = await admin
+      .from('ai_jobs')
+      .select('id, status, phase, updated_at, result_payload')
+      .eq('kind', 'note_enhancement')
+      .in('status', ['running', 'streaming', 'saving'])
+      .lt('updated_at', staleCandidate)
+      .order('updated_at', { ascending: true })
+      .limit(50);
+    if (staleError) throw staleError;
+
+    const reclaimedIds: string[] = [];
+    for (const candidate of staleCandidates || []) {
+      const decision = shouldReclaimAudioJob(candidate, new Date(now));
+      if (!decision.reclaim) continue;
+      const resultPayload = candidate.result_payload && typeof candidate.result_payload === 'object'
+        ? candidate.result_payload
+        : {};
+      const recovery = resultPayload.recovery && typeof resultPayload.recovery === 'object'
+        ? resultPayload.recovery
+        : {};
+      const { data: reclaimed, error: reclaimError } = await admin.from('ai_jobs').update({
+        status: 'queued',
+        phase: 'accepted',
+        progress_message: 'Saved lecture recovery resumed automatically',
+        next_attempt_at: now,
+        retry_until: renewedRetryUntil,
+        attempt_count: 0,
+        result_payload: {
+          ...resultPayload,
+          recovery: {
+            ...recovery,
+            stage: recovery.stage === 'awaiting_callback' ? 'verifying' : recovery.stage || 'verifying',
+            reclaim_reason: decision.reason,
+            heartbeat_at: now,
+          },
+        },
+        error_payload: {},
+      }).eq('id', candidate.id).eq('status', candidate.status).select('id').maybeSingle();
+      if (reclaimError) throw reclaimError;
+      if (reclaimed?.id) reclaimedIds.push(reclaimed.id);
+    }
     const { error: expiryError } = await admin
       .from('ai_jobs')
       .update({
@@ -63,7 +107,8 @@ serve(async (request) => {
       .limit(20);
     if (error) throw error;
 
-    const settled = await Promise.allSettled((jobs || []).map((job: { id: string }) => runJob(job.id)));
+    const dispatchIds = [...new Set([...(jobs || []).map((job: { id: string }) => job.id), ...reclaimedIds])];
+    const settled = await Promise.allSettled(dispatchIds.map((jobId) => runJob(jobId)));
     const dispatched = settled.filter((result) => result.status === 'fulfilled').length;
     const failedDispatches = settled.length - dispatched;
     if (failedDispatches > 0) {
@@ -74,7 +119,7 @@ serve(async (request) => {
       });
     }
 
-    return jsonResponse({ ok: true, queued: settled.length, dispatched, failedDispatches }, {}, request);
+    return jsonResponse({ ok: true, queued: settled.length, reclaimed: reclaimedIds.length, dispatched, failedDispatches }, {}, request);
   } catch (error) {
     const requestError = normalizeRequestError(error);
     if ((requestError.status || 500) >= 500) {

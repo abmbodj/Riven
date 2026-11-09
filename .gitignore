@@ -19,6 +19,7 @@ tmp/DerivedDataBuild/
 tmp/SourcePackages/
 
 # Root local caches
+/cloudflare/.wrangler/
 /.cursor/
 /.codex-home/
 /.derivedData/

@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-DG644mxh.js";import{a as o}from"./StreakContext-m13Ylfea.js";import"./useStreak-DhVzc6mt.js";import"./index-CNpCI_Z6.js";import"./vendor-supabase-BBHTcFuD.js";import"./vendor-db-Dob3nYDb.js";function u({children:r}){return t.jsx(o,{children:r})}export{u as default};

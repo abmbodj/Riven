@@ -49,7 +49,13 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
 
         setLoading(true);
         try {
-            await signUp(form.username, form.email, form.password, captchaToken);
+            const signupResult = await signUp(form.username, form.email, form.password, captchaToken);
+            if (signupResult?.requiresEmailConfirmation) {
+                setAlert({ show: true, title: 'Check your email', message: 'If this email can be registered, check your inbox for a confirmation link before signing in.', type: 'info' });
+                setCaptchaToken(null);
+                turnstileRef.current?.reset();
+                return;
+            }
             toast.success('Your sanctuary awaits.');
             haptics.success();
             if (navigator.vibrate) navigator.vibrate(50);

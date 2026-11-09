@@ -86,7 +86,7 @@ serve(async (request) => {
       throw createHttpError('Message is too long.', 400);
     }
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     ensureApiKey(apiKey);
 
     // Build conversation: system + trimmed history + new user turn

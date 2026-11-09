@@ -81,6 +81,16 @@ describe('authApi login migration bridge', () => {
     });
   });
 
+  it('reports the Supabase login error when the legacy bridge is disabled', async () => {
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', 'false');
+    const error = new Error('Invalid login credentials');
+    supabase.auth.signInWithPassword.mockResolvedValue({ data: { session: null }, error });
+    globalThis.fetch = vi.fn();
+    await expect(authApi.login('test@example.com', 'wrong-password')).rejects.toThrow('Invalid login credentials');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
   it('starts Google OAuth with an account redirect target', async () => {
     supabase.auth.signInWithOAuth.mockResolvedValue({
       data: { url: 'https://accounts.google.com/o/oauth2/v2/auth' },
