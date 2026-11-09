@@ -27,7 +27,7 @@ const SOURCE_CARDS = [
 ];
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.pptx,.txt,image/*';
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -229,7 +229,7 @@ function Step1({
                 <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-claude-border p-6 text-center transition-colors hover:border-claude-accent/40">
                   <Upload className="mx-auto mb-2 h-7 w-7 text-claude-secondary" />
                   <p className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Tap to upload</p>
-                  <p className="mt-1 text-xs text-claude-secondary/60">PDF, Word, PowerPoint (.pptx), TXT, Image · max 5 MB</p>
+                  <p className="mt-1 text-xs text-claude-secondary/60">PDF, Word, PowerPoint (.pptx), TXT, Image · max 100 MB</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -480,7 +480,7 @@ export default function CreateSessionSheet({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { toast.error('File must be under 5 MB'); return; }
+    if (file.size > MAX_FILE_SIZE) { toast.error('File must be under 100 MB'); return; }
     if (/\.pptx$/i.test(file.name) || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
       setGenFile({ name: file.name, presentation: file });
       return;
