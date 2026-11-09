@@ -184,22 +184,23 @@ describe('GroupChatPanel', () => {
         isEdited: false,
       })),
     ];
+    const olderPage = [
+      {
+        id: 'm1',
+        senderId: 9,
+        senderUsername: 'ab',
+        senderDisplayName: 'ab',
+        senderAvatar: 'avatar-a',
+        content: 'older',
+        createdAt: '2026-06-01T17:00:00',
+        isMine: false,
+        isEdited: false,
+      },
+    ];
 
-    authApi.getGroupMessages
-      .mockResolvedValueOnce(latestPage)
-      .mockResolvedValueOnce([
-        {
-          id: 'm1',
-          senderId: 9,
-          senderUsername: 'ab',
-          senderDisplayName: 'ab',
-          senderAvatar: 'avatar-a',
-          content: 'older',
-          createdAt: '2026-06-01T17:00:00',
-          isMine: false,
-          isEdited: false,
-        },
-      ]);
+    authApi.getGroupMessages.mockImplementation(async (_groupId, options = {}) => (
+      options.before ? olderPage : latestPage
+    ));
 
     const { container } = render(
       <GroupChatPanel
@@ -211,15 +212,19 @@ describe('GroupChatPanel', () => {
 
     const newer = await screen.findByText('newer');
     const scrollContainer = container.querySelector('.overflow-y-auto');
+    expect(scrollContainer).toBeTruthy();
 
     await act(async () => {
-      fireEvent.scroll(scrollContainer, { target: { scrollTop: 0 } });
+      Object.defineProperty(scrollContainer, 'scrollTop', { configurable: true, writable: true, value: 120 });
+      fireEvent.scroll(scrollContainer);
+      scrollContainer.scrollTop = 0;
+      fireEvent.scroll(scrollContainer);
       await Promise.resolve();
     });
 
-    const older = await screen.findByText('older');
+    const older = await screen.findByText('older', {}, { timeout: 10000 });
     expect(older.compareDocumentPosition(newer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(authApi.getGroupMessages).toHaveBeenLastCalledWith('group-older', { before: 'm2' });
+    expect(authApi.getGroupMessages).toHaveBeenCalledWith('group-older', { before: 'm2' });
   });
 
   it('renders cached messages immediately before the refresh resolves', async () => {

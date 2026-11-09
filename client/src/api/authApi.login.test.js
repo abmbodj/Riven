@@ -205,6 +205,8 @@ describe('authApi login migration bridge', () => {
   });
 
   it('bootstraps a Supabase session after a successful legacy login fallback', async () => {
+    vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', 'true');
     supabase.auth.signInWithPassword.mockResolvedValue({
       data: { session: null },
       error: { message: 'Invalid login credentials' },
