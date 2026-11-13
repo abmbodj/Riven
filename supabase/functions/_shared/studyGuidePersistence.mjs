@@ -13,6 +13,7 @@ const buildInsertPayload = ({
   content,
   noteId,
   classId,
+  sourceIds,
 }) => ({
   user_id: userId,
   title,
@@ -22,6 +23,7 @@ const buildInsertPayload = ({
   content,
   note_id: noteId,
   class_id: classId,
+  ...sourceIdsPatch(sourceIds),
 });
 
 const buildUpdatePayload = ({
@@ -32,6 +34,7 @@ const buildUpdatePayload = ({
   content,
   noteId,
   classId,
+  sourceIds,
 }) => ({
   title,
   format_version: formatVersion,
@@ -40,7 +43,12 @@ const buildUpdatePayload = ({
   content,
   note_id: noteId,
   class_id: classId,
+  ...sourceIdsPatch(sourceIds),
 });
+
+// RAG sources the session was generated from (tutor-chat retrieves from these). Omitted when
+// empty so the full_context path never writes the column.
+const sourceIdsPatch = (sourceIds) => (Array.isArray(sourceIds) && sourceIds.length ? { source_ids: sourceIds } : {});
 
 export const persistGeneratedStudyGuide = async ({
   admin,
@@ -53,6 +61,7 @@ export const persistGeneratedStudyGuide = async ({
   noteId,
   classId,
   replaceGuideId = null,
+  sourceIds = /** @type {string[]} */ ([]),
 }) => {
   if (replaceGuideId) {
     const { data: existingGuide, error: loadError } = await admin
@@ -77,6 +86,7 @@ export const persistGeneratedStudyGuide = async ({
         content,
         noteId,
         classId,
+        sourceIds,
       }))
       .eq('id', replaceGuideId)
       .eq('user_id', userId)
@@ -98,6 +108,7 @@ export const persistGeneratedStudyGuide = async ({
       content,
       noteId,
       classId,
+      sourceIds,
     }))
     .select('id')
     .single();

@@ -1,0 +1,12 @@
+{
+  "_sources": {
+    "gpt-5.4-mini": "https://openai.com/index/introducing-gpt-5-4-mini-and-nano/ (checked 2026-11-12)",
+    "whisper-1": "https://openai.com/api/pricing/ ($0.006 per audio minute)",
+    "gemini-embedding-2": "https://cloud.google.com/model-garden/pricing (standard tier, text input, checked 2026-11-12)"
+  },
+  "models": {
+    "gpt-5.4-mini": { "input_per_mtok": 0.75, "output_per_mtok": 4.5 },
+    "whisper-1": { "per_audio_minute": 0.006 },
+    "gemini-embedding-2": { "input_per_mtok": 0.2 }
+  }
+}

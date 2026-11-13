@@ -1,0 +1,26 @@
+[00:00] Hey everyone, welcome back to EconExplained with Maya Torres. Today we're tackling price elasticity of demand, which shows up on basically every intro micro exam.
+[00:14] Elasticity measures how responsive quantity demanded is to a change in price. Formally it's the percentage change in quantity demanded divided by the percentage change in price.
+[00:31] We usually report it as an absolute value, so we drop the minus sign that comes from the law of demand. Some textbooks keep the negative sign, but in this video I'll always use the absolute value.
+[00:52] If the elasticity is greater than 1, demand is elastic: buyers respond a lot. If it's less than 1, demand is inelastic. If it's exactly 1, we call it unit elastic.
+[01:15] Now, the problem with the simple percentage formula is that you get a different answer depending on whether the price goes up or down. That's why we use the midpoint method.
+[01:32] With the midpoint method, the percentage change is the change divided by the average of the starting and ending values, not by the starting value.
+[01:50] Let's do an example. A campus coffee shop raises the price of a latte from 4 dollars to 5 dollars, and daily sales fall from 100 lattes to 80.
+[02:08] Percentage change in quantity: the change is 20, the average quantity is 90, so that's 20 over 90, about 22.2 percent.
+[02:24] Percentage change in price: the change is 1 dollar, the average price is 4.50, so 1 over 4.50, also about 22.2 percent.
+[02:40] 22.2 divided by 22.2 gives an elasticity of 1. So in this range the latte demand is unit elastic. Revenue was 400 dollars before and 400 dollars after, which is exactly what unit elasticity predicts.
+[03:05] That brings us to the total revenue test, which I think is the single most useful idea in this video. Total revenue is price times quantity.
+[03:18] If demand is elastic, a price cut raises total revenue, because quantity rises by a bigger percentage than price falls. If demand is inelastic, a price increase raises total revenue.
+[03:39] That's why firms selling things with inelastic demand, like gasoline or insulin, can raise prices without losing much revenue, and why it's a big policy issue.
+[03:58] So what makes demand elastic or inelastic? There are four determinants I want you to remember.
+[04:07] One, availability of close substitutes. The more substitutes, the more elastic. A specific brand of cereal is very elastic; food in general is very inelastic.
+[04:25] Two, necessities versus luxuries. Necessities tend to be inelastic, luxuries tend to be elastic.
+[04:37] Three, the share of your budget. Something that's a tiny share of your budget, like salt, tends to be inelastic, because you barely notice price changes.
+[04:52] Four, time horizon. Demand gets more elastic over time. When gas prices spike, people can't change much this week, but over a few years they buy more efficient cars or move closer to work.
+[05:15] Quick note on graphs. Elasticity is not the same as slope. Along a straight-line demand curve, elasticity changes: demand is elastic at the top, high price low quantity, and inelastic at the bottom.
+[05:38] Okay, two related elasticities you'll see. Cross-price elasticity measures how demand for one good responds to the price of another good.
+[05:51] If cross-price elasticity is positive, the goods are substitutes, like coffee and tea. If it's negative, they're complements, like printers and ink cartridges.
+[06:08] And income elasticity measures how demand responds to income. For normal goods it's positive. For inferior goods, like instant ramen for a lot of students, it's negative: when your income goes up you buy less.
+[06:28] If income elasticity is greater than 1, economists call it a luxury good, because spending on it rises faster than income.
+[06:41] Practice problem for you: if a 10 percent increase in the price of concert tickets causes a 25 percent drop in tickets sold, what is the elasticity, and should the venue raise or lower prices to increase revenue? Drop your answer in the comments.
+[07:02] The answer is 2.5, so demand is elastic, and the venue should lower prices to increase revenue. If you got that, you've got the total revenue test down.
+[07:15] That's it for today. Next video is on consumer and producer surplus. If this helped, subscribe, and good luck on your midterms.

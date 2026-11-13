@@ -89,7 +89,7 @@ serve(async (request) => {
         progress_message: 'Provider remained unavailable for 24 hours',
         completed_at: now,
       })
-      .eq('kind', 'note_enhancement')
+      .in('kind', ['note_enhancement', 'source_ingest'])
       .eq('status', 'queued')
       .not('next_attempt_at', 'is', null)
       .lte('retry_until', now);
@@ -98,7 +98,7 @@ serve(async (request) => {
     const { data: jobs, error } = await admin
       .from('ai_jobs')
       .select('id')
-      .eq('kind', 'note_enhancement')
+      .in('kind', ['note_enhancement', 'source_ingest'])
       .eq('status', 'queued')
       .not('next_attempt_at', 'is', null)
       .lte('next_attempt_at', now)

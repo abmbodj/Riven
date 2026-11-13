@@ -5,6 +5,10 @@ import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+import { newTraceId } from '../_shared/llmTelemetry.ts';
+import { ragMode, supabaseChunkStore } from '../_shared/rag.ts';
+import { answerQuestion } from '../_shared/ragAnswer.ts';
+import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 // River stays Socratic and warm but never reveals the check answer.
 const CHAT_TIMEOUT_MS = 10_000;
@@ -62,13 +66,13 @@ serve(async (request) => {
   try {
     const body = await request.json().catch(() => ({}));
 
-    const [rl] = await Promise.all([
+    const [rl, authUser] = await Promise.all([
       checkRateLimit(request, 'grading'),
       resolveSupabaseUser(request),
     ]);
     if (rl) return rl;
 
-    const { card, history, message, chipId } = body;
+    const { card, history, message, chipId, guideId } = body;
 
     if (!card || typeof card !== 'object') {
       throw createHttpError('Missing card context.', 400);
@@ -100,18 +104,56 @@ serve(async (request) => {
       { role: 'user' as const, content: userMessage },
     ];
 
-    const ai = createAiClient(apiKey);
+    const traceId = newTraceId();
+    const ai = createAiClient(apiKey, undefined, { feature: 'tutor', userId: authUser.id, traceId });
 
-    const reply = await Promise.race([
-      ai.generateContent({
-        model: aiModelMap.grading, // keep tutor-chat on the small/fast model; grading is also fine-grained chat
-        messages,
-        maxTokens: 400,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(createHttpError('River timed out. Please try again.', 504)), CHAT_TIMEOUT_MS),
-      ),
-    ]);
+    // Sources this session was generated from (RAG). Sessions without indexed sources, and
+    // RAG_MODE=full_context, keep the original card-only chat.
+    let sourceIds: string[] = [];
+    if (typeof guideId === 'string' && guideId && ragMode() === 'rag') {
+      const { data: guide } = await getSupabaseAdmin().from('study_guides')
+        .select('source_ids, note_id')
+        .eq('id', guideId).eq('user_id', authUser.id).maybeSingle();
+      sourceIds = [...new Set([...(guide?.source_ids ?? []), ...(guide?.note_id ? [guide.note_id] : [])])];
+    }
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(createHttpError('River timed out. Please try again.', 504)), CHAT_TIMEOUT_MS));
+
+    const grounded = sourceIds.length
+      ? await Promise.race([
+        answerQuestion({
+          ai,
+          model: aiModelMap.grading,
+          store: supabaseChunkStore(getSupabaseAdmin()),
+          userId: authUser.id,
+          sourceIds,
+          question: userMessage,
+          // Chips are instructions, not questions: retrieve on the concept being taught instead.
+          retrievalQuery: chipId
+            ? `${(card.concept_id ?? '').replace(/-/g, ' ')} ${card.teaching?.learning_objective ?? ''}`.trim()
+            : userMessage,
+          persona: buildSystemPrompt(card),
+          history: messages.slice(1, -1) as typeof messages,
+          mode: 'rag',
+          maxTokens: 400,
+          telemetry: { traceId },
+        }),
+        timeout,
+      ])
+      : null;
+
+    // Not indexed yet (ingest job pending / pre-backfill) → nothing to ground on; use the card-only chat.
+    const reply = grounded && grounded.chunks.length > 0
+      ? grounded.reply
+      : await Promise.race([
+        ai.generateContent({
+          model: aiModelMap.grading, // keep tutor-chat on the small/fast model; grading is also fine-grained chat
+          messages,
+          maxTokens: 400,
+        }),
+        timeout,
+      ]);
 
     // Derive a River pose from the chip or the response tone (simple heuristic)
     let pose = 'teach';

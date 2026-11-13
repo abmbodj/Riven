@@ -24,6 +24,8 @@ import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
+import { applyRagToSource } from '../_shared/rag.ts';
+import { newTraceId, type LlmTelemetry } from '../_shared/llmTelemetry.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -121,7 +123,7 @@ serve(async (request) => {
         },
       });
 
-      const { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
+      let { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
 
       if (!hasProcessedNotes && !keepFile) {
         throw createHttpError('Notes or a file are required to generate an exam.', 400);
@@ -134,6 +136,20 @@ serve(async (request) => {
           400,
         );
       }
+
+      // RAG: index the source; large sources are replaced by topic-selected excerpts.
+      const telemetry: LlmTelemetry = { feature: 'exam', userId: authUser.id, traceId: newTraceId() };
+      const rag = await applyRagToSource({
+        admin,
+        userId: authUser.id,
+        processedNotes,
+        keepFile,
+        file: body.file,
+        topics: Array.isArray(body.weakTopics) ? body.weakTopics : [],
+        telemetry,
+      });
+      ({ processedNotes, keepFile } = rag);
+      hasProcessedNotes = processedNotes.trim() !== '';
 
       const finalTitle = body.title || 'AI Mock Exam';
       const reporter = await createAiHistoryReporter({
@@ -188,7 +204,7 @@ serve(async (request) => {
 
       (async () => {
         try {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, telemetry);
           const streamResponse = ai.streamContent({
             model: aiModelMap.exam,
             messages,
@@ -358,11 +374,22 @@ serve(async (request) => {
       blueprintProfile = bp?.profile ?? null;
     }
 
+    const telemetry: LlmTelemetry = { feature: 'exam', userId: authUser.id, traceId: newTraceId() };
+    const rag = await applyRagToSource({
+      admin,
+      userId: authUser.id,
+      processedNotes: sourcePreview.processedNotes,
+      keepFile: sourcePreview.keepFile,
+      file: body.file,
+      topics: Array.isArray(body.weakTopics) ? body.weakTopics : [],
+      telemetry,
+    });
+
     try {
       const result = await generateExamFromAi({
         userId: authUser.id,
-        notes: body.notes,
-        file: body.file,
+        notes: rag.retrieval ? rag.processedNotes : body.notes,
+        file: rag.retrieval && !rag.keepFile ? null : body.file,
         title: body.title,
         sourceType: body.sourceType,
         sourceId: body.sourceId,
@@ -379,7 +406,7 @@ serve(async (request) => {
           return parsed.value;
         },
         generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, telemetry);
           return ai.generateContent({
             model,
             messages: contentsToMessages(contents),

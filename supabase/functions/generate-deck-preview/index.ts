@@ -72,7 +72,7 @@ serve(async (request) => {
     const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
     ensureApiKey(apiKey);
 
-    const ai = createAiClient(apiKey);
+    const ai = createAiClient(apiKey, undefined, { feature: 'flashcards' });
     const rawResponse = await ai.generateContent({
       model: 'gpt-5.4-mini',
       messages: contentsToMessages([{ text: buildPreviewPrompt(topic) }]),

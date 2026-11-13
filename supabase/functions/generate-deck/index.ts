@@ -19,6 +19,8 @@ import { createAiHistoryReporter } from '../_shared/aiJobs.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
+import { applyRagToSource } from '../_shared/rag.ts';
+import { newTraceId, type LlmTelemetry } from '../_shared/llmTelemetry.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -109,7 +111,7 @@ serve(async (request) => {
         },
       });
 
-      const { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
+      let { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
 
       if (!hasProcessedNotes && !keepFile) {
         throw createHttpError('Notes or a file are required to generate flashcards.', 400);
@@ -122,6 +124,20 @@ serve(async (request) => {
           400,
         );
       }
+
+      // RAG: index the source; large sources are replaced by topic-selected excerpts.
+      const telemetry: LlmTelemetry = { feature: 'flashcards', userId: authUser.id, traceId: newTraceId() };
+      const rag = await applyRagToSource({
+        admin,
+        userId: authUser.id,
+        processedNotes,
+        keepFile,
+        file: body.file,
+        topics: [],
+        telemetry,
+      });
+      ({ processedNotes, keepFile } = rag);
+      hasProcessedNotes = processedNotes.trim() !== '';
 
       const reporter = await createAiHistoryReporter({
         admin,
@@ -144,7 +160,7 @@ serve(async (request) => {
 
       (async () => {
         try {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, telemetry);
           const streamResponse = ai.streamContent({
             model: 'gpt-5.4-mini',
             messages,
@@ -298,11 +314,22 @@ serve(async (request) => {
 
     const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
 
+    const telemetry: LlmTelemetry = { feature: 'flashcards', userId: authUser.id, traceId: newTraceId() };
+    const rag = await applyRagToSource({
+      admin,
+      userId: authUser.id,
+      processedNotes: sourcePreview.processedNotes,
+      keepFile: sourcePreview.keepFile,
+      file: body.file,
+      topics: [],
+      telemetry,
+    });
+
     try {
       const result = await generateDeckFromAi({
         userId: authUser.id,
-        notes: body.notes,
-        file: body.file,
+        notes: rag.retrieval ? rag.processedNotes : body.notes,
+        file: rag.retrieval && !rag.keepFile ? null : body.file,
         deckName: body.deckName,
         classId: body.classId,
         className: body.className,
@@ -315,7 +342,7 @@ serve(async (request) => {
           return parsed.value;
         },
         generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, telemetry);
           return ai.generateContent({
             model,
             messages: contentsToMessages(contents),

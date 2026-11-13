@@ -73,7 +73,7 @@ Example:
   "keyPointsMissed": ["Did not mention ATP synthase", "Omitted chemiosmosis"]
 }`;
 
-    const ai = createAiClient(apiKey);
+    const ai = createAiClient(apiKey, undefined, { feature: 'grading' });
     const rawText = await withGradeTimeout(ai.generateContent({
       model: getAiModelMap().grading,
       messages: [{ role: 'user', content: prompt }],

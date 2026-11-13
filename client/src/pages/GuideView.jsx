@@ -638,6 +638,7 @@ export default function GuideView() {
 
         try {
             const res = await api.tutorChat({
+                guideId: id,
                 card: currentCard,
                 history: chatHistory,
                 message: chipId ? undefined : message,
@@ -654,7 +655,7 @@ export default function GuideView() {
         } finally {
             setChatLoading(false);
         }
-    }, [chatHistory, chatLoading, currentCard]);
+    }, [chatHistory, chatLoading, currentCard, id]);
 
     const handleSelectAssist = useCallback((option) => {
         sendChatMessage({ chipId: option.id, chipPose: option.pose || 'point' });

@@ -1,0 +1,41 @@
+--- PSYC 100 Study Guide: Memory (Exam 3) ---
+
+# Exam 3 logistics
+Exam 3 is 50 multiple choice questions and covers chapters 7 and 8 (memory and cognition). It is closed-book. Our study group meets Tuesdays at 7 pm in library room 3B. Professor Haddad said roughly a third of the questions will be applied scenarios rather than definitions.
+
+# The Atkinson-Shiffrin model (1968)
+The modal model says information flows through three stores: sensory memory, short-term memory, and long-term memory. Attention moves information from sensory memory into short-term memory, and encoding (especially rehearsal) moves it into long-term memory. Retrieval brings it back into short-term memory when we use it.
+
+# Sensory memory
+Sensory memory holds a large amount of information for a very brief time. Iconic memory (visual) lasts about a quarter to half a second; echoic memory (auditory) lasts about 3 to 4 seconds, which is why you can "replay" what someone just said when you weren't paying attention.
+George Sperling's 1960 partial report experiment showed that people briefly have access to almost the whole visual array: when a tone cued which row to report right after a flash, people could report most letters in any row, even though with whole report they could only list about 4 letters total.
+
+# Short-term memory
+Capacity: George Miller (1956) proposed the "magical number seven, plus or minus two" items. More recent work by Nelson Cowan suggests the real limit is closer to 4 chunks. Chunking, grouping items into meaningful units (like FBI-CIA-NBA), increases how much we can hold.
+Duration: Peterson and Peterson (1959) found that without rehearsal, information fades from short-term memory in about 18 to 30 seconds. They prevented rehearsal by having participants count backwards by threes.
+
+# Working memory (Baddeley and Hitch, 1974)
+Baddeley and Hitch replaced the idea of a single short-term store with working memory, an active workspace with several parts:
+- the central executive, which directs attention and coordinates the other parts;
+- the phonological loop, which holds verbal and auditory information (the inner voice);
+- the visuospatial sketchpad, which holds visual and spatial information;
+- the episodic buffer, added by Baddeley in 2000, which integrates information across the other parts and links to long-term memory.
+Classic evidence: doing two verbal tasks at once interferes much more than doing one verbal and one visual task.
+
+# Long-term memory
+Explicit (declarative) memory is conscious: episodic memory is for personal events ("my 18th birthday"), semantic memory is for facts ("Paris is the capital of France").
+Implicit (nondeclarative) memory is unconscious: procedural memory for skills like riding a bike, priming, and classical conditioning.
+Patient H.M. (Henry Molaison) had his hippocampi removed in 1953 to treat epilepsy. Afterwards he could not form new explicit long-term memories (anterograde amnesia) but could still learn new motor skills like mirror drawing, which shows explicit and implicit memory rely on different brain systems.
+
+# Encoding
+Craik and Lockhart's levels of processing theory (1972) says deeper, meaning-based processing produces more durable memories than shallow processing of appearance or sound. Asking "does this word fit in the sentence?" beats asking "is this word in capital letters?".
+The self-reference effect: relating information to yourself is an especially deep form of encoding.
+The spacing effect: spreading study sessions out beats cramming, even with the same total time.
+
+# Serial position effect
+When recalling a list, people remember the first items (primacy effect, because they were rehearsed more and reached long-term memory) and the last items (recency effect, because they are still in short-term memory) better than the middle. A 30-second distraction task before recall wipes out the recency effect but leaves primacy intact.
+
+# Forgetting
+Hermann Ebbinghaus (1885) tested himself on nonsense syllables and found the forgetting curve: most forgetting happens soon after learning, then the curve levels off.
+Interference: proactive interference is when old information disrupts new learning (writing last year's date in January). Retroactive interference is when new information disrupts recall of old information (your new phone number makes you forget the old one).
+Memory is reconstructive: Loftus and Palmer (1974) showed that asking how fast cars were going when they "smashed" versus "hit" changed speed estimates and made people more likely to falsely remember broken glass.

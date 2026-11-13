@@ -28,6 +28,8 @@ import {
   isProviderTokenLimitError,
 } from './youtubeNotesBudget.ts';
 import { reportEdgeException } from './sentry.ts';
+import { ingestSource, noteToBlocks, supabaseChunkStore } from './rag.ts';
+import { newTraceId } from './llmTelemetry.ts';
 import {
   createArrayStreamTracker,
   createDocFromSections,
@@ -990,7 +992,9 @@ const getApiKeyAndClient = () => {
   if (!apiKey) {
     throw createHttpError('AI integration is not configured on the server.', 500);
   }
-  return createAiClient(apiKey);
+  // Background note/YouTube jobs. ponytail: per-job user/trace not threaded here yet; add when
+  // job-level cost attribution is needed.
+  return createAiClient(apiKey, undefined, { feature: 'notes' });
 };
 
 const bytesToBase64 = (bytes: Uint8Array) => {
@@ -2552,10 +2556,41 @@ const processYoutubeDerivedJob = async ({
   });
 };
 
+// RAG ingestion for one note: extract → chunk → embed → upsert. Idempotent (content hash), so the
+// trigger can enqueue freely and retries are safe. Throws on provider errors so run-ai-job's
+// backoff schedule retries it.
+const processSourceIngestJob = async ({ admin, job }: JobProcessorArgs) => {
+  const reporter = createJobReporter(admin, job);
+  const noteId = String((job.input_payload as Record<string, unknown> | null)?.noteId ?? '');
+  const { data: note, error } = await admin.from('notes')
+    .select('id, user_id, title, content, source_type')
+    .eq('id', noteId).maybeSingle();
+  if (error) throw error;
+  if (!note || note.user_id !== job.user_id) {
+    // Note deleted (its chunks went with it) or not this user's: nothing to do.
+    return reporter.complete({ message: 'Source no longer exists', resultPatch: { skipped: true } });
+  }
+  const traceId = newTraceId();
+  const result = await ingestSource({
+    store: supabaseChunkStore(admin),
+    userId: job.user_id,
+    sourceId: note.id,
+    title: note.title || 'Untitled',
+    kind: `note:${note.source_type || 'manual'}`,
+    blocks: await noteToBlocks(admin, note),
+    telemetry: { traceId },
+  });
+  return reporter.complete({ message: result.skipped ? 'Index up to date' : `Indexed ${result.chunks} chunks`, resultPatch: { ...result, trace_id: traceId } });
+};
+
 export const processAiJob = async ({
   admin,
   job,
 }: JobProcessorArgs) => {
+  if (job.kind === 'source_ingest') {
+    return processSourceIngestJob({ admin, job });
+  }
+
   if (job.kind === 'note_enhancement') {
     return processNoteEnhancementJob({ admin, job });
   }
