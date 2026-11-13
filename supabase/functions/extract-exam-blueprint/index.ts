@@ -95,7 +95,7 @@ serve(async (request) => {
       file: body.file,
     });
 
-    const ai = createAiClient(apiKey);
+    const ai = createAiClient(apiKey, undefined, { feature: 'exam', userId: authUser.id });
     const raw = await ai.generateContent({
       model: aiModelMap.blueprint,
       messages: contentsToMessages(contents),

@@ -36,6 +36,8 @@ import {
 import { persistGeneratedStudyGuide } from '../_shared/studyGuidePersistence.mjs';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
+import { applyRagToSource } from '../_shared/rag.ts';
+import { newTraceId, type LlmTelemetry } from '../_shared/llmTelemetry.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -124,7 +126,7 @@ serve(async (request) => {
         },
       });
 
-      const { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
+      let { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
       const hasSourceMaterial = hasProcessedNotes || keepFile;
       const coachMeta = normalizeCoachConfig(body.coachConfig, { hasSourceMaterial });
 
@@ -139,6 +141,20 @@ serve(async (request) => {
           400,
         );
       }
+
+      // RAG: index the source; large sources are replaced by topic-selected excerpts.
+      const telemetry: LlmTelemetry = { feature: 'guide', userId: authUser.id, traceId: newTraceId() };
+      const rag = await applyRagToSource({
+        admin,
+        userId: authUser.id,
+        processedNotes,
+        keepFile,
+        file: body.file,
+        topics: [...(Array.isArray(body.coachConfig?.weakTopics) ? body.coachConfig.weakTopics : []), body.coachConfig?.examLabel].filter((t): t is string => typeof t === 'string'),
+        telemetry,
+      });
+      ({ processedNotes, keepFile } = rag);
+      hasProcessedNotes = processedNotes.trim() !== '';
 
       const finalTitle = body.title || 'AI Tutor Session';
       const reporter = await createAiHistoryReporter({
@@ -175,7 +191,7 @@ serve(async (request) => {
 
       (async () => {
         try {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, telemetry);
 
           // The tutor skeleton must be a JSON object. Request JSON mode so that
           // the model cannot prepend prose or wrap the output in Markdown.
@@ -207,7 +223,7 @@ serve(async (request) => {
             className: body.className,
             subject: body.subject,
             generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-              const aiInner = createAiClient(apiKey);
+              const aiInner = createAiClient(apiKey, undefined, telemetry);
               return aiInner.generateContent({
                 model,
                 messages: contentsToMessages(contents),
@@ -276,6 +292,7 @@ serve(async (request) => {
             noteId: body.noteId || null,
             classId: body.classId || null,
             replaceGuideId: typeof body.replaceGuideId === 'string' ? body.replaceGuideId : null,
+            sourceIds: rag.sourceIds,
           });
 
           await reporter.complete({
@@ -386,11 +403,22 @@ serve(async (request) => {
 
     const knowledgeContext = await fetchKnowledgeContext(admin, body.noteId, authUser.id);
 
+    const telemetry: LlmTelemetry = { feature: 'guide', userId: authUser.id, traceId: newTraceId() };
+    const rag = await applyRagToSource({
+      admin,
+      userId: authUser.id,
+      processedNotes: sourcePreview.processedNotes,
+      keepFile: sourcePreview.keepFile,
+      file: body.file,
+      topics: [...(Array.isArray(body.coachConfig?.weakTopics) ? body.coachConfig.weakTopics : []), body.coachConfig?.examLabel].filter((t): t is string => typeof t === 'string'),
+      telemetry,
+    });
+
     try {
       const result = await generateStudyGuideFromAi({
         userId: authUser.id,
-        notes: body.notes,
-        file: body.file,
+        notes: rag.retrieval ? rag.processedNotes : body.notes,
+        file: rag.retrieval && !rag.keepFile ? null : body.file,
         title: body.title,
         noteId: body.noteId,
         classId: body.classId,
@@ -405,7 +433,7 @@ serve(async (request) => {
           return parsed.value;
         },
         generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, telemetry);
           return ai.generateContent({
             model,
             messages: contentsToMessages(contents),
@@ -424,6 +452,7 @@ serve(async (request) => {
             noteId,
             classId,
             replaceGuideId: typeof body.replaceGuideId === 'string' ? body.replaceGuideId : null,
+            sourceIds: rag.sourceIds,
           });
         },
         deleteGuide: async (guideId: string) => {

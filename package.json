@@ -5,7 +5,11 @@
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
-    "prepare": "husky"
+    "prepare": "husky",
+    "eval": "deno run -A --node-modules-dir=auto eval/run.ts",
+    "eval:retrieval": "deno run -A --node-modules-dir=auto eval/run.ts --retrieval-only --min-recall5 0.95 --out eval/results/ci.json",
+    "test:rag": "deno test -A --node-modules-dir=auto supabase/tests/rag/",
+    "rag:backfill": "deno run -A --node-modules-dir=auto scripts/rag-backfill.ts"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

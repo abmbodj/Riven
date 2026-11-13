@@ -103,3 +103,4 @@ client/.env
 client/public/generate-icons.cjs
 montization.md
 monetization.md
+.rag-backfill-cursor

@@ -108,7 +108,7 @@ serve(async (request) => {
 
     // Fetch transcript (replaces Gemini's native video processing)
     const transcript = await getOrFetchYoutubeTranscript({ admin, youtubeUrl: normalizedUrl });
-    const ai = createAiClient(apiKey);
+    const ai = createAiClient(apiKey, undefined, { feature: 'notes', userId: authUser.id });
     const preparedSource = await prepareYoutubeTranscriptSource({
       transcript,
       className,

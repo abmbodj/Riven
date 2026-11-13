@@ -105,7 +105,7 @@ serve(async (request) => {
       throw createHttpError('AI integration is not configured on the server.', 500);
     }
 
-    const ai = createAiClient(apiKey);
+    const ai = createAiClient(apiKey, undefined, { feature: 'notes', userId: authUser.id });
     const noteModels = getAiModelMap();
 
     // Transcribe audio with Whisper

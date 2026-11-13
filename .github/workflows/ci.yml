@@ -110,3 +110,41 @@ jobs:
           psql "$RIVEN_TEST_DATABASE_URL" --set ON_ERROR_STOP=on --file supabase/migrations/20260831055303_fix_dashboard_weekly_summary_contract.sql
       - name: Run dashboard pgTAP contract tests
         run: supabase test db --workdir supabase/tests/database/harness --db-url "$RIVEN_TEST_DATABASE_URL" supabase/tests/database/dashboard_bootstrap.test.sql
+
+  rag-eval:
+    name: RAG integration test + retrieval eval (recall@5 gate)
+    runs-on: ubuntu-latest
+    services:
+      pgvector:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      RAG_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:54329/postgres
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # Embeddings need a real key. Fork PRs don't get secrets, so they skip with a warning;
+      # pushes to main must have it.
+      - name: Check embedding key
+        id: key
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "${{ github.event_name }}" = "push" ]; then echo "::error::GEMINI_API_KEY secret is required for the RAG eval"; exit 1; fi
+          echo "::warning::GEMINI_API_KEY not available (fork PR); skipping RAG eval"
+      - name: Integration test (ingest → retrieve → answer)
+        if: steps.key.outputs.ok == 'true'
+        run: deno test -A --node-modules-dir=auto supabase/tests/rag/
+      # Threshold from the first eval run (recall@5 = 1.00 on 41 answerable questions, 2026-11-12):
+      # 0.95 tolerates at most two misses before failing.
+      - name: Retrieval eval (fails if recall@5 < 0.95)
+        if: steps.key.outputs.ok == 'true'
+        run: deno run -A --node-modules-dir=auto eval/run.ts --retrieval-only --min-recall5 0.95 --out eval/results/ci.json

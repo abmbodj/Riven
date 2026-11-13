@@ -1,0 +1,30 @@
+{
+  "run_at": "2026-11-13T04:52:19.025Z",
+  "model": "gpt-5.4-mini",
+  "embedding_model": "gemini-embedding-2",
+  "sources": 5,
+  "chunks": 26,
+  "min_similarity": null,
+  "retrieval": {
+    "questions": 49,
+    "answerable": 41,
+    "recall@1": 1,
+    "recall@3": 1,
+    "recall@5": 1,
+    "recall@10": 1,
+    "mrr": 1,
+    "best_similarity": {
+      "answerable": {
+        "min": 0.6068832919658063,
+        "p10": 0.6690897365040949,
+        "median": 0.7467429367066092
+      },
+      "unanswerable": {
+        "max": 0.7314467937692612,
+        "p90": 0.7131428513212947,
+        "median": 0.6664210828900927
+      }
+    },
+    "misses": []
+  }
+}

@@ -104,7 +104,7 @@ serve(async (request) => {
         redispatchJob(job.id);
       }
     } catch (error) {
-      const retrySchedule = job.kind === 'note_enhancement' && isRetryableAiJobError(error)
+      const retrySchedule = (job.kind === 'note_enhancement' || job.kind === 'source_ingest') && isRetryableAiJobError(error)
         ? buildAiJobRetrySchedule({
           createdAt: job.created_at,
           retryUntil: job.retry_until,

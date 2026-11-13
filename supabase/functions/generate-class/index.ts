@@ -93,7 +93,7 @@ serve(async (request) => {
           return parsed.value;
         },
         generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-          const ai = createAiClient(apiKey);
+          const ai = createAiClient(apiKey, undefined, { feature: 'other', userId: authUser.id });
           return ai.generateContent({
             model,
             messages: contentsToMessages(contents),

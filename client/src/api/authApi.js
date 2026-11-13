@@ -1891,7 +1891,9 @@ export const listAiJobs = async ({
         .select('*')
         .order('created_at', { ascending: false });
 
+    // Background RAG indexing jobs are plumbing, not user-visible AI history.
     if (kind) query = query.eq('kind', kind);
+    else query = query.neq('kind', 'source_ingest');
     if (Array.isArray(statuses) && statuses.length > 0) query = query.in('status', statuses);
     else if (status) query = query.eq('status', status);
     if (targetType) query = query.eq('target_type', targetType);

@@ -126,7 +126,7 @@ Example:
   "nudge": "What do the chromosomes in each new cell look like compared to the original?"
 }`;
 
-    const ai = createAiClient(apiKey);
+    const ai = createAiClient(apiKey, undefined, { feature: 'grading' });
     const rawText = await withGradeTimeout(ai.generateContent({
       model: getAiModelMap().grading,
       messages: [{ role: 'user', content: prompt }],
