@@ -75,7 +75,8 @@ recognisable.
 
 ## Limits
 
-- Edge functions share one Deno process (no per-function isolation, no gateway JWT check).
+- Edge functions share one Deno process (no per-function isolation). The gateway JWT
+  check follows `verify_jwt` in `supabase/config.toml`.
 - AI output is canned: journeys prove plumbing, not model quality.
 - Not covered: iOS/Capacitor native paths, RevenueCat, Stripe webhooks, push, groups,
   messaging, garden. The older `verify-riven` skill (in-memory fake, no Docker) still

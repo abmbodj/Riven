@@ -55,8 +55,8 @@ PostgREST, Storage and Realtime; every edge function's code; the Express API; th
 React app. Faked at the network boundary only: OpenAI, Gemini embeddings, Deepgram
 (batch, callback and the browser's live WebSocket), transcriptapi.com, YouTube,
 Canvas iCal feeds, Stripe and Resend (`scripts/verify/fakes/`). Edge functions share
-one Deno process instead of one isolate each, and the gateway JWT check is skipped
-(every app-called function has `verify_jwt = false` and checks the caller itself).
+one Deno process instead of one isolate each; the gateway JWT check is reproduced from
+`verify_jwt` in `supabase/config.toml` (`scripts/verify/edge/gatewayJwt.ts`).
 
 AI output is canned per prompt, so the journeys prove plumbing (requests, parsing,
 storage, UI) and not model quality. A prompt change that no fixture matches shows up

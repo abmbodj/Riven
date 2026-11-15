@@ -8,11 +8,11 @@
 // that handler instead of opening a port, import every function lazily on first call,
 // and dispatch /<function>/... to it. Differences from production, by design:
 //   * all functions share one isolate and one env (no per-function worker isolation);
-//   * no gateway JWT check (config.toml sets verify_jwt=false for app-called functions;
-//     each function authenticates the caller itself);
+//   * the gateway JWT check is reproduced in gatewayJwt.ts from supabase/config.toml;
 //   * EdgeRuntime.waitUntil runs the promise without extending a worker lifetime.
 
 import { installFetchFakes } from '../fakes/externals.ts';
+import { gatewayJwtCheck, loadVerifyJwtSettings } from './gatewayJwt.ts';
 
 // Must run before any function module loads, so SDKs that capture `fetch` at import
 // time (OpenAI, Stripe) capture the faked one.
@@ -30,6 +30,11 @@ type Handler = (req: Request, info: Deno.ServeHandlerInfo) => Response | Promise
 const FUNCTIONS_DIR = new URL('../../../supabase/functions/', import.meta.url);
 const port = Number(Deno.env.get('RIVEN_EDGE_PORT') ?? '54331');
 const realServe = Deno.serve.bind(Deno);
+const verifyJwt = loadVerifyJwtSettings();
+const jwtOptions = {
+  gateway: Deno.env.get('RIVEN_LOCAL_GATEWAY') ?? 'http://127.0.0.1:54321',
+  hsSecret: Deno.env.get('RIVEN_LOCAL_JWT_SECRET') ?? '',
+};
 const handlers = new Map<string, Handler>();
 let captured: Handler | null = null;
 
@@ -84,6 +89,13 @@ realServe({ port, hostname: '0.0.0.0', onListen: () => console.log(JSON.stringif
   const started = performance.now();
   if (!/^[a-z0-9-]+$/.test(name)) return Response.json({ error: 'bad function name' }, { status: 400 });
   try {
+    if (verifyJwt.get(name) !== false) {
+      const rejected = await gatewayJwtCheck(req, jwtOptions);
+      if (rejected) {
+        console.log(JSON.stringify({ fn: name, method: req.method, status: 401, gateway: 'jwt-rejected', ms: Math.round(performance.now() - started) }));
+        return rejected;
+      }
+    }
     const handler = await load(name);
     if (!handler) return Response.json({ error: `function not found: ${name}` }, { status: 404 });
     const res = await handler(req, info);
