@@ -13,7 +13,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/genai": "^1.42.0",
     "@sentry/node": "^10.45.0",
     "apple-signin-auth": "^2.0.0",
     "bcryptjs": "^3.0.3",
@@ -28,7 +27,6 @@
     "google-auth-library": "^10.6.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "mammoth": "^1.11.0",
     "node-cache": "^5.1.2",
     "node-ical": "^0.25.4",
     "pg": "^8.18.0",
@@ -36,7 +34,6 @@
     "resend": "^6.9.3",
     "speakeasy": "^2.0.0",
     "stripe": "^20.4.0",
-    "uuid": "^13.0.0",
     "xss": "^1.0.15"
   },
   "devDependencies": {
