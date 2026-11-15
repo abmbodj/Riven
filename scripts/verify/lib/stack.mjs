@@ -19,7 +19,7 @@ const STATE_FILE = path.join(RUN_DIR, 'state.json');
 export const FAKE_LOG = path.join(LOG_DIR, 'fakes.jsonl');
 const EDGE_CONTAINER = 'supabase_edge_runtime_Riven';
 const KONG_CONTAINER = 'supabase_kong_Riven';
-const SUPABASE_EXCLUDE = 'studio,imgproxy,vector,logflare,supavisor,realtime,postgres-meta,mailpit,edge-runtime';
+const SUPABASE_EXCLUDE = 'studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit,edge-runtime';
 
 const readState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return { procs: {} }; } };
 const writeState = (s) => { fs.mkdirSync(RUN_DIR, { recursive: true }); fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2)); };

@@ -18,6 +18,13 @@ import { installFetchFakes } from '../fakes/externals.ts';
 // time (OpenAI, Stripe) capture the faked one.
 if (Deno.env.get('RIVEN_VERIFY_REAL_EXTERNALS') !== '1') installFetchFakes();
 
+// In production each function runs in its own worker, so a stray rejection kills only
+// that request. Here all functions share one process: log it instead of exiting.
+globalThis.addEventListener('unhandledrejection', (event) => {
+  event.preventDefault();
+  console.error(JSON.stringify({ unhandledRejection: String((event.reason as Error)?.stack ?? event.reason) }));
+});
+
 type Handler = (req: Request, info: Deno.ServeHandlerInfo) => Response | Promise<Response>;
 
 const FUNCTIONS_DIR = new URL('../../../supabase/functions/', import.meta.url);

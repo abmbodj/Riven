@@ -42,6 +42,13 @@ export async function runJourney(name, journey, { viewport = { width: 1440, heig
   });
   const context = await browser.newContext({ baseURL, viewport, deviceScaleFactor: 1, permissions: ['microphone'] });
   await context.tracing.start({ screenshots: true, snapshots: true });
+  // Hermetic browser: anything off this machine (fonts, analytics, thumbnails) is aborted
+  // and listed in the summary, so a run never depends on the internet.
+  const browserBlocked = new Set();
+  await context.route((url) => !['127.0.0.1', 'localhost'].includes(url.hostname) && url.protocol.startsWith('http'), (route) => {
+    browserBlocked.add(new URL(route.request().url()).hostname);
+    return route.abort();
+  });
   const page = await context.newPage();
   page.on('console', (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
   page.on('pageerror', (e) => consoleLines.push(`[pageerror] ${e.message}`));
@@ -111,6 +118,7 @@ export async function runJourney(name, journey, { viewport = { width: 1440, heig
     externalCalls: calls.map(({ route, status }) => ({ route, status })),
     unroutedExternal: calls.filter((c) => c.route === 'blocked' || c.route.endsWith(':unrouted')),
     httpErrors,
+    browserBlocked: [...browserBlocked].sort(),
     pageErrors: consoleLines.filter((l) => l.startsWith('[pageerror]')),
   };
   fs.writeFileSync(path.join(evidenceDir, 'summary.json'), JSON.stringify(summary, null, 2));
