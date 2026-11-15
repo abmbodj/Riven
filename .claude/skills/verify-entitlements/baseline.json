@@ -1,0 +1,13 @@
+{
+  "knownFindings": [
+    "P1-no-wrongful-lockout | lapse-resubscribe | free",
+    "P1-no-wrongful-lockout | lapse-resubscribe | web-lifetime",
+    "P3-lifetime-kept | billing-retry | web-lifetime",
+    "P3-lifetime-kept | cancel-expire | web-lifetime",
+    "P3-lifetime-kept | cancel-uncancel | web-lifetime",
+    "P3-lifetime-kept | lapse-resubscribe | web-lifetime",
+    "P3-lifetime-kept | new-purchase | web-lifetime",
+    "P3-lifetime-kept | renewal | web-lifetime"
+  ],
+  "note": "Failures confirmed against code at the sync commit in SKILL.md. Remove an entry only after the fix is merged and check.mjs reports it FIXED."
+}
