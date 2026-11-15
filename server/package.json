@@ -7,7 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "vitest",
-    "backfill:study-sessions-schema": "node scripts/backfill-study-sessions-schema.js"
+    "backfill:study-sessions-schema": "node scripts/backfill-study-sessions-schema.js",
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "",
@@ -37,6 +38,9 @@
     "xss": "^1.0.15"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
     "nodemon": "^3.1.11",
     "supertest": "^7.2.2",
     "vitest": "^4.0.18"

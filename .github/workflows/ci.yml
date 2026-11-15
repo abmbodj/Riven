@@ -7,7 +7,7 @@ on:
 
 jobs:
   server:
-    name: Server (lint-free) tests
+    name: Server lint and tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -20,6 +20,8 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
+      - name: Lint (must be error-free)
+        run: npx eslint .
       - name: Unit tests
         run: npx vitest run
       - name: Production audit (report only)
