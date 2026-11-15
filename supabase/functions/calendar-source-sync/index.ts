@@ -49,7 +49,7 @@ serve(async (request) => {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       icsText = await response.text();
-    } catch (fetchErr) {
+    } catch {
       return jsonResponse(
         { error: 'Could not reach the calendar URL. Check the link and try again.' },
         { status: 502 },

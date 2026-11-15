@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
+import { errorField, getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { referralCodeSchema } from '../_shared/validation.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
@@ -314,7 +314,8 @@ serve(async (request) => {
     return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
   } catch (error) {
     console.error('[referrals edge function] error', error);
-    const status = typeof error?.status === 'number' ? error.status : 500;
-    return jsonResponse({ error: error?.message || 'Internal server error' }, { status }, request);
+    const statusField = errorField(error, 'status');
+    const status = typeof statusField === 'number' ? statusField : 500;
+    return jsonResponse({ error: errorField(error, 'message') || 'Internal server error' }, { status }, request);
   }
 });

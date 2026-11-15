@@ -29,7 +29,7 @@ export async function requestDeepgramTemporaryToken({ apiKey, fetchFn = fetch })
       method: 'POST',
       headers: { Authorization: `Token ${apiKey.trim()}` },
     });
-  } catch (error) {
+  } catch {
     throw createGrantError(
       'DEEPGRAM_TRANSIENT_FAILURE',
       'Transcription service is temporarily unavailable',

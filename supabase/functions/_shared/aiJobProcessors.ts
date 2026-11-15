@@ -14,7 +14,6 @@ import {
   buildNoteEnrichPrompt,
   buildSectionNotePrompt,
   buildSinglePassNoteGeneratePrompt,
-  buildYoutubeSourcePrompt,
 } from './notePrompts.mjs';
 import { buildRetryInstruction, validateNoteDoc } from './noteValidator.mjs';
 import { buildKnowledgeExtractionPrompt, normalizeKnowledgeLayer, buildKnowledgeContext, mergeMaxTokens } from './noteKnowledge.mjs';
@@ -56,7 +55,6 @@ import {
   resolveClassroomNoteMethod,
 } from './audioNotesV2Core.mjs';
 import { isRetryableProviderError } from './aiJobRetryCore.mjs';
-import { transcribeDeepgramRecording } from './deepgramBatchCore.mjs';
 import { submitDeepgramRecordingForCallback } from './deepgramCallbackCore.mjs';
 import {
   AUDIO_CALLBACK_WAIT_MS,
@@ -595,7 +593,7 @@ const streamDocPreview = async ({
   maxTokens?: number;
 }) => {
   let firstPreviewAt: number | null = null;
-  const tracker = createDocStreamTracker(async (node, index) => {
+  const tracker = createDocStreamTracker(async (_node, index) => {
     if (firstPreviewAt == null) {
       firstPreviewAt = Date.now();
     }
@@ -796,35 +794,6 @@ const createExam = async ({
       source_id: null,
       class_id: classId || null,
       questions,
-    })
-    .select('id')
-    .single();
-
-  if (error) throw error;
-  return data.id;
-};
-
-const createNote = async ({
-  admin,
-  userId,
-  title,
-  classId,
-  content,
-}: {
-  admin: any;
-  userId: number;
-  title: string;
-  classId: string | null | undefined;
-  content: unknown;
-}) => {
-  const { data, error } = await admin
-    .from('notes')
-    .insert({
-      user_id: userId,
-      title,
-      content,
-      class_id: classId || null,
-      source_type: 'import',
     })
     .select('id')
     .single();
@@ -1287,7 +1256,7 @@ const processNoteEnhancementJob = async ({
     if (assetsResult.error) throw assetsResult.error;
     if (chunksResult.error) throw chunksResult.error;
 
-    let transcriptRows = transcriptResult.data || [];
+    const transcriptRows = transcriptResult.data || [];
     const recoveredTranscriptRows = await recoverDurableRecordingTranscript({
       admin,
       recordingSession,

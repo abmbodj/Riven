@@ -18,7 +18,8 @@ describe('audio notes v2 edge contract', () => {
     expect(source).toContain("input.preferredFormat !== 'auto'");
     expect(source).toContain('groundingContext');
     expect(source).toContain('Merge only the grounded section drafts');
-    expect(source).toContain('transcribeDeepgramRecording');
+    // Durable transcription runs through Deepgram's callback mode (the batch helper import was dead).
+    expect(source).toContain('submitDeepgramRecordingForCallback(');
     expect(source).toContain("Deno.env.get('DEEPGRAM_API_KEY')");
   });
 

@@ -489,6 +489,9 @@ export const syncCanvasCalendar = async ({
   };
 };
 
+/**
+ * @param {{ classes?: Array<Record<string, any>>, assignments?: Array<Record<string, any>> }} [input]
+ */
 export const buildCanvasSemesterCleanupPreview = ({
   classes = [],
   assignments = [],

@@ -10,8 +10,6 @@ import {
   ensureApiKey,
   parseAiJsonResponse,
   createHttpError,
-  buildAdaptiveExamPrompt,
-  buildFocusedExamPrompt,
   aiModelMap,
 } from '../_shared/aiCore.mjs';
 import { normalizeExamQuestions } from '../_shared/examQuestions.mjs';

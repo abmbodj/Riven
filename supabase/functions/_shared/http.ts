@@ -78,6 +78,13 @@ export type RequestError = Error & {
   code?: string;
 };
 
+/**
+ * Reads a field from a thrown value without assuming its shape: `error?.[key]` for
+ * objects, undefined otherwise. Catch variables are `unknown` in TypeScript.
+ */
+export const errorField = (error: unknown, key: 'message' | 'status' | 'statusCode'): unknown =>
+  error !== null && typeof error === 'object' ? Reflect.get(error, key) : undefined;
+
 export const normalizeRequestError = (error: unknown): RequestError => {
   if (error instanceof Error) {
     return error as RequestError;

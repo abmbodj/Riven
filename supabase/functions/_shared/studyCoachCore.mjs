@@ -34,6 +34,17 @@ const normalizeStats = (row) => ({
   topicsMastered: toNumber(row?.topics_mastered, 0),
 });
 
+/**
+ * @param {{
+ *   guides?: Array<Record<string, any>>,
+ *   assignments?: Array<Record<string, any>>,
+ *   notes?: Array<Record<string, any>>,
+ *   classes?: Array<Record<string, any>>,
+ *   statsRow?: Record<string, any> | null,
+ *   achievements?: Array<Record<string, any>>,
+ *   now?: Date,
+ * }} [input]
+ */
 export function buildStudyCoachSnapshot({
   guides = [],
   assignments = [],
