@@ -15,6 +15,15 @@ import { FAKE_LOG, logFile } from './stack.mjs';
 const { chromium, expect } = requireClient('@playwright/test');
 const { Client } = requireServer('pg');
 
+// Same lecture as scripts/verify/fakes/ai.ts FAKE_TRANSCRIPT.
+const LIVE_SENTENCES = [
+  'Today we follow glucose into the cell.',
+  'Glycolysis happens in the cytoplasm and makes pyruvate.',
+  'In the mitochondria the Krebs cycle makes NADH and FADH2.',
+  'The electron transport chain pumps protons and ATP synthase uses that gradient to make ATP.',
+  'This will be on the exam.',
+];
+
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
 const fileSize = (f) => { try { return fs.statSync(f).size; } catch { return 0; } };
@@ -48,6 +57,22 @@ export async function runJourney(name, journey, { viewport = { width: 1440, heig
   await context.route((url) => !['127.0.0.1', 'localhost'].includes(url.hostname) && url.protocol.startsWith('http'), (route) => {
     browserBlocked.add(new URL(route.request().url()).hostname);
     return route.abort();
+  });
+  // Deepgram live transcription is a browser WebSocket; answer it with transcript
+  // Results as audio frames arrive (one sentence every two frames).
+  const deepgramLive = { frames: 0, results: 0 };
+  await context.routeWebSocket(/^wss:\/\/api\.deepgram\.com\//, (ws) => {
+    ws.onMessage((message) => {
+      if (typeof message === 'string') return; // KeepAlive / Finalize / CloseStream
+      deepgramLive.frames += 1;
+      if (deepgramLive.frames % 2 !== 0 || deepgramLive.results >= LIVE_SENTENCES.length) return;
+      const i = deepgramLive.results++;
+      ws.send(JSON.stringify({
+        type: 'Results', channel_index: [0, 1], start: i * 4, duration: 3.5, is_final: true, speech_final: true,
+        metadata: { request_id: 'fake-deepgram-live' },
+        channel: { alternatives: [{ transcript: LIVE_SENTENCES[i], confidence: 0.97, words: [] }] },
+      }));
+    });
   });
   const page = await context.newPage();
   page.on('console', (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
@@ -92,7 +117,7 @@ export async function runJourney(name, journey, { viewport = { width: 1440, heig
   let failure = null;
   const started = Date.now();
   try {
-    await journey({ page, step, expect, signIn, sql, db, fakeCalls, edgeLog, evidenceDir, baseURL, users: USERS });
+    await journey({ page, step, expect, signIn, sql, db, fakeCalls, edgeLog, evidenceDir, baseURL, users: USERS, deepgramLive });
   } catch (error) {
     failure = String(error?.message ?? error).split('\n').slice(0, 8).join('\n');
   }
@@ -119,6 +144,7 @@ export async function runJourney(name, journey, { viewport = { width: 1440, heig
     unroutedExternal: calls.filter((c) => c.route === 'blocked' || c.route.endsWith(':unrouted')),
     httpErrors,
     browserBlocked: [...browserBlocked].sort(),
+    deepgramLive,
     pageErrors: consoleLines.filter((l) => l.startsWith('[pageerror]')),
   };
   fs.writeFileSync(path.join(evidenceDir, 'summary.json'), JSON.stringify(summary, null, 2));

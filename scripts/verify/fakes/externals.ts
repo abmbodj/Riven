@@ -12,6 +12,13 @@ import { canvasIcs, deepgramBatch, embedVector, stripeObject, youtubeTranscript 
 
 const LOG = Deno.env.get('RIVEN_VERIFY_FAKE_LOG');
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', 'host.docker.internal']);
+
+// Edge functions get SUPABASE_URL=https://supabase.riven.local (edge/local.env) so code that
+// insists on an https project URL (e.g. the Deepgram callback) behaves as in production.
+// Requests to it are rewritten to the local Kong gateway here.
+const PROJECT_HOST = 'supabase.riven.local';
+const LOCAL_GATEWAY = Deno.env.get('RIVEN_LOCAL_GATEWAY') ?? 'http://127.0.0.1:54321';
+const toLocalGateway = (req: Request, url: URL) => new Request(`${LOCAL_GATEWAY}${url.pathname}${url.search}`, req);
 const realFetch = globalThis.fetch.bind(globalThis);
 
 export type FakeCall = { host: string; method: string; path: string; route: string; status: number; note?: string; body?: unknown };
@@ -45,7 +52,18 @@ async function route(req: Request, url: URL): Promise<{ res: Response; route: st
   }
   if (host === 'api.deepgram.com') {
     if (path === '/v1/auth/grant') return { res: json({ access_token: 'fake-deepgram-temp-token', expires_in: 30 }), route: 'deepgram.grant' };
-    if (path === '/v1/listen') return { res: json(deepgramBatch()), route: 'deepgram.listen' };
+    if (path === '/v1/listen') {
+      const callback = url.searchParams.get('callback');
+      if (!callback) return { res: json(deepgramBatch()), route: 'deepgram.listen' };
+      // Async mode: acknowledge now, POST the transcript to the callback shortly after,
+      // the way Deepgram does.
+      setTimeout(() => {
+        globalThis.fetch(callback, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(deepgramBatch()) })
+          .then((r) => log({ host: new URL(callback).hostname, method: 'POST', path: new URL(callback).pathname, route: 'deepgram.callback-delivered', status: r.status }))
+          .catch((e) => log({ host: 'callback', method: 'POST', path: callback, route: 'deepgram.callback-failed', status: 0, note: String(e) }));
+      }, 750);
+      return { res: json({ request_id: 'fake-deepgram-request' }), route: 'deepgram.listen-callback' };
+    }
   }
   if (host === 'transcriptapi.com') {
     const id = url.searchParams.get('video_url') ?? url.searchParams.get('video_id') ?? '';
@@ -83,6 +101,7 @@ export function installFetchFakes() {
     const req = new Request(input, init);
     const url = new URL(req.url);
     if (LOCAL_HOSTS.has(url.hostname)) return realFetch(req);
+    if (url.hostname === PROJECT_HOST) return realFetch(toLocalGateway(req, url));
     const { res, route: name, note, body } = await route(req, url);
     log({ host: url.hostname, method: req.method, path: url.pathname, route: name, status: res.status, note, body });
     return res;

@@ -16,3 +16,10 @@ create or replace function public.user_internal_id() returns integer
 -- complete-registration inserts users rows without a password (Supabase Auth owns it);
 -- initDb declares users.password NOT NULL, so production must have dropped it.
 alter table public.users alter column password drop not null;
+
+-- Storage buckets the app uses that no migration creates (created in the dashboard).
+-- Public flags are a guess: avatars are rendered by URL, group files are private.
+insert into storage.buckets (id, name, public) values
+  ('avatars', 'avatars', true),
+  ('group-files', 'group-files', false)
+on conflict (id) do nothing;
