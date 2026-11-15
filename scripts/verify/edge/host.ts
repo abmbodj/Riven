@@ -43,15 +43,32 @@ const pending = new Set<Promise<unknown>>();
   return { finished: new Promise(() => {}), shutdown: async () => {}, ref() {}, unref() {}, addr: { hostname: '127.0.0.1', port, transport: 'tcp' } };
 };
 
-async function load(name: string): Promise<Handler | null> {
-  if (handlers.has(name)) return handlers.get(name)!;
-  const entry = new URL(`${name}/index.ts`, FUNCTIONS_DIR);
-  try { await Deno.stat(entry); } catch { return null; }
-  captured = null;
-  await import(entry.href);
-  if (!captured) throw new Error(`${name}/index.ts did not call Deno.serve`);
-  handlers.set(name, captured);
-  return captured;
+const loading = new Map<string, Promise<Handler | null>>();
+
+// Imports are serialized: Deno.serve capture is a module-global, so two functions
+// loading at once could swap handlers. A function's first callers share one promise.
+let importChain: Promise<unknown> = Promise.resolve();
+
+function load(name: string): Promise<Handler | null> {
+  const cached = loading.get(name);
+  if (cached) return cached;
+  const promise = (async () => {
+    const entry = new URL(`${name}/index.ts`, FUNCTIONS_DIR);
+    try { await Deno.stat(entry); } catch { return null; }
+    const run = importChain.then(async () => {
+      captured = null;
+      await import(entry.href);
+      if (!captured) throw new Error(`${name}/index.ts did not call Deno.serve`);
+      return captured;
+    });
+    importChain = run.catch(() => {});
+    const handler = await run;
+    handlers.set(name, handler);
+    return handler;
+  })();
+  promise.catch(() => loading.delete(name));
+  loading.set(name, promise);
+  return promise;
 }
 
 realServe({ port, hostname: '0.0.0.0', onListen: () => console.log(JSON.stringify({ ready: true, port })) }, async (req, info) => {

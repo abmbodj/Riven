@@ -38,7 +38,7 @@ export async function runJourney(name, journey, { viewport = { width: 1440, heig
   const browser = await chromium.launch({
     headless: !headed,
     ...(executablePath && fs.statSync(executablePath).isFile() ? { executablePath } : {}),
-    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--disable-background-networking', '--disable-component-update'],
   });
   const context = await browser.newContext({ baseURL, viewport, deviceScaleFactor: 1, permissions: ['microphone'] });
   await context.tracing.start({ screenshots: true, snapshots: true });
