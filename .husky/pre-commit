@@ -32,3 +32,23 @@ else
 fi
 
 echo "✅ Secret scan passed."
+
+# ── Lint staged JS and check for dead code (CI runs the same checks) ──
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+client_files="$(printf '%s\n' "$staged" | grep -E '^client/.*\.(js|jsx|mjs|ts|tsx)$' | sed 's#^client/##')"
+if [ -n "$client_files" ]; then
+  echo "🔎 ESLint (client)…"
+  (cd client && printf '%s\n' "$client_files" | xargs npx eslint --no-warn-ignored) || { echo "❌ Client lint failed."; exit 1; }
+fi
+
+server_files="$(printf '%s\n' "$staged" | grep -E '^server/.*\.js$' | sed 's#^server/##')"
+if [ -n "$server_files" ]; then
+  echo "🔎 ESLint (server)…"
+  (cd server && printf '%s\n' "$server_files" | xargs npx eslint --no-warn-ignored) || { echo "❌ Server lint failed."; exit 1; }
+fi
+
+if printf '%s\n' "$staged" | grep -qE '\.(js|jsx|mjs|ts|tsx)$|package\.json$|^knip\.jsonc$'; then
+  echo "🔎 knip…"
+  npx knip || { echo "❌ knip found unused files or dependency problems."; exit 1; }
+fi

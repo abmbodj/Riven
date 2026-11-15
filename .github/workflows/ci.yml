@@ -72,6 +72,18 @@ jobs:
       - name: Production audit (report only)
         run: npm audit --omit=dev || true
 
+  secrets:
+    name: Secret scan (TruffleHog, verified only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Backstop for the pre-commit hook, which is skippable with --no-verify.
+      - uses: trufflesecurity/trufflehog@v3.88.0
+        with:
+          extra_args: --results=verified
+
   knip:
     name: Dead code and dependency check (knip)
     runs-on: ubuntu-latest
