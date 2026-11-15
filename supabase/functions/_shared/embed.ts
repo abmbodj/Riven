@@ -25,22 +25,32 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 class EmbedHttpError extends Error {
   constructor(public status: number, body: string) {
-    super(`embedding request failed (${status}): ${body.slice(0, 300)}`);
+    super(`embedding request failed (${status}): ${body.slice(0, 1500)}`);
   }
 }
 
-/** POST JSON with exponential backoff on 429/5xx/network errors. */
+// Google's 429s carry a RetryInfo detail ("retryDelay": "37s") sized to the per-minute quota
+// window. Plain exponential backoff (≈31 s total) gave up before that window reset.
+const MAX_RETRY_DELAY_MS = 65_000;
+export const retryDelayMs = (body: string): number | null => {
+  const m = body.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+  return m ? Math.min(Number(m[1]) * 1000, MAX_RETRY_DELAY_MS) : null;
+};
+
+/** POST JSON with backoff on 429/5xx/network errors, honouring the server's retryDelay. */
 const postJson = async (url: string, headers: Record<string, string>, body: unknown) => {
   for (let attempt = 1; ; attempt++) {
+    let serverDelay: number | null = null;
     try {
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
       if (res.ok) return await res.json();
       const text = await res.text();
       if (!(res.status === 429 || res.status >= 500) || attempt >= MAX_ATTEMPTS) throw new EmbedHttpError(res.status, text);
+      serverDelay = retryDelayMs(text);
     } catch (error) {
       if (error instanceof EmbedHttpError || attempt >= MAX_ATTEMPTS) throw error;
     }
-    await sleep(Math.min(500 * 2 ** attempt, 16_000) + Math.random() * 250);
+    await sleep((serverDelay ?? Math.min(500 * 2 ** attempt, 16_000)) + Math.random() * 250);
   }
 };
 
