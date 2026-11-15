@@ -11,6 +11,13 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/test/setup.js',
+        // Tests must not depend on the developer's shell or .env files. These match CI
+        // and point at nothing real.
+        env: {
+            VITE_SUPABASE_URL: 'https://example.supabase.co',
+            VITE_SUPABASE_ANON_KEY: 'ci-test-anon-key',
+            VITE_ENABLE_LEGACY_AUTH_BRIDGE: 'false',
+        },
         // Bound jsdom concurrency so animation/lazy-route tests are not starved
         // by dozens of simultaneous workers on developer and CI hosts.
         maxWorkers: 4,

@@ -27,6 +27,7 @@ for your approval per the ground rules.
 | 13 | **Client/edge logic duplicated by copy.** `client/src/utils/subjectInference.js` ↔ `_shared/subjectInference.mjs` (73 lines); `deepgramBatchCore` ↔ `deepgramCallbackCore` (30); `grade-answer` ↔ `grade-tutor-answer` (24). Overall duplication is low (0.78%, 795 lines). | 2 | 2 | duplication | Share `_shared/*.mjs` with the client where runtime-agnostic (the pattern already used for tests). |
 | 14 | **Large page components.** `GuideView.jsx` 2,739, `NoteEditor.jsx` 2,213, `Garden.jsx` 1,382, `ThemeSettings.jsx` 1,318, `Home.jsx` 1,302, `GroupDetails.jsx` 1,253. | 2 | 4 | structure | Split only where a refactor already needs it; journeys guard behavior. |
 | 15 | **Small UI defects found while driving.** Mock-exam "generate" is an icon-only button with no accessible name. Syllabus file input `accept` has `line/msword` (should be `application/msword`). | 1 | 1 | a11y | Fix in a small PR with a lint rule for icon-only buttons (`jsx-a11y/control-has-associated-label`). |
+| 16 | **"Or propose a time" is broken after 6 PM.** `GroupScheduleHub` seeds the composer with today 18:00; `ProposeSessionSheet` rejects past starts, so in the evening every submit fails with "Can't propose a session in the past." until the user edits the time. Found because the two GroupDetails tests failed after 18:00 (#5). | 3 | 1 | groups UX | Default to the next future 18:00 (or next full hour). User-visible change: needs your OK. |
 
 ## Proposed order
 

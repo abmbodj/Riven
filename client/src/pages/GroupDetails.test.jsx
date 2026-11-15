@@ -202,6 +202,16 @@ const makeSharedSchedule = ({
   };
 };
 
+// "or propose a time" seeds the composer with today at 18:00 (GroupScheduleHub), and
+// the composer rejects past start times. Pin the clock to the morning so these tests
+// do not fail when run after 6 PM. Only Date is faked; timers stay real for waitFor.
+const pinClockBeforeDefaultProposeTime = () => {
+  const morning = new Date();
+  morning.setHours(10, 0, 0, 0);
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(morning);
+};
+
 describe('GroupDetails upload flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -261,6 +271,7 @@ describe('GroupDetails upload flow', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -362,6 +373,7 @@ describe('GroupDetails upload flow', () => {
   });
 
   it('proposes a meetup without creating or navigating into a cram session', async () => {
+    pinClockBeforeDefaultProposeTime();
     renderGroupDetails();
 
     await waitFor(() => {
@@ -619,6 +631,7 @@ describe('GroupDetails upload flow', () => {
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {
+    pinClockBeforeDefaultProposeTime();
     authApi.createGroupMeetup.mockRejectedValueOnce(new Error('Create failed'));
 
     renderGroupDetails();
