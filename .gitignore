@@ -85,7 +85,8 @@ test-results/
 _agents/
 _agent/
 brain/
-.claude/
+.claude/*
+!.claude/settings.json
 .superpowers/
 .system_generated/
 AGENTS.md
