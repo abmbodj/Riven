@@ -88,6 +88,7 @@ brain/
 .claude/*
 !.claude/settings.json
 !.claude/rules/
+!.claude/skills/
 .superpowers/
 .system_generated/
 AGENTS.md
