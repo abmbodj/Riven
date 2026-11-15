@@ -70,6 +70,28 @@ jobs:
       - name: Production audit (report only)
         run: npm audit --omit=dev || true
 
+  knip:
+    name: Dead code and dependency check (knip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+            server/package-lock.json
+      # knip resolves imports against each workspace's installed packages.
+      - run: npm ci
+      - run: npm ci --ignore-scripts
+        working-directory: client
+      - run: npm ci
+        working-directory: server
+      - name: knip (fails on unused files/dependencies, unlisted dependencies)
+        run: npx knip
+
   edge-functions:
     name: Edge Function unit tests
     runs-on: ubuntu-latest

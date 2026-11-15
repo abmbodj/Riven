@@ -1,0 +1,64 @@
+{
+  // Node/Vite code only. Deno code (supabase/functions, eval/, scripts/*.ts) uses npm:/jsr:
+  // specifiers knip cannot resolve and is checked by `deno check` / `deno lint` instead.
+  // Exports, types and duplicate exports only warn: cleanup is docs/health-audit.md #6.
+  // capacitor-voice-recorder and @capacitor/ios are used by the native iOS build (cap sync,
+  // Package.swift), which knip cannot see. "cloudflare" is the Workers runtime module.
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "cloudflare/*-worker.mjs",
+        "cloudflare/build-preview.mjs",
+        "cloudflare/*.test.mjs",
+        "scripts/verify/riven-verify.mjs",
+        "scripts/verify/journeys/*.mjs"
+      ],
+      "project": [
+        "cloudflare/*.mjs",
+        "scripts/verify/**/*.mjs"
+      ],
+      "ignoreDependencies": [
+        "cloudflare"
+      ]
+    },
+    "client": {
+      "entry": [
+        "scripts/*.mjs",
+        "e2e/**/*.{js,mjs}",
+        "src/**/*.test.{js,jsx}"
+      ],
+      "project": [
+        "src/**/*.{js,jsx}"
+      ],
+      "ignoreDependencies": [
+        "capacitor-voice-recorder",
+        "@capacitor/ios"
+      ]
+    },
+    "server": {
+      "entry": [
+        "scripts/*.js",
+        "test/**/*.test.js"
+      ],
+      "project": [
+        "**/*.js"
+      ]
+    }
+  },
+  "rules": {
+    "exports": "warn",
+    "types": "warn",
+    "duplicates": "warn",
+    "files": "error",
+    "dependencies": "error",
+    "unlisted": "error",
+    "unresolved": "error"
+  },
+  "ignoreBinaries": [
+    "vitest",
+    "eslint",
+    "vite",
+    "playwright"
+  ]
+}
