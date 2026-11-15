@@ -150,6 +150,8 @@ async function startClient(log) {
     env: {
       VITE_SUPABASE_URL: SUPABASE.url, VITE_SUPABASE_ANON_KEY: SUPABASE.anonKey,
       VITE_ENABLE_LEGACY_AUTH_BRIDGE: 'false', VITE_SKIP_TURNSTILE: 'true',
+      // Must match STRIPE_PRICE_* in edge/local.env (create-checkout allow-lists them).
+      VITE_STRIPE_PRICE_MONTHLY: 'price_local_monthly', VITE_STRIPE_PRICE_ANNUAL: 'price_local_annual',
       // Keep telemetry off locally.
       VITE_SENTRY_DSN: '', VITE_PUBLIC_POSTHOG_KEY: '',
     },
