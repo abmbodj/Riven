@@ -1,0 +1,27 @@
+{
+  // Incremental TypeScript (docs/health-audit.md, TypeScript plan):
+  //  - .ts/.tsx files are fully strict.
+  //  - Existing .js/.jsx files are type-checked only when they opt in with `// @ts-check`
+  //    (the api/ layer first). checkJs stays off so legacy files are not flooded.
+  //  - New files under src/ must be .ts/.tsx (scripts/check-new-ts-files.mjs).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client", "vitest/globals"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "ios"]
+}

@@ -36,6 +36,8 @@ echo "✅ Secret scan passed."
 # ── Lint staged JS and check for dead code (CI runs the same checks) ──
 staged="$(git diff --cached --name-only --diff-filter=ACMR)"
 
+node client/scripts/check-new-ts-files.mjs --staged >/dev/null || { node client/scripts/check-new-ts-files.mjs --staged; exit 1; }
+
 client_files="$(printf '%s\n' "$staged" | grep -E '^client/.*\.(js|jsx|mjs|ts|tsx)$' | sed 's#^client/##')"
 if [ -n "$client_files" ]; then
   echo "🔎 ESLint (client)…"

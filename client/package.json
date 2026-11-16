@@ -16,7 +16,8 @@
     "patch:voice-recorder-ios": "node scripts/patch-voice-recorder-ios.mjs",
     "postinstall": "npm run patch:revenuecat-ios && npm run patch:voice-recorder-ios",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@capacitor/app": "^8.0.1",
@@ -95,6 +96,8 @@
     "lucide-react": "^0.577.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.0",
     "vite": "^7.3.5",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.1.8"

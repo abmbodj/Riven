@@ -5,20 +5,30 @@
 
 export const XP_PER_LEVEL = 120;
 
-const toXp = (value) => {
+/** Stats rows arrive from the database and older caches, so fields are not trusted. */
+export type XpStats = { xpTotal?: unknown; level?: unknown };
+
+export type XpProgress = {
+  xpTotal: number;
+  level: number;
+  currentLevelXp: number;
+  remaining: number;
+  percent: number;
+};
+
+const toXp = (value: unknown): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
 /** Level for a cumulative XP total. Level 1 starts at 0 XP; each level is XP_PER_LEVEL apart. */
-export const levelFromXp = (xpTotal) => Math.max(1, Math.floor(toXp(xpTotal) / XP_PER_LEVEL) + 1);
+export const levelFromXp = (xpTotal: unknown): number => Math.max(1, Math.floor(toXp(xpTotal) / XP_PER_LEVEL) + 1);
 
 /**
  * Progress within the current level.
  * Accepts a stats object { xpTotal, level } (or a raw xpTotal number).
- * Returns { xpTotal, level, currentLevelXp, remaining, percent }.
  */
-export const xpProgress = (statsOrXp = {}) => {
+export const xpProgress = (statsOrXp: number | XpStats | null = {}): XpProgress => {
   const xpTotal = typeof statsOrXp === 'number'
     ? toXp(statsOrXp)
     : toXp(statsOrXp?.xpTotal);
