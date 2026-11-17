@@ -57,6 +57,15 @@ export function stripeObject(method: string, path: string, params: URLSearchPara
   if (path === '/v1/customers' && method === 'POST') return { id: 'cus_fake_local', object: 'customer', email: p.email ?? null, metadata: {} };
   if (path.startsWith('/v1/customers/')) return { id: path.split('/').pop(), object: 'customer', deleted: false, metadata: {} };
   if (path.startsWith('/v1/customers') && method === 'GET') return { object: 'list', data: [], has_more: false };
+  // Webhook re-verification reads the session and subscription back from Stripe.
+  if (path.startsWith('/v1/checkout/sessions/') && method === 'GET') {
+    const id = path.split('/').pop() ?? 'cs_fake';
+    const lifetime = id.includes('lifetime');
+    return { id, object: 'checkout.session', payment_status: id.includes('unpaid') ? 'unpaid' : 'paid', mode: lifetime ? 'payment' : 'subscription', subscription: lifetime ? null : 'sub_fake_local', customer: 'cus_fake_local', line_items: { object: 'list', data: [] } };
+  }
+  if (/^\/v1\/subscriptions\/[^/]+$/.test(path) && method === 'GET') {
+    return { id: path.split('/').pop(), object: 'subscription', status: 'active', customer: 'cus_fake_local', current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 };
+  }
   if (path === '/v1/checkout/sessions') return { id: 'cs_fake_local', object: 'checkout.session', url: 'https://checkout.stripe.com/c/pay/cs_fake_local', mode: p.mode ?? 'subscription', metadata: {} };
   if (path === '/v1/billing_portal/sessions') return { id: 'bps_fake_local', object: 'billing_portal.session', url: 'https://billing.stripe.com/p/session/fake_local' };
   if (path.startsWith('/v1/prices')) return { id: path.split('/').pop() ?? 'price_fake', object: 'price', active: true, unit_amount: 799, currency: 'usd', recurring: { interval: 'month' } };

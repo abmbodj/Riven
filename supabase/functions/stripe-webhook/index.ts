@@ -237,7 +237,10 @@ serve(async (request) => {
 
     let event;
     try {
-      event = stripe.webhooks.constructEvent(rawBody, signature, stripeWebhookSecret);
+      // Deno's Stripe build verifies with SubtleCrypto, which is async-only: the sync
+      // constructEvent always throws "SubtleCryptoProvider cannot be used in a
+      // synchronous context", which rejected every delivery with 400.
+      event = await stripe.webhooks.constructEventAsync(rawBody, signature, stripeWebhookSecret);
     } catch (error: unknown) {
       const requestError = normalizeRequestError(error);
 

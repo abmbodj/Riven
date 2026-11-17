@@ -437,6 +437,12 @@ verify_jwt = false
 [functions.create-portal]
 verify_jwt = false
 
+# Stripe authenticates with its webhook signature, not a Supabase JWT. Without this,
+# `supabase functions deploy stripe-webhook` re-enables the gateway check and every
+# Stripe delivery gets 401.
+[functions.stripe-webhook]
+verify_jwt = false
+
 [functions.forgot-password]
 verify_jwt = false
 
