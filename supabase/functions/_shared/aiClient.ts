@@ -22,12 +22,26 @@ export type TranscribeOptions = {
 
 export type { AiResponseFormat, AiContentPart };
 
+export type LlmGatewayConfig = { baseURL: string; appKey: string };
+
+const llmGatewayFromEnv = (): LlmGatewayConfig | undefined => {
+  const baseURL = Deno.env.get('LLM_GATEWAY_BASE_URL');
+  const appKey = Deno.env.get('LLM_GATEWAY_APP_KEY');
+  return baseURL && appKey ? { baseURL, appKey } : undefined;
+};
+
 /**
  * Every call is recorded to public.llm_calls (see llmTelemetry.ts). `telemetry` sets the
  * feature/user/trace for the whole client; a call can override fields (e.g. retrievalMs).
  */
-export const createAiClient = (apiKey: string, fetchFn?: typeof fetch, telemetry?: LlmTelemetry) => {
-  const openai = new OpenAI({ apiKey, timeout: 45_000, maxRetries: 1, ...(fetchFn ? { fetch: fetchFn as unknown as NonNullable<NonNullable<ConstructorParameters<typeof OpenAI>[0]>["fetch"]> } : {}) });
+export const createAiClient = (apiKey: string, fetchFn?: typeof fetch, telemetry?: LlmTelemetry, gateway = llmGatewayFromEnv()) => {
+  const fetchOption = fetchFn ? { fetch: fetchFn as unknown as NonNullable<NonNullable<ConstructorParameters<typeof OpenAI>[0]>["fetch"]> } : {};
+  const openai = new OpenAI({ apiKey, timeout: 45_000, maxRetries: 1, ...fetchOption });
+  // The gateway budgets spend per end user and only serves chat completions, so audio and
+  // calls without a user stay on OpenAI directly.
+  const chatClient = gateway && telemetry?.userId != null
+    ? new OpenAI({ apiKey: gateway.appKey, baseURL: gateway.baseURL, defaultHeaders: { 'X-End-User-ID': String(telemetry.userId) }, timeout: 45_000, maxRetries: 1, ...fetchOption })
+    : openai;
   const ctx = (override?: Partial<LlmTelemetry>): LlmTelemetry => ({ feature: 'other', ...telemetry, ...override });
 
   return {
@@ -49,7 +63,7 @@ export const createAiClient = (apiKey: string, fetchFn?: typeof fetch, telemetry
       let usage: { prompt_tokens?: number; completion_tokens?: number } | null = null;
       let failure: unknown = null;
       try {
-        const stream = await openai.chat.completions.create({
+        const stream = await chatClient.chat.completions.create({
           model: resolved,
           // Cast covers multimodal (image) content parts, which the SDK accepts for vision models.
           messages: messages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
@@ -106,7 +120,7 @@ export const createAiClient = (apiKey: string, fetchFn?: typeof fetch, telemetry
       });
       const started = performance.now();
       try {
-        const response = await openai.chat.completions.create({
+        const response = await chatClient.chat.completions.create({
           ...params,
           // Cast covers multimodal (image) content parts, which the SDK accepts for vision models.
           messages: params.messages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
