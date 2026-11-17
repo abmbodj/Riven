@@ -58,12 +58,6 @@ const resetPasswordSchema = [
         .withMessage('Password must be at least 8 characters'),
 ];
 
-const verifyEmailSchema = [
-    body('token')
-        .notEmpty()
-        .withMessage('Token is required'),
-];
-
 const changePasswordSchema = [
     body('currentPassword')
         .notEmpty()

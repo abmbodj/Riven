@@ -189,27 +189,6 @@ async function sendPasswordResetEmail(email, resetToken, baseUrl) {
 // Email Verification
 // ============================================================
 
-async function sendEmailVerification(email, verifyToken, baseUrl) {
-    const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-
-    const html = emailShell(`
-        <h2 style="font-size: 24px; font-weight: 400; color: #e4ddd0; margin: 0 0 8px; line-height: 1.3;">
-          Verify your email
-        </h2>
-        <p style="color: #8fa6a8; font-size: 15px; line-height: 1.7; margin: 0;">
-          One last step — confirm your email address to secure your account.
-        </p>
-
-        ${primaryButton('VERIFY EMAIL', verifyUrl)}
-
-        <p style="color: #5f7b7e; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
-          This link expires in 24 hours.
-        </p>
-    `);
-
-    return sendEmail({ to: email, subject: 'Verify your Riven email', html });
-}
-
 module.exports = {
     sendPasswordResetEmail,
     sendWelcomeEmail,

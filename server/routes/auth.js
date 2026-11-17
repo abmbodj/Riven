@@ -29,7 +29,6 @@ module.exports = function registerAuthRoutes({
     authLimiter,
     speedLimiter,
     generateShareCode,
-    isValidEmail,
     isValidUsername
 }) {
     const rateLimit = require('express-rate-limit');
@@ -398,7 +397,7 @@ module.exports = function registerAuthRoutes({
                             body: { password },
                         }).catch(() => {});
                     }
-                } catch (_) {}
+                } catch { /* best-effort */ }
             }
 
             // Check 2FA
@@ -500,7 +499,7 @@ module.exports = function registerAuthRoutes({
                 const { sendWelcomeEmail } = require('../utils/email');
                 const baseUrl = process.env.FRONTEND_URL || 'https://www.riven.rocks';
                 sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
-            } catch (e) { }
+            } catch { /* welcome email is best-effort */ }
         }
         return user;
     };
@@ -1011,7 +1010,7 @@ module.exports = function registerAuthRoutes({
                 return res.status(403).json({ error: 'Owner or Admin only' });
             }
 
-            const nextValue = !Boolean(user.simulate_free_tier);
+            const nextValue = !user.simulate_free_tier;
             await db.execute(
                 'UPDATE users SET simulate_free_tier = $1 WHERE id = $2',
                 [nextValue, req.user.id]
@@ -1285,7 +1284,7 @@ module.exports = function registerAuthRoutes({
                 const { sendWelcomeEmail } = require('../utils/email');
                 const baseUrl = process.env.FRONTEND_URL || 'https://www.riven.rocks';
                 sendWelcomeEmail(email.toLowerCase(), finalUsername, baseUrl).catch(() => {});
-            } catch (e) {}
+            } catch { /* welcome email is best-effort */ }
 
             res.status(201).json({
                 user: {
@@ -1390,7 +1389,6 @@ module.exports = function registerAuthRoutes({
             }
 
             // Verify the OTP to get access_token + refresh_token
-            const { authUrl } = getSupabaseConfig();
             const verifyRes = await supabaseFetch('/verify', {
                 method: 'POST',
                 apiKey: serviceRoleKey,

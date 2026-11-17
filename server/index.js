@@ -377,10 +377,6 @@ async function authMiddleware(req, res, next) {
 }
 
 // Input validation
-function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 function isValidUsername(username) {
     return username.length >= 2 && username.length <= 30 && /^[a-zA-Z0-9_]+$/.test(username);
 }
@@ -399,7 +395,6 @@ registerAuthRoutes({
     authLimiter,
     speedLimiter,
     generateShareCode,
-    isValidEmail,
     isValidUsername
 });
 

@@ -30,7 +30,7 @@ module.exports = function ({ db }) {
     // ── Create Checkout Session ──────────────────────────────────
     router.post('/create-checkout-session', createCheckoutSchema, handleValidationErrors, async (req, res) => {
         try {
-            const { priceId, isSubscription } = req.body;
+            const { priceId } = req.body;
             const user = req.user;
 
             if (!user) {
