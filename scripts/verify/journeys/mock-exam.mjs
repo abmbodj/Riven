@@ -51,6 +51,9 @@ export default async function ({ page, step, expect, signIn, sql, fakeCalls }) {
   await step('results render and the attempt was recorded', async () => {
     await expect(page.getByText('Topic Breakdown')).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1200); // let the score count-up animation settle for the screenshot
-    await expect.poll(async () => (await sql('select count(*)::int as n from public.exam_attempts where exam_id = $1', [examId]))[0].n, { timeout: 15_000 }).toBeGreaterThan(0);
+    await expect.poll(async () => (await sql('select xp_awarded from public.exam_attempts where exam_id = $1', [examId]))[0]?.xp_awarded, { timeout: 15_000 }).not.toBeNull();
+    // exam-complete re-scores the stored answers: Q1 right, the rest unanswered -> 1/6 -> 17 XP.
+    const [attempt] = await sql('select score, total, xp_awarded from public.exam_attempts where exam_id = $1', [examId]);
+    expect(attempt).toEqual({ score: 1, total: 6, xp_awarded: 17 });
   });
 }

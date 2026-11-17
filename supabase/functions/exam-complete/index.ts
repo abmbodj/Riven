@@ -5,10 +5,12 @@ import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { levelFromXp } from '../_shared/leveling.mjs';
+import { scoreAttempt } from '../_shared/examScoringCore.mjs';
 
-// XP for an exam is recomputed server-side from the stored attempt (never trusted from the
-// client). Bounded so a single attempt cannot mint unlimited XP, and idempotent via the
-// exam_attempts.xp_awarded guard column so replays grant nothing.
+// XP for an exam is recomputed server-side: the attempt's answers are re-scored against the
+// caller's own stored exam (examScoringCore), and the client's score/total are overwritten.
+// An attempt without such an exam earns nothing. Bounded per attempt, and idempotent via
+// the exam_attempts.xp_awarded guard column so replays and concurrent calls grant nothing.
 const MAX_EXAM_XP = 200;
 
 const toNumber = (value: unknown, fallback = 0) => {
@@ -48,7 +50,7 @@ serve(async (request) => {
     const admin = getSupabaseAdmin();
     const { data: attempt, error: attemptError } = await admin
       .from('exam_attempts')
-      .select('id, user_id, score, total, xp_awarded')
+      .select('id, user_id, exam_id, answers, xp_awarded')
       .eq('id', attemptId)
       .eq('user_id', authUser.id)
       .maybeSingle();
@@ -81,16 +83,36 @@ serve(async (request) => {
       }, { status: 200 }, request);
     }
 
-    const xpEarned = computeExamXp(toNumber(attempt.score, 0), toNumber(attempt.total, 0));
+    const { data: exam, error: examError } = attempt.exam_id
+      ? await admin
+        .from('mock_exams')
+        .select('questions')
+        .eq('id', attempt.exam_id)
+        .eq('user_id', authUser.id)
+        .maybeSingle()
+      : { data: null, error: null };
+    if (examError) throw examError;
 
-    // Mark the attempt first so a concurrent replay cannot double-grant.
-    const { error: markError } = await admin
+    const { score, total } = scoreAttempt(exam?.questions ?? [], attempt.answers ?? []);
+    const xpEarned = computeExamXp(score, total);
+
+    // Claim the attempt first (and store the server's score) so a replay or a concurrent
+    // call cannot double-grant: only the call whose update matched the row continues.
+    const { data: claimed, error: markError } = await admin
       .from('exam_attempts')
-      .update({ xp_awarded: xpEarned })
+      .update({ xp_awarded: xpEarned, score, total })
       .eq('id', attemptId)
       .eq('user_id', authUser.id)
-      .is('xp_awarded', null);
+      .is('xp_awarded', null)
+      .select('id');
     if (markError) throw markError;
+    if (!claimed?.length) {
+      return jsonResponse({
+        xpEarned: 0,
+        alreadyAwarded: true,
+        stats: { xpTotal: currentXp, level: currentLevel, previousLevel: currentLevel, leveledUp: false },
+      }, { status: 200 }, request);
+    }
 
     const nextXpTotal = currentXp + xpEarned;
     const nextLevel = levelFromXp(nextXpTotal);

@@ -80,6 +80,8 @@ export default function ExamSimRunner({ exam, durationMinutes, onComplete }) {
         topic: q.topic || 'General',
         difficulty: q.difficulty || 'medium',
         selected: getAnswerDisplay(q, answers[i]),
+        // Raw answer, so exam-complete can re-score server-side (examScoringCore).
+        response: answers[i] ?? null,
         explanation: q.explanation,
         marks,
       };
