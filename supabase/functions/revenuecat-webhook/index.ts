@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { processRevenueCatWebhookEvent } from '../_shared/revenuecatWebhookCore.mjs';
+import { pushTierFromEdge } from '../_shared/llmGatewayTier.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -165,11 +166,13 @@ serve(async (request: Request) => {
       },
     };
 
-    await processRevenueCatWebhookEvent({
+    const result = await processRevenueCatWebhookEvent({
       event,
       persistence,
       logger: console,
     });
+    // The resolved numeric users.id, not app_user_id (often the Supabase auth UUID).
+    await pushTierFromEdge(result.tierPush, { request, functionName: 'revenuecat-webhook' });
 
     return jsonResponse({ received: true }, {}, request);
   } catch (error: unknown) {
