@@ -131,10 +131,8 @@ jobs:
       # docs/health-audit.md #4). Every other rule fails the build.
       - name: Lint
         run: deno lint
-      # create-checkout and create-portal have 10 known type errors in their catch
-      # blocks; they are billing code and wait for owner approval (health audit #4).
       - name: Type-check every function
-        run: deno check $(ls -d */ | grep -v '^_' | grep -v -e '^create-checkout/' -e '^create-portal/' | sed 's#/$#/index.ts#')
+        run: deno check */index.ts
 
   database:
     name: Database migrations and pgTAP tests
