@@ -202,14 +202,15 @@ const makeSharedSchedule = ({
   };
 };
 
-// "or propose a time" seeds the composer with today at 18:00 (GroupScheduleHub), and
-// the composer rejects past start times. Pin the clock to the morning so these tests
-// do not fail when run after 6 PM. Only Date is faked; timers stay real for waitFor.
-const pinClockBeforeDefaultProposeTime = () => {
-  const morning = new Date();
-  morning.setHours(10, 0, 0, 0);
+// "or propose a time" used to seed today 18:00 even after 18:00, which the sheet rejects
+// as past (health audit #16). Pin the clock to the evening so these tests guard the fix.
+// Only Date is faked; timers stay real for waitFor.
+const pinClockToEvening = () => {
+  const evening = new Date();
+  evening.setHours(21, 0, 0, 0);
   vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(morning);
+  vi.setSystemTime(evening);
+  return evening;
 };
 
 describe('GroupDetails upload flow', () => {
@@ -373,7 +374,10 @@ describe('GroupDetails upload flow', () => {
   });
 
   it('proposes a meetup without creating or navigating into a cram session', async () => {
-    pinClockBeforeDefaultProposeTime();
+    const now = pinClockToEvening();
+    const tomorrowSixPm = new Date(now);
+    tomorrowSixPm.setDate(tomorrowSixPm.getDate() + 1);
+    tomorrowSixPm.setHours(18, 0, 0, 0);
     renderGroupDetails();
 
     await waitFor(() => {
@@ -399,6 +403,7 @@ describe('GroupDetails upload flow', () => {
         expect.objectContaining({
           topic: 'Chapter 5 review',
           location_label: 'Library East',
+          start_at: tomorrowSixPm.toISOString(),
         }),
       );
     });
@@ -631,7 +636,7 @@ describe('GroupDetails upload flow', () => {
   });
 
   it('keeps the meetup composer open and shows an error when creating a meetup fails', async () => {
-    pinClockBeforeDefaultProposeTime();
+    pinClockToEvening();
     authApi.createGroupMeetup.mockRejectedValueOnce(new Error('Create failed'));
 
     renderGroupDetails();

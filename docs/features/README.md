@@ -46,7 +46,8 @@ the backend made) and `summary.json`. Details: [`.claude/skills/riven-verify/SKI
 | [Canvas sync](./canvas-sync.md) | `canvas-sync` | paste feed → courses + assignments imported | native school search, auto-sync cron, semester cleanup |
 | [Billing / paywall](./billing-paywall.md) | `billing-paywall` | quota exhausted → paywall, no AI call; Upgrade → Stripe Checkout redirect | webhook → premium, portal, RevenueCat (iOS) |
 
-`sign-in` covers email/password login and the account-to-auth link.
+`sign-in` covers email/password login and the account-to-auth link. `group-propose`
+covers creating a study group and proposing a session in the evening (audit #16).
 
 ## What the stack fakes (and what it does not)
 

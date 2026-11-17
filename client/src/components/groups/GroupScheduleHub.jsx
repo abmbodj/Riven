@@ -24,9 +24,12 @@ import WeekAvailabilityHeatmap from './schedule/WeekAvailabilityHeatmap.jsx';
 import UpcomingSessions from './schedule/UpcomingSessions.jsx';
 import MonthOverview from './schedule/MonthOverview.jsx';
 import ProposeSessionSheet from './schedule/ProposeSessionSheet.jsx';
+import { nextUpcomingAt } from '../../utils/proposeDefaults';
 import SessionDetailSheet from './schedule/SessionDetailSheet.jsx';
 
 const EMPTY_ARRAY = [];
+// Default hour for a proposed session; the day moves forward when it has passed.
+const DEFAULT_PROPOSE_HOUR = 18;
 const schedulePanelClass = 'glass-panel-premium rounded-[1.5rem] border border-white/10 shadow-[0_18px_42px_rgba(3,7,11,0.2)]';
 
 function cellKey(dayOfWeek, hour) {
@@ -149,7 +152,7 @@ export default function GroupScheduleHub({
     // External "+" trigger from the page header.
     useEffect(() => {
         if (!composerRequestKey) return;
-        openPropose(startOfDay(selectedDate || new Date()), 18);
+        openPropose(startOfDay(nextUpcomingAt(selectedDate || new Date(), DEFAULT_PROPOSE_HOUR)), DEFAULT_PROPOSE_HOUR);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [composerRequestKey]);
 
@@ -408,7 +411,7 @@ export default function GroupScheduleHub({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => openPropose(startOfDay(new Date()), 18)}
+                                        onClick={() => openPropose(startOfDay(nextUpcomingAt(new Date(), DEFAULT_PROPOSE_HOUR)), DEFAULT_PROPOSE_HOUR)}
                                         className="text-[11px] font-semibold text-claude-secondary underline-offset-4 hover:text-claude-text hover:underline"
                                     >
                                         or propose a time
