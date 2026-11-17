@@ -13,7 +13,12 @@ const GATEWAY_TIER_BY_STORED_TIER = new Map([
   ['lifetime', 'supporter'],
 ]);
 
-/** The gateway knows only 'free' and 'supporter'; lifetime buys the supporter budget. */
+/**
+ * The gateway knows only 'free' and 'supporter'; lifetime buys the supporter budget.
+ *
+ * @param {string | null | undefined} storedTier  users.subscription_tier
+ * @returns {'free' | 'supporter'}
+ */
 export const gatewayTierFor = (storedTier) => GATEWAY_TIER_BY_STORED_TIER.get(storedTier) ?? 'free';
 
 const DEFAULT_PUSH_TIMEOUT_MS = 3000;
