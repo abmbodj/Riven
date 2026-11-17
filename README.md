@@ -165,6 +165,7 @@ Common secrets used by functions include:
 | `CLIENT_URL`, `FRONTEND_URL`, `ALLOWED_ORIGINS` | CORS and redirect origins, especially for Capacitor origins |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email delivery |
 | `OPENAI_API_KEY`, `AI_DRAFT_MODEL`, `AI_FINAL_MODEL`, `AI_GRADING_MODEL`, `AI_YOUTUBE_NOTES_MODEL`, `AI_JOB_RUNNER_SECRET` | Edge AI generation and queued jobs. Defaults use `gpt-5.4-mini`; model overrides must be valid OpenAI model IDs. Legacy Groq model IDs fall back to the default; update overrides to valid OpenAI model IDs. |
+| `LLM_GATEWAY_BASE_URL`, `LLM_GATEWAY_APP_KEY` | Optional. When both are set, chat completions for a signed-in user go through the LLM gateway (base URL ends in `/v1`). Audio and calls without a user stay on OpenAI. |
 | `RC_WEBHOOK_SECRET`, `RC_SECRET_KEY`, `RC_IOS_API_KEY` | RevenueCat webhooks and sync |
 | `CANVAS_AUTO_SYNC_SECRET` | Scheduled Canvas sync protection |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Edge rate limit backend |

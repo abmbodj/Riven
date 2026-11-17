@@ -66,3 +66,40 @@ Deno.test('old provider model overrides cannot leak into OpenAI requests', async
   assertEquals(resolveOpenAiModel('meta-llama/llama-4-scout-17b-16e-instruct', 'gpt-5.4-mini'), 'gpt-5.4-mini');
   assertEquals(resolveOpenAiModel('gpt-5.4-mini', 'fallback'), 'gpt-5.4-mini');
 });
+
+Deno.test('LLM gateway routing', async (t) => {
+  const { createAiClient } = await import('./aiClient.ts');
+  const gateway = { baseURL: 'http://gateway.test/v1', appKey: 'riven-app-key' };
+  const recordingFetch = (requests: Request[]): typeof fetch => async (input, init) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    if (new URL(request.url).pathname.endsWith('/audio/transcriptions')) return Response.json({ text: 'hello', segments: [] });
+    return new Response('data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
+  };
+  const stream = async (client: ReturnType<typeof createAiClient>) => {
+    for await (const _ of client.streamContent({ model: 'gpt-5.4-mini', messages: [{ role: 'user', content: 'Hi' }], maxTokens: 30 })) { /* drain */ }
+  };
+
+  await t.step('chat for a known user goes through the gateway with the app key and user id', async () => {
+    const requests: Request[] = [];
+    await stream(createAiClient('openai-key', recordingFetch(requests), { feature: 'tutor', userId: 42 }, gateway));
+    assertEquals(requests[0].url, 'http://gateway.test/v1/chat/completions');
+    assertEquals(requests[0].headers.get('authorization'), 'Bearer riven-app-key');
+    assertEquals(requests[0].headers.get('x-end-user-id'), '42');
+  });
+
+  await t.step('audio stays on OpenAI even when the gateway is configured', async () => {
+    const requests: Request[] = [];
+    await createAiClient('openai-key', recordingFetch(requests), { feature: 'notes', userId: 42 }, gateway)
+      .transcribeAudioWithSegments(new Blob(['audio'], { type: 'audio/wav' }), 'sample.wav');
+    assertEquals(new URL(requests[0].url).hostname, 'api.openai.com');
+    assertEquals(requests[0].headers.get('authorization'), 'Bearer openai-key');
+  });
+
+  await t.step('chat without a user stays on OpenAI', async () => {
+    const requests: Request[] = [];
+    await stream(createAiClient('openai-key', recordingFetch(requests), { feature: 'grading' }, gateway));
+    assertEquals(new URL(requests[0].url).hostname, 'api.openai.com');
+    assertEquals(requests[0].headers.get('x-end-user-id'), null);
+  });
+});
