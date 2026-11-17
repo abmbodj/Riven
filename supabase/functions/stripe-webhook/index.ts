@@ -5,6 +5,7 @@ import { reportEdgeException } from '../_shared/sentry.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { getStripeClient } from '../_shared/stripe.ts';
+import { pushTierFromEdge } from '../_shared/llmGatewayTier.ts';
 import { processStripeWebhookEvent } from '../_shared/stripeWebhookCore.mjs';
 
 type CheckoutUpdatePayload = {
@@ -255,8 +256,9 @@ serve(async (request) => {
       return jsonResponse({ received: true, duplicate: true }, {}, request);
     }
 
+    let result;
     try {
-      await processStripeWebhookEvent({
+      result = await processStripeWebhookEvent({
         event,
         stripe,
         persistence,
@@ -267,6 +269,8 @@ serve(async (request) => {
       await releaseEvent(event.id).catch(() => {});
       throw processingError;
     }
+
+    await pushTierFromEdge(result.tierPush, { request, functionName: 'stripe-webhook' });
 
     // Best-effort cleanup of old idempotency rows after a successful process.
     await cleanupOldEvents().catch(() => {});

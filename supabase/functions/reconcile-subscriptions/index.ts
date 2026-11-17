@@ -20,6 +20,8 @@ import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { getStripeClient } from '../_shared/stripe.ts';
+import { pushTierFromEdge } from '../_shared/llmGatewayTier.ts';
+import { gatewayTierFor } from '../_shared/llmGatewayTierCore.mjs';
 
 const BATCH_SIZE = 50;
 
@@ -144,6 +146,10 @@ const reconcileUser = async (
     return { userId, action: 'skipped', reason: 'not-yet-expired' };
   }
 
+  // The gateway push is versioned by when we asked the provider, taken before the request so
+  // that any provider change we might not have seen carries a newer webhook version and wins.
+  const providerReadAtMs = Date.now();
+
   // Determine provider and fetch authoritative state.
   let providerResult: { tier: 'supporter' | 'free'; expiresAt: string | null } | null = null;
 
@@ -207,6 +213,10 @@ const reconcileUser = async (
         reconciledAt: new Date().toISOString(),
       },
     }]).then(() => {}).catch(() => {});
+    await pushTierFromEdge(
+      { userId, tier: gatewayTierFor(updatedUser.subscription_tier), version: providerReadAtMs },
+      { functionName: 'reconcile-subscriptions' },
+    );
   }
 
   return { userId, action: 'downgraded' };

@@ -1,4 +1,12 @@
+import { gatewayTierFor } from './llmGatewayTierCore.mjs';
 import { isPremiumActive } from './premiumAccess.mjs';
+
+// Stripe stamps events in whole seconds; the gateway orders pushes by this version.
+const gatewayTierPush = (event, userId, storedTier) => ({
+  userId: Number(userId),
+  tier: gatewayTierFor(storedTier),
+  version: event.created * 1000,
+});
 
 const resolveEntityId = (value) => {
   if (!value) return null;
@@ -174,7 +182,7 @@ export const processStripeWebhookEvent = async ({
         }
       }
 
-      return { outcome: 'checkout-updated', tier };
+      return { outcome: 'checkout-updated', tier, tierPush: gatewayTierPush(event, userId, tier) };
     }
 
     case 'invoice.paid': {
@@ -245,6 +253,7 @@ export const processStripeWebhookEvent = async ({
         return {
           outcome: 'subscription-delete-downgraded-by-customer-id',
           notified,
+          tierPush: gatewayTierPush(event, downgradedByCustomerId.id, downgradedByCustomerId.subscription_tier),
         };
       }
 
@@ -264,6 +273,9 @@ export const processStripeWebhookEvent = async ({
         return {
           outcome: 'subscription-delete-downgraded-by-email',
           notified,
+          tierPush: downgradedByEmail?.id
+            ? gatewayTierPush(event, downgradedByEmail.id, downgradedByEmail.subscription_tier)
+            : null,
         };
       }
 

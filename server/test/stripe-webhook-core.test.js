@@ -58,6 +58,7 @@ describe('Stripe webhook core processor', () => {
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'checkout.session.completed',
+                created: 1_760_000_000,
                 data: {
                     object: {
                         id: 'cs_123',
@@ -73,7 +74,11 @@ describe('Stripe webhook core processor', () => {
             logger,
         });
 
-        expect(result).toEqual({ outcome: 'checkout-updated', tier: 'supporter' });
+        expect(result).toEqual({
+            outcome: 'checkout-updated',
+            tier: 'supporter',
+            tierPush: { userId: 42, tier: 'supporter', version: 1_760_000_000_000 },
+        });
         expect(persistence.updateUserFromCheckout).toHaveBeenCalledWith(expect.objectContaining({
             userId: 42,
             tier: 'supporter',
@@ -97,6 +102,7 @@ describe('Stripe webhook core processor', () => {
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'checkout.session.completed',
+                created: 1_760_000_100,
                 data: {
                     object: {
                         id: 'cs_lifetime',
@@ -112,7 +118,12 @@ describe('Stripe webhook core processor', () => {
             logger,
         });
 
-        expect(result).toEqual({ outcome: 'checkout-updated', tier: 'lifetime' });
+        // The gateway has no lifetime tier; lifetime gets the supporter budget.
+        expect(result).toEqual({
+            outcome: 'checkout-updated',
+            tier: 'lifetime',
+            tierPush: { userId: 7, tier: 'supporter', version: 1_760_000_100_000 },
+        });
         // Lifetime: no expiry
         expect(persistence.updateUserFromCheckout).toHaveBeenCalledWith(expect.objectContaining({
             tier: 'lifetime',
@@ -140,6 +151,7 @@ describe('Stripe webhook core processor', () => {
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'checkout.session.completed',
+                created: 1_760_000_200,
                 data: {
                     object: {
                         id: 'cs_annual',
@@ -155,7 +167,11 @@ describe('Stripe webhook core processor', () => {
             logger,
         });
 
-        expect(result).toEqual({ outcome: 'checkout-updated', tier: 'supporter' });
+        expect(result).toEqual({
+            outcome: 'checkout-updated',
+            tier: 'supporter',
+            tierPush: { userId: 9, tier: 'supporter', version: 1_760_000_200_000 },
+        });
         expect(stripe.subscriptions.cancel).toHaveBeenCalledTimes(1);
         expect(stripe.subscriptions.cancel).toHaveBeenCalledWith('sub_old');
     });
@@ -291,6 +307,7 @@ describe('Stripe webhook core processor', () => {
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'customer.subscription.deleted',
+                created: 1_760_000_300,
                 data: {
                     object: {
                         id: 'sub_expired',
@@ -307,6 +324,7 @@ describe('Stripe webhook core processor', () => {
         expect(result).toEqual({
             outcome: 'subscription-delete-downgraded-by-customer-id',
             notified: true,
+            tierPush: { userId: 13, tier: 'free', version: 1_760_000_300_000 },
         });
         // expiresAt derived from current_period_end
         expect(persistence.downgradeUserByCustomerId).toHaveBeenCalledWith(
@@ -337,6 +355,7 @@ describe('Stripe webhook core processor', () => {
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'customer.subscription.deleted',
+                created: 1_760_000_400,
                 data: {
                     object: {
                         id: 'sub_admin_expired',
@@ -352,6 +371,7 @@ describe('Stripe webhook core processor', () => {
         expect(result).toEqual({
             outcome: 'subscription-delete-downgraded-by-customer-id',
             notified: false,
+            tierPush: { userId: 14, tier: 'free', version: 1_760_000_400_000 },
         });
         expect(persistence.createUserNotification).not.toHaveBeenCalled();
     });
@@ -376,6 +396,7 @@ describe('Stripe webhook core processor', () => {
         const result = await processStripeWebhookEvent({
             event: {
                 type: 'customer.subscription.deleted',
+                created: 1_760_000_500,
                 data: {
                     object: {
                         id: 'sub_email_fallback',
@@ -391,6 +412,7 @@ describe('Stripe webhook core processor', () => {
         expect(result).toEqual({
             outcome: 'subscription-delete-downgraded-by-email',
             notified: true,
+            tierPush: { userId: 15, tier: 'free', version: 1_760_000_500_000 },
         });
         expect(persistence.downgradeUserByEmail).toHaveBeenCalledWith('test@example.com', null);
     });

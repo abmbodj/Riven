@@ -1,3 +1,4 @@
+import { gatewayTierFor } from './llmGatewayTierCore.mjs';
 import { isPremiumActive } from './premiumAccess.mjs';
 
 export const tierFromRevenueCatEvent = (type) => {
@@ -31,6 +32,13 @@ const expiresAtFromEvent = (event) => {
   if (!ms) return null;
   return new Date(ms).toISOString();
 };
+
+/**
+ * The gateway orders tier pushes by this version. A purchase's expiration_at_ms lies in the
+ * future and would outrank every later push, so it is only a fallback for EXPIRATION.
+ */
+const gatewayVersionFromEvent = (event) => event.event_timestamp_ms
+  ?? (event.type === 'EXPIRATION' ? event.expiration_at_ms : event.purchased_at_ms);
 
 export const processRevenueCatWebhookEvent = async ({
   event,
@@ -87,5 +95,10 @@ export const processRevenueCatWebhookEvent = async ({
     outcome: newTier === 'free' ? 'downgraded' : 'upgraded',
     tier: newTier,
     notified,
+    tierPush: {
+      userId: Number(updatedUser.id),
+      tier: gatewayTierFor(updatedUser.subscription_tier),
+      version: gatewayVersionFromEvent(event),
+    },
   };
 };
