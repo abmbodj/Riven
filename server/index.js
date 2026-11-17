@@ -22,7 +22,6 @@ const registerAuthRoutes = require('./routes/auth');
 const registerHealthRoutes = require('./routes/health');
 const registerLMSRoutes = require('./routes/lms');
 const registerHeartsRoutes = require('./routes/hearts');
-const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
 const registerStripeRoutes = require('./routes/stripe');
 const registerStudyRoutes = require('./routes/study');
@@ -179,11 +178,9 @@ app.use(helmet({
 
 app.use(compression());
 app.use(cookieParser());
-// Stripe webhook needs raw body for signature verification
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '1mb' }));
 
-// Preserve raw Stripe webhook bodies; sanitize other input in non-test environments.
+// Sanitize request input in non-test environments.
 if (process.env.NODE_ENV !== 'test') app.use(sanitizeRequest);
 
 app.use('/api/', apiLimiter);
@@ -196,9 +193,6 @@ const CSRF_HEADER = 'x-csrf-token';
 const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 app.use('/api/', (req, res, next) => {
-    // Skip for webhook endpoints (server-to-server, verified by signature)
-    if (req.path.startsWith('/webhooks/')) return next();
-
     const existingCsrf = req.cookies[CSRF_COOKIE];
     const csrfToken = existingCsrf || crypto.randomBytes(32).toString('hex');
     res.locals.csrfToken = csrfToken;
@@ -421,7 +415,6 @@ registerStudyRoutes({ app, db, authMiddleware });
 
 // ============ WEBHOOKS ============
 
-registerWebhooksRoutes({ app, db });
 
 // ============ STRIPE ============
 const stripeRouter = registerStripeRoutes({ db });

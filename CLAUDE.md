@@ -16,8 +16,8 @@ groups, gamified garden). Monorepo with three deploy targets.
   groups, admin, payments-sync, and social features route here via
   `edgeFunctionFetch` (`client/src/api/authApi.js`).
 - **`server/`** — Express 5 on Render. A **legacy bridge**, not the main backend.
-  It handles only: 2FA-enabled OAuth, Canvas/LMS iCal, Stripe checkout/portal/
-  webhooks, hearts, referrals, shared-resource accept, and the Supabase
+  It handles only: 2FA-enabled OAuth, Canvas/LMS iCal, Stripe checkout/portal,
+  hearts, referrals, shared-resource accept, and the Supabase
   email/recovery bridge. The AI/study/groups/admin Express routes were dead code
   and were removed in the 2026-06 remediation — do not re-add them; add features as
   edge functions.
@@ -63,8 +63,10 @@ npx supabase functions deploy <function-name> # deploy only changed function
 ## Active Server Routes
 
 The live Express routes in `server/routes/` are: `auth`, `health`, `hearts`, `lms`,
-`referrals`, `stripe`, `study`, `webhooks`. All other feature routes were removed in
+`referrals`, `stripe`, `study`. All other feature routes were removed in
 the 2026-06 remediation. Do not add new feature routes here — add edge functions.
+Stripe webhooks are handled only by the `stripe-webhook` edge function (the Express copy
+was removed in 2026-11); verify changes with `riven-verify run stripe-webhook`.
 
 ## authApi.js Modularization (RIV-025)
 

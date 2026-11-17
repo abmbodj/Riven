@@ -10,7 +10,6 @@ function sanitizeDeep(value) {
 }
 
 function sanitizeRequest(req, res, next) {
-    if (req.path === '/api/webhooks/stripe') return next();
     if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
         req.body = sanitizeDeep(req.body);
     }

@@ -9,6 +9,11 @@ module.exports = function ({ db }) {
         console.warn('[Stripe] STRIPE_SECRET_KEY not set — skipping Stripe routes');
         return router;
     }
+    // Moved from the removed Express webhook route: never run production on a test key.
+    if (process.env.NODE_ENV === 'production' && !process.env.STRIPE_SECRET_KEY.startsWith('sk_live_')) {
+        console.error('[Stripe] FATAL: Production environment using non-live Stripe key. Refusing to start.');
+        throw new Error('STRIPE_SECRET_KEY must be a live key in production');
+    }
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
     // ── Server-side Price ID Allowlist ─────────────────────────────
